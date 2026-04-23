@@ -1,0 +1,306 @@
+# Reference AML spec for a US community bank.
+# Illustrative only — thresholds and typologies must be tuned per institution.
+
+version: 1
+
+program:
+  name: community_bank_aml
+  jurisdiction: US
+  regulator: FinCEN
+  owner: chief_compliance_officer
+  effective_date: 2026-01-01
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,      type: string,    nullable: false, pii: false }
+      - { name: customer_id, type: string,    nullable: false, pii: true  }
+      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,    type: string,    nullable: false }
+      - { name: channel,     type: string,    enum: [cash, wire, ach, card] }
+      - { name: direction,   type: string,    enum: [in, out] }
+      - { name: booked_at,   type: timestamp, nullable: false }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id, type: string,    nullable: false, pii: true }
+      - { name: full_name,   type: string,    nullable: false, pii: true }
+      - { name: country,     type: string,    nullable: false }
+      - { name: risk_rating, type: string,    enum: [low, medium, high] }
+      - { name: onboarded_at, type: timestamp, nullable: false }
+
+rules:
+  - id: structuring_cash_deposits
+    name: Cash structuring — just-below-threshold deposits
+    severity: high
+    regulation_refs:
+      - citation: "31 CFR 1010.314"
+        description: "Prohibition on structuring transactions to evade reporting."
+      - citation: "31 CFR 1020.320"
+        description: "SAR filing required for suspected structuring."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+        direction: in
+        amount: { between: [7000, 9999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 25000 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - prior_alerts_90d
+    tags: [structuring, cash]
+
+  - id: rapid_movement_cash_to_wire
+    name: Rapid movement — cash in followed by outgoing wire
+    severity: medium
+    regulation_refs:
+      - citation: "FinCEN Advisory FIN-2014-A005"
+        description: "Pass-through typology associated with layering."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: { in: [cash, wire] }
+      group_by: [customer_id]
+      window: 7d
+      having:
+        sum_amount: { gte: 50000 }
+        count:      { gte: 4 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [rapid_movement, layering]
+
+workflow:
+  queues:
+    - id: l1_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [sar_filing, closed_no_action]
+    - id: sar_filing
+      sla: 30d
+      regulator_form: FinCEN_SAR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    FinCEN_SAR:
+      template: fincen_sar_v2
+      mandatory_fields: [subject, narrative, triggering_rules, transactions]
+    FinCEN_CTR:
+      template: fincen_ctr_v1
+      trigger:
+        channel: cash
+        aggregate_day: { gte: 10000 }
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 7y
+
+# ---------------------------------------------------------------------------
+# Business metrics & reporting
+# ---------------------------------------------------------------------------
+# Each metric declares who cares about it (audience) and who is accountable
+# for its RAG colour (owner). Reports stitch metrics into role-specific views
+# so every seat in the program looks at numbers relevant to their decisions.
+# ---------------------------------------------------------------------------
+
+metrics:
+  - id: alert_volume_total
+    name: Total alerts produced
+    category: operational
+    audience: [director, manager, analyst, developer]
+    owner: head_of_financial_crime_ops
+    formula:
+      type: count
+      source: alerts
+    thresholds:
+      green: { lte: 50 }
+      amber: { between: [51, 200] }
+      red:   { gt: 200 }
+
+  - id: high_severity_alert_ratio
+    name: High-severity alert share
+    category: risk
+    audience: [svp, vp, director]
+    owner: chief_compliance_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: alerts
+        filter: { rule_id: { in: [structuring_cash_deposits] } }
+      denominator:
+        type: count
+        source: alerts
+    target: { lte: 0.6 }
+    thresholds:
+      green: { lte: 0.6 }
+      amber: { lte: 0.85 }
+      red:   { gt:  0.85 }
+
+  - id: typology_coverage
+    name: Typology coverage — rules that fired / all tagged rules
+    category: effectiveness
+    audience: [vp, director, manager]
+    owner: mlro
+    unit: "%"
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+    target: { gte: 0.5 }
+    thresholds:
+      green: { gte: 0.5 }
+      amber: { gte: 0.25 }
+      red:   { lt:  0.25 }
+
+  - id: cases_opened
+    name: Cases opened this run
+    category: operational
+    audience: [manager, analyst, developer]
+    owner: head_of_financial_crime_ops
+    formula:
+      type: count
+      source: cases
+
+  - id: cases_routed_to_l1
+    name: Cases routed to L1 analyst queue
+    category: operational
+    audience: [manager, pm]
+    owner: l1_team_lead
+    formula:
+      type: count
+      source: cases
+      filter: { queue: l1_analyst }
+
+  - id: distinct_customers_alerted
+    name: Distinct customers alerted
+    category: risk
+    audience: [vp, director, business]
+    owner: chief_compliance_officer
+    formula:
+      type: count
+      source: alerts
+      distinct_by: customer_id
+
+  - id: transaction_volume_usd
+    name: Total transaction volume screened
+    category: operational
+    audience: [director, manager, business, developer]
+    owner: data_platform_lead
+    unit: USD
+    formula:
+      type: sum
+      source: txn
+      field: amount
+
+  - id: high_severity_rules_active
+    name: Active high-severity rules
+    category: delivery
+    audience: [pm, developer, vp]
+    owner: aml_program_manager
+    formula:
+      type: count
+      source: rules
+      filter: { severity: high, status: active }
+    thresholds:
+      green: { gte: 2 }
+      amber: { eq: 1 }
+      red:   { eq: 0 }
+
+reports:
+  - id: svp_exec_brief
+    title: SVP executive brief
+    audience: svp
+    cadence: quarterly
+    sections:
+      - title: Outcomes
+        metrics: [high_severity_alert_ratio, typology_coverage]
+        commentary: >
+          Share of alerts coming from our most severe typology, and how
+          well the detection catalogue covers the typologies we declared
+          in our risk assessment.
+      - title: Exposure
+        metrics: [distinct_customers_alerted, transaction_volume_usd]
+
+  - id: vp_compliance_review
+    title: VP compliance review
+    audience: vp
+    cadence: monthly
+    sections:
+      - title: Program effectiveness
+        metrics: [typology_coverage, high_severity_alert_ratio]
+      - title: Volume & exposure
+        metrics: [alert_volume_total, distinct_customers_alerted]
+      - title: Catalogue health
+        metrics: [high_severity_rules_active]
+
+  - id: director_program_health
+    title: Director monthly program health
+    audience: director
+    cadence: monthly
+    sections:
+      - title: Demand
+        metrics: [alert_volume_total, cases_opened, distinct_customers_alerted]
+      - title: Coverage
+        metrics: [typology_coverage]
+      - title: Risk mix
+        metrics: [high_severity_alert_ratio]
+
+  - id: manager_weekly
+    title: Operations manager weekly
+    audience: manager
+    cadence: weekly
+    sections:
+      - title: Queue load
+        metrics: [cases_opened, cases_routed_to_l1, alert_volume_total]
+
+  - id: pm_delivery
+    title: Program PM delivery view
+    audience: pm
+    cadence: weekly
+    sections:
+      - title: Rule catalogue
+        metrics: [high_severity_rules_active]
+      - title: Throughput
+        metrics: [cases_routed_to_l1]
+
+  - id: developer_runtime
+    title: Platform engineering — rule runtime health
+    audience: developer
+    cadence: daily
+    sections:
+      - title: Throughput
+        metrics: [alert_volume_total, cases_opened, transaction_volume_usd]
+      - title: Catalogue
+        metrics: [high_severity_rules_active]
+
+  - id: business_owner_daily
+    title: Business owner daily pulse
+    audience: business
+    cadence: daily
+    sections:
+      - title: Today's picture
+        metrics: [distinct_customers_alerted, transaction_volume_usd]
