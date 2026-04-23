@@ -86,6 +86,149 @@ rules:
       - customer_kyc_profile
     tags: [rapid_movement, layering]
 
+  - id: high_risk_jurisdiction
+    name: Significant activity from FATF high-risk jurisdiction
+    severity: high
+    regulation_refs:
+      - citation: "31 CFR 1010.610"
+        description: "Enhanced due diligence for correspondent accounts."
+      - citation: "FATF Recommendation 19"
+        description: "Higher-risk countries — enhanced measures required."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'high_risk_jurisdiction' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN customer c ON t.customer_id = c.customer_id
+        WHERE c.country IN ('RU', 'IR', 'KP', 'MM', 'SY')
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 5000
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - jurisdiction_risk_assessment
+    tags: [high_risk_jurisdiction, geographic_risk]
+
+  - id: large_cash_ctr
+    name: Cash activity exceeding CTR threshold ($10,000/day)
+    severity: medium
+    regulation_refs:
+      - citation: "31 CFR 1010.311"
+        description: "Filing obligations for currency transactions over $10,000."
+      - citation: "31 CFR 1020.315"
+        description: "Aggregation of multiple currency transactions."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+      group_by: [customer_id]
+      window: 1d
+      having:
+        sum_amount: { gte: 10000 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [ctr, cash, regulatory_reporting]
+
+  - id: unusual_volume_spike
+    name: Unusual volume spike — recent activity far exceeds baseline
+    severity: medium
+    regulation_refs:
+      - citation: "FinCEN Advisory FIN-2006-A003"
+        description: "Potential suspicious activity — unusual transactions inconsistent with profile."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH recent AS (
+            SELECT customer_id, SUM(amount) AS recent_total
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{recent_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+            GROUP BY customer_id
+        ),
+        baseline AS (
+            SELECT customer_id, SUM(amount) / 4.0 AS weekly_avg
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{baseline_start}'
+              AND booked_at <  TIMESTAMP '{recent_start}'
+            GROUP BY customer_id
+            HAVING COUNT(*) >= 2
+        )
+        SELECT
+            'unusual_volume_spike' AS rule_id,
+            r.customer_id,
+            r.recent_total AS sum_amount,
+            b.weekly_avg AS baseline_avg,
+            r.recent_total / NULLIF(b.weekly_avg, 0) AS spike_ratio,
+            TIMESTAMP '{recent_start}' AS window_start,
+            TIMESTAMP '{as_of}' AS window_end
+        FROM recent r
+        JOIN baseline b ON r.customer_id = b.customer_id
+        WHERE r.recent_total > b.weekly_avg * 5
+          AND r.recent_total >= 5000
+        ORDER BY r.customer_id
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - historical_transaction_profile
+    tags: [unusual_activity, behavioral]
+
+  - id: dormant_account_activity
+    name: Dormant account reactivation with large transaction
+    severity: high
+    regulation_refs:
+      - citation: "FinCEN Advisory FIN-2006-A003"
+        description: "Potential suspicious activity — dormant accounts with sudden large transactions."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH last_activity AS (
+            SELECT customer_id, MAX(booked_at) AS last_txn_date
+            FROM txn
+            WHERE booked_at < TIMESTAMP '{dormant_cutoff}'
+            GROUP BY customer_id
+        ),
+        recent_large AS (
+            SELECT customer_id, SUM(amount) AS sum_amount,
+                   COUNT(*) AS count,
+                   MIN(booked_at) AS window_start,
+                   MAX(booked_at) AS window_end
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{dormant_cutoff}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+              AND amount >= 10000
+            GROUP BY customer_id
+        )
+        SELECT
+            'dormant_account_activity' AS rule_id,
+            r.customer_id,
+            r.sum_amount,
+            r.count,
+            r.window_start,
+            r.window_end
+        FROM recent_large r
+        JOIN last_activity la ON r.customer_id = la.customer_id
+        ORDER BY r.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - account_activity_history
+    tags: [dormant_account, behavioral]
+
 workflow:
   queues:
     - id: l1_analyst
@@ -230,6 +373,90 @@ metrics:
       amber: { eq: 1 }
       red:   { eq: 0 }
 
+  - id: rules_active_count
+    name: Total active rules deployed
+    category: delivery
+    audience: [svp, vp, director, pm, developer]
+    owner: aml_program_manager
+    formula:
+      type: count
+      source: rules
+      filter: { status: active }
+    thresholds:
+      green: { gte: 5 }
+      amber: { gte: 3 }
+      red:   { lt: 3 }
+
+  - id: false_positive_rate
+    name: Estimated false positive rate
+    description: Ratio of alerts not resulting in SAR escalation (proxy in demo)
+    category: effectiveness
+    audience: [svp, vp, director, manager]
+    owner: chief_compliance_officer
+    unit: "%"
+    formula:
+      type: sql
+      sql: "SELECT 1.0 - (CAST(sar_count AS FLOAT) / NULLIF(total, 0)) FROM ..."
+    target: { lte: 0.85 }
+    thresholds:
+      green: { lte: 0.7 }
+      amber: { lte: 0.85 }
+      red:   { gt:  0.85 }
+
+  - id: alert_to_sar_rate
+    name: Alert-to-SAR conversion rate
+    description: Proportion of alerts escalated to SAR filing queue
+    category: regulatory
+    audience: [svp, vp, director]
+    owner: chief_compliance_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: cases
+        filter: { queue: sar_filing }
+      denominator:
+        type: count
+        source: alerts
+    target: { gte: 0.1 }
+    thresholds:
+      green: { gte: 0.1 }
+      amber: { gte: 0.05 }
+      red:   { lt:  0.05 }
+
+  - id: sla_compliance_rate
+    name: SLA compliance rate
+    description: Percentage of cases resolved within queue SLA
+    category: operational
+    audience: [manager, director, vp]
+    owner: head_of_financial_crime_ops
+    unit: "%"
+    formula:
+      type: sql
+      sql: "SELECT CAST(on_time AS FLOAT) / NULLIF(total, 0) FROM ..."
+    target: { gte: 0.95 }
+    thresholds:
+      green: { gte: 0.95 }
+      amber: { gte: 0.85 }
+      red:   { lt:  0.85 }
+
+  - id: avg_resolution_hours
+    name: Average case resolution time
+    description: Mean hours from case open to disposition
+    category: operational
+    audience: [manager, director]
+    owner: head_of_financial_crime_ops
+    unit: hours
+    formula:
+      type: sql
+      sql: "SELECT AVG(resolution_hours) FROM ..."
+    target: { lte: 48 }
+    thresholds:
+      green: { lte: 24 }
+      amber: { lte: 48 }
+      red:   { gt:  48 }
+
 reports:
   - id: svp_exec_brief
     title: SVP executive brief
@@ -237,13 +464,15 @@ reports:
     cadence: quarterly
     sections:
       - title: Outcomes
-        metrics: [high_severity_alert_ratio, typology_coverage]
+        metrics: [high_severity_alert_ratio, typology_coverage, false_positive_rate]
         commentary: >
-          Share of alerts coming from our most severe typology, and how
+          Share of alerts coming from our most severe typology, how
           well the detection catalogue covers the typologies we declared
-          in our risk assessment.
+          in our risk assessment, and estimated false positive rate.
       - title: Exposure
         metrics: [distinct_customers_alerted, transaction_volume_usd]
+      - title: Program scale
+        metrics: [rules_active_count, alert_to_sar_rate]
 
   - id: vp_compliance_review
     title: VP compliance review
@@ -251,11 +480,11 @@ reports:
     cadence: monthly
     sections:
       - title: Program effectiveness
-        metrics: [typology_coverage, high_severity_alert_ratio]
+        metrics: [typology_coverage, high_severity_alert_ratio, alert_to_sar_rate]
       - title: Volume & exposure
         metrics: [alert_volume_total, distinct_customers_alerted]
       - title: Catalogue health
-        metrics: [high_severity_rules_active]
+        metrics: [high_severity_rules_active, rules_active_count]
 
   - id: director_program_health
     title: Director monthly program health
@@ -276,6 +505,8 @@ reports:
     sections:
       - title: Queue load
         metrics: [cases_opened, cases_routed_to_l1, alert_volume_total]
+      - title: Performance
+        metrics: [sla_compliance_rate, avg_resolution_hours]
 
   - id: pm_delivery
     title: Program PM delivery view

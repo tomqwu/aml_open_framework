@@ -29,6 +29,12 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.4",
 ]
+dashboard = [
+    "streamlit>=1.35",
+    "plotly>=5.22",
+    "streamlit-agraph>=0.0.45",
+    "pandas>=2.2",
+]
 
 [project.scripts]
 aml = "aml_framework.cli:app"

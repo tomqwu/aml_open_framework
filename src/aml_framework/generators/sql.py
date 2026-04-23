@@ -121,7 +121,17 @@ def compile_rule_sql(rule: Rule, as_of: datetime, source_table: str) -> str:
 
     if isinstance(logic, CustomSQLLogic):
         header = _rule_header(rule, as_of)
-        return f"{header}\n{logic.sql.strip()}\n"
+        # Substitute time-window template variables used by custom SQL rules.
+        sql = logic.sql.strip()
+        fmt = {
+            "as_of": as_of.isoformat(sep=" "),
+            "window_start": (as_of - timedelta(days=30)).isoformat(sep=" "),
+            "recent_start": (as_of - timedelta(days=7)).isoformat(sep=" "),
+            "baseline_start": (as_of - timedelta(days=37)).isoformat(sep=" "),
+            "dormant_cutoff": (as_of - timedelta(days=45)).isoformat(sep=" "),
+        }
+        sql = sql.format_map(fmt)
+        return f"{header}\n{sql}\n"
 
     if not isinstance(logic, AggregationWindowLogic):
         raise NotImplementedError(

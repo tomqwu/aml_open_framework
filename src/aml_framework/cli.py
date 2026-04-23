@@ -174,5 +174,29 @@ def export(
     console.print(f"[green]Bundle[/green] {out_path} (from {run_dir})")
 
 
+@app.command()
+def dashboard(
+    spec_path: Path = typer.Argument(
+        Path("examples/community_bank/aml.yaml"), exists=True, readable=True
+    ),
+    port: int = typer.Option(8501, help="Streamlit server port."),
+    seed: int = typer.Option(42, help="Synthetic data seed."),
+) -> None:
+    """Launch the interactive Streamlit demo dashboard."""
+    import subprocess
+    import sys
+
+    dashboard_app = Path(__file__).parent / "dashboard" / "app.py"
+    subprocess.run(
+        [
+            sys.executable, "-m", "streamlit", "run", str(dashboard_app),
+            "--server.port", str(port),
+            "--server.headless", "true",
+            "--", str(spec_path.resolve()), str(seed),
+        ],
+        check=False,
+    )
+
+
 if __name__ == "__main__":
     app()
