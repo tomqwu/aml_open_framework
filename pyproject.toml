@@ -35,6 +35,12 @@ dashboard = [
     "streamlit-agraph>=0.0.45",
     "pandas>=2.2",
 ]
+api = [
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "pyjwt>=2.8",
+    "psycopg2-binary>=2.9",
+]
 
 [project.scripts]
 aml = "aml_framework.cli:app"

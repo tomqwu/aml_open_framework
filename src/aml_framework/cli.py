@@ -198,5 +198,25 @@ def dashboard(
     )
 
 
+@app.command()
+def api(
+    port: int = typer.Option(8000, help="API server port."),
+    host: str = typer.Option("0.0.0.0", help="Bind address."),
+) -> None:
+    """Launch the FastAPI REST server."""
+    import subprocess
+    import sys
+
+    subprocess.run(
+        [
+            sys.executable, "-m", "uvicorn",
+            "aml_framework.api.main:app",
+            "--host", host,
+            "--port", str(port),
+        ],
+        check=False,
+    )
+
+
 if __name__ == "__main__":
     app()

@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: aml
+      POSTGRES_USER: aml
+      POSTGRES_PASSWORD: aml_dev_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aml"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    command: >
+      python -m uvicorn aml_framework.api.main:app
+      --host 0.0.0.0 --port 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://aml:aml_dev_password@postgres:5432/aml
+      JWT_SECRET: ${JWT_SECRET:-aml-framework-dev-secret}
+
+  dashboard:
+    build: .
+    command: >
+      python -m streamlit run src/aml_framework/dashboard/app.py
+      --server.port 8501 --server.headless true
+      -- examples/canadian_schedule_i_bank/aml.yaml 42
+    ports:
+      - "8501:8501"
+
+volumes:
+  pgdata:

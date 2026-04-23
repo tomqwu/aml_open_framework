@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -122,8 +123,37 @@ def run_spec(
     for rule in spec.rules:
         if rule.status != "active":
             continue
+
+        # --- python_ref: dynamically load and call the scorer ---
+        if rule.logic.type == "python_ref":
+            module_path, func_name = rule.logic.callable.split(":")
+            mod = importlib.import_module(module_path)
+            scorer = getattr(mod, func_name)
+            ledger.record_rule_sql(
+                rule.id,
+                f"-- rule '{rule.id}' executed via python_ref\n"
+                f"-- callable: {rule.logic.callable}\n"
+                f"-- model_id: {rule.logic.model_id}\n"
+                f"-- model_version: {rule.logic.model_version}\n",
+            )
+            alerts = scorer(con, as_of)
+            alerts_by_rule[rule.id] = alerts
+            ledger.record_alerts(rule.id, alerts)
+
+            for alert in alerts:
+                case = _build_case(rule, alert, spec, ledger.input_manifest)
+                ledger.record_case(case["case_id"], case)
+                case_ids.append(case["case_id"])
+                ledger.append_decision({
+                    "event": "case_opened",
+                    "case_id": case["case_id"],
+                    "rule_id": rule.id,
+                    "queue": rule.escalate_to,
+                })
+            continue
+
         if rule.logic.type not in ("aggregation_window", "custom_sql"):
-            # Parseable but not executable in the reference slice.
+            # list_match — parseable but not executable in reference engine.
             ledger.record_rule_sql(
                 rule.id,
                 f"-- rule '{rule.id}' logic type '{rule.logic.type}' "

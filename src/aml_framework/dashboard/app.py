@@ -88,6 +88,8 @@ pg = st.navigation([
     st.Page("pages/7_Audit_Evidence.py", title="Audit & Evidence", icon=":material/verified:"),
     st.Page("pages/8_Framework_Alignment.py", title="Framework Alignment", icon=":material/rule:"),
     st.Page("pages/9_Transformation_Roadmap.py", title="Transformation Roadmap", icon=":material/rocket_launch:"),
+    st.Page("pages/10_Network_Explorer.py", title="Network Explorer", icon=":material/hub:"),
+    st.Page("pages/11_Live_Monitor.py", title="Live Monitor", icon=":material/monitor_heart:"),
 ])
 
 pg.run()

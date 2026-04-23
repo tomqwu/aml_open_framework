@@ -340,6 +340,30 @@ rules:
       - account_activity_history
     tags: [dormant_account, behavioral]
 
+  # --- ML-DRIVEN BEHAVIORAL RISK SCORING ---
+  # Demonstrates the python_ref execution pipeline. The callable is a
+  # heuristic scorer (velocity, amount deviation, channel mixing) that
+  # returns customers with a composite risk score above threshold.
+  - id: ml_risk_scorer
+    name: ML-driven behavioral risk scoring
+    severity: medium
+    regulation_refs:
+      - citation: "OSFI Guideline E-23"
+        description: "Model risk management — models must be inventoried, validated, and monitored."
+      - citation: "PCMLTFR s.123.1"
+        description: "Ongoing monitoring using risk-based analytical tools."
+    logic:
+      type: python_ref
+      callable: "aml_framework.models.scoring:heuristic_risk_scorer"
+      model_id: heuristic_risk_v1
+      model_version: "1.0.0"
+    escalate_to: l1_aml_analyst
+    evidence:
+      - customer_transaction_profile
+      - model_score_breakdown
+      - historical_alert_history
+    tags: [behavioral, ml_scoring]
+
 # ---------------------------------------------------------------------------
 # Workflow — queues reflecting FINTRAC expectations
 # ---------------------------------------------------------------------------
