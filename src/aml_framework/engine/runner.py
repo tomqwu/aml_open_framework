@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,8 @@ import duckdb
 
 from aml_framework.engine.audit import AuditLedger
 from aml_framework.generators.sql import compile_rule_sql
+from aml_framework.metrics.engine import MetricResult, evaluate_metrics
+from aml_framework.metrics.reports import render_all_reports
 from aml_framework.spec.loader import spec_content_hash
 from aml_framework.spec.models import AMLSpec, Rule
 
@@ -20,6 +23,8 @@ class RunResult:
     manifest: dict[str, Any]
     alerts: dict[str, list[dict[str, Any]]]
     case_ids: list[str] = field(default_factory=list)
+    metrics: list[MetricResult] = field(default_factory=list)
+    reports: dict[str, str] = field(default_factory=dict)
 
     @property
     def total_alerts(self) -> int:
@@ -146,5 +151,47 @@ def run_spec(
                 "queue": rule.escalate_to,
             })
 
+    # Metrics are evaluated against the run's own artifacts so their values
+    # are part of the same evidence bundle as the alerts they describe.
+    cases_rows: list[dict[str, Any]] = []
+    for case_file in sorted((ledger.run_dir / "cases").glob("*.json")):
+        cases_rows.append(json.loads(case_file.read_bytes()))
+    decisions_rows: list[dict[str, Any]] = []
+    decisions_path = ledger.run_dir / "decisions.jsonl"
+    if decisions_path.exists():
+        for line in decisions_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                decisions_rows.append(json.loads(line))
+
+    metric_results = evaluate_metrics(
+        spec=spec,
+        alerts=alerts_by_rule,
+        cases=cases_rows,
+        decisions=decisions_rows,
+        data=data,
+    )
+    metrics_dir = ledger.run_dir / "metrics"
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+    (metrics_dir / "metrics.json").write_bytes(
+        json.dumps([m.to_dict() for m in metric_results], indent=2, sort_keys=True).encode("utf-8")
+    )
+
+    reports = render_all_reports(spec, metric_results)
+    reports_dir = ledger.run_dir / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    for report_id, markdown in reports.items():
+        (reports_dir / f"{report_id}.md").write_text(markdown, encoding="utf-8")
+
     manifest = ledger.finalize()
-    return RunResult(manifest=manifest, alerts=alerts_by_rule, case_ids=case_ids)
+    manifest["metrics"] = [m.to_dict() for m in metric_results]
+    manifest["reports"] = sorted(reports.keys())
+    (ledger.run_dir / "manifest.json").write_bytes(
+        json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
+    )
+    return RunResult(
+        manifest=manifest,
+        alerts=alerts_by_rule,
+        case_ids=case_ids,
+        metrics=metric_results,
+        reports=reports,
+    )

@@ -121,6 +121,79 @@ class Reporting(_Base):
     forms: dict[str, ReportingForm] = Field(default_factory=dict)
 
 
+Audience = Literal[
+    "svp", "vp", "director", "manager", "pm", "developer",
+    "business", "auditor", "analyst",
+]
+MetricCategory = Literal["operational", "effectiveness", "risk", "regulatory", "delivery"]
+Cadence = Literal["daily", "weekly", "monthly", "quarterly", "annual", "on_demand"]
+
+
+class CountFormula(_Base):
+    type: Literal["count"]
+    source: Literal["alerts", "cases", "decisions", "rules", "txn", "customer"]
+    filter: dict[str, Any] | None = None
+    distinct_by: str | None = None
+
+
+class SumFormula(_Base):
+    type: Literal["sum"]
+    source: Literal["alerts", "cases", "txn"]
+    field: str
+    filter: dict[str, Any] | None = None
+
+
+class RatioFormula(_Base):
+    type: Literal["ratio"]
+    numerator: "MetricFormula"
+    denominator: "MetricFormula"
+
+
+class CoverageFormula(_Base):
+    type: Literal["coverage"]
+    universe: Literal["typologies", "jurisdictions", "products"]
+    covered_by: Literal["rule_tags", "regulation_refs"]
+
+
+class SQLFormula(_Base):
+    type: Literal["sql"]
+    sql: str
+
+
+MetricFormula = Annotated[
+    Union[CountFormula, SumFormula, RatioFormula, CoverageFormula, SQLFormula],
+    Field(discriminator="type"),
+]
+RatioFormula.model_rebuild()
+
+
+class Metric(_Base):
+    id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    name: str
+    description: str | None = None
+    category: MetricCategory
+    audience: list[Audience] = Field(min_length=1)
+    owner: str | None = None
+    unit: str | None = None
+    formula: MetricFormula
+    target: dict[str, Any] | None = None
+    thresholds: dict[str, dict[str, Any]] | None = None
+
+
+class ReportSection(_Base):
+    title: str
+    metrics: list[str]
+    commentary: str | None = None
+
+
+class Report(_Base):
+    id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    title: str | None = None
+    audience: Audience
+    cadence: Cadence
+    sections: list[ReportSection]
+
+
 class AMLSpec(_Base):
     version: Literal[1]
     program: Program
@@ -129,6 +202,8 @@ class AMLSpec(_Base):
     workflow: Workflow
     reporting: Reporting | None = None
     retention_policy: dict[str, str] | None = None
+    metrics: list[Metric] = Field(default_factory=list)
+    reports: list[Report] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check_cross_references(self) -> "AMLSpec":
@@ -146,4 +221,14 @@ class AMLSpec(_Base):
                     f"rule '{rule.id}' escalates to unknown queue "
                     f"'{rule.escalate_to}'"
                 )
+
+        metric_ids = {m.id for m in self.metrics}
+        for report in self.reports:
+            for section in report.sections:
+                for m_id in section.metrics:
+                    if m_id not in metric_ids:
+                        raise ValueError(
+                            f"report '{report.id}' section '{section.title}' "
+                            f"references unknown metric '{m_id}'"
+                        )
         return self

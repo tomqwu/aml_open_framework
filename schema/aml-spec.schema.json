@@ -21,7 +21,15 @@
     },
     "workflow": { "$ref": "#/$defs/workflow" },
     "reporting": { "$ref": "#/$defs/reporting" },
-    "retention_policy": { "$ref": "#/$defs/retention_policy" }
+    "retention_policy": { "$ref": "#/$defs/retention_policy" },
+    "metrics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/metric" }
+    },
+    "reports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/report" }
+    }
   },
   "$defs": {
     "program": {
@@ -194,6 +202,129 @@
     "retention_policy": {
       "type": "object",
       "additionalProperties": { "type": "string", "pattern": "^[0-9]+[smhdy]$" }
+    },
+    "metric": {
+      "type": "object",
+      "required": ["id", "name", "category", "audience", "formula"],
+      "additionalProperties": false,
+      "properties": {
+        "id":       { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "name":     { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "category": {
+          "type": "string",
+          "enum": ["operational", "effectiveness", "risk", "regulatory", "delivery"]
+        },
+        "audience": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["svp", "vp", "director", "manager", "pm", "developer", "business", "auditor", "analyst"]
+          }
+        },
+        "owner":    { "type": "string" },
+        "unit":     { "type": "string" },
+        "formula":  { "$ref": "#/$defs/metric_formula" },
+        "target":   { "type": "object" },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "green": { "type": "object" },
+            "amber": { "type": "object" },
+            "red":   { "type": "object" }
+          }
+        }
+      }
+    },
+    "metric_formula": {
+      "oneOf": [
+        { "$ref": "#/$defs/formula_count" },
+        { "$ref": "#/$defs/formula_sum" },
+        { "$ref": "#/$defs/formula_ratio" },
+        { "$ref": "#/$defs/formula_coverage" },
+        { "$ref": "#/$defs/formula_sql" }
+      ]
+    },
+    "formula_count": {
+      "type": "object",
+      "required": ["type", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "type":   { "const": "count" },
+        "source": { "type": "string", "enum": ["alerts", "cases", "decisions", "rules", "txn", "customer"] },
+        "filter": { "type": "object" },
+        "distinct_by": { "type": "string" }
+      }
+    },
+    "formula_sum": {
+      "type": "object",
+      "required": ["type", "source", "field"],
+      "additionalProperties": false,
+      "properties": {
+        "type":   { "const": "sum" },
+        "source": { "type": "string", "enum": ["alerts", "cases", "txn"] },
+        "field":  { "type": "string" },
+        "filter": { "type": "object" }
+      }
+    },
+    "formula_ratio": {
+      "type": "object",
+      "required": ["type", "numerator", "denominator"],
+      "additionalProperties": false,
+      "properties": {
+        "type":        { "const": "ratio" },
+        "numerator":   { "$ref": "#/$defs/metric_formula" },
+        "denominator": { "$ref": "#/$defs/metric_formula" }
+      }
+    },
+    "formula_coverage": {
+      "type": "object",
+      "required": ["type", "universe", "covered_by"],
+      "additionalProperties": false,
+      "properties": {
+        "type":       { "const": "coverage" },
+        "universe":   { "type": "string", "enum": ["typologies", "jurisdictions", "products"] },
+        "covered_by": { "type": "string", "enum": ["rule_tags", "regulation_refs"] }
+      }
+    },
+    "formula_sql": {
+      "type": "object",
+      "required": ["type", "sql"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "sql" },
+        "sql":  { "type": "string" }
+      }
+    },
+    "report": {
+      "type": "object",
+      "required": ["id", "audience", "cadence", "sections"],
+      "additionalProperties": false,
+      "properties": {
+        "id":       { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "title":    { "type": "string" },
+        "audience": {
+          "type": "string",
+          "enum": ["svp", "vp", "director", "manager", "pm", "developer", "business", "auditor", "analyst"]
+        },
+        "cadence":  { "type": "string", "enum": ["daily", "weekly", "monthly", "quarterly", "annual", "on_demand"] },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["title", "metrics"],
+            "additionalProperties": false,
+            "properties": {
+              "title":   { "type": "string" },
+              "metrics": { "type": "array", "items": { "type": "string" } },
+              "commentary": { "type": "string" }
+            }
+          }
+        }
+      }
     }
   }
 }

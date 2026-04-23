@@ -80,11 +80,79 @@ def run(
         table.add_row(rule.id, rule.severity, str(count))
     console.print(table)
 
+    if result.metrics:
+        mtable = Table(title="Metrics")
+        mtable.add_column("RAG")
+        mtable.add_column("Metric")
+        mtable.add_column("Category")
+        mtable.add_column("Value", justify="right")
+        mtable.add_column("Audience")
+        rag_style = {"green": "green", "amber": "yellow", "red": "red", "unset": "dim"}
+        for m in result.metrics:
+            mtable.add_row(
+                f"[{rag_style[m.rag]}]{m.rag.upper()}[/{rag_style[m.rag]}]",
+                m.name,
+                m.category,
+                str(m.value),
+                ", ".join(m.audience),
+            )
+        console.print(mtable)
+
     console.print(
         f"[green]Done.[/green] {result.total_alerts} alert(s), "
-        f"{len(result.case_ids)} case(s). "
+        f"{len(result.case_ids)} case(s), "
+        f"{len(result.metrics)} metric(s), "
+        f"{len(result.reports)} report(s). "
         f"Run dir: {result.manifest['run_dir']}"
     )
+
+
+@app.command()
+def report(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    audience: str | None = typer.Option(None, help="Filter reports by audience (e.g. svp, vp, director)."),
+    report_id: str | None = typer.Option(None, "--report", help="Render a specific report id."),
+    run_dir: Path | None = typer.Option(None, help="Specific run dir; defaults to latest."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+    stdout: bool = typer.Option(False, help="Print the first matching report to stdout instead of listing."),
+) -> None:
+    """Show or print role-specific reports from a completed run."""
+    spec = load_spec(spec_path)
+    if run_dir is None:
+        candidates = sorted(artifacts.glob("run-*"), reverse=True)
+        if not candidates:
+            console.print("[red]No run directories found.[/red] Run `aml run` first.")
+            raise typer.Exit(code=1)
+        run_dir = candidates[0]
+
+    reports_dir = run_dir / "reports"
+    if not reports_dir.exists():
+        console.print(f"[red]No reports/[/red] in {run_dir}. Re-run `aml run` on the updated spec.")
+        raise typer.Exit(code=1)
+
+    selected = [
+        r for r in spec.reports
+        if (audience is None or r.audience == audience)
+        and (report_id is None or r.id == report_id)
+    ]
+    if not selected:
+        console.print("[yellow]No reports match the filter.[/yellow]")
+        raise typer.Exit(code=1)
+
+    if stdout:
+        md = (reports_dir / f"{selected[0].id}.md").read_text(encoding="utf-8")
+        console.print(md)
+        return
+
+    table = Table(title=f"Reports in {run_dir}")
+    table.add_column("ID")
+    table.add_column("Title")
+    table.add_column("Audience")
+    table.add_column("Cadence")
+    table.add_column("Path")
+    for r in selected:
+        table.add_row(r.id, r.title or "", r.audience, r.cadence, str(reports_dir / f"{r.id}.md"))
+    console.print(table)
 
 
 @app.command()

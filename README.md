@@ -39,13 +39,36 @@ aml validate examples/community_bank/aml.yaml
 # 2. Generate SQL rules, DAG stub, and persona docs into .artifacts/
 aml generate examples/community_bank/aml.yaml
 
-# 3. Run end-to-end: synthesize transactions, execute rules, emit cases
-#    and an audit bundle.
+# 3. Run end-to-end: synthesize transactions, execute rules, compute
+#    metrics, render role-specific reports, and write the audit bundle.
 aml run examples/community_bank/aml.yaml --seed 42
 
-# 4. Produce a regulator-ready evidence bundle (zipped, signed manifest).
+# 4. Show or print a role-specific report (SVP / VP / Director / Manager /
+#    PM / Developer / Business).
+aml report examples/community_bank/aml.yaml --audience svp
+aml report examples/community_bank/aml.yaml --report svp_exec_brief --stdout
+
+# 5. Produce a regulator-ready evidence bundle (zipped, signed manifest).
 aml export examples/community_bank/aml.yaml --out .artifacts/evidence.zip
 ```
+
+## Collaboration across roles
+
+The same `aml.yaml` drives:
+
+| Audience     | Artifact                                          |
+|--------------|---------------------------------------------------|
+| SVP          | `reports/svp_exec_brief.md` (quarterly, RAG)      |
+| VP           | `reports/vp_compliance_review.md` (monthly)       |
+| Director     | `reports/director_program_health.md` (monthly)    |
+| Manager      | `reports/manager_weekly.md` (weekly, queue load)  |
+| PM           | `reports/pm_delivery.md` (weekly, catalogue)      |
+| Developer    | `reports/developer_runtime.md` (daily runtime)    |
+| Business     | `reports/business_owner_daily.md` (customer pulse)|
+| Auditor      | `control_matrix.md` + the evidence bundle         |
+
+Every metric in every report is defined once in the spec, with an owner and
+RAG thresholds. See [`docs/metrics-framework.md`](docs/metrics-framework.md).
 
 ## Repository layout
 
