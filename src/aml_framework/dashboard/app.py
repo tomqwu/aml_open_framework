@@ -1,7 +1,4 @@
-"""AML Open Framework — Interactive Dashboard.
-
-Entry point for the Streamlit multi-page application.
-"""
+"""AML Open Framework -- Interactive Dashboard."""
 
 from __future__ import annotations
 
@@ -12,7 +9,7 @@ from aml_framework.dashboard.state import initialize_session
 
 st.set_page_config(
     page_title="AML Open Framework",
-    page_icon="\U0001f6e1\ufe0f",
+    page_icon=":shield:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -27,14 +24,27 @@ result = st.session_state.result
 # Sidebar
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.title("\U0001f6e1\ufe0f AML Framework")
-    st.caption("Spec-driven compliance automation")
+    st.markdown(
+        '<h2 style="margin:0; font-size:1.3rem;">AML Open Framework</h2>'
+        '<p style="margin:0 0 0.5rem 0; font-size:0.8rem; opacity:0.7;">'
+        "Spec-driven compliance automation</p>",
+        unsafe_allow_html=True,
+    )
     st.divider()
 
-    st.markdown(f"**Program:** {spec.program.name}")
-    st.markdown(f"**Jurisdiction:** {spec.program.jurisdiction}")
-    st.markdown(f"**Regulator:** {spec.program.regulator}")
-    st.markdown(f"**Owner:** {spec.program.owner}")
+    # Program info as a compact block
+    jurisdiction_flag = {"CA": "CA", "US": "US", "UK": "UK", "EU": "EU"}.get(
+        spec.program.jurisdiction, spec.program.jurisdiction
+    )
+    st.markdown(
+        f"**{spec.program.name}**<br>"
+        f"<span style='font-size:0.85rem;'>"
+        f"{jurisdiction_flag} &middot; {spec.program.regulator} &middot; "
+        f"{spec.program.owner.replace('_', ' ').title()}"
+        f"</span>",
+        unsafe_allow_html=True,
+    )
+
     st.divider()
 
     audience = st.selectbox(
@@ -45,39 +55,39 @@ with st.sidebar:
     )
     st.session_state["selected_audience"] = audience if audience != "all" else None
 
-    guided = st.toggle("Guided demo", value=False, help="Show narrative walkthrough annotations.")
+    guided = st.toggle("Guided demo", value=False, help="Show narrative walkthrough.")
     st.session_state["guided_demo"] = guided
 
     st.divider()
-    st.caption(f"Rules: {len(spec.rules)} | Metrics: {len(spec.metrics)}")
-    st.caption(f"Alerts: {result.total_alerts} | Cases: {len(result.case_ids)}")
-    st.caption(f"Seed: {st.session_state.seed}")
+
+    # Compact stats
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(
+            f"<span style='font-size:0.78rem;'>Rules **{len(spec.rules)}**</span><br>"
+            f"<span style='font-size:0.78rem;'>Alerts **{result.total_alerts}**</span>",
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            f"<span style='font-size:0.78rem;'>Metrics **{len(spec.metrics)}**</span><br>"
+            f"<span style='font-size:0.78rem;'>Cases **{len(result.case_ids)}**</span>",
+            unsafe_allow_html=True,
+        )
 
 # ---------------------------------------------------------------------------
 # Navigation
 # ---------------------------------------------------------------------------
-pages = {
-    "Executive Dashboard": "pages/1_Executive_Dashboard.py",
-    "Program Maturity": "pages/2_Program_Maturity.py",
-    "Alert Queue": "pages/3_Alert_Queue.py",
-    "Case Investigation": "pages/4_Case_Investigation.py",
-    "Rule Performance": "pages/5_Rule_Performance.py",
-    "Risk Assessment": "pages/6_Risk_Assessment.py",
-    "Audit & Evidence": "pages/7_Audit_Evidence.py",
-    "Framework Alignment": "pages/8_Framework_Alignment.py",
-    "Transformation Roadmap": "pages/9_Transformation_Roadmap.py",
-}
-
 pg = st.navigation([
-    st.Page("pages/1_Executive_Dashboard.py", title="Executive Dashboard", icon="\U0001f4ca"),
-    st.Page("pages/2_Program_Maturity.py", title="Program Maturity", icon="\U0001f3af"),
-    st.Page("pages/3_Alert_Queue.py", title="Alert Queue", icon="\U0001f514"),
-    st.Page("pages/4_Case_Investigation.py", title="Case Investigation", icon="\U0001f50d"),
-    st.Page("pages/5_Rule_Performance.py", title="Rule Performance", icon="\u2699\ufe0f"),
-    st.Page("pages/6_Risk_Assessment.py", title="Risk Assessment", icon="\U0001f5fa\ufe0f"),
-    st.Page("pages/7_Audit_Evidence.py", title="Audit & Evidence", icon="\U0001f4dc"),
-    st.Page("pages/8_Framework_Alignment.py", title="Framework Alignment", icon="\U0001f4d0"),
-    st.Page("pages/9_Transformation_Roadmap.py", title="Transformation Roadmap", icon="\U0001f680"),
+    st.Page("pages/1_Executive_Dashboard.py", title="Executive Dashboard", icon=":material/dashboard:"),
+    st.Page("pages/2_Program_Maturity.py", title="Program Maturity", icon=":material/speed:"),
+    st.Page("pages/3_Alert_Queue.py", title="Alert Queue", icon=":material/notifications:"),
+    st.Page("pages/4_Case_Investigation.py", title="Case Investigation", icon=":material/search:"),
+    st.Page("pages/5_Rule_Performance.py", title="Rule Performance", icon=":material/tune:"),
+    st.Page("pages/6_Risk_Assessment.py", title="Risk Assessment", icon=":material/map:"),
+    st.Page("pages/7_Audit_Evidence.py", title="Audit & Evidence", icon=":material/verified:"),
+    st.Page("pages/8_Framework_Alignment.py", title="Framework Alignment", icon=":material/rule:"),
+    st.Page("pages/9_Transformation_Roadmap.py", title="Transformation Roadmap", icon=":material/rocket_launch:"),
 ])
 
 pg.run()

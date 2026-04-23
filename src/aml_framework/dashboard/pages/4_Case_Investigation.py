@@ -1,4 +1,4 @@
-"""Case Investigation — entity profile, transaction timeline, network graph."""
+"""Case Investigation -- entity profile, transaction timeline, flow diagram."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header
+from aml_framework.dashboard.components import chart_layout, page_header
 
 page_header(
     "Case Investigation",
@@ -21,11 +21,10 @@ df_txns = st.session_state.df_txns
 
 if st.session_state.get("guided_demo"):
     st.info(
-        "**Guided Demo — Case Investigation**\n\n"
+        "**Guided Demo -- Case Investigation**\n\n"
         "Select a case to see the full investigation package: entity profile, "
-        "triggering transactions highlighted on a timeline, the rule that fired, "
-        "regulation citations, and evidence requested. This is what an L1 analyst "
-        "sees when they open a case from the queue."
+        "triggering transactions highlighted on a timeline, regulation citations, "
+        "and evidence requested."
     )
 
 if df_cases.empty:
@@ -37,17 +36,22 @@ case_ids = sorted(df_cases["case_id"].tolist())
 selected_case = st.selectbox("Select case", case_ids)
 case = df_cases[df_cases["case_id"] == selected_case].iloc[0].to_dict()
 
-# --- Header ---
-sev_colors = {"high": "red", "medium": "orange", "low": "green", "critical": "violet"}
+# --- Header banner ---
+sev = case.get("severity", "")
+sev_colors = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a", "critical": "#7c3aed"}
+sev_color = sev_colors.get(sev, "#6b7280")
 st.markdown(
-    f"### Case: `{case['case_id']}`\n"
-    f"**Rule:** {case.get('rule_name', case.get('rule_id', ''))} | "
-    f"**Severity:** :{sev_colors.get(case.get('severity', ''), 'gray')}[{case.get('severity', '')}] | "
-    f"**Queue:** {case.get('queue', '')} | "
-    f"**Status:** {case.get('status', '')}"
+    f'<div style="background:linear-gradient(135deg, {sev_color}18, {sev_color}08); '
+    f'border-left:4px solid {sev_color}; border-radius:8px; padding:1rem 1.5rem; margin-bottom:1rem;">'
+    f'<span style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.05em; '
+    f'color:{sev_color}; font-weight:700;">{sev} severity</span><br>'
+    f'<span style="font-size:1.1rem; font-weight:600; color:#0f172a;">'
+    f'{case.get("rule_name", case.get("rule_id", ""))}</span><br>'
+    f'<span style="font-size:0.85rem; color:#475569;">'
+    f'Queue: {case.get("queue", "")} &middot; Status: {case.get("status", "")}</span>'
+    f'</div>',
+    unsafe_allow_html=True,
 )
-
-st.divider()
 
 # --- Entity Profile + Alert Details ---
 col_profile, col_alert = st.columns(2)
@@ -56,38 +60,60 @@ customer_id = case.get("alert", {}).get("customer_id", "")
 customer_row = df_customers[df_customers["customer_id"] == customer_id]
 
 with col_profile:
-    st.subheader("Entity Profile")
+    st.markdown("### Entity Profile")
     if not customer_row.empty:
         c = customer_row.iloc[0]
-        st.markdown(f"**Customer ID:** {c['customer_id']}")
-        st.markdown(f"**Name:** {c['full_name']}")
-        st.markdown(f"**Country:** {c['country']}")
-        st.markdown(f"**Risk Rating:** {c['risk_rating']}")
-        st.markdown(f"**Onboarded:** {c['onboarded_at']}")
+        risk_color = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}.get(
+            c["risk_rating"], "#6b7280"
+        )
+        st.markdown(
+            f'<div class="metric-card">'
+            f'<div style="font-size:1.1rem; font-weight:600;">{c["full_name"]}</div>'
+            f'<div style="font-size:0.85rem; color:#64748b; margin:0.3rem 0 0.8rem;">'
+            f'{c["customer_id"]} &middot; {c["country"]}</div>'
+            f'<div><span style="font-size:0.78rem; color:#64748b;">Risk Rating</span><br>'
+            f'<span style="color:{risk_color}; font-weight:700;">{c["risk_rating"].upper()}</span>'
+            f'</div>'
+            f'<div style="margin-top:0.5rem;"><span style="font-size:0.78rem; color:#64748b;">'
+            f'Onboarded</span><br>{str(c["onboarded_at"])[:10]}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     else:
-        st.caption(f"Customer {customer_id} not found in dataset.")
+        st.caption(f"Customer {customer_id} not found.")
 
 with col_alert:
-    st.subheader("Alert Details")
+    st.markdown("### Alert Details")
     alert_data = case.get("alert", {})
-    if "sum_amount" in alert_data:
-        st.markdown(f"**Total Amount:** ${float(alert_data['sum_amount']):,.2f}")
-    if "count" in alert_data:
-        st.markdown(f"**Transaction Count:** {alert_data['count']}")
-    if "window_start" in alert_data:
-        st.markdown(f"**Window:** {alert_data['window_start']} \u2192 {alert_data['window_end']}")
+    amt = float(alert_data.get("sum_amount", 0))
+    count = alert_data.get("count", "N/A")
+    w_start = str(alert_data.get("window_start", ""))[:10]
+    w_end = str(alert_data.get("window_end", ""))[:10]
+    st.markdown(
+        f'<div class="metric-card">'
+        f'<div style="display:flex; gap:2rem; margin-bottom:0.8rem;">'
+        f'<div><span style="font-size:0.78rem; color:#64748b;">Amount</span><br>'
+        f'<span style="font-size:1.4rem; font-weight:700;">${amt:,.2f}</span></div>'
+        f'<div><span style="font-size:0.78rem; color:#64748b;">Transactions</span><br>'
+        f'<span style="font-size:1.4rem; font-weight:700;">{count}</span></div>'
+        f'</div>'
+        f'<div><span style="font-size:0.78rem; color:#64748b;">Window</span><br>'
+        f'{w_start} to {w_end}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
     # Regulation references
     refs = case.get("regulation_refs", [])
     if refs:
-        st.markdown("**Regulation References:**")
+        st.markdown("**Regulation References**")
         for ref in refs:
             st.markdown(f"- **{ref['citation']}**: {ref['description']}")
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Transaction Timeline ---
-st.subheader("Transaction Timeline")
+st.markdown("### Transaction Timeline")
 if customer_id and not df_txns.empty:
     cust_txns = df_txns[df_txns["customer_id"] == customer_id].copy()
     if not cust_txns.empty:
@@ -96,39 +122,35 @@ if customer_id and not df_txns.empty:
             lambda r: r["amount"] if r["direction"] == "in" else -r["amount"], axis=1
         )
         fig = px.scatter(
-            cust_txns,
-            x="booked_at",
-            y="signed_amount",
-            color="channel",
-            size=cust_txns["amount"].abs(),
+            cust_txns, x="booked_at", y="signed_amount",
+            color="channel", size=cust_txns["amount"].abs(),
             hover_data=["txn_id", "direction", "amount", "channel"],
             labels={"booked_at": "Date", "signed_amount": "Amount (signed)"},
             color_discrete_map={
-                "cash": "#f59e0b", "wire": "#3b82f6", "ach": "#8b5cf6", "card": "#6b7280"
+                "cash": "#d97706", "wire": "#2563eb", "ach": "#7c3aed",
+                "card": "#6b7280", "eft": "#0891b2",
             },
         )
-        # Highlight alert window if available.
-        w_start = alert_data.get("window_start")
-        w_end = alert_data.get("window_end")
-        if w_start and w_end:
+        w_start_full = alert_data.get("window_start")
+        w_end_full = alert_data.get("window_end")
+        if w_start_full and w_end_full:
             fig.add_vrect(
-                x0=str(w_start), x1=str(w_end),
-                fillcolor="rgba(239, 68, 68, 0.1)",
-                line=dict(color="rgba(239, 68, 68, 0.5)", width=1),
+                x0=str(w_start_full), x1=str(w_end_full),
+                fillcolor="rgba(220, 38, 38, 0.08)",
+                line=dict(color="rgba(220, 38, 38, 0.4)", width=1),
                 annotation_text="Alert Window",
                 annotation_position="top left",
+                annotation_font_size=11,
             )
-        fig.update_layout(height=400, margin=dict(t=30))
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(xaxis_title="", yaxis_title="Amount ($)")
+        st.plotly_chart(chart_layout(fig, 380), use_container_width=True)
     else:
         st.caption("No transactions found for this customer.")
-else:
-    st.caption("No transaction data available.")
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# --- Channel Flow (Network-like) ---
-st.subheader("Transaction Flow by Channel")
+# --- Channel Flow Sankey ---
+st.markdown("### Transaction Flow by Channel")
 if customer_id and not df_txns.empty:
     cust_txns = df_txns[df_txns["customer_id"] == customer_id].copy()
     if not cust_txns.empty:
@@ -136,34 +158,48 @@ if customer_id and not df_txns.empty:
             total=("amount", "sum"), count=("txn_id", "count")
         ).reset_index()
 
-        # Sankey: direction -> customer -> channel
-        labels = [customer_id, "Inflows", "Outflows"]
+        labels = [customer_id]
         channels = flow["channel"].unique().tolist()
         labels.extend(channels)
 
-        sources, targets_list, values = [], [], []
+        sources, targets_list, values, link_colors = [], [], [], []
+        channel_colors = {
+            "cash": "#d97706", "wire": "#2563eb", "ach": "#7c3aed",
+            "card": "#6b7280", "eft": "#0891b2",
+        }
         for _, row in flow.iterrows():
             ch_idx = labels.index(row["channel"])
+            base_color = channel_colors.get(row["channel"], "#94a3b8")
             if row["direction"] == "in":
                 sources.append(ch_idx)
-                targets_list.append(0)  # customer
+                targets_list.append(0)
             else:
-                sources.append(0)  # customer
+                sources.append(0)
                 targets_list.append(ch_idx)
             values.append(float(row["total"]))
+            link_colors.append(base_color + "40")
 
         fig = go.Figure(go.Sankey(
-            node=dict(label=labels, pad=15, thickness=20),
-            link=dict(source=sources, target=targets_list, value=values),
+            node=dict(
+                label=labels, pad=20, thickness=25,
+                color=["#2563eb"] + [channel_colors.get(c, "#94a3b8") for c in channels],
+            ),
+            link=dict(source=sources, target=targets_list, value=values, color=link_colors),
         ))
-        fig.update_layout(height=350, margin=dict(t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
 
 # --- Evidence Requested ---
-st.subheader("Evidence Requested")
+st.markdown("### Evidence Requested")
 evidence = case.get("evidence_requested", [])
 if evidence:
-    for item in evidence:
-        st.markdown(f"- {item}")
+    cols = st.columns(min(len(evidence), 3))
+    for i, item in enumerate(evidence):
+        with cols[i % len(cols)]:
+            st.markdown(
+                f'<div class="metric-card" style="text-align:center; padding:0.8rem;">'
+                f'<span style="font-size:0.85rem;">{item.replace("_", " ").title()}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 else:
     st.caption("No evidence items specified.")

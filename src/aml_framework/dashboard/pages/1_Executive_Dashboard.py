@@ -1,4 +1,4 @@
-"""Executive Dashboard — program-level KPIs and health overview."""
+"""Executive Dashboard -- program-level KPIs and health overview."""
 
 from __future__ import annotations
 
@@ -6,7 +6,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from aml_framework.dashboard.components import metric_table, page_header
+from aml_framework.dashboard.components import (
+    SEVERITY_COLORS,
+    chart_layout,
+    kpi_card,
+    metric_table,
+    page_header,
+)
 
 page_header(
     "Executive Dashboard",
@@ -16,79 +22,86 @@ page_header(
 spec = st.session_state.spec
 result = st.session_state.result
 df_alerts = st.session_state.df_alerts
-df_metrics = st.session_state.df_metrics
 audience = st.session_state.get("selected_audience")
 
 if st.session_state.get("guided_demo"):
     st.info(
-        "**Guided Demo — Executive Dashboard**\n\n"
-        "This is the board-level view your CCO presents quarterly. "
+        "**Guided Demo -- Executive Dashboard**\n\n"
         f"The engine detected **{result.total_alerts} alerts** across "
         f"**{len(spec.rules)} rules**, covering multiple AML typologies. "
-        "RAG indicators show program health at a glance."
+        "KPI cards show program health. The RAG grid below tracks every "
+        "metric with red/amber/green thresholds."
     )
 
-# --- KPI Tiles ---
+# --- KPI tiles ---
 metrics_by_id = {m.id: m for m in result.metrics}
+
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 with c1:
-    st.metric("Total Alerts", result.total_alerts)
+    kpi_card("Total Alerts", result.total_alerts, "#dc2626")
 with c2:
-    st.metric("Open Cases", len(result.case_ids))
+    kpi_card("Open Cases", len(result.case_ids), "#d97706")
 with c3:
     active = len([r for r in spec.rules if r.status == "active"])
-    st.metric("Active Rules", active)
+    kpi_card("Active Rules", active, "#2563eb")
 with c4:
     tc = metrics_by_id.get("typology_coverage")
-    st.metric("Typology Coverage", f"{tc.value * 100:.0f}%" if tc else "N/A")
+    kpi_card("Typology Coverage", f"{tc.value * 100:.0f}%" if tc else "N/A", "#059669")
 with c5:
     dc = metrics_by_id.get("distinct_customers_alerted")
-    st.metric("Customers Alerted", int(dc.value) if dc else 0)
+    kpi_card("Customers Alerted", int(dc.value) if dc else 0, "#7c3aed")
 with c6:
-    tv = metrics_by_id.get("transaction_volume_usd")
-    st.metric("Volume Screened", f"${tv.value:,.0f}" if tv else "N/A")
+    # Find the volume metric by checking common ids
+    tv = metrics_by_id.get("transaction_volume_usd") or metrics_by_id.get("transaction_volume_cad")
+    if tv:
+        unit = spec.program.jurisdiction
+        kpi_card("Volume Screened", f"${tv.value:,.0f}", "#0891b2")
+    else:
+        kpi_card("Volume Screened", "N/A", "#6b7280")
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Charts row ---
-col_left, col_right = st.columns(2)
+col_left, col_right = st.columns([3, 2])
 
 with col_left:
-    st.subheader("Alerts by Rule")
+    st.markdown("### Alerts by Rule")
     if not df_alerts.empty:
-        # Merge severity from spec
         sev_map = {r.id: r.severity for r in spec.rules}
         chart_df = df_alerts.groupby("rule_id").size().reset_index(name="count")
         chart_df["severity"] = chart_df["rule_id"].map(sev_map)
-        color_map = {"high": "#ef4444", "medium": "#f59e0b", "low": "#22c55e", "critical": "#7c3aed"}
+        chart_df = chart_df.sort_values("count", ascending=True)
         fig = px.bar(
-            chart_df, x="rule_id", y="count", color="severity",
-            color_discrete_map=color_map,
-            labels={"rule_id": "Rule", "count": "Alerts"},
+            chart_df, y="rule_id", x="count", color="severity",
+            orientation="h",
+            color_discrete_map=SEVERITY_COLORS,
+            labels={"rule_id": "", "count": "Alerts"},
         )
-        fig.update_layout(showlegend=True, height=350, margin=dict(t=10))
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(yaxis_title="", showlegend=True, legend_title_text="")
+        st.plotly_chart(chart_layout(fig, 350), use_container_width=True)
     else:
         st.info("No alerts generated.")
 
 with col_right:
-    st.subheader("RAG Status Grid")
+    st.markdown("### RAG Status")
     metric_table(result.metrics, audience=audience)
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# --- Program Health Radar ---
-col_radar, col_summary = st.columns(2)
+# --- Bottom row: Radar + summary ---
+col_radar, col_summary = st.columns([3, 2])
 
 with col_radar:
-    st.subheader("Program Health Radar")
-    categories = [m.name for m in result.metrics if m.rag != "unset"][:8]
+    st.markdown("### Program Health")
+    categories = [m.name[:25] for m in result.metrics if m.rag != "unset"][:8]
     values = []
+    colors_list = []
     for m in result.metrics:
-        if m.rag == "unset" or m.name not in categories:
+        if m.rag == "unset" or len(values) >= 8:
             continue
-        # Map RAG to score: green=3, amber=2, red=1
-        values.append({"green": 3, "amber": 2, "red": 1}.get(m.rag, 0))
+        score = {"green": 3, "amber": 2, "red": 1}.get(m.rag, 0)
+        values.append(score)
+        colors_list.append(m.rag)
 
     if categories and values:
         fig = go.Figure()
@@ -97,31 +110,40 @@ with col_radar:
             theta=categories + [categories[0]],
             fill="toself",
             name="Current",
-            line_color="#3b82f6",
+            line=dict(color="#2563eb", width=2),
+            fillcolor="rgba(37, 99, 235, 0.15)",
         ))
         fig.add_trace(go.Scatterpolar(
             r=[3] * (len(categories) + 1),
             theta=categories + [categories[0]],
             fill="toself",
             name="Target",
-            line_color="#22c55e",
-            opacity=0.2,
+            line=dict(color="#16a34a", width=1, dash="dot"),
+            fillcolor="rgba(22, 163, 74, 0.05)",
         ))
         fig.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 3])),
-            showlegend=True, height=400, margin=dict(t=30),
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 3.5], showticklabels=False),
+                bgcolor="rgba(0,0,0,0)",
+            ),
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.15, x=0.5, xanchor="center"),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(chart_layout(fig, 400), use_container_width=True)
 
 with col_summary:
-    st.subheader("Run Summary")
-    st.json({
-        "program": spec.program.name,
-        "jurisdiction": spec.program.jurisdiction,
-        "regulator": spec.program.regulator,
-        "rules_executed": len(spec.rules),
-        "total_alerts": result.total_alerts,
-        "total_cases": len(result.case_ids),
-        "total_metrics": len(result.metrics),
-        "reports_generated": len(result.reports),
-    })
+    st.markdown("### Run Summary")
+    st.markdown(
+        f"""
+| | |
+|---|---|
+| **Program** | {spec.program.name} |
+| **Jurisdiction** | {spec.program.jurisdiction} |
+| **Regulator** | {spec.program.regulator} |
+| **Rules executed** | {len(spec.rules)} |
+| **Total alerts** | {result.total_alerts} |
+| **Cases opened** | {len(result.case_ids)} |
+| **Metrics computed** | {len(result.metrics)} |
+| **Reports generated** | {len(result.reports)} |
+"""
+    )

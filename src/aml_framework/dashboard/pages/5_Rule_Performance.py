@@ -1,4 +1,4 @@
-"""Rule Performance — per-rule analytics and regulation cross-reference."""
+"""Rule Performance -- per-rule analytics and regulation cross-reference."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header
+from aml_framework.dashboard.components import SEVERITY_COLORS, chart_layout, kpi_card, page_header
 
 page_header(
     "Rule Performance",
@@ -19,18 +19,33 @@ df_alerts = st.session_state.df_alerts
 
 if st.session_state.get("guided_demo"):
     st.info(
-        "**Guided Demo — Rule Performance**\n\n"
-        "This view shows how each rule performed: alert counts, detection "
-        "rates, and the regulation citations that justify each rule. "
-        "In a production deployment, you'd also see false positive rates "
-        "and threshold tuning recommendations."
+        "**Guided Demo -- Rule Performance**\n\n"
+        "Each rule's detection rate, alert counts, and regulation citations. "
+        "In production, this drives threshold tuning and model validation."
     )
 
-# --- Rule Metrics Table ---
-st.subheader("Rule Analytics")
-
-rows = []
+# --- KPI row ---
 n_customers = len(st.session_state.df_customers)
+total_alerts = result.total_alerts
+rules_fired = sum(1 for r in spec.rules if result.alerts.get(r.id))
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    kpi_card("Active Rules", len([r for r in spec.rules if r.status == "active"]), "#2563eb")
+with c2:
+    kpi_card("Rules Fired", rules_fired, "#059669")
+with c3:
+    kpi_card("Total Alerts", total_alerts, "#d97706")
+with c4:
+    tags = {t for r in spec.rules for t in r.tags}
+    fired_tags = {t for r in spec.rules for t in r.tags if result.alerts.get(r.id)}
+    coverage = f"{len(fired_tags)}/{len(tags)}" if tags else "N/A"
+    kpi_card("Tag Coverage", coverage, "#7c3aed")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- Rule Analytics Table ---
+st.markdown("### Rule Analytics")
+rows = []
 for rule in spec.rules:
     alert_count = len(result.alerts.get(rule.id, []))
     alerts = result.alerts.get(rule.id, [])
@@ -38,47 +53,51 @@ for rule in spec.rules:
     detection_rate = cust_alerted / n_customers if n_customers > 0 else 0
     refs = ", ".join(r.citation for r in rule.regulation_refs)
     rows.append({
-        "Rule ID": rule.id,
+        "Rule": rule.id,
         "Name": rule.name,
         "Severity": rule.severity,
-        "Status": rule.status,
-        "Logic Type": rule.logic.type,
+        "Logic": rule.logic.type,
         "Alerts": alert_count,
         "Customers": cust_alerted,
-        "Detection Rate": f"{detection_rate:.1%}",
-        "Regulations": refs,
+        "Detection %": f"{detection_rate:.1%}",
     })
 
 df_rules = pd.DataFrame(rows)
-st.dataframe(df_rules, use_container_width=True, hide_index=True)
 
-st.divider()
+def _sev_style(val: str) -> str:
+    c = SEVERITY_COLORS.get(val, "")
+    return f"color: {c}; font-weight: 700;" if c else ""
 
-# --- Alert Distribution ---
+styled = df_rules.style.map(_sev_style, subset=["Severity"])
+st.dataframe(styled, use_container_width=True, hide_index=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- Charts ---
 col_left, col_right = st.columns(2)
 
 with col_left:
-    st.subheader("Alerts by Severity")
+    st.markdown("### Alerts by Severity")
     sev_data = df_rules.groupby("Severity")["Alerts"].sum().reset_index()
-    color_map = {"high": "#ef4444", "medium": "#f59e0b", "low": "#22c55e", "critical": "#7c3aed"}
     fig = px.bar(
         sev_data, x="Severity", y="Alerts", color="Severity",
-        color_discrete_map=color_map,
+        color_discrete_map=SEVERITY_COLORS,
     )
-    fig.update_layout(height=350, margin=dict(t=10), showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(showlegend=False)
+    st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
 
 with col_right:
-    st.subheader("Detection Coverage")
-    logic_data = df_rules.groupby("Logic Type")["Alerts"].sum().reset_index()
-    fig = px.pie(logic_data, names="Logic Type", values="Alerts")
-    fig.update_layout(height=350, margin=dict(t=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.markdown("### Detection by Logic Type")
+    logic_data = df_rules.groupby("Logic")["Alerts"].sum().reset_index()
+    fig = px.pie(logic_data, names="Logic", values="Alerts", hole=0.45,
+                 color_discrete_sequence=["#2563eb", "#7c3aed", "#d97706"])
+    fig.update_traces(textposition="inside", textinfo="percent+label")
+    st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# --- Regulation Cross-Reference Matrix ---
-st.subheader("Rule \u2192 Regulation Cross-Reference")
+# --- Regulation Cross-Reference ---
+st.markdown("### Regulation Cross-Reference")
 ref_rows = []
 for rule in spec.rules:
     for ref in rule.regulation_refs:
@@ -89,23 +108,7 @@ for rule in spec.rules:
             "Description": ref.description,
         })
 df_refs = pd.DataFrame(ref_rows)
-st.dataframe(df_refs, use_container_width=True, hide_index=True)
-
-# --- Tags / Typology Coverage ---
-st.subheader("Typology Tag Coverage")
-all_tags = set()
-fired_tags = set()
-for rule in spec.rules:
-    all_tags.update(rule.tags)
-    if result.alerts.get(rule.id):
-        fired_tags.update(rule.tags)
-unfired = all_tags - fired_tags
-
-tag_data = []
-for tag in sorted(all_tags):
-    tag_data.append({
-        "Tag": tag,
-        "Status": "Fired" if tag in fired_tags else "Not Fired",
-    })
-df_tags = pd.DataFrame(tag_data)
-st.dataframe(df_tags, use_container_width=True, hide_index=True)
+st.dataframe(
+    df_refs.style.map(_sev_style, subset=["Severity"]),
+    use_container_width=True, hide_index=True,
+)
