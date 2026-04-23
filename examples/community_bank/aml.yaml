@@ -1,0 +1,118 @@
+# Reference AML spec for a US community bank.
+# Illustrative only — thresholds and typologies must be tuned per institution.
+
+version: 1
+
+program:
+  name: community_bank_aml
+  jurisdiction: US
+  regulator: FinCEN
+  owner: chief_compliance_officer
+  effective_date: 2026-01-01
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,      type: string,    nullable: false, pii: false }
+      - { name: customer_id, type: string,    nullable: false, pii: true  }
+      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,    type: string,    nullable: false }
+      - { name: channel,     type: string,    enum: [cash, wire, ach, card] }
+      - { name: direction,   type: string,    enum: [in, out] }
+      - { name: booked_at,   type: timestamp, nullable: false }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id, type: string,    nullable: false, pii: true }
+      - { name: full_name,   type: string,    nullable: false, pii: true }
+      - { name: country,     type: string,    nullable: false }
+      - { name: risk_rating, type: string,    enum: [low, medium, high] }
+      - { name: onboarded_at, type: timestamp, nullable: false }
+
+rules:
+  - id: structuring_cash_deposits
+    name: Cash structuring — just-below-threshold deposits
+    severity: high
+    regulation_refs:
+      - citation: "31 CFR 1010.314"
+        description: "Prohibition on structuring transactions to evade reporting."
+      - citation: "31 CFR 1020.320"
+        description: "SAR filing required for suspected structuring."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+        direction: in
+        amount: { between: [7000, 9999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 25000 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - prior_alerts_90d
+    tags: [structuring, cash]
+
+  - id: rapid_movement_cash_to_wire
+    name: Rapid movement — cash in followed by outgoing wire
+    severity: medium
+    regulation_refs:
+      - citation: "FinCEN Advisory FIN-2014-A005"
+        description: "Pass-through typology associated with layering."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: { in: [cash, wire] }
+      group_by: [customer_id]
+      window: 7d
+      having:
+        sum_amount: { gte: 50000 }
+        count:      { gte: 4 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [rapid_movement, layering]
+
+workflow:
+  queues:
+    - id: l1_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [sar_filing, closed_no_action]
+    - id: sar_filing
+      sla: 30d
+      regulator_form: FinCEN_SAR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    FinCEN_SAR:
+      template: fincen_sar_v2
+      mandatory_fields: [subject, narrative, triggering_rules, transactions]
+    FinCEN_CTR:
+      template: fincen_ctr_v1
+      trigger:
+        channel: cash
+        aggregate_day: { gte: 10000 }
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 7y
