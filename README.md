@@ -146,6 +146,23 @@ deliverables, and status tracking.
 
 ![Transformation Roadmap](docs/screenshots/09_transformation_roadmap.png)
 
+### Network Explorer
+
+Interactive entity relationship graph built with networkx and streamlit-agraph.
+Customers are nodes (sized by volume, colored by risk rating), edges represent
+shared channel flows. Red-bordered nodes have active alerts. Fan-in pattern
+detection flags potential funnel accounts.
+
+![Network Explorer](docs/screenshots/10_network_explorer.png)
+
+### Live Monitor
+
+Real-time transaction monitoring simulation. Press "Start Monitoring" to replay
+synthetic transactions with live KPI updates, cumulative volume chart, channel
+activity breakdown, and automatic alert detection (cash > $9k or wire > $20k).
+
+![Live Monitor](docs/screenshots/11_live_monitor.png)
+
 ## User Workflows by Persona
 
 The same dashboard serves 6 distinct personas, each with a different workflow
@@ -318,6 +335,30 @@ docs/
   audit-evidence.md             Evidence bundle specification
   screenshots/                  Dashboard screenshots
 ```
+
+## Testing
+
+The framework has three layers of tests:
+
+```bash
+# Unit + integration tests (27 tests, no external deps)
+pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_api.py
+
+# API e2e tests via FastAPI TestClient (9 tests, needs: pip install -e ".[api]")
+pytest tests/test_e2e_api.py
+
+# Dashboard e2e tests via Playwright (21 tests, needs: pip install playwright && python -m playwright install chromium)
+pytest tests/test_e2e_dashboard.py
+
+# All tests
+pytest tests/
+```
+
+| Layer | Tests | What It Covers |
+|-------|-------|----------------|
+| **Unit/Integration** | 27 | Spec validation, rule execution, metrics, python_ref, planted positives, reproducibility |
+| **API E2E** | 9 | FastAPI health, JWT auth (login/reject/all users), run creation, error handling |
+| **Dashboard E2E (Playwright)** | 21 | All 11 pages render without errors, sidebar content, KPI cards, charts, network graph, live monitor controls |
 
 ## Status
 

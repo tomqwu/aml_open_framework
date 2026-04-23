@@ -177,7 +177,9 @@ if customer_id and not df_txns.empty:
                 sources.append(0)
                 targets_list.append(ch_idx)
             values.append(float(row["total"]))
-            link_colors.append(base_color + "40")
+                        # Convert hex to rgba for Plotly compatibility.
+            r, g, b = int(base_color[1:3], 16), int(base_color[3:5], 16), int(base_color[5:7], 16)
+            link_colors.append(f"rgba({r},{g},{b},0.25)")
 
         fig = go.Figure(go.Sankey(
             node=dict(
