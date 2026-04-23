@@ -146,6 +146,65 @@ deliverables, and status tracking.
 
 ![Transformation Roadmap](docs/screenshots/09_transformation_roadmap.png)
 
+## User Workflows by Persona
+
+The same dashboard serves 6 distinct personas, each with a different workflow
+through the pages. The sidebar audience selector filters metrics to show only
+what each role needs.
+
+### CCO / SVP Workflow
+
+The Chief Compliance Officer starts with the **Executive Dashboard** for
+program-level KPIs, reviews **Program Maturity** to assess gaps across 12
+dimensions, checks **Framework Alignment** for regulatory coverage (PCMLTFA
+pillars, OSFI B-8), and tracks the **Transformation Roadmap** quarterly.
+
+![CCO Executive Dashboard](docs/screenshots/workflows/cco_1_executive.png)
+
+![CCO Program Maturity](docs/screenshots/workflows/cco_2_maturity.png)
+
+![CCO Framework Alignment](docs/screenshots/workflows/cco_3_framework.png)
+
+### Operations Manager Workflow
+
+The Operations Manager monitors the **Alert Queue** daily to manage L1 analyst
+workload, tracks SLA compliance and case resolution times, and reviews **Risk
+Assessment** heatmaps to understand where exposure concentrates.
+
+![Manager Alert Queue](docs/screenshots/workflows/mgr_2_alerts.png)
+
+![Manager Risk Assessment](docs/screenshots/workflows/mgr_3_risk.png)
+
+### L1 Analyst / Investigator Workflow
+
+Analysts start at the **Alert Queue** to pick up cases by priority, then drill
+into **Case Investigation** for entity profiles, transaction timelines with
+highlighted alert windows, Sankey flow diagrams, regulation citations, and
+evidence collection.
+
+![Analyst Alert Queue](docs/screenshots/workflows/analyst_1_queue.png)
+
+![Analyst Case Investigation](docs/screenshots/workflows/analyst_2_case.png)
+
+### Auditor / Regulator Workflow
+
+Auditors go directly to **Audit & Evidence** for the immutable audit trail:
+spec content hashes, per-rule SHA-256 output hashes, append-only decision
+logs, and the full evidence bundle file tree. They verify **Framework
+Alignment** to confirm regulatory coverage status.
+
+![Auditor Evidence](docs/screenshots/workflows/auditor_1_evidence.png)
+
+![Auditor Framework](docs/screenshots/workflows/auditor_2_framework.png)
+
+### Developer Workflow
+
+Platform engineers monitor **Rule Performance** for per-rule analytics, logic
+type distribution, and detection rates. The **Executive Dashboard** in
+developer view shows runtime throughput and rule catalogue health.
+
+![Developer Rules](docs/screenshots/workflows/dev_2_rules.png)
+
 ## Multi-Jurisdiction Support
 
 The framework supports **geo-based default policies** — the same architecture
