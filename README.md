@@ -146,21 +146,61 @@ deliverables, and status tracking.
 
 ![Transformation Roadmap](docs/screenshots/09_transformation_roadmap.png)
 
+## Multi-Jurisdiction Support
+
+The framework supports **geo-based default policies** — the same architecture
+adapts to different regulatory regimes based on the `jurisdiction` field in the
+spec. Two complete example specs are included:
+
+| Spec | Jurisdiction | Regulator | Currency | Filing Types |
+|------|-------------|-----------|----------|-------------|
+| `examples/community_bank/aml.yaml` | US | FinCEN | USD | SAR, CTR |
+| `examples/canadian_bank/aml.yaml` | CA | FINTRAC | CAD | STR, LCTR, EFTR |
+
+### Canadian Regulatory Support
+
+The Canadian spec is aligned with:
+- **PCMLTFA** (Proceeds of Crime Money Laundering and Terrorist Financing Act)
+  and **PCMLTFR** (Regulations) — all rule citations reference specific sections
+  (e.g., `PCMLTFA s.11.1` for structuring, `PCMLTFR s.7(1)` for LCTR obligations)
+- **FINTRAC** reporting forms — STR (Suspicious Transaction Report), LCTR (Large
+  Cash Transaction Report), EFTR (Electronic Funds Transfer Report)
+- **OSFI Guideline B-8** — enhanced expectations for federally regulated
+  financial institutions (board oversight, automated monitoring, sanctions integration)
+- **PCMLTFR s.132** — 24-hour aggregation rule for cash transactions
+- **5-year retention** for all records (PCMLTFR s.144-145)
+
+The dashboard automatically adapts based on jurisdiction:
+
+![Canadian Executive Dashboard](docs/screenshots/ca_01_executive_dashboard.png)
+
+The **Framework Alignment** page shows **PCMLTFA Pillars** and **OSFI Guideline B-8**
+tabs instead of FinCEN BSA Pillars when running with a Canadian spec:
+
+![Canadian Framework Alignment](docs/screenshots/ca_08_framework_alignment.png)
+
+```bash
+# Run the Canadian spec
+aml dashboard examples/canadian_bank/aml.yaml
+
+# Or from the CLI
+aml run examples/canadian_bank/aml.yaml --seed 42
+```
+
 ## Detection Rules
 
-The example spec includes 6 detection rules covering core AML typologies:
+The example specs include 6 detection rules covering core AML typologies:
 
-| Rule | Typology | Severity | Logic |
-|------|----------|----------|-------|
-| `structuring_cash_deposits` | Cash structuring below $10k threshold | High | Aggregation window |
-| `rapid_movement_cash_to_wire` | Cash-in then wire-out pass-through | Medium | Aggregation window |
-| `high_risk_jurisdiction` | Significant activity from FATF high-risk countries | High | Custom SQL (JOIN) |
-| `large_cash_ctr` | Daily cash exceeding $10,000 CTR threshold | Medium | Aggregation window |
-| `unusual_volume_spike` | Recent volume >5x historical baseline | Medium | Custom SQL |
-| `dormant_account_activity` | Dormant account reactivation with large transaction | High | Custom SQL |
+| Rule | Typology | Severity | US Citation | CA Citation |
+|------|----------|----------|-------------|-------------|
+| `structuring_cash_deposits` | Below-threshold cash deposits | High | 31 CFR 1010.314 | PCMLTFA s.11.1, PCMLTFR s.132 |
+| `rapid_movement_cash_to_wire` | Cash-in then wire/EFT-out | Medium | FinCEN FIN-2014-A005 | PCMLTFR s.12(1) |
+| `high_risk_jurisdiction` | FATF high-risk country activity | High | 31 CFR 1010.610 | PCMLTFA s.9.4, OSFI B-8 |
+| `large_cash_ctr` / `large_cash_lctr` | Daily cash > reporting threshold | Medium | 31 CFR 1010.311 ($10k USD) | PCMLTFR s.7(1) ($10k CAD) |
+| `unusual_volume_spike` | Volume >5x historical baseline | Medium | FinCEN FIN-2006-A003 | PCMLTFA s.7, PCMLTFR s.123.1 |
+| `dormant_account_activity` | Dormant reactivation + large txn | High | FinCEN FIN-2006-A003 | PCMLTFA s.7 |
 
-Each rule cites specific regulation references (31 CFR, FinCEN Advisories, FATF
-Recommendations) and specifies evidence requirements and escalation queues.
+Each rule specifies evidence requirements and escalation queues with SLAs.
 
 ## Metrics & Reporting
 
@@ -199,7 +239,8 @@ RAG thresholds. See [`docs/metrics-framework.md`](docs/metrics-framework.md).
 
 ```
 schema/aml-spec.schema.json     JSON Schema for aml.yaml (the contract)
-examples/community_bank/        Example spec for a US community bank (6 rules, 13 metrics)
+examples/community_bank/        US community bank spec (FinCEN, USD, SAR/CTR)
+examples/canadian_bank/         Canadian bank spec (FINTRAC/OSFI, CAD, STR/LCTR/EFTR)
 src/aml_framework/
   spec/                         Parse + validate the spec (JSON Schema + Pydantic)
   generators/                   Emit SQL, DAG stubs, control matrix

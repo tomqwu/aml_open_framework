@@ -15,14 +15,19 @@ page_header(
 )
 
 spec = st.session_state.spec
+jurisdiction = spec.program.jurisdiction
 
 if st.session_state.get("guided_demo"):
+    regulator_note = (
+        "FINTRAC and OSFI" if jurisdiction == "CA" else "FinCEN"
+    )
     st.info(
         "**Guided Demo — Maturity Assessment**\n\n"
         "This radar chart mirrors what Deloitte, EY, PwC, and KPMG use "
-        "to assess AML programs. Current scores are derived from your "
-        "spec coverage (e.g., number of active rules, workflow queues, "
-        "data quality checks). The target trace shows where you need to be."
+        f"to assess AML programs regulated by {regulator_note}. Current "
+        "scores are derived from your spec coverage (e.g., number of active "
+        "rules, workflow queues, data quality checks). The target trace "
+        "shows where you need to be."
     )
 
 scores = compute_maturity_scores(spec)

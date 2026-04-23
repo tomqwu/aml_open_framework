@@ -7,11 +7,17 @@ import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.components import page_header
-from aml_framework.dashboard.data_layer import ROADMAP_PHASES
+from aml_framework.dashboard.data_layer import get_roadmap_phases
+
+spec = st.session_state.spec
+jurisdiction = spec.program.jurisdiction
+ROADMAP_PHASES = get_roadmap_phases(jurisdiction)
+
+regulator_label = "FINTRAC / OSFI" if jurisdiction == "CA" else "FinCEN"
 
 page_header(
     "Transformation Roadmap",
-    "4-phase AML program transformation roadmap aligned with industry best practices.",
+    f"4-phase AML program transformation roadmap for {jurisdiction} ({regulator_label}).",
 )
 
 if st.session_state.get("guided_demo"):

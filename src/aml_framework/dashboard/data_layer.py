@@ -174,7 +174,7 @@ FATF_MAPPING = [
     {"rec": "R.10", "title": "Customer Due Diligence", "spec_element": "data_contracts.customer",
      "status": "mapped", "notes": "CDD data contract with risk_rating and KYC fields."},
     {"rec": "R.11", "title": "Record Keeping", "spec_element": "retention_policy + audit ledger",
-     "status": "mapped", "notes": "5-7 year retention, immutable audit ledger."},
+     "status": "mapped", "notes": "5-year retention, immutable audit ledger."},
     {"rec": "R.13", "title": "Correspondent Banking", "spec_element": "rules (high_risk_jurisdiction)",
      "status": "partial", "notes": "Geographic risk rules; full correspondent banking requires EDD."},
     {"rec": "R.15", "title": "New Technologies", "spec_element": "spec-driven architecture",
@@ -182,7 +182,7 @@ FATF_MAPPING = [
     {"rec": "R.19", "title": "Higher-Risk Countries", "spec_element": "rules.high_risk_jurisdiction",
      "status": "mapped", "notes": "Enhanced monitoring for FATF grey/black list jurisdictions."},
     {"rec": "R.20", "title": "Suspicious Transaction Reporting", "spec_element": "reporting.forms + workflow",
-     "status": "mapped", "notes": "SAR workflow with SLAs and evidence assembly."},
+     "status": "mapped", "notes": "STR/SAR workflow with SLAs and evidence assembly."},
     {"rec": "R.21", "title": "Tipping Off", "spec_element": "workflow.queues (access control)",
      "status": "partial", "notes": "Queue-based access; full tipping-off prevention needs RBAC."},
     {"rec": "R.26", "title": "Regulation and Supervision of FIs", "spec_element": "metrics + reports",
@@ -191,6 +191,7 @@ FATF_MAPPING = [
      "status": "partial", "notes": "Multi-jurisdiction spec support; actual cooperation is operational."},
 ]
 
+# --- US: FinCEN BSA Pillars ---
 FINCEN_BSA_PILLARS = [
     {"pillar": 1, "name": "Internal Controls", "spec_element": "workflow + rules + audit ledger",
      "status": "mapped", "notes": "Spec-driven controls with deterministic execution and evidence trail."},
@@ -204,6 +205,66 @@ FINCEN_BSA_PILLARS = [
      "status": "mapped", "notes": "Customer data contract with risk_rating and country."},
     {"pillar": 6, "name": "Risk Assessment (Proposed April 2026)", "spec_element": "metrics + coverage",
      "status": "partial", "notes": "Typology coverage and risk metrics provide programmatic risk assessment."},
+]
+
+# --- CA: PCMLTFA Five Pillars (PCMLTFR s.71) ---
+PCMLTFA_PILLARS = [
+    {"pillar": 1, "name": "Compliance Officer (PCMLTFR s.71(1)(a))",
+     "spec_element": "program.owner",
+     "status": "mapped",
+     "notes": "Named Chief Compliance Officer in spec; identity reportable to FINTRAC."},
+    {"pillar": 2, "name": "Written Policies & Procedures (PCMLTFR s.71(1)(b))",
+     "spec_element": "aml.yaml spec + workflow + rules",
+     "status": "mapped",
+     "notes": "The spec IS the written policy — versioned, reviewed via PR, machine-enforceable."},
+    {"pillar": 3, "name": "Risk Assessment (PCMLTFR s.71(1)(c))",
+     "spec_element": "rules + risk_rating + metrics",
+     "status": "mapped",
+     "notes": "ML/TF risk factors assessed across customers, products, geographies, channels."},
+    {"pillar": 4, "name": "Ongoing Compliance Training (PCMLTFR s.71(1)(d))",
+     "spec_element": "(roadmap item)",
+     "status": "gap",
+     "notes": "Training module not yet in spec; planned for Phase 3."},
+    {"pillar": 5, "name": "Two-Year Effectiveness Review (PCMLTFR s.71(1)(e))",
+     "spec_element": "deterministic runs + hash verification + audit ledger",
+     "status": "mapped",
+     "notes": "Independent review via deterministic re-execution and output hash comparison."},
+]
+
+# --- CA: OSFI Guideline B-8 Principles ---
+OSFI_B8_PRINCIPLES = [
+    {"principle": "Board & Senior Management Oversight",
+     "spec_element": "program.owner + reports (svp/vp)",
+     "status": "mapped",
+     "notes": "Board-level reporting via SVP exec brief; named program owner."},
+    {"principle": "Risk-Based Approach (ERM Integration)",
+     "spec_element": "severity + risk_rating + thresholds",
+     "status": "mapped",
+     "notes": "Risk-based rule severity, customer risk ratings, RAG-banded metrics."},
+    {"principle": "Automated Transaction Monitoring",
+     "spec_element": "rules + engine + DuckDB execution",
+     "status": "mapped",
+     "notes": "Spec-driven automated monitoring with auditable SQL and evidence trail."},
+    {"principle": "Correspondent Banking Due Diligence",
+     "spec_element": "rules.high_risk_jurisdiction",
+     "status": "partial",
+     "notes": "Geographic risk rules cover high-risk jurisdictions; full correspondent DD is operational."},
+    {"principle": "New Product/Technology Risk Assessment",
+     "spec_element": "spec-driven architecture",
+     "status": "mapped",
+     "notes": "New rules go through spec PR review before deployment."},
+    {"principle": "Sanctions Screening Integration",
+     "spec_element": "(roadmap item)",
+     "status": "gap",
+     "notes": "Sanctions screening (Criminal Code, SEMA, UNA) planned for Phase 3."},
+    {"principle": "Internal Audit Independence",
+     "spec_element": "deterministic runs + audit ledger",
+     "status": "mapped",
+     "notes": "Independent validation via deterministic re-execution."},
+    {"principle": "Compliance Culture & Whistleblower",
+     "spec_element": "program + training (roadmap)",
+     "status": "partial",
+     "notes": "Program structure in place; culture/whistleblower mechanisms are operational."},
 ]
 
 WOLFSBERG_MAPPING = [
@@ -226,88 +287,110 @@ WOLFSBERG_MAPPING = [
 ]
 
 
+def get_framework_tabs(jurisdiction: str) -> list[dict[str, Any]]:
+    """Return the framework alignment tabs appropriate for the jurisdiction."""
+    tabs = [{"label": "FATF Recommendations", "data": FATF_MAPPING, "type": "fatf"}]
+    if jurisdiction == "CA":
+        tabs.append({"label": "PCMLTFA Pillars", "data": PCMLTFA_PILLARS, "type": "pillars"})
+        tabs.append({"label": "OSFI Guideline B-8", "data": OSFI_B8_PRINCIPLES, "type": "principles"})
+    else:
+        tabs.append({"label": "FinCEN BSA Pillars", "data": FINCEN_BSA_PILLARS, "type": "pillars"})
+    tabs.append({"label": "Wolfsberg Principles", "data": WOLFSBERG_MAPPING, "type": "principles"})
+    return tabs
+
+
 # ---------------------------------------------------------------------------
-# Transformation Roadmap
+# Transformation Roadmap (jurisdiction-aware)
 # ---------------------------------------------------------------------------
 
-ROADMAP_PHASES = [
-    {
-        "phase": "Phase 1: Assessment",
-        "start_week": 1,
-        "end_week": 4,
-        "color": "#3b82f6",
-        "status": "complete",
-        "milestones": [
-            "Current-state program assessment across 12 dimensions",
-            "Gap analysis against FATF, FinCEN BSA, Wolfsberg",
-            "Risk assessment of customer, product, and geographic exposure",
-            "Prioritized remediation backlog",
-        ],
-        "deliverables": [
-            "Maturity scorecard with dimension-level scores",
-            "Gap register with severity and remediation owners",
-            "Risk-ranked backlog of detection improvements",
-        ],
-    },
-    {
-        "phase": "Phase 2: Foundation",
-        "start_week": 5,
-        "end_week": 16,
-        "color": "#8b5cf6",
-        "status": "in_progress",
-        "milestones": [
-            "Spec-driven framework deployment with CI/CD pipeline",
-            "Core typology catalogue (6+ rules across major risk categories)",
-            "Audit trail activation with deterministic re-execution",
-            "Role-specific reporting framework (SVP through developer)",
-            "Evidence bundle generation for regulator readiness",
-        ],
-        "deliverables": [
-            "aml.yaml with validated rules and metrics",
-            "Automated evidence bundle with hash verification",
-            "Control matrix mapping rules to regulation citations",
-            "Audience-specific dashboards and reports",
-        ],
-    },
-    {
-        "phase": "Phase 3: Advanced Analytics",
-        "start_week": 17,
-        "end_week": 30,
-        "color": "#ec4899",
-        "status": "planned",
-        "milestones": [
-            "Rule tuning using above/below-the-line methodology",
-            "ML-scored alert prioritization (python_ref integration)",
-            "Network analysis for relationship-based detection",
-            "Enhanced CDD/EDD automation",
-        ],
-        "deliverables": [
-            "Tuned rules with documented false positive reduction",
-            "ML model integration with model risk management metadata",
-            "Network visualization for investigation workflows",
-            "Automated KYC refresh scheduling",
-        ],
-    },
-    {
-        "phase": "Phase 4: Optimization",
-        "start_week": 31,
-        "end_week": 52,
-        "color": "#14b8a6",
-        "status": "planned",
-        "milestones": [
-            "Real-time transaction monitoring for critical typologies",
-            "Predictive analytics for emerging risk patterns",
-            "Continuous model validation and performance monitoring",
-            "Full regulatory exam automation",
-        ],
-        "deliverables": [
-            "Sub-second alert generation for sanctions and fraud",
-            "Model performance dashboards with drift detection",
-            "Automated exam package generation",
-            "Program maturity score at Level 4+ across all dimensions",
-        ],
-    },
-]
+def get_roadmap_phases(jurisdiction: str) -> list[dict[str, Any]]:
+    """Return roadmap phases tailored to jurisdiction."""
+    regulator = "FINTRAC / OSFI" if jurisdiction == "CA" else "FinCEN"
+    frameworks = "PCMLTFA, OSFI B-8, FATF" if jurisdiction == "CA" else "FinCEN BSA, FATF"
+    exam_label = "FINTRAC / OSFI exam" if jurisdiction == "CA" else "regulatory exam"
+
+    return [
+        {
+            "phase": "Phase 1: Assessment",
+            "start_week": 1,
+            "end_week": 4,
+            "color": "#3b82f6",
+            "status": "complete",
+            "milestones": [
+                "Current-state program assessment across 12 dimensions",
+                f"Gap analysis against {frameworks}, Wolfsberg",
+                "Risk assessment of customer, product, and geographic exposure",
+                "Prioritized remediation backlog",
+            ],
+            "deliverables": [
+                "Maturity scorecard with dimension-level scores",
+                "Gap register with severity and remediation owners",
+                "Risk-ranked backlog of detection improvements",
+            ],
+        },
+        {
+            "phase": "Phase 2: Foundation",
+            "start_week": 5,
+            "end_week": 16,
+            "color": "#8b5cf6",
+            "status": "in_progress",
+            "milestones": [
+                "Spec-driven framework deployment with CI/CD pipeline",
+                "Core typology catalogue (6+ rules across major risk categories)",
+                "Audit trail activation with deterministic re-execution",
+                "Role-specific reporting framework (SVP through developer)",
+                f"Evidence bundle generation for {regulator} readiness",
+            ],
+            "deliverables": [
+                "aml.yaml with validated rules and metrics",
+                "Automated evidence bundle with hash verification",
+                "Control matrix mapping rules to regulation citations",
+                "Audience-specific dashboards and reports",
+            ],
+        },
+        {
+            "phase": "Phase 3: Advanced Analytics",
+            "start_week": 17,
+            "end_week": 30,
+            "color": "#ec4899",
+            "status": "planned",
+            "milestones": [
+                "Rule tuning using above/below-the-line methodology",
+                "ML-scored alert prioritization (python_ref integration)",
+                "Network analysis for relationship-based detection",
+                "Enhanced CDD/EDD automation",
+            ],
+            "deliverables": [
+                "Tuned rules with documented false positive reduction",
+                "ML model integration with model risk management metadata",
+                "Network visualization for investigation workflows",
+                "Automated KYC refresh scheduling",
+            ],
+        },
+        {
+            "phase": "Phase 4: Optimization",
+            "start_week": 31,
+            "end_week": 52,
+            "color": "#14b8a6",
+            "status": "planned",
+            "milestones": [
+                "Real-time transaction monitoring for critical typologies",
+                "Predictive analytics for emerging risk patterns",
+                "Continuous model validation and performance monitoring",
+                f"Full {exam_label} automation",
+            ],
+            "deliverables": [
+                "Sub-second alert generation for sanctions and fraud",
+                "Model performance dashboards with drift detection",
+                "Automated exam package generation",
+                "Program maturity score at Level 4+ across all dimensions",
+            ],
+        },
+    ]
+
+
+# Legacy alias — used by pages that haven't switched to get_roadmap_phases() yet.
+ROADMAP_PHASES = get_roadmap_phases("US")
 
 
 # ---------------------------------------------------------------------------
