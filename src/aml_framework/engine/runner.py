@@ -47,12 +47,15 @@ def _build_warehouse(
         if not rows:
             con.execute(f"CREATE TABLE {contract.id} AS SELECT NULL WHERE 1=0")
             continue
-        cols = ", ".join(rows[0].keys())
-        placeholders = ", ".join(["?"] * len(rows[0]))
+        # Only insert columns declared in the contract — synthetic data may
+        # carry extra fields used by other specs.
+        contract_cols = [c.name for c in contract.columns]
+        cols = ", ".join(contract_cols)
+        placeholders = ", ".join(["?"] * len(contract_cols))
         con.execute(f"CREATE TABLE {contract.id} ({_ddl_for_contract(contract)})")
         con.executemany(
             f"INSERT INTO {contract.id} ({cols}) VALUES ({placeholders})",
-            [tuple(r.values()) for r in rows],
+            [tuple(r.get(c) for c in contract_cols) for r in rows],
         )
 
 

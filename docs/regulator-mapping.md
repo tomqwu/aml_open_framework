@@ -21,13 +21,47 @@ map onto the spec primitives.
 
 ## Canada (FINTRAC, OSFI)
 
+### Core obligations
+
 | Concern                         | Authority / clause                     | Spec primitive                          |
 |---------------------------------|----------------------------------------|-----------------------------------------|
 | STR filing                      | PCMLTFA s.7                            | `reporting.forms.FINTRAC_STR`           |
-| LCTR (large cash)               | PCMLTFR s.12                           | `reporting.forms.FINTRAC_LCTR`          |
-| EFTR (electronic funds)         | PCMLTFR s.28                           | `reporting.forms.FINTRAC_EFTR`          |
-| Know-your-client                | PCMLTFR Part 4                         | `data_contracts.customer`               |
-| Recordkeeping (5 years)         | PCMLTFR s.69                           | `retention_policy.evidence: 5y`         |
+| LCTR (large cash ≥ $10k CAD)   | PCMLTFR s.7(1)                         | `reporting.forms.FINTRAC_LCTR`          |
+| EFTR (cross-border EFT ≥ $10k) | PCMLTFR s.12(1)                        | `reporting.forms.FINTRAC_EFTR`          |
+| 24-hour aggregation rule        | PCMLTFR s.132                          | `rules[*].logic` (aggregation_window)   |
+| Structuring offence             | PCMLTFA s.11.1                         | `rules.structuring_cash_deposits`       |
+| Know-your-client                | PCMLTFR ss.105-120                     | `data_contracts.customer`               |
+| Beneficial ownership (≥ 25%)    | PCMLTFR s.138                          | `data_contracts.customer` (KYC fields)  |
+| Ongoing monitoring              | PCMLTFR s.123.1                        | `rules.unusual_volume_spike`            |
+| PEP / HIO determination         | PCMLTFA s.9.3, PCMLTFR ss.121-123     | Rule of type `pep_match`                |
+| Correspondent banking DD        | PCMLTFA s.9.4                          | `rules.high_risk_jurisdiction`          |
+| Recordkeeping (5 years)         | PCMLTFR ss.144-145                     | `retention_policy.evidence: 5y`         |
+
+### PCMLTFR s.71 — Five pillars of a compliance program
+
+| Pillar | Requirement                    | Spec primitive                          |
+|--------|--------------------------------|-----------------------------------------|
+| 1      | Compliance Officer (s.71(1)(a))| `program.owner`                         |
+| 2      | Written Policies (s.71(1)(b)) | `aml.yaml` spec (versioned, PR-reviewed)|
+| 3      | Risk Assessment (s.71(1)(c))  | `metrics` + `rules` + risk_rating       |
+| 4      | Training (s.71(1)(d))         | *(roadmap item)*                        |
+| 5      | Effectiveness Review (s.71(1)(e))| Deterministic re-execution + hash verification |
+
+### OSFI Guideline B-8 — Additional expectations for FRFIs
+
+| Concern                         | B-8 section                            | Spec primitive                          |
+|---------------------------------|----------------------------------------|-----------------------------------------|
+| Board & senior management oversight | B-8 s.2                            | `reports` (svp/vp audience)             |
+| Automated transaction monitoring| B-8 s.3                                | `rules` + `engine` execution            |
+| Enhanced DD (high-risk geo)     | B-8 s.4                                | `rules.high_risk_jurisdiction`          |
+| Sanctions screening integration| B-8 s.5                                | *(roadmap item)*                        |
+| Internal audit independence     | B-8 s.6                                | Audit ledger + hash verification        |
+
+### TD Bank 2024 enforcement — gap-to-spec mapping
+
+See [`docs/case-studies/td-2024.md`](case-studies/td-2024.md) for detailed
+traceability from each TD Bank finding to the specific spec clause in
+`examples/canadian_schedule_i_bank/aml.yaml` that would surface the gap.
 
 ## European Union (AMLD6, and soon AMLR / AMLA)
 

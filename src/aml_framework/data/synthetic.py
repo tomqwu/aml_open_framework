@@ -26,6 +26,8 @@ def _customer_row(
     country: str | None = None,
     risk_rating: str | None = None,
     full_name: str | None = None,
+    business_activity: str | None = None,
+    edd_last_review: datetime | None = None,
 ) -> dict[str, Any]:
     return {
         "customer_id": customer_id,
@@ -35,6 +37,8 @@ def _customer_row(
             ["low", "medium", "high"], weights=[70, 25, 5]
         )[0],
         "onboarded_at": onboarded_at,
+        "business_activity": business_activity or "",
+        "edd_last_review": edd_last_review,
     }
 
 
@@ -215,5 +219,59 @@ def generate_dataset(
         "booked_at": as_of - timedelta(days=2, hours=14),
     })
     tid += 1
+
+    # --- Planted positive: rapid pass-through by customer C0007. ---
+    # Cash-in followed by e-transfer-out within 48h, total >= $30k.
+    # Models the TD Bank pass-through typology ($470M+ undetected).
+    if n_customers > 7:
+        customers[7] = _customer_row(
+            fake, "C0007", as_of - timedelta(days=120),
+            country="CA", risk_rating="medium", full_name="James Rivera",
+        )
+        pt_base = as_of - timedelta(days=5)
+        # Cash deposits
+        for h, amt in [(9, 12000), (14, 10000)]:
+            txns.append({
+                "txn_id": f"T{tid:08d}",
+                "customer_id": "C0007",
+                "amount": Decimal(amt).quantize(Decimal("0.01")),
+                "currency": "CAD",
+                "channel": "cash",
+                "direction": "in",
+                "booked_at": pt_base + timedelta(hours=h),
+            })
+            tid += 1
+        # E-transfer out within 48h
+        for h, amt in [(28, 8000), (36, 7000), (42, 6000)]:
+            txns.append({
+                "txn_id": f"T{tid:08d}",
+                "customer_id": "C0007",
+                "amount": Decimal(amt).quantize(Decimal("0.01")),
+                "currency": "CAD",
+                "channel": "e_transfer",
+                "direction": "out",
+                "booked_at": pt_base + timedelta(hours=h),
+            })
+            tid += 1
+
+    # --- Planted positive: shell company by customer C0008. ---
+    # No declared business_activity, 10+ incoming wires from multiple sources.
+    if n_customers > 8:
+        customers[8] = _customer_row(
+            fake, "C0008", as_of - timedelta(days=90),
+            country="CA", risk_rating="low", full_name="Oceanic Holdings Ltd",
+            business_activity="",
+        )
+        for day_offset in range(0, 30, 3):
+            txns.append({
+                "txn_id": f"T{tid:08d}",
+                "customer_id": "C0008",
+                "amount": Decimal(random.randint(5000, 15000)).quantize(Decimal("0.01")),
+                "currency": "CAD",
+                "channel": "wire",
+                "direction": "in",
+                "booked_at": as_of - timedelta(days=day_offset, hours=11),
+            })
+            tid += 1
 
     return {"customer": customers, "txn": txns}
