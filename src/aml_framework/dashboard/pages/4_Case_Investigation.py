@@ -8,6 +8,55 @@ import streamlit as st
 
 from aml_framework.dashboard.components import chart_layout, page_header
 
+
+def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
+    """Write a decision to the audit ledger, update case file, and sync session state."""
+    import json
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    import pandas as pd
+
+    decisions_path = Path(run_dir) / "decisions.jsonl"
+    decision = {
+        "ts": datetime.now(tz=timezone.utc).isoformat(),
+        "event": event,
+        "case_id": case["case_id"],
+        "rule_id": case.get("rule_id", ""),
+        "queue": case.get("queue", ""),
+        "disposition": disposition,
+        "source": "dashboard_ui",
+    }
+    with decisions_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(decision, sort_keys=True, separators=(",", ":")) + "\n")
+
+    # Update case file on disk.
+    case_path = Path(run_dir) / "cases" / f"{case['case_id']}.json"
+    if case_path.exists():
+        case_data = json.loads(case_path.read_bytes())
+        case_data["status"] = disposition
+        case_data["resolved_at"] = decision["ts"]
+        case_path.write_bytes(
+            json.dumps(case_data, indent=2, sort_keys=True, default=str).encode("utf-8")
+        )
+
+    # Cascade: update session state so other pages reflect the change.
+    if "df_cases" in st.session_state and not st.session_state.df_cases.empty:
+        mask = st.session_state.df_cases["case_id"] == case["case_id"]
+        if mask.any():
+            st.session_state.df_cases.loc[mask, "status"] = disposition
+
+    # Add decision to session decisions DataFrame.
+    if "df_decisions" in st.session_state:
+        new_row = pd.DataFrame([decision])
+        st.session_state.df_decisions = pd.concat(
+            [st.session_state.df_decisions, new_row], ignore_index=True,
+        )
+
+    st.success(f"Decision recorded: **{event}** -> {disposition}")
+    st.caption(f"Written to {decisions_path.name} and synced to session.")
+
+
 page_header(
     "Case Investigation",
     "Deep-dive into individual cases with entity profile, transaction timeline, and evidence.",
@@ -227,3 +276,30 @@ if st.button(f"Generate {filing_label} Draft", type="primary"):
         jurisdiction=jurisdiction,
     )
     st.code(narrative, language="text")
+
+# --- Case Action Buttons ---
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### Case Actions")
+st.caption("Actions write to the immutable audit ledger (decisions.jsonl).")
+
+run_dir = st.session_state.run_dir
+case_status = case.get("status", "open")
+
+if "closed" in case_status or case_status in ("str_filing", "sar_filing"):
+    st.success(f"Case already resolved: **{case_status}**")
+else:
+    col_a1, col_a2, col_a3, col_a4 = st.columns(4)
+
+    with col_a1:
+        if st.button("Escalate to L2", use_container_width=True):
+            _record_action(run_dir, case, "escalated", "l2_investigator")
+    with col_a2:
+        filing_q = "str_filing" if jurisdiction == "CA" else "sar_filing"
+        if st.button(f"File {filing_label}", type="primary", use_container_width=True):
+            _record_action(run_dir, case, f"escalated_to_{filing_label.lower()}", filing_q)
+    with col_a3:
+        if st.button("Close - No Action", use_container_width=True):
+            _record_action(run_dir, case, "closed", "closed_no_action")
+    with col_a4:
+        if st.button("Request EDD", use_container_width=True):
+            _record_action(run_dir, case, "edd_requested", "edd_review")

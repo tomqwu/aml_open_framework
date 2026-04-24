@@ -7,11 +7,13 @@ import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Model Performance",
     "ML model analytics, score distributions, and model risk management metadata.",
 )
+show_audience_context("Model Performance")
 
 spec = st.session_state.spec
 result = st.session_state.result

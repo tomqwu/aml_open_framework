@@ -7,11 +7,13 @@ import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.components import SEVERITY_COLORS, chart_layout, kpi_card, page_header
+from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Rule Performance",
     "Per-rule alert analytics, severity distribution, and regulation mapping.",
 )
+show_audience_context("Rule Performance")
 
 spec = st.session_state.spec
 result = st.session_state.result

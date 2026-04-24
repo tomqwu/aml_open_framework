@@ -6,11 +6,13 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Data Quality",
     "Data contract compliance, quality check results, and column-level statistics.",
 )
+show_audience_context("Data Quality")
 
 spec = st.session_state.spec
 data = st.session_state.data

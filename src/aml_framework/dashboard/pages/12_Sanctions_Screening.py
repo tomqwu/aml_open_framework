@@ -6,11 +6,13 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Sanctions Screening",
     "Sanctions list match results from SEMA, OFAC SDN, and other reference lists.",
 )
+show_audience_context("Sanctions Screening")
 
 spec = st.session_state.spec
 result = st.session_state.result

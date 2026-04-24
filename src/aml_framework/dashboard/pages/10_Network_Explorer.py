@@ -13,11 +13,13 @@ import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
 from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Network Explorer",
     "Entity relationship graph based on transaction flow correlations.",
 )
+show_audience_context("Network Explorer")
 
 df_txns = st.session_state.df_txns
 df_customers = st.session_state.df_customers

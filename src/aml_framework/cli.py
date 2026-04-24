@@ -57,11 +57,18 @@ def run(
     seed: int = typer.Option(42, help="Synthetic data seed."),
     as_of: str | None = typer.Option(None, help="ISO timestamp used as the rule 'now'."),
     artifacts: Path = typer.Option(Path(".artifacts"), help="Artifacts root."),
+    data_source: str = typer.Option("synthetic", help="Data source: synthetic, csv, parquet, duckdb."),
+    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files (one per contract)."),
 ) -> None:
-    """End-to-end demo: synthesize data, execute rules, emit cases + audit bundle."""
+    """End-to-end: load data, execute rules, emit cases + audit bundle."""
+    from aml_framework.data.sources import resolve_source
+
     spec = load_spec(spec_path)
     as_of_dt = _parse_as_of(as_of)
-    data = generate_dataset(as_of=as_of_dt, seed=seed)
+    data = resolve_source(
+        source_type=data_source, spec=spec, as_of=as_of_dt,
+        seed=seed, data_dir=data_dir,
+    )
 
     result = run_spec(
         spec=spec,
@@ -196,6 +203,122 @@ def dashboard(
         ],
         check=False,
     )
+
+
+@app.command(name="export-alerts")
+def export_alerts(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path | None = typer.Option(None, help="Specific run dir; defaults to latest."),
+    out: Path = typer.Option(Path(".artifacts/alerts.csv"), help="Output CSV path."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+) -> None:
+    """Export alerts from a completed run as CSV."""
+    import csv
+    import json
+
+    if run_dir is None:
+        candidates = sorted(artifacts.glob("run-*"), reverse=True)
+        if not candidates:
+            console.print("[red]No run directories found.[/red] Run `aml run` first.")
+            raise typer.Exit(code=1)
+        run_dir = candidates[0]
+
+    alerts_dir = run_dir / "alerts"
+    if not alerts_dir.exists():
+        console.print(f"[red]No alerts/[/red] in {run_dir}.")
+        raise typer.Exit(code=1)
+
+    all_alerts: list[dict] = []
+    for jsonl_file in sorted(alerts_dir.glob("*.jsonl")):
+        rule_id = jsonl_file.stem
+        for line in jsonl_file.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                alert = json.loads(line)
+                alert["rule_id"] = rule_id
+                all_alerts.append(alert)
+
+    if not all_alerts:
+        console.print("[yellow]No alerts to export.[/yellow]")
+        raise typer.Exit(code=0)
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = list(all_alerts[0].keys())
+    with out.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(all_alerts)
+
+    console.print(f"[green]Exported[/green] {len(all_alerts)} alerts to {out}")
+
+
+@app.command()
+def replay(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Argument(..., exists=True, help="Original run directory to replay."),
+    seed: int = typer.Option(42, help="Synthetic data seed."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+) -> None:
+    """Re-execute a run and compare output hashes to verify determinism."""
+    import json
+
+    spec = load_spec(spec_path)
+    as_of_str = None
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_bytes())
+        as_of_str = manifest.get("as_of")
+
+    as_of_dt = _parse_as_of(as_of_str)
+    data = generate_dataset(as_of=as_of_dt, seed=seed)
+
+    replay_root = artifacts / "replay"
+    result = run_spec(
+        spec=spec, spec_path=spec_path, data=data, as_of=as_of_dt, artifacts_root=replay_root,
+    )
+
+    # Compare hashes.
+    if manifest_path.exists():
+        original = json.loads(manifest_path.read_bytes())
+        orig_hashes = original.get("rule_outputs", {})
+        replay_hashes = result.manifest.get("rule_outputs", {})
+
+        table = Table(title="Hash Comparison")
+        table.add_column("Rule")
+        table.add_column("Original")
+        table.add_column("Replay")
+        table.add_column("Match")
+
+        all_match = True
+        for rule_id in sorted(set(orig_hashes) | set(replay_hashes)):
+            orig = orig_hashes.get(rule_id, "N/A")
+            repl = replay_hashes.get(rule_id, "N/A")
+            match = orig == repl
+            if not match:
+                all_match = False
+            table.add_row(
+                rule_id, orig[:16] + "...", repl[:16] + "...",
+                "[green]YES[/green]" if match else "[red]NO[/red]",
+            )
+        console.print(table)
+
+        if all_match:
+            console.print("[green]All hashes match.[/green] Run is deterministic.")
+        else:
+            console.print("[red]Hash mismatch detected.[/red] Non-deterministic output.")
+    else:
+        console.print(f"[yellow]No manifest.json in {run_dir}.[/yellow] Cannot compare.")
+        console.print(f"Replay completed. Results in {result.manifest['run_dir']}")
+
+
+@app.command()
+def diff(
+    spec_a: Path = typer.Argument(..., exists=True, readable=True, help="First spec."),
+    spec_b: Path = typer.Argument(..., exists=True, readable=True, help="Second spec."),
+) -> None:
+    """Compare two aml.yaml specs and show differences."""
+    from aml_framework.diff import diff_specs
+
+    diff_specs(spec_a, spec_b)
 
 
 @app.command()
