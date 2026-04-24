@@ -149,19 +149,47 @@ deliverables, and status tracking.
 ### Network Explorer
 
 Interactive entity relationship graph built with networkx and streamlit-agraph.
-Customers are nodes (sized by volume, colored by risk rating), edges represent
-shared channel flows. Red-bordered nodes have active alerts. Fan-in pattern
-detection flags potential funnel accounts.
+Edges represent **temporal correlation** (outflow from one customer followed by
+inflow to another within 1 hour) — this is how pass-through and layering
+patterns surface. Fan-in detection counts distinct correlated counterparties.
 
 ![Network Explorer](docs/screenshots/10_network_explorer.png)
 
 ### Live Monitor
 
-Real-time transaction monitoring simulation. Press "Start Monitoring" to replay
-synthetic transactions with live KPI updates, cumulative volume chart, channel
-activity breakdown, and automatic alert detection (cash > $9k or wire > $20k).
+Real-time transaction monitoring simulation with **spec-derived alert
+conditions**. Screening rules are extracted from the spec's aggregation_window
+filters and having thresholds. An expandable panel shows which rules drive
+the screening.
 
 ![Live Monitor](docs/screenshots/11_live_monitor.png)
+
+### Sanctions Screening
+
+Executes `list_match` rules against reference sanctions lists (SEMA, OFAC SDN)
+with exact or fuzzy (token-overlap) matching. Shows match results with
+confidence scores, matched customer profiles, and the screening rules from
+the spec.
+
+![Sanctions Screening](docs/screenshots/12_sanctions_screening.png)
+
+### Model Performance
+
+ML model analytics for `python_ref` rules: model inventory with version
+tracking, score distribution histograms with threshold markers, per-alert
+details, and model risk management metadata (model_id, version, callable,
+regulation citations).
+
+![Model Performance](docs/screenshots/13_model_performance.png)
+
+### Data Quality
+
+Executes data contract quality checks (`not_null`, `unique` constraints)
+against actual data. Shows PASS/FAIL per check, freshness SLA compliance
+with breach detection, and column-level statistics (non-null count, unique
+values, types).
+
+![Data Quality](docs/screenshots/14_data_quality.png)
 
 ## User Workflows by Persona
 
@@ -205,22 +233,23 @@ evidence collection.
 
 ### Auditor / Regulator Workflow
 
-Auditors go directly to **Audit & Evidence** for the immutable audit trail:
-spec content hashes, per-rule SHA-256 output hashes, append-only decision
-logs, and the full evidence bundle file tree. They verify **Framework
-Alignment** to confirm regulatory coverage status.
+Auditors go directly to **Audit & Evidence** for the immutable audit trail,
+then **Data Quality** to verify contract compliance and freshness SLAs, and
+**Framework Alignment** for regulatory coverage status.
 
 ![Auditor Evidence](docs/screenshots/workflows/auditor_1_evidence.png)
 
-![Auditor Framework](docs/screenshots/workflows/auditor_2_framework.png)
+![Auditor Data Quality](docs/screenshots/workflows/auditor_3_data_quality.png)
 
 ### Developer Workflow
 
-Platform engineers monitor **Rule Performance** for per-rule analytics, logic
-type distribution, and detection rates. The **Executive Dashboard** in
-developer view shows runtime throughput and rule catalogue health.
+Platform engineers monitor **Rule Performance** for per-rule analytics and
+**Model Performance** for ML model scoring distributions, version tracking,
+and model risk management metadata.
 
 ![Developer Rules](docs/screenshots/workflows/dev_2_rules.png)
+
+![Developer Model Performance](docs/screenshots/workflows/dev_3_model_performance.png)
 
 ## Multi-Jurisdiction Support
 
@@ -319,12 +348,14 @@ examples/community_bank/        US community bank spec (FinCEN, USD, SAR/CTR)
 examples/canadian_bank/         Canadian bank spec (FINTRAC/OSFI, CAD, STR/LCTR/EFTR)
 src/aml_framework/
   spec/                         Parse + validate the spec (JSON Schema + Pydantic)
-  generators/                   Emit SQL, DAG stubs, control matrix
+  generators/                   Emit SQL, DAG stubs, control matrix, STR narratives
   engine/                       Execute rules on DuckDB, audit ledger
   metrics/                      Metric evaluation engine + report rendering
   cases/                        Case files, reviewer workflow artifacts
   data/                         Synthetic data generator with planted positives
-  dashboard/                    Streamlit web dashboard (9 pages)
+  dashboard/                    Streamlit web dashboard (14 pages)
+  models/                       ML scoring callables for python_ref rules
+  api/                          FastAPI REST layer with JWT auth
   cli.py                        `aml` command-line entry point
 docs/
   architecture.md               Reference architecture
@@ -356,9 +387,9 @@ pytest tests/
 
 | Layer | Tests | What It Covers |
 |-------|-------|----------------|
-| **Unit/Integration** | 27 | Spec validation, rule execution, metrics, python_ref, planted positives, reproducibility |
+| **Unit/Integration** | 27 | Spec validation, all rule types (aggregation_window, custom_sql, python_ref, list_match), metrics, planted positives, reproducibility |
 | **API E2E** | 9 | FastAPI health, JWT auth (login/reject/all users), run creation, error handling |
-| **Dashboard E2E (Playwright)** | 21 | All 11 pages render without errors, sidebar content, KPI cards, charts, network graph, live monitor controls |
+| **Dashboard E2E (Playwright)** | 23 | All 14 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
 
 ## Status
 
