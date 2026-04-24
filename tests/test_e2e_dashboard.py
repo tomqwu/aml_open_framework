@@ -36,6 +36,7 @@ PAGES = [
     "Sanctions Screening",
     "Model Performance",
     "Data Quality",
+    "Run History",
 ]
 
 

@@ -245,6 +245,65 @@ def export_alerts(
 
 
 @app.command()
+def replay(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Argument(..., exists=True, help="Original run directory to replay."),
+    seed: int = typer.Option(42, help="Synthetic data seed."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+) -> None:
+    """Re-execute a run and compare output hashes to verify determinism."""
+    import json
+
+    spec = load_spec(spec_path)
+    as_of_str = None
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_bytes())
+        as_of_str = manifest.get("as_of")
+
+    as_of_dt = _parse_as_of(as_of_str)
+    data = generate_dataset(as_of=as_of_dt, seed=seed)
+
+    replay_root = artifacts / "replay"
+    result = run_spec(
+        spec=spec, spec_path=spec_path, data=data, as_of=as_of_dt, artifacts_root=replay_root,
+    )
+
+    # Compare hashes.
+    if manifest_path.exists():
+        original = json.loads(manifest_path.read_bytes())
+        orig_hashes = original.get("rule_outputs", {})
+        replay_hashes = result.manifest.get("rule_outputs", {})
+
+        table = Table(title="Hash Comparison")
+        table.add_column("Rule")
+        table.add_column("Original")
+        table.add_column("Replay")
+        table.add_column("Match")
+
+        all_match = True
+        for rule_id in sorted(set(orig_hashes) | set(replay_hashes)):
+            orig = orig_hashes.get(rule_id, "N/A")
+            repl = replay_hashes.get(rule_id, "N/A")
+            match = orig == repl
+            if not match:
+                all_match = False
+            table.add_row(
+                rule_id, orig[:16] + "...", repl[:16] + "...",
+                "[green]YES[/green]" if match else "[red]NO[/red]",
+            )
+        console.print(table)
+
+        if all_match:
+            console.print("[green]All hashes match.[/green] Run is deterministic.")
+        else:
+            console.print("[red]Hash mismatch detected.[/red] Non-deterministic output.")
+    else:
+        console.print(f"[yellow]No manifest.json in {run_dir}.[/yellow] Cannot compare.")
+        console.print(f"Replay completed. Results in {result.manifest['run_dir']}")
+
+
+@app.command()
 def diff(
     spec_a: Path = typer.Argument(..., exists=True, readable=True, help="First spec."),
     spec_b: Path = typer.Argument(..., exists=True, readable=True, help="Second spec."),

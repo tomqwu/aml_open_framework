@@ -155,6 +155,68 @@ async def get_metrics(
     return get_run_metrics(run_id)
 
 
+@app.post("/api/v1/validate")
+async def validate_spec(
+    req: RunRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Validate a spec without running it."""
+    spec_path = _PROJECT_ROOT / req.spec_path
+    if not spec_path.exists():
+        raise HTTPException(status_code=404, detail=f"Spec not found: {req.spec_path}")
+    try:
+        spec = load_spec(spec_path)
+        return {
+            "valid": True,
+            "program": spec.program.name,
+            "jurisdiction": spec.program.jurisdiction,
+            "rules": len(spec.rules),
+            "metrics": len(spec.metrics),
+            "queues": len(spec.workflow.queues),
+        }
+    except (ValueError, Exception) as e:
+        return {"valid": False, "error": str(e)}
+
+
+@app.get("/api/v1/runs/{run_id}/reports")
+async def get_reports(
+    run_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, str]:
+    """Get report list for a run (reports are not persisted — returns IDs only)."""
+    manifest = get_run(run_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return {"reports": manifest.get("reports", [])}
+
+
+# --- Webhook configuration ---
+_webhooks: list[dict[str, str]] = []
+
+
+class WebhookConfig(BaseModel):
+    url: str
+    events: list[str] = ["alert_created", "run_completed"]
+    name: str = "default"
+
+
+@app.post("/api/v1/webhooks")
+async def register_webhook(
+    config: WebhookConfig,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Register a webhook URL for event notifications."""
+    _webhooks.append({"name": config.name, "url": config.url, "events": config.events})
+    return {"status": "registered", "name": config.name, "event_count": len(config.events)}
+
+
+@app.get("/api/v1/webhooks")
+async def list_webhooks(
+    user: dict[str, Any] = Depends(get_current_user),
+) -> list[dict]:
+    return _webhooks
+
+
 def _serialize(obj: Any) -> Any:
     """Convert non-JSON-serializable types (Decimal, datetime) to primitives."""
     if hasattr(obj, "items"):
