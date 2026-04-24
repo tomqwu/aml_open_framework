@@ -14,6 +14,12 @@ page_header(
     "(Level 1: Ad-Hoc to Level 5: Optimized).",
 )
 
+st.caption(
+    "Scores are derived from spec coverage (rule count, queue structure, "
+    "data quality checks) using heuristic weightings. A production assessment "
+    "requires expert review of each dimension."
+)
+
 spec = st.session_state.spec
 jurisdiction = spec.program.jurisdiction
 

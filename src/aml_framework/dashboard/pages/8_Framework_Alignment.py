@@ -17,6 +17,11 @@ page_header(
     f"Mapping spec primitives to regulatory standards for {jurisdiction} ({regulator}).",
 )
 
+st.caption(
+    "Coverage status values are maintained manually and represent an "
+    "initial mapping assessment. Confirm with compliance and legal counsel."
+)
+
 if st.session_state.get("guided_demo"):
     if jurisdiction == "CA":
         st.info(

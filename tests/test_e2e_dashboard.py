@@ -162,7 +162,8 @@ class TestLiveMonitor:
     def test_transaction_count_shown(self, browser_page):
         _navigate(browser_page, "Live Monitor")
         text = browser_page.inner_text("body")
-        assert "transactions ready for replay" in text
+        assert "transactions" in text
+        assert "screening rules from spec" in text
 
 
 class TestAuditEvidence:

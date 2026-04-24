@@ -20,6 +20,11 @@ page_header(
     f"4-phase AML program transformation for {jurisdiction} ({regulator_label}).",
 )
 
+st.caption(
+    "This is a reference roadmap template. Phases, timelines, and milestones "
+    "should be customized to your institution's risk profile and remediation priorities."
+)
+
 if st.session_state.get("guided_demo"):
     st.info(
         "**Guided Demo -- Transformation Roadmap**\n\n"
