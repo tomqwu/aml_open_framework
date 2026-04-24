@@ -6,136 +6,27 @@ source of truth for data contracts, detection rules, case workflow, and
 regulator reporting — every artifact (SQL, pipelines, dashboards, audit logs,
 SAR exports) is generated from it and traceable back to a regulation citation.
 
-![AML Open Framework — spec-driven, audit-ready AML automation for modern banks](docs/pitch/03-framework-overview.png)
-
-![From policy drift to governed execution — why AML programs struggle today and how the framework changes the operating model](docs/pitch/02-policy-drift-to-governed-execution.png)
-
-![Executive business case and transformation path — a governed AML control model that reduces risk, improves operating efficiency, and strengthens regulator confidence](docs/pitch/01-executive-business-case.png)
-
-## Executive pitch
-
-Turn policy into governed execution. One versioned AML spec becomes the single
-source of truth for data contracts, detection rules, workflow, and regulator
-reporting.
-
-### Three ways this changes AML delivery
-
-1. **Eliminate control drift** — keep policy, implementation, and evidence
-   aligned in one governed model.
-2. **Prove compliance faster** — generate traceable dashboards, audit evidence,
-   and regulator-ready outputs on demand.
-3. **Accelerate AML change safely** — launch and tune detection logic through
-   reviewed specs instead of uncontrolled manual translation.
-
-### Executive outcomes
-
-| Outcome | What it means |
-|---------|---------------|
-| **Risk reduction** | Stronger controls. Lower exposure. |
-| **Operational efficiency** | Automate with consistency. Scale with confidence. |
-| **Audit confidence** | Defensible evidence. Regulator ready. |
-
-> **Single source of truth:** `aml.yaml` drives SQL, pipelines, tests,
-> dashboards, audit logs, and SAR-ready exports.
-
-## From policy drift to governed execution
+## Why
 
 Banks lose years of compliance work to drift between **policy** (what the
 regulator expects), **implementation** (what the pipelines actually do), and
 **evidence** (what the auditor can prove). The usual result is six-figure
 fines, remediation programs, and burned-out compliance teams.
 
-### Today's AML pain points
+This framework attacks the drift directly:
 
-1. **Manual translation** — policies become SQL, spreadsheets, and one-off
-   logic through manual interpretation.
-2. **Control drift** — compliance intent, engineering implementation, and
-   audit evidence diverge over time.
-3. **Slow remediation** — finding issues during audit triggers expensive
-   clean-up and executive escalation.
-4. **Fragmented accountability** — compliance, data, operations, and audit
-   teams work from different artifacts.
-
-### What changes with AML Open Framework
-
-A four-layer operating model, all driven from the same spec:
-
-| Layer | Purpose |
-|-------|---------|
-| **Policy** | Versioned `aml.yaml` defines program metadata, data contracts, rules, workflow, and reporting. |
-| **Generation** | Generates SQL, DAGs, tests, docs, and the control matrix from the same spec. |
-| **Runtime** | Executes rules, produces alerts and cases, routes reviewer decisions. |
-| **Evidence** | Captures spec version, input hash, output hash, and an immutable decision log. |
-
-### Executive differentiators
-
-- **Single source of truth** — one governed spec drives policy, implementation, and reporting.
-- **Reviewable change control** — every change is versioned, peer-reviewed, and traceable.
-- **Reproducible evidence** — immutable audit trail proves what ran, on what data, and why.
-
-### Role alignment — one governed spec
-
-| Role | Responsibility |
-|------|----------------|
-| **CCO / Compliance** | Writes policy in a reviewable YAML spec, with every rule annotated to a regulation clause. Defines risk appetite and controls. |
-| **Data engineering** | Builds once from the governed spec — DAGs, SQL, and data-quality tests are generated, not hand-translated from PDF policy docs. |
-| **Data team** | Sees lineage and freshness SLAs enforced as code. |
-| **Review operations** | Investigates, decides, and closes cases against the same spec-driven queues and SLAs. |
-| **Audit / Regulator** | Gets a reproducible evidence bundle — spec version + input hash + rule output + reviewer decisions, signed and immutable — plus a control narrative and SAR-ready exports on demand. |
-
-> **Outcome:** a unified operating model that reduces risk, accelerates change,
-> and builds regulator and auditor confidence.
+- **Business owner / Chief Compliance Officer** writes policy in a reviewable
+  YAML spec, with every rule annotated to a regulation clause.
+- **Data engineer** gets generated DAGs, SQL, and data-quality tests from the
+  same spec — no hand-translation from PDF policy docs.
+- **Data team** sees lineage and freshness SLAs enforced as code.
+- **Auditor** gets a reproducible evidence bundle: spec version + input hash +
+  rule output + reviewer decisions, signed and immutable.
+- **Regulator** gets a control narrative and SAR-ready exports on demand.
 
 See [`docs/architecture.md`](docs/architecture.md) for the reference design and
 [`docs/personas.md`](docs/personas.md) for how each role interacts with the
 framework.
-
-## Executive business case and transformation path
-
-A governed AML control model that reduces risk, improves operating efficiency,
-and strengthens regulator confidence.
-
-### Three levers behind the case
-
-| Lever | Description |
-|-------|-------------|
-| **Risk reduction** | Tighten change control, reduce undocumented logic, and improve traceability from rule to regulation. |
-| **Operating efficiency** | Automate repetitive artifacts, accelerate rule deployment, and reduce manual evidence gathering. |
-| **Regulatory confidence** | Provide defensible audit trails, signed evidence bundles, and clearer control narratives. |
-
-### 4-phase transformation roadmap
-
-| Phase | Weeks | Focus |
-|-------|-------|-------|
-| **1 · Assessment** | 1–4 | Current-state review, target controls, priority use cases. |
-| **2 · Foundation** | 5–16 | Spec model, contracts, core rules, workflow, dashboards. |
-| **3 · Advanced analytics** | 17–30 | Expanded typologies, tuning, richer monitoring. |
-| **4 · Optimization** | 31–52 | Continuous improvement, governance scaling, operating-model maturity. |
-
-### Standards alignment
-
-- **FATF** — Recommendations & Interpretive Notes
-- **FinCEN BSA** — Regulatory requirements (including the proposed 6th pillar)
-- **Wolfsberg** — AML principles & guidance
-
-The dashboard's **Framework Alignment** page shows coverage, partial mapping,
-and gaps against each standard.
-
-### Best-fit buyers
-
-- SVP Compliance
-- VP Financial Crime
-- VP Data & Analytics
-- VP Transformation
-
-### Executive outcomes
-
-- **Lower risk exposure** — consistent controls and fewer blind spots.
-- **Faster time to value** — standardized artifacts and automated delivery.
-- **Operational leverage** — less manual effort and higher team productivity.
-- **Stronger regulator trust** — clear evidence, traceability, and control narratives.
-
-> **Move AML from detective compliance to preventive compliance — enforced as code.**
 
 ## Quickstart
 
