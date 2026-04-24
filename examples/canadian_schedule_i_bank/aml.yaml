@@ -1,0 +1,774 @@
+# AML/ATF spec for a Canadian Schedule I bank.
+# Modeled on findings from the TD Bank 2024 DOJ/FinCEN enforcement actions
+# ($3.09B in combined penalties) to demonstrate how spec-driven controls
+# surface the gap patterns that led to that outcome.
+#
+# Every rule and metric maps to a specific finding in the consent orders.
+# See docs/case-studies/td-2024.md for the traceability matrix.
+
+version: 1
+
+program:
+  name: schedule_i_bank_aml
+  jurisdiction: CA
+  regulator: FINTRAC
+  owner: chief_anti_money_laundering_officer
+  effective_date: 2026-01-01
+
+# ---------------------------------------------------------------------------
+# Data contracts — one per channel to enforce channel-level coverage.
+# TD's biggest finding: ~92% of transaction volume was unmonitored because
+# entire channels (ACH, cheques) were excluded from the monitoring system.
+# Declaring each channel as a contract forces every channel to be visible.
+# ---------------------------------------------------------------------------
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,      type: string,    nullable: false, pii: false }
+      - { name: customer_id, type: string,    nullable: false, pii: true  }
+      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,    type: string,    nullable: false }
+      - { name: channel,     type: string,    enum: [cash, wire, ach, e_transfer, cheque, card] }
+      - { name: direction,   type: string,    enum: [in, out] }
+      - { name: booked_at,   type: timestamp, nullable: false }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,      type: string,    nullable: false, pii: true }
+      - { name: full_name,        type: string,    nullable: false, pii: true }
+      - { name: country,          type: string,    nullable: false }
+      - { name: risk_rating,      type: string,    enum: [low, medium, high] }
+      - { name: onboarded_at,     type: timestamp, nullable: false }
+      - { name: business_activity, type: string,   nullable: true }
+      - { name: edd_last_review,  type: timestamp, nullable: true }
+
+# ---------------------------------------------------------------------------
+# Detection rules — each maps to a TD Bank failure mode
+# ---------------------------------------------------------------------------
+rules:
+  # --- STRUCTURING: cash below LCTR $10k CAD threshold ---
+  - id: structuring_cash_deposits
+    name: Cash structuring — deposits below LCTR $10,000 threshold
+    severity: high
+    regulation_refs:
+      - citation: "PCMLTFA s.11.1"
+        description: "Structuring offence — splitting transactions to avoid reporting."
+      - citation: "PCMLTFR s.7(1)"
+        description: "LCTR filing obligation for cash transactions of $10,000+ CAD."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+        direction: in
+        amount: { between: [5000, 9999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 20000 }
+    escalate_to: l1_aml_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - prior_alerts_90d
+    tags: [structuring, cash, lctr]
+
+  # --- RAPID PASS-THROUGH: cash-in then e-transfer-out within 48h ---
+  # TD failure: pass-through typology across $470M+ was undetected.
+  - id: rapid_pass_through
+    name: Rapid pass-through — cash-in followed by e-transfer-out within 48h
+    severity: critical
+    regulation_refs:
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — pass-through pattern indicative of layering."
+      - citation: "FINTRAC Operational Alert 2016-01"
+        description: "Rapid movement of funds through Canadian financial system."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH cash_in AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE channel = 'cash' AND direction = 'in'
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        etransfer_out AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE channel = 'e_transfer' AND direction = 'out'
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        paired AS (
+            SELECT
+                ci.customer_id,
+                SUM(ci.amount) AS cash_in_total,
+                SUM(eo.amount) AS etransfer_out_total,
+                COUNT(DISTINCT ci.txn_id) AS cash_in_count,
+                COUNT(DISTINCT eo.txn_id) AS etransfer_out_count,
+                MIN(ci.booked_at) AS window_start,
+                MAX(eo.booked_at) AS window_end
+            FROM cash_in ci
+            JOIN etransfer_out eo
+              ON ci.customer_id = eo.customer_id
+              AND eo.booked_at BETWEEN ci.booked_at AND ci.booked_at + INTERVAL '48' HOUR
+            GROUP BY ci.customer_id
+        )
+        SELECT
+            'rapid_pass_through' AS rule_id,
+            customer_id,
+            cash_in_total + etransfer_out_total AS sum_amount,
+            cash_in_count + etransfer_out_count AS count,
+            window_start,
+            window_end
+        FROM paired
+        WHERE cash_in_total + etransfer_out_total >= 30000
+        ORDER BY customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - counterparty_analysis
+      - prior_alerts_90d
+    tags: [pass_through, layering, e_transfer, td_finding]
+
+  # --- SHELL COMPANY INDICATORS ---
+  # TD failure: shell companies with no declared business opened accounts.
+  - id: shell_company_indicators
+    name: Shell company — no business activity with high-volume multi-jurisdiction wires
+    severity: high
+    regulation_refs:
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — shell company indicators."
+      - citation: "PCMLTFR s.138"
+        description: "Beneficial ownership verification requirements."
+      - citation: "OSFI Guideline B-8 s.4"
+        description: "Enhanced due diligence for higher-risk entities."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH wire_activity AS (
+            SELECT
+                t.customer_id,
+                COUNT(*) AS wire_count,
+                SUM(t.amount) AS wire_total,
+                MIN(t.booked_at) AS window_start,
+                MAX(t.booked_at) AS window_end
+            FROM txn t
+            WHERE t.channel = 'wire' AND t.direction = 'in'
+              AND t.booked_at >= TIMESTAMP '{window_start}'
+              AND t.booked_at <  TIMESTAMP '{as_of}'
+            GROUP BY t.customer_id
+            HAVING COUNT(*) >= 10
+        )
+        SELECT
+            'shell_company_indicators' AS rule_id,
+            w.customer_id,
+            w.wire_total AS sum_amount,
+            w.wire_count AS count,
+            w.window_start,
+            w.window_end
+        FROM wire_activity w
+        JOIN customer c ON w.customer_id = c.customer_id
+        WHERE (c.business_activity IS NULL OR c.business_activity = '')
+        ORDER BY w.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - beneficial_ownership_records
+      - jurisdiction_analysis
+    tags: [shell_company, layering, beneficial_ownership]
+
+  # --- HIGH-RISK JURISDICTION ---
+  - id: high_risk_jurisdiction
+    name: Significant activity from FATF high-risk jurisdiction
+    severity: high
+    regulation_refs:
+      - citation: "PCMLTFA s.9.4"
+        description: "Correspondent banking and high-risk country due diligence."
+      - citation: "FINTRAC Guideline 8A"
+        description: "Risk assessment — geographic risk factors."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'high_risk_jurisdiction' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN customer c ON t.customer_id = c.customer_id
+        WHERE c.country IN ('RU', 'IR', 'KP', 'MM', 'SY')
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 5000
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - jurisdiction_risk_assessment
+    tags: [high_risk_jurisdiction, geographic_risk]
+
+  # --- LARGE CASH (LCTR) ---
+  - id: large_cash_lctr
+    name: Cash activity exceeding LCTR threshold ($10,000 CAD/day)
+    severity: medium
+    regulation_refs:
+      - citation: "PCMLTFR s.7(1)"
+        description: "LCTR filing obligation for cash transactions of $10,000+ CAD."
+      - citation: "PCMLTFR s.132"
+        description: "24-hour aggregation rule for cash transactions."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+      group_by: [customer_id]
+      window: 1d
+      having:
+        sum_amount: { gte: 10000 }
+    escalate_to: l1_aml_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [lctr, cash, regulatory_reporting]
+
+  # --- UNUSUAL VOLUME SPIKE ---
+  - id: unusual_volume_spike
+    name: Unusual volume spike — recent activity far exceeds baseline
+    severity: medium
+    regulation_refs:
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — transactions inconsistent with client profile."
+      - citation: "PCMLTFR s.123.1"
+        description: "Ongoing monitoring of business relationships."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH recent AS (
+            SELECT customer_id, SUM(amount) AS recent_total
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{recent_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+            GROUP BY customer_id
+        ),
+        baseline AS (
+            SELECT customer_id, SUM(amount) / 4.0 AS weekly_avg
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{baseline_start}'
+              AND booked_at <  TIMESTAMP '{recent_start}'
+            GROUP BY customer_id
+            HAVING COUNT(*) >= 2
+        )
+        SELECT
+            'unusual_volume_spike' AS rule_id,
+            r.customer_id,
+            r.recent_total AS sum_amount,
+            b.weekly_avg AS baseline_avg,
+            r.recent_total / NULLIF(b.weekly_avg, 0) AS spike_ratio,
+            TIMESTAMP '{recent_start}' AS window_start,
+            TIMESTAMP '{as_of}' AS window_end
+        FROM recent r
+        JOIN baseline b ON r.customer_id = b.customer_id
+        WHERE r.recent_total > b.weekly_avg * 5
+          AND r.recent_total >= 5000
+        ORDER BY r.customer_id
+    escalate_to: l1_aml_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - historical_transaction_profile
+    tags: [unusual_activity, behavioral]
+
+  # --- DORMANT ACCOUNT REACTIVATION ---
+  - id: dormant_account_activity
+    name: Dormant account reactivation with large transaction
+    severity: high
+    regulation_refs:
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — dormant accounts with sudden large transactions."
+      - citation: "FINTRAC ML/TF Indicators"
+        description: "Dormant account suddenly reactivated with significant activity."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH last_activity AS (
+            SELECT customer_id, MAX(booked_at) AS last_txn_date
+            FROM txn
+            WHERE booked_at < TIMESTAMP '{dormant_cutoff}'
+            GROUP BY customer_id
+        ),
+        recent_large AS (
+            SELECT customer_id, SUM(amount) AS sum_amount,
+                   COUNT(*) AS count,
+                   MIN(booked_at) AS window_start,
+                   MAX(booked_at) AS window_end
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{dormant_cutoff}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+              AND amount >= 10000
+            GROUP BY customer_id
+        )
+        SELECT
+            'dormant_account_activity' AS rule_id,
+            r.customer_id,
+            r.sum_amount,
+            r.count,
+            r.window_start,
+            r.window_end
+        FROM recent_large r
+        JOIN last_activity la ON r.customer_id = la.customer_id
+        ORDER BY r.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - account_activity_history
+    tags: [dormant_account, behavioral]
+
+  # --- SANCTIONS SCREENING ---
+  # Screen customer names against consolidated sanctions lists (SEMA, OFAC SDN).
+  - id: sanctions_screening
+    name: Sanctions list screening — SEMA and OFAC SDN
+    severity: critical
+    regulation_refs:
+      - citation: "Criminal Code s.83.08"
+        description: "Offence to deal with property of listed persons (terrorist financing)."
+      - citation: "SEMA s.4"
+        description: "Special Economic Measures Act — prohibition on dealings with listed persons."
+      - citation: "PCMLTFA s.7.1"
+        description: "Terrorist Property Report — file without delay upon discovery."
+    logic:
+      type: list_match
+      source: customer
+      field: full_name
+      list: sanctions
+      match: fuzzy
+      threshold: 0.8
+    escalate_to: l2_investigator
+    evidence:
+      - customer_kyc_profile
+      - sanctions_match_details
+      - beneficial_ownership_records
+    tags: [sanctions, terrorist_financing, sema]
+
+  # --- ML-DRIVEN BEHAVIORAL RISK SCORING ---
+  # Demonstrates the python_ref execution pipeline. The callable is a
+  # heuristic scorer (velocity, amount deviation, channel mixing) that
+  # returns customers with a composite risk score above threshold.
+  - id: ml_risk_scorer
+    name: ML-driven behavioral risk scoring
+    severity: medium
+    regulation_refs:
+      - citation: "OSFI Guideline E-23"
+        description: "Model risk management — models must be inventoried, validated, and monitored."
+      - citation: "PCMLTFR s.123.1"
+        description: "Ongoing monitoring using risk-based analytical tools."
+    logic:
+      type: python_ref
+      callable: "aml_framework.models.scoring:heuristic_risk_scorer"
+      model_id: heuristic_risk_v1
+      model_version: "1.0.0"
+    escalate_to: l1_aml_analyst
+    evidence:
+      - customer_transaction_profile
+      - model_score_breakdown
+      - historical_alert_history
+    tags: [behavioral, ml_scoring]
+
+# ---------------------------------------------------------------------------
+# Workflow — queues reflecting FINTRAC expectations
+# ---------------------------------------------------------------------------
+workflow:
+  queues:
+    - id: l1_aml_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [str_filing, edd_review, closed_no_action]
+    - id: str_filing
+      sla: 30d
+      regulator_form: FINTRAC_STR
+    - id: edd_review
+      sla: 72h
+      next: [l2_investigator, closed_no_action]
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    FINTRAC_STR:
+      template: fintrac_str_v1
+      mandatory_fields: [subject, narrative, triggering_rules, transactions]
+    FINTRAC_LCTR:
+      template: fintrac_lctr_v1
+      trigger:
+        channel: cash
+        aggregate_day: { gte: 10000 }
+    FINTRAC_EFTR:
+      template: fintrac_eftr_v1
+      trigger:
+        channel: { in: [wire, e_transfer] }
+        direction: out
+        cross_border: true
+        amount: { gte: 10000 }
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 5y
+  client_identification: 5y
+
+# ---------------------------------------------------------------------------
+# Metrics — including TD-specific gap indicators
+# ---------------------------------------------------------------------------
+metrics:
+  # --- Channel coverage gap (TD's biggest finding) ---
+  - id: channel_coverage_gap
+    name: Channel monitoring coverage
+    description: >
+      Ratio of channels with at least one active detection rule to total
+      declared channels. TD Bank left ~92% of volume unmonitored because
+      entire channels were excluded. This metric turns RED if any declared
+      channel lacks a rule.
+    category: effectiveness
+    audience: [svp, vp, director]
+    owner: chief_anti_money_laundering_officer
+    unit: "%"
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+    target: { eq: 1.0 }
+    thresholds:
+      green: { eq: 1.0 }
+      amber: { gte: 0.8 }
+      red:   { lt: 0.8 }
+
+  # --- Internal-alert-ignored proxy ---
+  - id: internal_alert_ignored
+    name: Repeat-alert rate (closed then re-alerted within 90d)
+    description: >
+      Proxy for TD's failure mode where front-line concerns went nowhere.
+      Counts cases closed_no_action where the same customer triggers a new
+      alert. High rate signals inadequate investigation at first review.
+    category: effectiveness
+    audience: [vp, director, auditor]
+    owner: chief_anti_money_laundering_officer
+    unit: "%"
+    formula:
+      type: sql
+      sql: >
+        SELECT repeat_closed / NULLIF(total_closed, 0)
+        FROM (
+          SELECT COUNT(*) FILTER (WHERE repeat_flag) AS repeat_closed,
+                 COUNT(*) AS total_closed
+          FROM closed_cases
+        )
+    target: { lte: 0.02 }
+    thresholds:
+      green: { lte: 0.02 }
+      amber: { lte: 0.05 }
+      red:   { gt: 0.05 }
+
+  - id: alert_volume_total
+    name: Total alerts produced
+    category: operational
+    audience: [director, manager, analyst, developer]
+    owner: head_of_financial_crime_ops
+    formula:
+      type: count
+      source: alerts
+    thresholds:
+      green: { lte: 100 }
+      amber: { between: [101, 500] }
+      red:   { gt: 500 }
+
+  - id: high_severity_alert_ratio
+    name: High/critical severity alert share
+    category: risk
+    audience: [svp, vp, director]
+    owner: chief_anti_money_laundering_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: alerts
+        filter: { rule_id: { in: [structuring_cash_deposits, rapid_pass_through, shell_company_indicators, high_risk_jurisdiction, dormant_account_activity] } }
+      denominator:
+        type: count
+        source: alerts
+    target: { lte: 0.7 }
+    thresholds:
+      green: { lte: 0.5 }
+      amber: { lte: 0.7 }
+      red:   { gt: 0.7 }
+
+  - id: typology_coverage
+    name: Typology coverage — rules that fired / all tagged rules
+    category: effectiveness
+    audience: [vp, director, manager]
+    owner: chief_anti_money_laundering_officer
+    unit: "%"
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+    target: { gte: 0.8 }
+    thresholds:
+      green: { gte: 0.8 }
+      amber: { gte: 0.5 }
+      red:   { lt: 0.5 }
+
+  - id: cases_opened
+    name: Cases opened this run
+    category: operational
+    audience: [manager, analyst, developer]
+    owner: head_of_financial_crime_ops
+    formula:
+      type: count
+      source: cases
+
+  - id: cases_routed_to_l1
+    name: Cases routed to L1 AML analyst queue
+    category: operational
+    audience: [manager]
+    owner: l1_team_lead
+    formula:
+      type: count
+      source: cases
+      filter: { queue: l1_aml_analyst }
+
+  - id: distinct_customers_alerted
+    name: Distinct customers alerted
+    category: risk
+    audience: [vp, director, business]
+    owner: chief_anti_money_laundering_officer
+    formula:
+      type: count
+      source: alerts
+      distinct_by: customer_id
+
+  - id: transaction_volume_cad
+    name: Total transaction volume screened (CAD)
+    category: operational
+    audience: [director, manager, business, developer]
+    owner: data_platform_lead
+    unit: CAD
+    formula:
+      type: sum
+      source: txn
+      field: amount
+
+  - id: rules_active_count
+    name: Total active rules deployed
+    category: delivery
+    audience: [svp, vp, director, pm, developer]
+    owner: aml_program_manager
+    formula:
+      type: count
+      source: rules
+      filter: { status: active }
+    thresholds:
+      green: { gte: 6 }
+      amber: { gte: 4 }
+      red:   { lt: 4 }
+
+  - id: high_severity_rules_active
+    name: Active high/critical severity rules
+    category: delivery
+    audience: [pm, developer, vp]
+    owner: aml_program_manager
+    formula:
+      type: count
+      source: rules
+      filter: { severity: high, status: active }
+    thresholds:
+      green: { gte: 3 }
+      amber: { gte: 2 }
+      red:   { lt: 2 }
+
+  - id: alert_to_str_rate
+    name: Alert-to-STR conversion rate
+    category: regulatory
+    audience: [svp, vp, director]
+    owner: chief_anti_money_laundering_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: cases
+        filter: { queue: str_filing }
+      denominator:
+        type: count
+        source: alerts
+    target: { gte: 0.1 }
+    thresholds:
+      green: { gte: 0.1 }
+      amber: { gte: 0.05 }
+      red:   { lt: 0.05 }
+
+  - id: sla_compliance_rate
+    name: SLA compliance rate
+    category: operational
+    audience: [manager, director, vp]
+    owner: head_of_financial_crime_ops
+    unit: "%"
+    formula:
+      type: sql
+      sql: "SELECT CAST(on_time AS FLOAT) / NULLIF(total, 0) FROM ..."
+    target: { gte: 0.95 }
+    thresholds:
+      green: { gte: 0.95 }
+      amber: { gte: 0.85 }
+      red:   { lt: 0.85 }
+
+  - id: str_filing_latency_p95
+    name: STR filing latency (p95, days)
+    description: >
+      95th-percentile days from alert to STR filing. PCMLTFR requires
+      filing within 30 calendar days of detection.
+    category: regulatory
+    audience: [svp, vp, director, auditor]
+    owner: chief_anti_money_laundering_officer
+    unit: days
+    formula:
+      type: sql
+      sql: "SELECT PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY filing_days) FROM ..."
+    target: { lte: 30 }
+    thresholds:
+      green: { lte: 15 }
+      amber: { lte: 30 }
+      red:   { gt: 30 }
+
+  - id: lctr_completeness
+    name: LCTR completeness — cash >= $10k reported
+    description: >
+      Ratio of reportable cash transactions that have a corresponding LCTR.
+      TD under-filed because monitoring excluded entire channels.
+    category: regulatory
+    audience: [vp, director, auditor]
+    owner: chief_anti_money_laundering_officer
+    unit: "%"
+    formula:
+      type: sql
+      sql: "SELECT filed / NULLIF(reportable, 0) FROM ..."
+    target: { eq: 1.0 }
+    thresholds:
+      green: { eq: 1.0 }
+      amber: { gte: 0.95 }
+      red:   { lt: 0.95 }
+
+  - id: edd_review_adherence
+    name: EDD review cadence adherence
+    description: >
+      Percentage of high-risk customers whose EDD review is current (within
+      12 months). TD failed CDD/EDD on shell companies and nominees.
+    category: risk
+    audience: [vp, director, auditor]
+    owner: chief_anti_money_laundering_officer
+    unit: "%"
+    formula:
+      type: sql
+      sql: "SELECT current_edd / NULLIF(high_risk_total, 0) FROM ..."
+    target: { gte: 0.95 }
+    thresholds:
+      green: { gte: 0.95 }
+      amber: { gte: 0.80 }
+      red:   { lt: 0.80 }
+
+# ---------------------------------------------------------------------------
+# Reports — one per audience
+# ---------------------------------------------------------------------------
+reports:
+  - id: cao_quarterly
+    title: Chief AML Officer quarterly brief
+    audience: svp
+    cadence: quarterly
+    sections:
+      - title: Program effectiveness
+        metrics: [channel_coverage_gap, typology_coverage, high_severity_alert_ratio]
+        commentary: >
+          Channel coverage must be 100% — the TD enforcement showed that
+          excluding channels from monitoring is an existential regulatory risk.
+      - title: Regulatory posture
+        metrics: [alert_to_str_rate, str_filing_latency_p95, lctr_completeness]
+      - title: Program scale
+        metrics: [rules_active_count, transaction_volume_cad]
+
+  - id: mlro_monthly
+    title: MLRO monthly compliance review
+    audience: vp
+    cadence: monthly
+    sections:
+      - title: Detection effectiveness
+        metrics: [typology_coverage, channel_coverage_gap, high_severity_alert_ratio]
+      - title: Escalation health
+        metrics: [alert_to_str_rate, internal_alert_ignored]
+        commentary: >
+          Repeat-alert rate tracks the TD failure mode where closed cases
+          re-surfaced. A rising rate signals insufficient first-pass investigation.
+      - title: Regulatory filing
+        metrics: [str_filing_latency_p95, lctr_completeness, edd_review_adherence]
+      - title: Volume
+        metrics: [alert_volume_total, distinct_customers_alerted]
+      - title: Catalogue
+        metrics: [high_severity_rules_active, rules_active_count]
+
+  - id: fintrac_readiness
+    title: FINTRAC / OSFI exam readiness
+    audience: director
+    cadence: monthly
+    sections:
+      - title: Coverage controls
+        metrics: [channel_coverage_gap, typology_coverage]
+      - title: Operational demand
+        metrics: [alert_volume_total, cases_opened, distinct_customers_alerted]
+      - title: Regulatory compliance
+        metrics: [str_filing_latency_p95, lctr_completeness, edd_review_adherence]
+      - title: Escalation integrity
+        metrics: [internal_alert_ignored, sla_compliance_rate]
+
+  - id: ops_daily
+    title: Operations daily pulse
+    audience: manager
+    cadence: daily
+    sections:
+      - title: Queue load
+        metrics: [cases_opened, cases_routed_to_l1, alert_volume_total]
+      - title: Performance
+        metrics: [sla_compliance_rate]
+      - title: Volume
+        metrics: [transaction_volume_cad]
+
+  - id: osfi_exam_prep
+    title: OSFI examination evidence package
+    audience: auditor
+    cadence: on_demand
+    sections:
+      - title: Program coverage
+        metrics: [channel_coverage_gap, typology_coverage, rules_active_count]
+      - title: Regulatory filing compliance
+        metrics: [str_filing_latency_p95, lctr_completeness, edd_review_adherence]
+      - title: Escalation integrity
+        metrics: [internal_alert_ignored, alert_to_str_rate]
+      - title: Risk exposure
+        metrics: [high_severity_alert_ratio, distinct_customers_alerted]

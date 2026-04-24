@@ -1,12 +1,13 @@
-# Reference AML spec for a US community bank.
+# Reference AML/ATF spec for a Canadian Schedule I bank.
 # Illustrative only — thresholds and typologies must be tuned per institution.
+# Aligned with PCMLTFA, PCMLTFR, FINTRAC guidance, and OSFI Guideline B-8.
 
 version: 1
 
 program:
-  name: community_bank_aml
-  jurisdiction: US
-  regulator: FinCEN
+  name: canadian_bank_aml
+  jurisdiction: CA
+  regulator: FINTRAC
   owner: chief_compliance_officer
   effective_date: 2026-01-01
 
@@ -19,7 +20,7 @@ data_contracts:
       - { name: customer_id, type: string,    nullable: false, pii: true  }
       - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
       - { name: currency,    type: string,    nullable: false }
-      - { name: channel,     type: string,    enum: [cash, wire, ach, card] }
+      - { name: channel,     type: string,    enum: [cash, wire, ach, card, eft] }
       - { name: direction,   type: string,    enum: [in, out] }
       - { name: booked_at,   type: timestamp, nullable: false }
     quality_checks:
@@ -37,44 +38,50 @@ data_contracts:
       - { name: onboarded_at, type: timestamp, nullable: false }
 
 rules:
+  # --- Structuring: cash deposits just below LCTR threshold (CAD $10,000) ---
   - id: structuring_cash_deposits
-    name: Cash structuring — just-below-threshold deposits
+    name: Cash structuring — deposits below LCTR $10,000 threshold
     severity: high
     regulation_refs:
-      - citation: "31 CFR 1010.314"
-        description: "Prohibition on structuring transactions to evade reporting."
-      - citation: "31 CFR 1020.320"
-        description: "SAR filing required for suspected structuring."
+      - citation: "PCMLTFA s.11.1"
+        description: "Structuring offence — splitting transactions to avoid reporting."
+      - citation: "PCMLTFR s.7(1)"
+        description: "LCTR filing obligation for cash transactions of $10,000+ CAD."
+      - citation: "PCMLTFR s.132"
+        description: "24-hour aggregation rule for cash transactions."
     logic:
       type: aggregation_window
       source: txn
       filter:
         channel: cash
         direction: in
-        amount: { between: [7000, 9999] }
+        amount: { between: [5000, 9999] }
       group_by: [customer_id]
       window: 30d
       having:
         count:      { gte: 3 }
-        sum_amount: { gte: 25000 }
+        sum_amount: { gte: 20000 }
     escalate_to: l1_analyst
     evidence:
       - all_matching_transactions
       - customer_kyc_profile
       - prior_alerts_90d
-    tags: [structuring, cash]
+    tags: [structuring, cash, lctr]
 
-  - id: rapid_movement_cash_to_wire
-    name: Rapid movement — cash in followed by outgoing wire
+  # --- Rapid movement: cash in followed by outgoing EFT/wire ---
+  - id: rapid_movement_cash_to_eft
+    name: Rapid movement — cash in followed by outgoing EFT
     severity: medium
     regulation_refs:
-      - citation: "FinCEN Advisory FIN-2014-A005"
-        description: "Pass-through typology associated with layering."
+      - citation: "FINTRAC Operational Alert 2016-01"
+        description: "Pass-through typology — layering through Canadian accounts."
+      - citation: "PCMLTFR s.12(1)"
+        description: "EFT reporting for cross-border transfers of $10,000+ CAD."
     logic:
       type: aggregation_window
       source: txn
       filter:
-        channel: { in: [cash, wire] }
+        channel: { in: [cash, wire, eft] }
       group_by: [customer_id]
       window: 7d
       having:
@@ -84,16 +91,19 @@ rules:
     evidence:
       - all_matching_transactions
       - customer_kyc_profile
-    tags: [rapid_movement, layering]
+    tags: [rapid_movement, layering, eft]
 
+  # --- High-risk jurisdiction: FATF grey/black list countries ---
   - id: high_risk_jurisdiction
     name: Significant activity from FATF high-risk jurisdiction
     severity: high
     regulation_refs:
-      - citation: "31 CFR 1010.610"
-        description: "Enhanced due diligence for correspondent accounts."
-      - citation: "FATF Recommendation 19"
-        description: "Higher-risk countries — enhanced measures required."
+      - citation: "PCMLTFA s.9.4"
+        description: "Correspondent banking and high-risk country due diligence."
+      - citation: "FINTRAC Guideline 8A"
+        description: "Risk assessment — geographic risk factors."
+      - citation: "OSFI Guideline B-8 s.4"
+        description: "Enhanced due diligence for higher-risk geographies."
     logic:
       type: custom_sql
       sql: |
@@ -119,14 +129,15 @@ rules:
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, geographic_risk]
 
-  - id: large_cash_ctr
-    name: Cash activity exceeding CTR threshold ($10,000/day)
+  # --- Large Cash Transaction (LCTR threshold: CAD $10,000/day) ---
+  - id: large_cash_lctr
+    name: Cash activity exceeding LCTR threshold ($10,000 CAD/day)
     severity: medium
     regulation_refs:
-      - citation: "31 CFR 1010.311"
-        description: "Filing obligations for currency transactions over $10,000."
-      - citation: "31 CFR 1020.315"
-        description: "Aggregation of multiple currency transactions."
+      - citation: "PCMLTFR s.7(1)"
+        description: "LCTR filing obligation for cash transactions of $10,000+ CAD."
+      - citation: "PCMLTFR s.132"
+        description: "24-hour aggregation rule — multiple transactions totalling $10,000+."
     logic:
       type: aggregation_window
       source: txn
@@ -140,14 +151,17 @@ rules:
     evidence:
       - all_matching_transactions
       - customer_kyc_profile
-    tags: [ctr, cash, regulatory_reporting]
+    tags: [lctr, cash, regulatory_reporting]
 
+  # --- Unusual volume spike ---
   - id: unusual_volume_spike
     name: Unusual volume spike — recent activity far exceeds baseline
     severity: medium
     regulation_refs:
-      - citation: "FinCEN Advisory FIN-2006-A003"
-        description: "Potential suspicious activity — unusual transactions inconsistent with profile."
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — transactions inconsistent with client profile."
+      - citation: "PCMLTFR s.123.1"
+        description: "Ongoing monitoring of business relationships."
     logic:
       type: custom_sql
       sql: |
@@ -186,12 +200,15 @@ rules:
       - historical_transaction_profile
     tags: [unusual_activity, behavioral]
 
+  # --- Dormant account reactivation ---
   - id: dormant_account_activity
     name: Dormant account reactivation with large transaction
     severity: high
     regulation_refs:
-      - citation: "FinCEN Advisory FIN-2006-A003"
-        description: "Potential suspicious activity — dormant accounts with sudden large transactions."
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — dormant accounts with sudden large transactions."
+      - citation: "FINTRAC ML/TF Indicators"
+        description: "Dormant account suddenly reactivated with significant activity."
     logic:
       type: custom_sql
       sql: |
@@ -236,36 +253,40 @@ workflow:
       next: [l2_investigator, closed_no_action]
     - id: l2_investigator
       sla: 72h
-      next: [sar_filing, closed_no_action]
-    - id: sar_filing
+      next: [str_filing, closed_no_action]
+    - id: str_filing
       sla: 30d
-      regulator_form: FinCEN_SAR
+      regulator_form: FINTRAC_STR
     - id: closed_no_action
       sla: 24h
 
 reporting:
   forms:
-    FinCEN_SAR:
-      template: fincen_sar_v2
+    FINTRAC_STR:
+      template: fintrac_str_v1
       mandatory_fields: [subject, narrative, triggering_rules, transactions]
-    FinCEN_CTR:
-      template: fincen_ctr_v1
+    FINTRAC_LCTR:
+      template: fintrac_lctr_v1
       trigger:
         channel: cash
         aggregate_day: { gte: 10000 }
+    FINTRAC_EFTR:
+      template: fintrac_eftr_v1
+      trigger:
+        channel: { in: [wire, eft] }
+        direction: out
+        cross_border: true
+        amount: { gte: 10000 }
 
 retention_policy:
   evidence: 5y
   alerts: 5y
   case_decisions: 5y
-  raw_transactions: 7y
+  raw_transactions: 5y
+  client_identification: 5y
 
 # ---------------------------------------------------------------------------
 # Business metrics & reporting
-# ---------------------------------------------------------------------------
-# Each metric declares who cares about it (audience) and who is accountable
-# for its RAG colour (owner). Reports stitch metrics into role-specific views
-# so every seat in the program looks at numbers relevant to their decisions.
 # ---------------------------------------------------------------------------
 
 metrics:
@@ -307,7 +328,7 @@ metrics:
     name: Typology coverage — rules that fired / all tagged rules
     category: effectiveness
     audience: [vp, director, manager]
-    owner: mlro
+    owner: chief_compliance_officer
     unit: "%"
     formula:
       type: coverage
@@ -348,12 +369,12 @@ metrics:
       source: alerts
       distinct_by: customer_id
 
-  - id: transaction_volume_usd
+  - id: transaction_volume_cad
     name: Total transaction volume screened
     category: operational
     audience: [director, manager, business, developer]
     owner: data_platform_lead
-    unit: USD
+    unit: CAD
     formula:
       type: sum
       source: txn
@@ -389,23 +410,22 @@ metrics:
 
   - id: false_positive_rate
     name: Estimated false positive rate
-    description: Ratio of alerts not resulting in SAR escalation (proxy in demo)
     category: effectiveness
     audience: [svp, vp, director, manager]
     owner: chief_compliance_officer
     unit: "%"
     formula:
       type: sql
-      sql: "SELECT 1.0 - (CAST(sar_count AS FLOAT) / NULLIF(total, 0)) FROM ..."
+      sql: "SELECT 1.0 - (CAST(str_count AS FLOAT) / NULLIF(total, 0)) FROM ..."
     target: { lte: 0.85 }
     thresholds:
       green: { lte: 0.7 }
       amber: { lte: 0.85 }
       red:   { gt:  0.85 }
 
-  - id: alert_to_sar_rate
-    name: Alert-to-SAR conversion rate
-    description: Proportion of alerts escalated to SAR filing queue
+  - id: alert_to_str_rate
+    name: Alert-to-STR conversion rate
+    description: Proportion of alerts escalated to STR filing queue
     category: regulatory
     audience: [svp, vp, director]
     owner: chief_compliance_officer
@@ -415,7 +435,7 @@ metrics:
       numerator:
         type: count
         source: cases
-        filter: { queue: sar_filing }
+        filter: { queue: str_filing }
       denominator:
         type: count
         source: alerts
@@ -427,7 +447,6 @@ metrics:
 
   - id: sla_compliance_rate
     name: SLA compliance rate
-    description: Percentage of cases resolved within queue SLA
     category: operational
     audience: [manager, director, vp]
     owner: head_of_financial_crime_ops
@@ -443,7 +462,6 @@ metrics:
 
   - id: avg_resolution_hours
     name: Average case resolution time
-    description: Mean hours from case open to disposition
     category: operational
     audience: [manager, director]
     owner: head_of_financial_crime_ops
@@ -466,13 +484,12 @@ reports:
       - title: Outcomes
         metrics: [high_severity_alert_ratio, typology_coverage, false_positive_rate]
         commentary: >
-          Share of alerts coming from our most severe typology, how
-          well the detection catalogue covers the typologies we declared
-          in our risk assessment, and estimated false positive rate.
+          Share of alerts from high-severity typologies, detection coverage,
+          and estimated false positive rate for OSFI and board reporting.
       - title: Exposure
-        metrics: [distinct_customers_alerted, transaction_volume_usd]
+        metrics: [distinct_customers_alerted, transaction_volume_cad]
       - title: Program scale
-        metrics: [rules_active_count, alert_to_sar_rate]
+        metrics: [rules_active_count, alert_to_str_rate]
 
   - id: vp_compliance_review
     title: VP compliance review
@@ -480,7 +497,7 @@ reports:
     cadence: monthly
     sections:
       - title: Program effectiveness
-        metrics: [typology_coverage, high_severity_alert_ratio, alert_to_sar_rate]
+        metrics: [typology_coverage, high_severity_alert_ratio, alert_to_str_rate]
       - title: Volume & exposure
         metrics: [alert_volume_total, distinct_customers_alerted]
       - title: Catalogue health
@@ -524,7 +541,7 @@ reports:
     cadence: daily
     sections:
       - title: Throughput
-        metrics: [alert_volume_total, cases_opened, transaction_volume_usd]
+        metrics: [alert_volume_total, cases_opened, transaction_volume_cad]
       - title: Catalogue
         metrics: [high_severity_rules_active]
 
@@ -534,4 +551,4 @@ reports:
     cadence: daily
     sections:
       - title: Today's picture
-        metrics: [distinct_customers_alerted, transaction_volume_usd]
+        metrics: [distinct_customers_alerted, transaction_volume_cad]

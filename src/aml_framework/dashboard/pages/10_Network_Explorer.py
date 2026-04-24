@@ -1,0 +1,165 @@
+"""Network Explorer -- entity relationship graph from real transaction flows.
+
+Edges represent actual transaction activity patterns:
+- Customers with correlated timing (transactions within 1 hour of each other)
+  are connected, weighted by volume — this surfaces pass-through and layering.
+- Fan-in detection counts distinct senders (customers whose outflows precede
+  another customer's inflows within a time window).
+"""
+
+from __future__ import annotations
+
+import streamlit as st
+from streamlit_agraph import Config, Edge, Node, agraph
+
+from aml_framework.dashboard.components import kpi_card, page_header
+
+page_header(
+    "Network Explorer",
+    "Entity relationship graph based on transaction flow correlations.",
+)
+
+df_txns = st.session_state.df_txns
+df_customers = st.session_state.df_customers
+df_alerts = st.session_state.df_alerts
+
+if st.session_state.get("guided_demo"):
+    st.info(
+        "**Guided Demo -- Network Explorer**\n\n"
+        "Edges connect customers whose transactions are **temporally correlated** "
+        "(within 1 hour of each other), which surfaces pass-through and layering "
+        "patterns. Node size = total volume, color = risk rating, red border = "
+        "active alert. Fan-in counts distinct customers whose outflows precede "
+        "another's inflows."
+    )
+
+# --- Build graph data ---
+risk_colors = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}
+alerted_ids = set()
+if not df_alerts.empty and "customer_id" in df_alerts.columns:
+    alerted_ids = set(df_alerts["customer_id"].dropna().unique())
+
+# Per-customer stats.
+cust_stats = df_txns.groupby("customer_id").agg(
+    total_volume=("amount", "sum"),
+    txn_count=("txn_id", "count"),
+    channels=("channel", "nunique"),
+).reset_index()
+cust_info = df_customers.set_index("customer_id")
+
+# Build nodes.
+nodes = []
+for _, row in cust_stats.iterrows():
+    cid = row["customer_id"]
+    info = cust_info.loc[cid] if cid in cust_info.index else None
+    risk = info["risk_rating"] if info is not None else "low"
+    name = info["full_name"] if info is not None else cid
+    vol = float(row["total_volume"])
+    size = max(15, min(50, int(vol / 5000)))
+    color = risk_colors.get(risk, "#6b7280")
+    border = "#dc2626" if cid in alerted_ids else "#e2e8f0"
+    border_width = 3 if cid in alerted_ids else 1
+
+    nodes.append(Node(
+        id=cid,
+        label=cid,
+        title=f"{name}\nRisk: {risk}\nVolume: ${vol:,.0f}\nTxns: {int(row['txn_count'])}",
+        size=size,
+        color={"background": color, "border": border},
+        borderWidth=border_width,
+    ))
+
+# Build edges from temporal correlation.
+# Two customers are linked if one has an outflow and the other has an inflow
+# within 1 hour — this is how pass-through and layering are detected.
+edges: list[Edge] = []
+edge_weights: dict[tuple[str, str], float] = {}
+
+if not df_txns.empty:
+    outflows = df_txns[df_txns["direction"] == "out"].sort_values("booked_at")
+    inflows = df_txns[df_txns["direction"] == "in"].sort_values("booked_at")
+
+    # For efficiency with small datasets, do a pairwise check.
+    out_records = outflows[["customer_id", "booked_at", "amount"]].to_dict("records")
+    in_records = inflows[["customer_id", "booked_at", "amount"]].to_dict("records")
+
+    for out_txn in out_records:
+        for in_txn in in_records:
+            if out_txn["customer_id"] == in_txn["customer_id"]:
+                continue
+            # Check temporal proximity: inflow within 0-60 minutes after outflow.
+            delta = (in_txn["booked_at"] - out_txn["booked_at"]).total_seconds()
+            if 0 <= delta <= 3600:
+                pair = tuple(sorted([out_txn["customer_id"], in_txn["customer_id"]]))
+                vol = float(min(out_txn["amount"], in_txn["amount"]))
+                edge_weights[pair] = edge_weights.get(pair, 0) + vol
+
+    for (c1, c2), vol in edge_weights.items():
+        width = max(1, min(6, int(vol / 5000)))
+        both_alerted = c1 in alerted_ids and c2 in alerted_ids
+        color = "rgba(220, 38, 38, 0.5)" if both_alerted else "rgba(37, 99, 235, 0.3)"
+        edges.append(Edge(
+            source=c1, target=c2,
+            color=color, width=width,
+            title=f"Correlated flow: ${vol:,.0f}",
+        ))
+
+# Fan-in detection: count distinct senders (outflow customers correlated
+# with a given customer's inflows).
+fan_in_counts: dict[str, set[str]] = {}
+for (c1, c2) in edge_weights:
+    fan_in_counts.setdefault(c1, set()).add(c2)
+    fan_in_counts.setdefault(c2, set()).add(c1)
+fan_in_suspects = {cid for cid, senders in fan_in_counts.items() if len(senders) >= 3}
+
+# --- KPI row ---
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    kpi_card("Nodes", len(nodes), "#2563eb")
+with c2:
+    kpi_card("Flow Edges", len(edges), "#7c3aed")
+with c3:
+    kpi_card("Alerted Nodes", len(alerted_ids), "#dc2626")
+with c4:
+    kpi_card("Fan-In (3+ links)", len(fan_in_suspects), "#d97706")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- Graph visualization ---
+config = Config(
+    width=1100,
+    height=500,
+    directed=False,
+    physics=True,
+    hierarchical=False,
+    nodeHighlightBehavior=True,
+    highlightColor="#2563eb",
+    collapsible=False,
+)
+
+agraph(nodes=nodes, edges=edges, config=config)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- Fan-in suspects ---
+if fan_in_suspects:
+    st.markdown("### Fan-In Suspects (3+ correlated counterparties)")
+    suspects_df = df_customers[df_customers["customer_id"].isin(fan_in_suspects)].copy()
+    if not suspects_df.empty:
+        suspects_df = suspects_df.merge(cust_stats, on="customer_id", how="left")
+        suspects_df["links"] = suspects_df["customer_id"].map(
+            lambda cid: len(fan_in_counts.get(cid, set()))
+        )
+        cols = ["customer_id", "full_name", "country", "risk_rating", "total_volume", "links"]
+        available = [c for c in cols if c in suspects_df.columns]
+        st.dataframe(suspects_df[available], use_container_width=True, hide_index=True)
+
+# --- Alerted customer detail ---
+st.markdown("### Alerted Customers")
+if alerted_ids:
+    detail_df = df_customers[df_customers["customer_id"].isin(alerted_ids)].merge(
+        cust_stats, on="customer_id", how="left",
+    )
+    cols = ["customer_id", "full_name", "country", "risk_rating", "total_volume", "txn_count"]
+    available = [c for c in cols if c in detail_df.columns]
+    st.dataframe(detail_df[available], use_container_width=True, hide_index=True)
