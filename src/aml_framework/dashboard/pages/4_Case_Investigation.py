@@ -205,3 +205,25 @@ if evidence:
             )
 else:
     st.caption("No evidence items specified.")
+
+# --- STR/SAR Narrative Generator ---
+st.markdown("<br>", unsafe_allow_html=True)
+jurisdiction = spec.program.jurisdiction
+filing_label = "STR" if jurisdiction == "CA" else "SAR"
+st.markdown(f"### Generate {filing_label} Narrative")
+
+if st.button(f"Generate {filing_label} Draft", type="primary"):
+    from aml_framework.generators.narrative import generate_str_narrative
+
+    cust_dict = customer_row.iloc[0].to_dict() if not customer_row.empty else None
+    cust_txns_list = []
+    if customer_id and not df_txns.empty:
+        cust_txns_list = df_txns[df_txns["customer_id"] == customer_id].to_dict("records")
+
+    narrative = generate_str_narrative(
+        case=case,
+        customer=cust_dict,
+        transactions=cust_txns_list,
+        jurisdiction=jurisdiction,
+    )
+    st.code(narrative, language="text")

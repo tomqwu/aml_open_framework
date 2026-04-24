@@ -96,6 +96,82 @@ def _build_case(rule: Rule, alert: dict[str, Any], spec: AMLSpec, input_hash: di
     }
 
 
+def _execute_list_match(
+    rule: Rule,
+    con: duckdb.DuckDBPyConnection,
+    as_of: datetime,
+) -> list[dict[str, Any]]:
+    """Screen a data source field against a reference list (sanctions, PEP, etc.)."""
+    import csv
+
+    logic = rule.logic
+    list_name = logic.list
+    field = logic.field
+    match_type = logic.match
+    threshold = logic.threshold or 0.8
+
+    # Load the reference list from bundled CSV files.
+    lists_dir = Path(__file__).resolve().parents[1] / "data" / "lists"
+    list_path = lists_dir / f"{list_name}.csv"
+    if not list_path.exists():
+        return []
+
+    with list_path.open("r", encoding="utf-8") as f:
+        list_entries = [row["name"].strip().upper() for row in csv.DictReader(f)]
+
+    # Get source data.
+    source_table = logic.source
+    try:
+        rows = con.execute(f"SELECT * FROM {source_table}").fetchall()
+        cols = [d[0] for d in con.description] if con.description else []
+    except Exception:
+        return []
+
+    source_rows = [dict(zip(cols, r)) for r in rows]
+    alerts: list[dict[str, Any]] = []
+
+    for row in source_rows:
+        value = str(row.get(field, "")).strip().upper()
+        if not value:
+            continue
+
+        if match_type == "exact":
+            if value in list_entries:
+                alerts.append({
+                    "rule_id": rule.id,
+                    "customer_id": row.get("customer_id", ""),
+                    "matched_name": value,
+                    "list_name": list_name,
+                    "match_type": "exact",
+                    "match_score": 1.0,
+                    "window_start": as_of,
+                    "window_end": as_of,
+                })
+        elif match_type == "fuzzy":
+            # Simple token-overlap fuzzy matching (no external deps).
+            value_tokens = set(value.split())
+            for entry in list_entries:
+                entry_tokens = set(entry.split())
+                if not entry_tokens:
+                    continue
+                overlap = len(value_tokens & entry_tokens)
+                score = overlap / max(len(value_tokens), len(entry_tokens))
+                if score >= threshold:
+                    alerts.append({
+                        "rule_id": rule.id,
+                        "customer_id": row.get("customer_id", ""),
+                        "matched_name": value,
+                        "list_entry": entry,
+                        "list_name": list_name,
+                        "match_type": "fuzzy",
+                        "match_score": round(score, 3),
+                        "window_start": as_of,
+                        "window_end": as_of,
+                    })
+                    break  # One match per customer is sufficient.
+    return alerts
+
+
 def _simulate_case_resolution(
     spec: AMLSpec,
     case_ids: list[str],
@@ -241,8 +317,32 @@ def run_spec(
                 })
             continue
 
+        # --- list_match: screen against a reference list ---
+        if rule.logic.type == "list_match":
+            alerts = _execute_list_match(rule, con, as_of)
+            alerts_by_rule[rule.id] = alerts
+            ledger.record_rule_sql(
+                rule.id,
+                f"-- rule '{rule.id}' executed via list_match\n"
+                f"-- list: {rule.logic.list}\n"
+                f"-- field: {rule.logic.field}\n"
+                f"-- match: {rule.logic.match}\n",
+            )
+            ledger.record_alerts(rule.id, alerts)
+            for alert in alerts:
+                case = _build_case(rule, alert, spec, ledger.input_manifest)
+                ledger.record_case(case["case_id"], case)
+                case_ids.append(case["case_id"])
+                ledger.append_decision({
+                    "event": "case_opened",
+                    "case_id": case["case_id"],
+                    "rule_id": rule.id,
+                    "queue": rule.escalate_to,
+                })
+            continue
+
         if rule.logic.type not in ("aggregation_window", "custom_sql"):
-            # list_match — parseable but not executable in reference engine.
+            # Unrecognised logic type — not executable in reference engine.
             ledger.record_rule_sql(
                 rule.id,
                 f"-- rule '{rule.id}' logic type '{rule.logic.type}' "

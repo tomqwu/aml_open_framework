@@ -90,6 +90,9 @@ pg = st.navigation([
     st.Page("pages/9_Transformation_Roadmap.py", title="Transformation Roadmap", icon=":material/rocket_launch:"),
     st.Page("pages/10_Network_Explorer.py", title="Network Explorer", icon=":material/hub:"),
     st.Page("pages/11_Live_Monitor.py", title="Live Monitor", icon=":material/monitor_heart:"),
+    st.Page("pages/12_Sanctions_Screening.py", title="Sanctions Screening", icon=":material/shield:"),
+    st.Page("pages/13_Model_Performance.py", title="Model Performance", icon=":material/model_training:"),
+    st.Page("pages/14_Data_Quality.py", title="Data Quality", icon=":material/fact_check:"),
 ])
 
 pg.run()
