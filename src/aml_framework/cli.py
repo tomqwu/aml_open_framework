@@ -198,6 +198,63 @@ def dashboard(
     )
 
 
+@app.command(name="export-alerts")
+def export_alerts(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path | None = typer.Option(None, help="Specific run dir; defaults to latest."),
+    out: Path = typer.Option(Path(".artifacts/alerts.csv"), help="Output CSV path."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+) -> None:
+    """Export alerts from a completed run as CSV."""
+    import csv
+    import json
+
+    if run_dir is None:
+        candidates = sorted(artifacts.glob("run-*"), reverse=True)
+        if not candidates:
+            console.print("[red]No run directories found.[/red] Run `aml run` first.")
+            raise typer.Exit(code=1)
+        run_dir = candidates[0]
+
+    alerts_dir = run_dir / "alerts"
+    if not alerts_dir.exists():
+        console.print(f"[red]No alerts/[/red] in {run_dir}.")
+        raise typer.Exit(code=1)
+
+    all_alerts: list[dict] = []
+    for jsonl_file in sorted(alerts_dir.glob("*.jsonl")):
+        rule_id = jsonl_file.stem
+        for line in jsonl_file.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                alert = json.loads(line)
+                alert["rule_id"] = rule_id
+                all_alerts.append(alert)
+
+    if not all_alerts:
+        console.print("[yellow]No alerts to export.[/yellow]")
+        raise typer.Exit(code=0)
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = list(all_alerts[0].keys())
+    with out.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(all_alerts)
+
+    console.print(f"[green]Exported[/green] {len(all_alerts)} alerts to {out}")
+
+
+@app.command()
+def diff(
+    spec_a: Path = typer.Argument(..., exists=True, readable=True, help="First spec."),
+    spec_b: Path = typer.Argument(..., exists=True, readable=True, help="Second spec."),
+) -> None:
+    """Compare two aml.yaml specs and show differences."""
+    from aml_framework.diff import diff_specs
+
+    diff_specs(spec_a, spec_b)
+
+
 @app.command()
 def api(
     port: int = typer.Option(8000, help="API server port."),

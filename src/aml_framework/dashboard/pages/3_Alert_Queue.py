@@ -59,7 +59,15 @@ display_df = filtered.copy()
 display_df["severity"] = display_df["rule_id"].map(sev_map)
 
 # --- Alert Table ---
-st.markdown(f"### Alerts ({len(display_df)})")
+col_title, col_download = st.columns([3, 1])
+col_title.markdown(f"### Alerts ({len(display_df)})")
+csv_data = display_df[
+    [c for c in ["rule_id", "severity", "customer_id", "sum_amount", "count", "window_start", "window_end"]
+     if c in display_df.columns]
+].to_csv(index=False)
+col_download.download_button(
+    "Export CSV", csv_data, "alerts.csv", "text/csv", use_container_width=True,
+)
 show_cols = ["rule_id", "severity"]
 for c in ["customer_id", "sum_amount", "count", "window_start", "window_end"]:
     if c in display_df.columns:
