@@ -213,9 +213,20 @@ def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
 
     # --- Filing latency proxy (p95 in days) ---
     if "filing" in sql_lower or "percentile" in sql_lower or "latency" in sql_lower:
-        # In the reference engine, cases are opened instantly with no filing
-        # delay. Return 0 (immediate) which is within the green threshold.
-        return 0.0
+        # Use resolution_hours from decisions where disposition includes "str" or "sar".
+        filing_hours = [
+            d.get("resolution_hours", 0)
+            for d in ctx.decisions
+            if d.get("disposition", "") in ("str_filing", "sar_filing")
+            and d.get("resolution_hours") is not None
+        ]
+        if not filing_hours:
+            return 0.0
+        # p95 approximation: sort and take 95th percentile.
+        filing_hours.sort()
+        p95_idx = int(len(filing_hours) * 0.95)
+        p95_hours = filing_hours[min(p95_idx, len(filing_hours) - 1)]
+        return round(p95_hours / 24, 2)  # Convert hours to days.
 
     # --- LCTR/CTR completeness proxy ---
     if "reportable" in sql_lower or "lctr" in sql_lower or "filed" in sql_lower:

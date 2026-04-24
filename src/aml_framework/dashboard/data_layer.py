@@ -131,28 +131,54 @@ MATURITY_DIMENSIONS = [
 
 
 def compute_maturity_scores(spec: AMLSpec) -> list[dict[str, Any]]:
-    """Derive current maturity scores from spec coverage analysis."""
+    """Derive current maturity scores from spec coverage analysis.
+
+    Each dimension score is computed from actual spec content rather than
+    hardcoded — the score reflects what the spec *declares*, not what an
+    expert assessment would conclude.
+    """
     n_rules = len([r for r in spec.rules if r.status == "active"])
     n_queues = len(spec.workflow.queues)
     has_sar = any(q.regulator_form for q in spec.workflow.queues)
     has_metrics = len(spec.metrics) > 0
+    n_reports = len(spec.reports)
     n_contracts = len(spec.data_contracts)
     has_quality_checks = any(c.quality_checks for c in spec.data_contracts)
     has_retention = spec.retention_policy is not None
+    has_list_match = any(r.logic.type == "list_match" for r in spec.rules)
+    has_python_ref = any(r.logic.type == "python_ref" for r in spec.rules)
+    n_audiences = len({r.audience for r in spec.reports}) if spec.reports else 0
+    has_edd_fields = any(
+        any(c.name == "edd_last_review" for c in contract.columns)
+        for contract in spec.data_contracts
+    )
+    rule_types = {r.logic.type for r in spec.rules}
 
     scores = {
-        "Governance & Culture": 3,
-        "Risk Assessment": 2 if n_rules < 4 else 3,
-        "CDD / KYC": 2 if n_contracts < 2 else 3,
-        "Transaction Monitoring": min(2 + n_rules // 2, 5),
-        "Sanctions Screening": 1,
-        "Case Management": 2 + min(n_queues // 2, 2),
+        # Board-level reports exist? Multiple audiences covered?
+        "Governance & Culture": 3 if n_audiences >= 3 else (2 if n_reports > 0 else 1),
+        # Rules with diverse tags + coverage metric?
+        "Risk Assessment": min(2 + (1 if n_rules >= 4 else 0) + (1 if has_metrics else 0), 4),
+        # Customer contract with risk_rating + EDD fields?
+        "CDD / KYC": 2 + (1 if n_contracts >= 2 else 0) + (1 if has_edd_fields else 0),
+        # Active rules across multiple logic types.
+        "Transaction Monitoring": min(1 + len(rule_types) + (1 if n_rules >= 6 else 0), 5),
+        # list_match rules exist? (sanctions screening)
+        "Sanctions Screening": 3 if has_list_match else 1,
+        # Queues with SLAs and escalation chains.
+        "Case Management": min(2 + n_queues // 2, 4),
+        # Regulator form configured?
         "SAR / STR Filing": 3 if has_sar else 2,
-        "Technology & Data": 4,  # Spec-driven + deterministic + evidence trail
+        # Spec-driven + deterministic + evidence trail + ML scoring.
+        "Technology & Data": 4 + (1 if has_python_ref else 0),
+        # No training module in spec — always 2.
         "Training & Awareness": 2,
+        # Retention policy + reproducible runs.
         "Independent Testing": 3 if has_retention else 2,
-        "Regulatory Engagement": 2 if not has_metrics else 3,
-        "Data Quality & Lineage": 3 if has_quality_checks else 2,
+        # Metrics + audience-specific reports.
+        "Regulatory Engagement": min(2 + (1 if has_metrics else 0) + (1 if n_audiences >= 4 else 0), 4),
+        # Quality checks declared on data contracts.
+        "Data Quality & Lineage": 2 + (1 if has_quality_checks else 0) + (1 if n_contracts >= 2 else 0),
     }
 
     result = []

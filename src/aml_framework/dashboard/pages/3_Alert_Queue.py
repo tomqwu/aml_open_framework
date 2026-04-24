@@ -114,3 +114,49 @@ with col_right:
     )
     fig.update_traces(textposition="inside", textinfo="percent+label")
     st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
+
+# --- Case Queue (Analyst Inbox) ---
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### Case Queue")
+
+df_cases = st.session_state.df_cases
+if not df_cases.empty and "status" in df_cases.columns:
+    # Group by status.
+    status_counts = df_cases["status"].value_counts().reset_index()
+    status_counts.columns = ["Status", "Count"]
+
+    status_colors_map = {
+        "open": "#2563eb", "l1_aml_analyst": "#2563eb", "l1_analyst": "#2563eb",
+        "l2_investigator": "#7c3aed",
+        "str_filing": "#dc2626", "sar_filing": "#dc2626",
+        "edd_review": "#d97706",
+        "closed_no_action": "#6b7280",
+    }
+
+    # Show status summary as colored cards.
+    status_cols = st.columns(min(len(status_counts), 5))
+    for i, row in status_counts.iterrows():
+        with status_cols[i % len(status_cols)]:
+            color = status_colors_map.get(row["Status"], "#6b7280")
+            kpi_card(row["Status"].replace("_", " ").title(), int(row["Count"]), color)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Show open/active cases table.
+    active = df_cases[~df_cases["status"].isin(["closed_no_action"])]
+    if not active.empty:
+        show_cols = ["case_id", "rule_id", "severity", "status"]
+        if "queue" in active.columns:
+            show_cols.insert(3, "queue")
+        available = [c for c in show_cols if c in active.columns]
+
+        def _status_color(val):
+            c = status_colors_map.get(val, "")
+            return f"color: {c}; font-weight: 700;" if c else ""
+
+        styled = active[available].style.map(_status_color, subset=["status"])
+        st.dataframe(styled, use_container_width=True, hide_index=True)
+    else:
+        st.success("All cases resolved.")
+else:
+    st.caption("No cases in this run.")
