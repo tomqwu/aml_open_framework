@@ -57,11 +57,18 @@ def run(
     seed: int = typer.Option(42, help="Synthetic data seed."),
     as_of: str | None = typer.Option(None, help="ISO timestamp used as the rule 'now'."),
     artifacts: Path = typer.Option(Path(".artifacts"), help="Artifacts root."),
+    data_source: str = typer.Option("synthetic", help="Data source: synthetic, csv, parquet, duckdb."),
+    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files (one per contract)."),
 ) -> None:
-    """End-to-end demo: synthesize data, execute rules, emit cases + audit bundle."""
+    """End-to-end: load data, execute rules, emit cases + audit bundle."""
+    from aml_framework.data.sources import resolve_source
+
     spec = load_spec(spec_path)
     as_of_dt = _parse_as_of(as_of)
-    data = generate_dataset(as_of=as_of_dt, seed=seed)
+    data = resolve_source(
+        source_type=data_source, spec=spec, as_of=as_of_dt,
+        seed=seed, data_dir=data_dir,
+    )
 
     result = run_spec(
         spec=spec,

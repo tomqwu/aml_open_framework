@@ -26,7 +26,6 @@ from aml_framework.api.db import (
     list_runs,
     store_run,
 )
-from aml_framework.data import generate_dataset
 from aml_framework.engine import run_spec
 from aml_framework.spec import load_spec
 
@@ -58,6 +57,8 @@ class LoginRequest(BaseModel):
 class RunRequest(BaseModel):
     spec_path: str = "examples/canadian_schedule_i_bank/aml.yaml"
     seed: int = 42
+    data_source: str = "synthetic"
+    data_dir: str | None = None
 
 
 # --- Endpoints ---
@@ -86,9 +87,14 @@ async def create_run(
     if not spec_path.exists():
         raise HTTPException(status_code=404, detail=f"Spec not found: {req.spec_path}")
 
+    from aml_framework.data.sources import resolve_source
+
     spec = load_spec(spec_path)
     as_of = datetime.now(tz=timezone.utc).replace(tzinfo=None)
-    data = generate_dataset(as_of=as_of, seed=req.seed)
+    data = resolve_source(
+        source_type=req.data_source, spec=spec, as_of=as_of,
+        seed=req.seed, data_dir=req.data_dir,
+    )
 
     artifacts = Path(tempfile.mkdtemp(prefix="aml_api_"))
     result = run_spec(
@@ -225,6 +231,22 @@ async def list_webhooks(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> list[dict]:
     return _webhooks
+
+
+@app.get("/api/v1/runs/{run_id}/alerts/cef")
+async def get_alerts_cef(
+    run_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, str]:
+    """Export alerts in CEF format for SIEM ingestion."""
+    from aml_framework.integrations.siem import export_cef
+
+    alerts_data = get_run_alerts(run_id)
+    if not alerts_data:
+        raise HTTPException(status_code=404, detail="Run not found or no alerts")
+    alerts_dict = {a["rule_id"]: a["alerts"] for a in alerts_data}
+    sev_map = {a["rule_id"]: "medium" for a in alerts_data}  # Default severity.
+    return {"format": "cef", "data": export_cef(alerts_dict, sev_map)}
 
 
 def _fire_webhooks(event: str, payload: dict[str, Any]) -> None:
