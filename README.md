@@ -28,6 +28,19 @@ See [`docs/architecture.md`](docs/architecture.md) for the reference design and
 [`docs/personas.md`](docs/personas.md) for how each role interacts with the
 framework.
 
+## Architecture
+
+### End-to-end data flow
+
+![Architecture Diagram](docs/architecture-diagram.png)
+
+### Case lifecycle
+
+Transactions flow through 4 rule types, generate alerts, open cases with SLA-tracked
+queues, and produce an immutable audit trail with SHA-256 hash verification.
+
+![Case Lifecycle](docs/case-lifecycle.png)
+
 ## Quickstart
 
 ```bash
