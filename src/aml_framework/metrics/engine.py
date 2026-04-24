@@ -234,24 +234,51 @@ def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
 
     # --- EDD review adherence proxy ---
     if "edd" in sql_lower or "current_edd" in sql_lower or "high_risk" in sql_lower:
+        from datetime import datetime as _dt
+
         customers = ctx.data.get("customer", [])
         high_risk = [c for c in customers if c.get("risk_rating") == "high"]
         if not high_risk:
             return 1.0
-        # Check if edd_last_review is present and recent.
-        reviewed = sum(1 for c in high_risk if c.get("edd_last_review"))
-        return reviewed / len(high_risk)
+        # Check if edd_last_review is present and within 12 months.
+        cutoff = 365  # days
+        current = 0
+        for c in high_risk:
+            review = c.get("edd_last_review")
+            if review is None:
+                continue
+            if isinstance(review, _dt):
+                # Compare to the most recent customer onboarding as reference.
+                age_days = max(
+                    (max(cust.get("onboarded_at", review) for cust in customers) - review).days,
+                    0,
+                )
+                if age_days <= cutoff:
+                    current += 1
+            else:
+                current += 1  # Non-datetime truthy value counts as reviewed.
+        return current / len(high_risk)
 
     # --- SLA compliance proxy ---
     if "sla" in sql_lower or "on_time" in sql_lower:
-        # All cases in the reference engine are opened and never resolved,
-        # so SLA compliance can't be computed. Return 0.0 (honest).
-        return 0.0
+        resolution_decisions = [
+            d for d in ctx.decisions
+            if d.get("event") in ("escalated", "escalated_to_str", "closed")
+        ]
+        if not resolution_decisions:
+            return 0.0
+        on_time = sum(1 for d in resolution_decisions if d.get("within_sla", False))
+        return on_time / len(resolution_decisions)
 
     # --- Average resolution hours proxy ---
     if "resolution" in sql_lower or "avg" in sql_lower:
-        # No case resolution happens in the reference engine.
-        return 0.0
+        hours = [
+            d.get("resolution_hours", 0)
+            for d in ctx.decisions
+            if d.get("resolution_hours") is not None
+            and d.get("event") in ("escalated", "escalated_to_str", "closed")
+        ]
+        return sum(hours) / len(hours) if hours else 0.0
 
     # Fallback: unknown SQL formula, return 0.0.
     return 0.0

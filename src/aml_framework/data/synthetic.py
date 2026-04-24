@@ -62,10 +62,17 @@ def generate_dataset(
             _customer_row(fake, cid, as_of - timedelta(days=random.randint(30, 1500)))
         )
 
+    # Add edd_last_review dates to high-risk customers.
+    for c in customers:
+        if c["risk_rating"] == "high":
+            # Some high-risk customers have current EDD, some are overdue.
+            c["edd_last_review"] = as_of - timedelta(days=random.choice([90, 180, 400]))
+
     # Override planted-positive customers with deterministic profiles.
     customers[3] = _customer_row(
         fake, "C0003", as_of - timedelta(days=200),
         country="RU", risk_rating="high", full_name="Alexei Volkov",
+        edd_last_review=as_of - timedelta(days=60),  # Current EDD review.
     )
     customers[4] = _customer_row(
         fake, "C0004", as_of - timedelta(days=500),
