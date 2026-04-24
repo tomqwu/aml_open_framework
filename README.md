@@ -6,6 +6,12 @@ source of truth for data contracts, detection rules, case workflow, and
 regulator reporting — every artifact (SQL, pipelines, dashboards, audit logs,
 SAR exports) is generated from it and traceable back to a regulation citation.
 
+![Framework Overview](docs/pitch/03-framework-overview.png)
+
+![From Policy Drift to Governed Execution](docs/pitch/02-policy-drift-to-governed-execution.png)
+
+![Transformation Path](docs/pitch/01-executive-business-case.png)
+
 ## Why
 
 Banks lose years of compliance work to drift between **policy** (what the
