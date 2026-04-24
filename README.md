@@ -6,6 +6,12 @@ source of truth for data contracts, detection rules, case workflow, and
 regulator reporting — every artifact (SQL, pipelines, dashboards, audit logs,
 SAR exports) is generated from it and traceable back to a regulation citation.
 
+![AML Open Framework — spec-driven, audit-ready AML automation for modern banks](docs/pitch/03-framework-overview.png)
+
+![From policy drift to governed execution — why AML programs struggle today and how the framework changes the operating model](docs/pitch/02-policy-drift-to-governed-execution.png)
+
+![Executive business case and transformation path — a governed AML control model that reduces risk, improves operating efficiency, and strengthens regulator confidence](docs/pitch/01-executive-business-case.png)
+
 ## Executive pitch
 
 Turn policy into governed execution. One versioned AML spec becomes the single
