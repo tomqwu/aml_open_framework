@@ -48,8 +48,11 @@ with col_left:
     rc.columns = ["Risk Rating", "Count"]
     color_map = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}
     fig = px.pie(
-        rc, names="Risk Rating", values="Count",
-        color="Risk Rating", color_discrete_map=color_map,
+        rc,
+        names="Risk Rating",
+        values="Count",
+        color="Risk Rating",
+        color_discrete_map=color_map,
         hole=0.45,
     )
     fig.update_traces(textposition="inside", textinfo="percent+label")
@@ -60,8 +63,11 @@ with col_right:
     geo = df_customers["country"].value_counts().reset_index()
     geo.columns = ["Country", "Count"]
     fig = px.bar(
-        geo, x="Country", y="Count",
-        color="Count", color_continuous_scale="Blues",
+        geo,
+        x="Country",
+        y="Count",
+        color="Count",
+        color_continuous_scale="Blues",
     )
     fig.update_layout(coloraxis_showscale=False, xaxis_title="", yaxis_title="")
     st.plotly_chart(chart_layout(fig, 340), use_container_width=True)
@@ -73,14 +79,18 @@ st.markdown("### Transaction Volume by Country")
 if not df_txns.empty:
     txn_with_country = df_txns.merge(
         df_customers[["customer_id", "country", "risk_rating"]],
-        on="customer_id", how="left",
+        on="customer_id",
+        how="left",
     )
     geo_vol = txn_with_country.groupby("country")["amount"].sum().reset_index()
     geo_vol.columns = ["Country", "Total Volume"]
     geo_vol = geo_vol.sort_values("Total Volume", ascending=False)
     fig = px.bar(
-        geo_vol, x="Country", y="Total Volume",
-        color="Total Volume", color_continuous_scale="Reds",
+        geo_vol,
+        x="Country",
+        y="Total Volume",
+        color="Total Volume",
+        color_continuous_scale="Reds",
     )
     fig.update_layout(coloraxis_showscale=False, xaxis_title="", yaxis_title="Volume ($)")
     st.plotly_chart(chart_layout(fig, 340), use_container_width=True)
@@ -91,11 +101,16 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("### Risk Heatmap: Risk Rating x Channel")
 if not df_txns.empty:
     txn_with_risk = df_txns.merge(
-        df_customers[["customer_id", "risk_rating"]], on="customer_id", how="left",
+        df_customers[["customer_id", "risk_rating"]],
+        on="customer_id",
+        how="left",
     )
     pivot = txn_with_risk.groupby(["risk_rating", "channel"])["amount"].sum().reset_index()
     heatmap_data = pivot.pivot_table(
-        index="risk_rating", columns="channel", values="amount", fill_value=0,
+        index="risk_rating",
+        columns="channel",
+        values="amount",
+        fill_value=0,
     )
     order = ["low", "medium", "high"]
     heatmap_data = heatmap_data.reindex([r for r in order if r in heatmap_data.index])
@@ -121,9 +136,9 @@ if not df_alerts.empty and "customer_id" in df_alerts.columns:
         c = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}.get(val, "")
         return f"color: {c}; font-weight: 700;" if c else ""
 
-    styled = alerted[
-        ["customer_id", "full_name", "country", "risk_rating"]
-    ].style.map(_risk_style, subset=["risk_rating"])
+    styled = alerted[["customer_id", "full_name", "country", "risk_rating"]].style.map(
+        _risk_style, subset=["risk_rating"]
+    )
     st.dataframe(styled, use_container_width=True, hide_index=True)
 else:
     st.caption("No alerts with customer data.")

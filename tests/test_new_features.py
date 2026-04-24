@@ -15,12 +15,21 @@ def _run(tmp_path):
     spec = load_spec(EXAMPLE)
     as_of = datetime(2026, 4, 23, 12, 0, 0)
     data = generate_dataset(as_of=as_of, seed=42)
-    return spec, data, run_spec(
-        spec=spec, spec_path=EXAMPLE, data=data, as_of=as_of, artifacts_root=tmp_path,
+    return (
+        spec,
+        data,
+        run_spec(
+            spec=spec,
+            spec_path=EXAMPLE,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path,
+        ),
     )
 
 
 # --- Sanctions / list_match tests ---
+
 
 class TestSanctionsScreening:
     def test_list_match_rule_fires(self, tmp_path):
@@ -50,11 +59,13 @@ class TestSanctionsScreening:
 
 # --- STR narrative tests ---
 
+
 class TestSTRNarrative:
     def test_narrative_generates(self, tmp_path):
         spec, data, result = _run(tmp_path)
         run_dir = Path(result.manifest["run_dir"])
         import json
+
         case_files = sorted((run_dir / "cases").glob("*.json"))
         case = json.loads(case_files[0].read_bytes())
         customer_id = case.get("alert", {}).get("customer_id", "")
@@ -70,6 +81,7 @@ class TestSTRNarrative:
         spec, data, result = _run(tmp_path)
         run_dir = Path(result.manifest["run_dir"])
         import json
+
         case_files = sorted((run_dir / "cases").glob("structuring*"))
         if not case_files:
             return
@@ -84,10 +96,20 @@ class TestSTRNarrative:
 
     def test_us_jurisdiction_produces_sar(self):
         narrative = generate_str_narrative(
-            case={"case_id": "test", "rule_name": "test_rule", "severity": "high",
-                  "alert": {"sum_amount": 10000}, "regulation_refs": [], "queue": "l1"},
-            customer={"full_name": "Test User", "customer_id": "T001",
-                      "country": "US", "risk_rating": "high"},
+            case={
+                "case_id": "test",
+                "rule_name": "test_rule",
+                "severity": "high",
+                "alert": {"sum_amount": 10000},
+                "regulation_refs": [],
+                "queue": "l1",
+            },
+            customer={
+                "full_name": "Test User",
+                "customer_id": "T001",
+                "country": "US",
+                "risk_rating": "high",
+            },
             transactions=[],
             jurisdiction="US",
         )
@@ -96,6 +118,7 @@ class TestSTRNarrative:
 
 
 # --- Data quality tests ---
+
 
 class TestDataQuality:
     def test_quality_checks_in_spec(self):
@@ -127,11 +150,13 @@ class TestDataQuality:
 
 # --- Case resolution tests ---
 
+
 class TestCaseResolution:
     def test_cases_have_resolution(self, tmp_path):
         _, _, result = _run(tmp_path)
         run_dir = Path(result.manifest["run_dir"])
         import json
+
         resolved = 0
         for f in (run_dir / "cases").glob("*.json"):
             case = json.loads(f.read_bytes())
@@ -144,8 +169,10 @@ class TestCaseResolution:
         run_dir = Path(result.manifest["run_dir"])
         decisions = (run_dir / "decisions.jsonl").read_text().splitlines()
         import json
+
         resolution_events = [
-            json.loads(d) for d in decisions
+            json.loads(d)
+            for d in decisions
             if json.loads(d).get("event") in ("escalated", "escalated_to_str", "closed")
         ]
         assert len(resolution_events) > 0
@@ -154,6 +181,7 @@ class TestCaseResolution:
         _, _, result = _run(tmp_path)
         run_dir = Path(result.manifest["run_dir"])
         import json
+
         for line in (run_dir / "decisions.jsonl").read_text().splitlines():
             d = json.loads(line)
             if d.get("event") in ("escalated", "escalated_to_str", "closed"):

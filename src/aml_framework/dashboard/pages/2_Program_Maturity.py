@@ -58,26 +58,35 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Radar Chart ---
 fig = go.Figure()
-fig.add_trace(go.Scatterpolar(
-    r=current + [current[0]],
-    theta=dim_names + [dim_names[0]],
-    fill="toself",
-    name="Current State",
-    line=dict(color="#2563eb", width=2.5),
-    fillcolor="rgba(37, 99, 235, 0.15)",
-))
-fig.add_trace(go.Scatterpolar(
-    r=targets + [targets[0]],
-    theta=dim_names + [dim_names[0]],
-    fill="toself",
-    name="Target State",
-    line=dict(color="#16a34a", width=2, dash="dot"),
-    fillcolor="rgba(22, 163, 74, 0.06)",
-))
+fig.add_trace(
+    go.Scatterpolar(
+        r=current + [current[0]],
+        theta=dim_names + [dim_names[0]],
+        fill="toself",
+        name="Current State",
+        line=dict(color="#2563eb", width=2.5),
+        fillcolor="rgba(37, 99, 235, 0.15)",
+    )
+)
+fig.add_trace(
+    go.Scatterpolar(
+        r=targets + [targets[0]],
+        theta=dim_names + [dim_names[0]],
+        fill="toself",
+        name="Target State",
+        line=dict(color="#16a34a", width=2, dash="dot"),
+        fillcolor="rgba(22, 163, 74, 0.06)",
+    )
+)
 fig.update_layout(
     polar=dict(
-        radialaxis=dict(visible=True, range=[0, 5.5], tickvals=[1, 2, 3, 4, 5],
-                        showticklabels=True, tickfont_size=10),
+        radialaxis=dict(
+            visible=True,
+            range=[0, 5.5],
+            tickvals=[1, 2, 3, 4, 5],
+            showticklabels=True,
+            tickfont_size=10,
+        ),
         bgcolor="rgba(0,0,0,0)",
     ),
     showlegend=True,
@@ -96,7 +105,7 @@ for i, (level, label) in enumerate(MATURITY_LEVELS.items()):
             f'background:{level_colors[i]}10; border:1px solid {level_colors[i]}30;">'
             f'<div style="font-size:1.3rem; font-weight:700; color:{level_colors[i]};">{level}</div>'
             f'<div style="font-size:0.78rem; color:#475569;">{label}</div>'
-            f'</div>',
+            f"</div>",
             unsafe_allow_html=True,
         )
 
@@ -109,10 +118,12 @@ for s in scores:
     rag = "green" if gap_val <= 0 else ("amber" if gap_val <= 1 else "red")
     color = RAG_COLORS[rag]
     status = "At Target" if gap_val <= 0 else f"Gap: {gap_val}"
-    with st.expander(f'{s["name"]}  --  Current: {s["current"]}/5  |  {status}'):
+    with st.expander(f"{s['name']}  --  Current: {s['current']}/5  |  {status}"):
         st.markdown(f"**{s['description']}**")
-        st.markdown(f"Current: **{MATURITY_LEVELS[s['current']]}** | "
-                    f"Target: **{MATURITY_LEVELS[s['target']]}**")
+        st.markdown(
+            f"Current: **{MATURITY_LEVELS[s['current']]}** | "
+            f"Target: **{MATURITY_LEVELS[s['target']]}**"
+        )
         if s.get("recommendations"):
             st.markdown("**Recommendations:**")
             for rec in s["recommendations"]:

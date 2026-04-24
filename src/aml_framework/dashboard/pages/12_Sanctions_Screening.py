@@ -54,7 +54,14 @@ st.markdown("<br>", unsafe_allow_html=True)
 if sanctions_alerts:
     st.markdown("### Match Results")
     match_df = pd.DataFrame(sanctions_alerts)
-    show_cols = ["customer_id", "matched_name", "list_name", "match_type", "match_score", "severity"]
+    show_cols = [
+        "customer_id",
+        "matched_name",
+        "list_name",
+        "match_type",
+        "match_score",
+        "severity",
+    ]
     available = [c for c in show_cols if c in match_df.columns]
     if "list_entry" in match_df.columns:
         available.insert(2, "list_entry")
@@ -77,8 +84,11 @@ if sanctions_alerts:
     matched_ids = [a["customer_id"] for a in sanctions_alerts]
     matched = df_customers[df_customers["customer_id"].isin(matched_ids)]
     cols = ["customer_id", "full_name", "country", "risk_rating"]
-    st.dataframe(matched[[c for c in cols if c in matched.columns]],
-                 use_container_width=True, hide_index=True)
+    st.dataframe(
+        matched[[c for c in cols if c in matched.columns]],
+        use_container_width=True,
+        hide_index=True,
+    )
 else:
     st.success("No sanctions matches found.")
 

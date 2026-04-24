@@ -40,15 +40,17 @@ st.markdown("### Model Inventory")
 inventory_rows = []
 for rule in ml_rules:
     alert_count = len(result.alerts.get(rule.id, []))
-    inventory_rows.append({
-        "Rule ID": rule.id,
-        "Model ID": rule.logic.model_id,
-        "Version": rule.logic.model_version,
-        "Callable": rule.logic.callable,
-        "Severity": rule.severity,
-        "Status": rule.status,
-        "Alerts": alert_count,
-    })
+    inventory_rows.append(
+        {
+            "Rule ID": rule.id,
+            "Model ID": rule.logic.model_id,
+            "Version": rule.logic.model_version,
+            "Callable": rule.logic.callable,
+            "Severity": rule.severity,
+            "Status": rule.status,
+            "Alerts": alert_count,
+        }
+    )
 st.dataframe(pd.DataFrame(inventory_rows), use_container_width=True, hide_index=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -86,12 +88,14 @@ for rule in ml_rules:
         st.markdown("#### Score Distribution")
         if scores:
             fig = px.histogram(
-                x=scores, nbins=20,
+                x=scores,
+                nbins=20,
                 labels={"x": "Risk Score", "y": "Count"},
                 color_discrete_sequence=["#2563eb"],
             )
-            fig.add_vline(x=0.65, line_dash="dash", line_color="#dc2626",
-                         annotation_text="Threshold (0.65)")
+            fig.add_vline(
+                x=0.65, line_dash="dash", line_color="#dc2626", annotation_text="Threshold (0.65)"
+            )
             st.plotly_chart(chart_layout(fig, 300), use_container_width=True)
 
     with col_right:
@@ -113,7 +117,7 @@ for rule in ml_rules:
 | **Version** | {rule.logic.model_version} |
 | **Callable** | `{rule.logic.callable}` |
 | **Severity** | {rule.severity} |
-| **Regulation** | {', '.join(r.citation for r in rule.regulation_refs)} |
-| **Evidence** | {', '.join(rule.evidence)} |
-| **Tags** | {', '.join(rule.tags)} |
+| **Regulation** | {", ".join(r.citation for r in rule.regulation_refs)} |
+| **Evidence** | {", ".join(rule.evidence)} |
+| **Tags** | {", ".join(rule.tags)} |
 """)

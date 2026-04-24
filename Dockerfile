@@ -11,8 +11,10 @@ COPY pyproject.toml README.md ./
 COPY src/ src/
 COPY schema/ schema/
 COPY examples/ examples/
+COPY data/ data/
 COPY docs/ docs/
+COPY tests/ tests/
 
-RUN pip install --no-cache-dir -e ".[dashboard,api]"
+RUN pip install --no-cache-dir -e ".[dev,dashboard,api]"
 
 EXPOSE 8000 8501

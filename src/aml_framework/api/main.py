@@ -92,13 +92,20 @@ async def create_run(
     spec = load_spec(spec_path)
     as_of = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     data = resolve_source(
-        source_type=req.data_source, spec=spec, as_of=as_of,
-        seed=req.seed, data_dir=req.data_dir,
+        source_type=req.data_source,
+        spec=spec,
+        as_of=as_of,
+        seed=req.seed,
+        data_dir=req.data_dir,
     )
 
     artifacts = Path(tempfile.mkdtemp(prefix="aml_api_"))
     result = run_spec(
-        spec=spec, spec_path=spec_path, data=data, as_of=as_of, artifacts_root=artifacts,
+        spec=spec,
+        spec_path=spec_path,
+        data=data,
+        as_of=as_of,
+        artifacts_root=artifacts,
     )
 
     run_id = str(uuid.uuid4())[:8]
@@ -107,8 +114,7 @@ async def create_run(
 
     # Persist to PostgreSQL if configured.
     alerts_dict = {
-        rule_id: [_serialize(a) for a in alerts]
-        for rule_id, alerts in result.alerts.items()
+        rule_id: [_serialize(a) for a in alerts] for rule_id, alerts in result.alerts.items()
     }
     store_run(
         run_id=run_id,
@@ -130,9 +136,13 @@ async def create_run(
     # Fire registered webhooks.
     _fire_webhooks("run_completed", run_summary)
     if result.total_alerts > 0:
-        _fire_webhooks("alert_created", {
-            "run_id": run_id, "alert_count": result.total_alerts,
-        })
+        _fire_webhooks(
+            "alert_created",
+            {
+                "run_id": run_id,
+                "alert_count": result.total_alerts,
+            },
+        )
 
     return run_summary
 

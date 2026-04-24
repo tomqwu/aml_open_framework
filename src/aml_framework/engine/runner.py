@@ -76,7 +76,9 @@ def _ddl_for_contract(contract) -> str:
     return ", ".join(parts)
 
 
-def _build_case(rule: Rule, alert: dict[str, Any], spec: AMLSpec, input_hash: dict[str, Any]) -> dict[str, Any]:
+def _build_case(
+    rule: Rule, alert: dict[str, Any], spec: AMLSpec, input_hash: dict[str, Any]
+) -> dict[str, Any]:
     # Minimal case file: enough for a reviewer to act, enough for an auditor
     # to trace the alert back to a spec clause.
     case_id = f"{rule.id}__{alert.get('customer_id', 'unknown')}__{alert.get('window_end', '')}"
@@ -137,16 +139,18 @@ def _execute_list_match(
 
         if match_type == "exact":
             if value in list_entries:
-                alerts.append({
-                    "rule_id": rule.id,
-                    "customer_id": row.get("customer_id", ""),
-                    "matched_name": value,
-                    "list_name": list_name,
-                    "match_type": "exact",
-                    "match_score": 1.0,
-                    "window_start": as_of,
-                    "window_end": as_of,
-                })
+                alerts.append(
+                    {
+                        "rule_id": rule.id,
+                        "customer_id": row.get("customer_id", ""),
+                        "matched_name": value,
+                        "list_name": list_name,
+                        "match_type": "exact",
+                        "match_score": 1.0,
+                        "window_start": as_of,
+                        "window_end": as_of,
+                    }
+                )
         elif match_type == "fuzzy":
             # Simple token-overlap fuzzy matching (no external deps).
             value_tokens = set(value.split())
@@ -157,17 +161,19 @@ def _execute_list_match(
                 overlap = len(value_tokens & entry_tokens)
                 score = overlap / max(len(value_tokens), len(entry_tokens))
                 if score >= threshold:
-                    alerts.append({
-                        "rule_id": rule.id,
-                        "customer_id": row.get("customer_id", ""),
-                        "matched_name": value,
-                        "list_entry": entry,
-                        "list_name": list_name,
-                        "match_type": "fuzzy",
-                        "match_score": round(score, 3),
-                        "window_start": as_of,
-                        "window_end": as_of,
-                    })
+                    alerts.append(
+                        {
+                            "rule_id": rule.id,
+                            "customer_id": row.get("customer_id", ""),
+                            "matched_name": value,
+                            "list_entry": entry,
+                            "list_name": list_name,
+                            "match_type": "fuzzy",
+                            "match_score": round(score, 3),
+                            "window_start": as_of,
+                            "window_end": as_of,
+                        }
+                    )
                     break  # One match per customer is sufficient.
     return alerts
 
@@ -242,15 +248,17 @@ def _simulate_case_resolution(
                 event = "closed"
 
         # Record the resolution decision.
-        ledger.append_decision({
-            "event": event,
-            "case_id": case_id,
-            "rule_id": case.get("rule_id", ""),
-            "queue": current_queue,
-            "disposition": disposition,
-            "resolution_hours": round(resolution_hours, 2),
-            "within_sla": resolution_hours <= sla_hours,
-        })
+        ledger.append_decision(
+            {
+                "event": event,
+                "case_id": case_id,
+                "rule_id": case.get("rule_id", ""),
+                "queue": current_queue,
+                "disposition": disposition,
+                "resolution_hours": round(resolution_hours, 2),
+                "within_sla": resolution_hours <= sla_hours,
+            }
+        )
 
         # Update case status on disk.
         case["status"] = disposition
@@ -309,12 +317,14 @@ def run_spec(
                 case = _build_case(rule, alert, spec, ledger.input_manifest)
                 ledger.record_case(case["case_id"], case)
                 case_ids.append(case["case_id"])
-                ledger.append_decision({
-                    "event": "case_opened",
-                    "case_id": case["case_id"],
-                    "rule_id": rule.id,
-                    "queue": rule.escalate_to,
-                })
+                ledger.append_decision(
+                    {
+                        "event": "case_opened",
+                        "case_id": case["case_id"],
+                        "rule_id": rule.id,
+                        "queue": rule.escalate_to,
+                    }
+                )
             continue
 
         # --- list_match: screen against a reference list ---
@@ -333,12 +343,14 @@ def run_spec(
                 case = _build_case(rule, alert, spec, ledger.input_manifest)
                 ledger.record_case(case["case_id"], case)
                 case_ids.append(case["case_id"])
-                ledger.append_decision({
-                    "event": "case_opened",
-                    "case_id": case["case_id"],
-                    "rule_id": rule.id,
-                    "queue": rule.escalate_to,
-                })
+                ledger.append_decision(
+                    {
+                        "event": "case_opened",
+                        "case_id": case["case_id"],
+                        "rule_id": rule.id,
+                        "queue": rule.escalate_to,
+                    }
+                )
             continue
 
         if rule.logic.type not in ("aggregation_window", "custom_sql"):
@@ -366,12 +378,14 @@ def run_spec(
             case = _build_case(rule, alert, spec, ledger.input_manifest)
             ledger.record_case(case["case_id"], case)
             case_ids.append(case["case_id"])
-            ledger.append_decision({
-                "event": "case_opened",
-                "case_id": case["case_id"],
-                "rule_id": rule.id,
-                "queue": rule.escalate_to,
-            })
+            ledger.append_decision(
+                {
+                    "event": "case_opened",
+                    "case_id": case["case_id"],
+                    "rule_id": rule.id,
+                    "queue": rule.escalate_to,
+                }
+            )
 
     # --- Simulate case resolution ---
     # Walk each case through the workflow queues to generate realistic

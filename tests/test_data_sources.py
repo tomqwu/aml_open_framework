@@ -99,8 +99,11 @@ class TestCSVEndToEnd:
         spec = load_spec(SPEC)
         data = load_csv_source(data_dir, spec)
         result = run_spec(
-            spec=spec, spec_path=SPEC, data=data,
-            as_of=datetime(2026, 4, 23, 12, 0), artifacts_root=tmp_path / "out",
+            spec=spec,
+            spec_path=SPEC,
+            data=data,
+            as_of=datetime(2026, 4, 23, 12, 0),
+            artifacts_root=tmp_path / "out",
         )
         # Engine should run without errors even with minimal data.
         assert result.manifest is not None

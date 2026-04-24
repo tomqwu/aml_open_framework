@@ -72,7 +72,10 @@ with col_left:
         chart_df["severity"] = chart_df["rule_id"].map(sev_map)
         chart_df = chart_df.sort_values("count", ascending=True)
         fig = px.bar(
-            chart_df, y="rule_id", x="count", color="severity",
+            chart_df,
+            y="rule_id",
+            x="count",
+            color="severity",
             orientation="h",
             color_discrete_map=SEVERITY_COLORS,
             labels={"rule_id": "", "count": "Alerts"},
@@ -105,22 +108,26 @@ with col_radar:
 
     if categories and values:
         fig = go.Figure()
-        fig.add_trace(go.Scatterpolar(
-            r=values + [values[0]],
-            theta=categories + [categories[0]],
-            fill="toself",
-            name="Current",
-            line=dict(color="#2563eb", width=2),
-            fillcolor="rgba(37, 99, 235, 0.15)",
-        ))
-        fig.add_trace(go.Scatterpolar(
-            r=[3] * (len(categories) + 1),
-            theta=categories + [categories[0]],
-            fill="toself",
-            name="Target",
-            line=dict(color="#16a34a", width=1, dash="dot"),
-            fillcolor="rgba(22, 163, 74, 0.05)",
-        ))
+        fig.add_trace(
+            go.Scatterpolar(
+                r=values + [values[0]],
+                theta=categories + [categories[0]],
+                fill="toself",
+                name="Current",
+                line=dict(color="#2563eb", width=2),
+                fillcolor="rgba(37, 99, 235, 0.15)",
+            )
+        )
+        fig.add_trace(
+            go.Scatterpolar(
+                r=[3] * (len(categories) + 1),
+                theta=categories + [categories[0]],
+                fill="toself",
+                name="Target",
+                line=dict(color="#16a34a", width=1, dash="dot"),
+                fillcolor="rgba(22, 163, 74, 0.05)",
+            )
+        )
         fig.update_layout(
             polar=dict(
                 radialaxis=dict(visible=True, range=[0, 3.5], showticklabels=False),

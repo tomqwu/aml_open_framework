@@ -19,9 +19,11 @@ SPEC_CA = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_
 
 # --- Spec Diff Tests ---
 
+
 class TestSpecDiff:
     def test_diff_runs_without_error(self):
         from aml_framework.diff import diff_specs
+
         # Should not raise.
         diff_specs(SPEC_US, SPEC_CA)
 
@@ -37,19 +39,22 @@ class TestSpecDiff:
 
     def test_diff_same_spec_shows_no_changes(self):
         from aml_framework.diff import diff_specs
+
         # Same spec vs itself should show no changes.
         diff_specs(SPEC_US, SPEC_US)
 
 
 # --- Alert Export Tests ---
 
+
 class TestAlertExport:
     def test_export_alerts_produces_csv(self, tmp_path):
         spec = load_spec(SPEC_CA)
         as_of = datetime(2026, 4, 23, 12, 0, 0)
         data = generate_dataset(as_of=as_of, seed=42)
-        result = run_spec(spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of,
-                         artifacts_root=tmp_path)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
 
         # Use the CLI function directly.
         import csv
@@ -79,6 +84,7 @@ class TestAlertExport:
 
 
 # --- SQLite Persistence Tests ---
+
 
 class TestSQLitePersistence:
     def test_sqlite_round_trip(self, tmp_path):
@@ -124,6 +130,7 @@ class TestSQLitePersistence:
 try:
     from fastapi.testclient import TestClient
     from aml_framework.api.main import app
+
     client = TestClient(app)
     HAS_FASTAPI = True
 except ImportError:
@@ -184,6 +191,7 @@ class TestExpandedAPI:
 
 # --- Load Test ---
 
+
 class TestLoadPerformance:
     def test_engine_throughput(self, tmp_path):
         """Measure how many transactions the engine processes per second."""
@@ -193,8 +201,9 @@ class TestLoadPerformance:
         n_txns = len(data["txn"])
 
         start = time.time()
-        result = run_spec(spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of,
-                         artifacts_root=tmp_path)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
         elapsed = time.time() - start
 
         txns_per_sec = n_txns / elapsed

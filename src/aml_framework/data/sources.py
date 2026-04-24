@@ -82,9 +82,7 @@ def load_csv_source(
     col_types: dict[str, dict[str, tuple[ColumnType, bool]]] = {}
 
     for contract in spec.data_contracts:
-        col_types[contract.id] = {
-            c.name: (c.type, c.nullable) for c in contract.columns
-        }
+        col_types[contract.id] = {c.name: (c.type, c.nullable) for c in contract.columns}
 
         csv_path = data_dir / f"{contract.id}.csv"
         if not csv_path.exists():

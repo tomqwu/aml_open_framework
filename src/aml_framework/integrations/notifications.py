@@ -77,7 +77,8 @@ def _send_slack(text: str) -> None:
     try:
         payload = json.dumps({"text": text}).encode("utf-8")
         req = urllib.request.Request(
-            _SLACK_URL, data=payload,
+            _SLACK_URL,
+            data=payload,
             headers={"Content-Type": "application/json"},
             method="POST",
         )
@@ -92,18 +93,21 @@ def _send_teams(text: str) -> None:
     try:
         card = {
             "type": "message",
-            "attachments": [{
-                "contentType": "application/vnd.microsoft.card.adaptive",
-                "content": {
-                    "type": "AdaptiveCard",
-                    "version": "1.4",
-                    "body": [{"type": "TextBlock", "text": text, "wrap": True}],
-                },
-            }],
+            "attachments": [
+                {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "content": {
+                        "type": "AdaptiveCard",
+                        "version": "1.4",
+                        "body": [{"type": "TextBlock", "text": text, "wrap": True}],
+                    },
+                }
+            ],
         }
         payload = json.dumps(card).encode("utf-8")
         req = urllib.request.Request(
-            _TEAMS_URL, data=payload,
+            _TEAMS_URL,
+            data=payload,
             headers={"Content-Type": "application/json"},
             method="POST",
         )

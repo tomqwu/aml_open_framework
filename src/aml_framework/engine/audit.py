@@ -47,7 +47,9 @@ class AuditLedger:
     rule_outputs: dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def create(cls, artifacts_root: Path, spec_path: Path, spec_hash: str, as_of: datetime) -> "AuditLedger":
+    def create(
+        cls, artifacts_root: Path, spec_path: Path, spec_hash: str, as_of: datetime
+    ) -> "AuditLedger":
         ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         run_dir = artifacts_root / f"run-{ts}"
         (run_dir / "rules").mkdir(parents=True, exist_ok=True)

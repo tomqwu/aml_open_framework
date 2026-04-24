@@ -59,13 +59,15 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
             )
             rows = []
             for m in data:
-                rows.append({
-                    "Status": STATUS_COLORS.get(m["status"], "\u26aa"),
-                    "Rec": m["rec"],
-                    "Title": m["title"],
-                    "Spec Element": m["spec_element"],
-                    "Notes": m.get("notes", ""),
-                })
+                rows.append(
+                    {
+                        "Status": STATUS_COLORS.get(m["status"], "\u26aa"),
+                        "Rec": m["rec"],
+                        "Title": m["title"],
+                        "Spec Element": m["spec_element"],
+                        "Notes": m.get("notes", ""),
+                    }
+                )
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
         elif tab_def["type"] == "pillars":
@@ -81,13 +83,15 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
                 )
             rows = []
             for p in data:
-                rows.append({
-                    "Status": STATUS_COLORS.get(p["status"], "\u26aa"),
-                    "Pillar": p.get("pillar", ""),
-                    "Name": p["name"],
-                    "Spec Element": p["spec_element"],
-                    "Notes": p.get("notes", ""),
-                })
+                rows.append(
+                    {
+                        "Status": STATUS_COLORS.get(p["status"], "\u26aa"),
+                        "Pillar": p.get("pillar", ""),
+                        "Name": p["name"],
+                        "Spec Element": p["spec_element"],
+                        "Notes": p.get("notes", ""),
+                    }
+                )
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
         elif tab_def["type"] == "principles":

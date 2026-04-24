@@ -143,10 +143,12 @@ def compile_rule_sql(rule: Rule, as_of: datetime, source_table: str) -> str:
     window_start = as_of - window_delta
 
     filter_preds = _compile_filter(logic.filter)
-    filter_preds.extend([
-        f"booked_at >= TIMESTAMP {_sql_literal(window_start.isoformat(sep=' '))}",
-        f"booked_at <  TIMESTAMP {_sql_literal(as_of.isoformat(sep=' '))}",
-    ])
+    filter_preds.extend(
+        [
+            f"booked_at >= TIMESTAMP {_sql_literal(window_start.isoformat(sep=' '))}",
+            f"booked_at <  TIMESTAMP {_sql_literal(as_of.isoformat(sep=' '))}",
+        ]
+    )
     where_clause = "\n    AND ".join(filter_preds)
 
     group_by = ", ".join(logic.group_by)
@@ -175,7 +177,7 @@ agg AS (
 SELECT
     {_sql_literal(rule.id)} AS rule_id,
     {group_select},
-    {', '.join(m for m in logic.having.keys())},
+    {", ".join(m for m in logic.having.keys())},
     window_start,
     window_end
 FROM agg

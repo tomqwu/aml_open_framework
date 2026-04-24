@@ -42,11 +42,15 @@ if not df_alerts.empty and "customer_id" in df_alerts.columns:
     alerted_ids = set(df_alerts["customer_id"].dropna().unique())
 
 # Per-customer stats.
-cust_stats = df_txns.groupby("customer_id").agg(
-    total_volume=("amount", "sum"),
-    txn_count=("txn_id", "count"),
-    channels=("channel", "nunique"),
-).reset_index()
+cust_stats = (
+    df_txns.groupby("customer_id")
+    .agg(
+        total_volume=("amount", "sum"),
+        txn_count=("txn_id", "count"),
+        channels=("channel", "nunique"),
+    )
+    .reset_index()
+)
 cust_info = df_customers.set_index("customer_id")
 
 # Build nodes.
@@ -62,14 +66,16 @@ for _, row in cust_stats.iterrows():
     border = "#dc2626" if cid in alerted_ids else "#e2e8f0"
     border_width = 3 if cid in alerted_ids else 1
 
-    nodes.append(Node(
-        id=cid,
-        label=cid,
-        title=f"{name}\nRisk: {risk}\nVolume: ${vol:,.0f}\nTxns: {int(row['txn_count'])}",
-        size=size,
-        color={"background": color, "border": border},
-        borderWidth=border_width,
-    ))
+    nodes.append(
+        Node(
+            id=cid,
+            label=cid,
+            title=f"{name}\nRisk: {risk}\nVolume: ${vol:,.0f}\nTxns: {int(row['txn_count'])}",
+            size=size,
+            color={"background": color, "border": border},
+            borderWidth=border_width,
+        )
+    )
 
 # Build edges from temporal correlation.
 # Two customers are linked if one has an outflow and the other has an inflow
@@ -100,16 +106,20 @@ if not df_txns.empty:
         width = max(1, min(6, int(vol / 5000)))
         both_alerted = c1 in alerted_ids and c2 in alerted_ids
         color = "rgba(220, 38, 38, 0.5)" if both_alerted else "rgba(37, 99, 235, 0.3)"
-        edges.append(Edge(
-            source=c1, target=c2,
-            color=color, width=width,
-            title=f"Correlated flow: ${vol:,.0f}",
-        ))
+        edges.append(
+            Edge(
+                source=c1,
+                target=c2,
+                color=color,
+                width=width,
+                title=f"Correlated flow: ${vol:,.0f}",
+            )
+        )
 
 # Fan-in detection: count distinct senders (outflow customers correlated
 # with a given customer's inflows).
 fan_in_counts: dict[str, set[str]] = {}
-for (c1, c2) in edge_weights:
+for c1, c2 in edge_weights:
     fan_in_counts.setdefault(c1, set()).add(c2)
     fan_in_counts.setdefault(c2, set()).add(c1)
 fan_in_suspects = {cid for cid, senders in fan_in_counts.items() if len(senders) >= 3}
@@ -160,7 +170,9 @@ if fan_in_suspects:
 st.markdown("### Alerted Customers")
 if alerted_ids:
     detail_df = df_customers[df_customers["customer_id"].isin(alerted_ids)].merge(
-        cust_stats, on="customer_id", how="left",
+        cust_stats,
+        on="customer_id",
+        how="left",
     )
     cols = ["customer_id", "full_name", "country", "risk_rating", "total_volume", "txn_count"]
     available = [c for c in cols if c in detail_df.columns]

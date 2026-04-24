@@ -64,11 +64,26 @@ display_df["severity"] = display_df["rule_id"].map(sev_map)
 col_title, col_download = st.columns([3, 1])
 col_title.markdown(f"### Alerts ({len(display_df)})")
 csv_data = display_df[
-    [c for c in ["rule_id", "severity", "customer_id", "sum_amount", "count", "window_start", "window_end"]
-     if c in display_df.columns]
+    [
+        c
+        for c in [
+            "rule_id",
+            "severity",
+            "customer_id",
+            "sum_amount",
+            "count",
+            "window_start",
+            "window_end",
+        ]
+        if c in display_df.columns
+    ]
 ].to_csv(index=False)
 col_download.download_button(
-    "Export CSV", csv_data, "alerts.csv", "text/csv", use_container_width=True,
+    "Export CSV",
+    csv_data,
+    "alerts.csv",
+    "text/csv",
+    use_container_width=True,
 )
 show_cols = ["rule_id", "severity"]
 for c in ["customer_id", "sum_amount", "count", "window_start", "window_end"]:
@@ -76,11 +91,13 @@ for c in ["customer_id", "sum_amount", "count", "window_start", "window_end"]:
         show_cols.append(c)
 available = [c for c in show_cols if c in display_df.columns]
 
+
 def _highlight_severity(val: str) -> str:
     color = SEVERITY_COLORS.get(val, "")
     if color:
         return f"color: {color}; font-weight: 700;"
     return ""
+
 
 styled = display_df[available].style.map(_highlight_severity, subset=["severity"])
 st.dataframe(styled, use_container_width=True, hide_index=True, height=400)
@@ -95,7 +112,10 @@ with col_left:
     chart["severity"] = chart["rule_id"].map(sev_map)
     chart = chart.sort_values("count", ascending=True)
     fig = px.bar(
-        chart, y="rule_id", x="count", color="severity",
+        chart,
+        y="rule_id",
+        x="count",
+        color="severity",
         orientation="h",
         color_discrete_map=SEVERITY_COLORS,
         labels={"rule_id": "", "count": "Alerts"},
@@ -108,8 +128,11 @@ with col_right:
     sev_counts = display_df["severity"].value_counts().reset_index()
     sev_counts.columns = ["severity", "count"]
     fig = px.pie(
-        sev_counts, names="severity", values="count",
-        color="severity", color_discrete_map=SEVERITY_COLORS,
+        sev_counts,
+        names="severity",
+        values="count",
+        color="severity",
+        color_discrete_map=SEVERITY_COLORS,
         hole=0.45,
     )
     fig.update_traces(textposition="inside", textinfo="percent+label")
@@ -126,9 +149,12 @@ if not df_cases.empty and "status" in df_cases.columns:
     status_counts.columns = ["Status", "Count"]
 
     status_colors_map = {
-        "open": "#2563eb", "l1_aml_analyst": "#2563eb", "l1_analyst": "#2563eb",
+        "open": "#2563eb",
+        "l1_aml_analyst": "#2563eb",
+        "l1_analyst": "#2563eb",
         "l2_investigator": "#7c3aed",
-        "str_filing": "#dc2626", "sar_filing": "#dc2626",
+        "str_filing": "#dc2626",
+        "sar_filing": "#dc2626",
         "edd_review": "#d97706",
         "closed_no_action": "#6b7280",
     }

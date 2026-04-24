@@ -46,7 +46,9 @@ for contract in spec.data_contracts:
             if ts_col in df.columns:
                 latest = pd.to_datetime(df[ts_col]).max()
                 if latest is not pd.NaT:
-                    age_hours = (as_of - latest.to_pydatetime().replace(tzinfo=None)).total_seconds() / 3600
+                    age_hours = (
+                        as_of - latest.to_pydatetime().replace(tzinfo=None)
+                    ).total_seconds() / 3600
                     freshness_note = f"{age_hours:.1f}h (SLA: {contract.freshness_sla})"
                     sla_val = int(contract.freshness_sla[:-1])
                     sla_unit = contract.freshness_sla[-1]
@@ -69,11 +71,13 @@ for contract in spec.data_contracts:
                             total_passed += 1
                         else:
                             total_violations += 1
-                        check_results.append({
-                            "Check": f"not_null({field})",
-                            "Status": "PASS" if passed else "FAIL",
-                            "Detail": f"{nulls} nulls" if nulls else "0 nulls",
-                        })
+                        check_results.append(
+                            {
+                                "Check": f"not_null({field})",
+                                "Status": "PASS" if passed else "FAIL",
+                                "Detail": f"{nulls} nulls" if nulls else "0 nulls",
+                            }
+                        )
             elif check_type == "unique":
                 for field in fields:
                     if field in df.columns:
@@ -83,22 +87,26 @@ for contract in spec.data_contracts:
                             total_passed += 1
                         else:
                             total_violations += 1
-                        check_results.append({
-                            "Check": f"unique({field})",
-                            "Status": "PASS" if passed else "FAIL",
-                            "Detail": f"{dupes} duplicates" if dupes else "0 duplicates",
-                        })
+                        check_results.append(
+                            {
+                                "Check": f"unique({field})",
+                                "Status": "PASS" if passed else "FAIL",
+                                "Detail": f"{dupes} duplicates" if dupes else "0 duplicates",
+                            }
+                        )
 
-    contract_results.append({
-        "contract_id": contract.id,
-        "source": contract.source,
-        "rows": n_rows,
-        "columns": len(contract.columns),
-        "freshness_sla": contract.freshness_sla or "N/A",
-        "freshness_status": "OK" if freshness_ok else "BREACH",
-        "freshness_detail": freshness_note,
-        "checks": check_results,
-    })
+    contract_results.append(
+        {
+            "contract_id": contract.id,
+            "source": contract.source,
+            "rows": n_rows,
+            "columns": len(contract.columns),
+            "freshness_sla": contract.freshness_sla or "N/A",
+            "freshness_status": "OK" if freshness_ok else "BREACH",
+            "freshness_detail": freshness_note,
+            "checks": check_results,
+        }
+    )
 
 # --- KPIs ---
 c1, c2, c3, c4 = st.columns(4)
@@ -115,14 +123,20 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Contract overview ---
 st.markdown("### Contract Overview")
-overview = pd.DataFrame([{
-    "Contract": r["contract_id"],
-    "Source": r["source"],
-    "Rows": r["rows"],
-    "Columns": r["columns"],
-    "Freshness SLA": r["freshness_sla"],
-    "Freshness": r["freshness_status"],
-} for r in contract_results])
+overview = pd.DataFrame(
+    [
+        {
+            "Contract": r["contract_id"],
+            "Source": r["source"],
+            "Rows": r["rows"],
+            "Columns": r["columns"],
+            "Freshness SLA": r["freshness_sla"],
+            "Freshness": r["freshness_status"],
+        }
+        for r in contract_results
+    ]
+)
+
 
 def _status_color(val):
     if val == "BREACH":
@@ -131,9 +145,11 @@ def _status_color(val):
         return "color: #059669; font-weight: 700;"
     return ""
 
+
 st.dataframe(
     overview.style.map(_status_color, subset=["Freshness"]),
-    use_container_width=True, hide_index=True,
+    use_container_width=True,
+    hide_index=True,
 )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -158,7 +174,8 @@ for cr in contract_results:
 
             st.dataframe(
                 checks_df.style.map(_check_color, subset=["Status"]),
-                use_container_width=True, hide_index=True,
+                use_container_width=True,
+                hide_index=True,
             )
 
         # Column schema.

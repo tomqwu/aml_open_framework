@@ -72,8 +72,10 @@ def diff_specs(path_a: Path, path_b: Path) -> None:
     m_removed = set(metrics_a) - set(metrics_b)
     m_common = set(metrics_a) & set(metrics_b)
 
-    if m_added or m_removed or any(
-        metrics_a[m].thresholds != metrics_b[m].thresholds for m in m_common
+    if (
+        m_added
+        or m_removed
+        or any(metrics_a[m].thresholds != metrics_b[m].thresholds for m in m_common)
     ):
         table = Table(title="Metric Changes")
         table.add_column("Change")
@@ -113,9 +115,13 @@ def diff_specs(path_a: Path, path_b: Path) -> None:
 
     # Summary.
     console.print("\n[bold]Summary:[/bold]")
-    console.print(f"  Rules: {len(spec_a.rules)} -> {len(spec_b.rules)} "
-                  f"({len(added)} added, {len(removed)} removed)")
-    console.print(f"  Metrics: {len(spec_a.metrics)} -> {len(spec_b.metrics)} "
-                  f"({len(m_added)} added, {len(m_removed)} removed)")
+    console.print(
+        f"  Rules: {len(spec_a.rules)} -> {len(spec_b.rules)} "
+        f"({len(added)} added, {len(removed)} removed)"
+    )
+    console.print(
+        f"  Metrics: {len(spec_a.metrics)} -> {len(spec_b.metrics)} "
+        f"({len(m_added)} added, {len(m_removed)} removed)"
+    )
     console.print(f"  Queues: {len(spec_a.workflow.queues)} -> {len(spec_b.workflow.queues)}")
     console.print()

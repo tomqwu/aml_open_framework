@@ -76,28 +76,32 @@ def _build_screening_rules(spec_obj: Any) -> list[dict[str, Any]]:
                     count_min = cond["gte"]
             per_txn_threshold = (sum_threshold / count_min) if sum_threshold and count_min else None
 
-            screens.append({
-                "rule_id": rule.id,
-                "rule_name": rule.name,
-                "severity": rule.severity,
-                "channels": channels,
-                "direction": direction,
-                "amt_min": amt_min,
-                "per_txn_threshold": per_txn_threshold,
-            })
+            screens.append(
+                {
+                    "rule_id": rule.id,
+                    "rule_name": rule.name,
+                    "severity": rule.severity,
+                    "channels": channels,
+                    "direction": direction,
+                    "amt_min": amt_min,
+                    "per_txn_threshold": per_txn_threshold,
+                }
+            )
         else:
             # For custom_sql/python_ref rules, flag transactions from
             # customers the batch engine already alerted on.
-            screens.append({
-                "rule_id": rule.id,
-                "rule_name": rule.name,
-                "severity": rule.severity,
-                "alerted_customers": alerted_customers,
-                "channels": None,
-                "direction": None,
-                "amt_min": None,
-                "per_txn_threshold": None,
-            })
+            screens.append(
+                {
+                    "rule_id": rule.id,
+                    "rule_name": rule.name,
+                    "severity": rule.severity,
+                    "alerted_customers": alerted_customers,
+                    "channels": None,
+                    "direction": None,
+                    "amt_min": None,
+                    "per_txn_threshold": None,
+                }
+            )
     return screens
 
 
@@ -144,8 +148,7 @@ with st.expander("Screening rules (derived from spec)"):
         ch_str = ", ".join(sorted(s["channels"])) if s.get("channels") else "any"
         thr = f"${s['per_txn_threshold']:,.0f}" if s.get("per_txn_threshold") else "customer-level"
         st.markdown(
-            f"- **{s['rule_id']}** ({s['severity']}) — "
-            f"channels: {ch_str}, threshold: {thr}"
+            f"- **{s['rule_id']}** ({s['severity']}) — channels: {ch_str}, threshold: {thr}"
         )
 
 # --- Controls ---
@@ -156,7 +159,8 @@ with col_ctrl2:
     stop = st.button("Stop", use_container_width=True)
 with col_ctrl3:
     speed = st.select_slider(
-        "Speed", options=["Slow", "Normal", "Fast", "Ultra"],
+        "Speed",
+        options=["Slow", "Normal", "Fast", "Ultra"],
         value="Fast",
     )
 
@@ -217,22 +221,26 @@ if start:
         if matched_rule:
             alerts_fired += 1
             rule_obj = next((r for r in spec.rules if r.id == matched_rule), None)
-            recent_alerts.append({
+            recent_alerts.append(
+                {
+                    "Customer": txn["customer_id"],
+                    "Rule": matched_rule,
+                    "Severity": rule_obj.severity if rule_obj else "?",
+                    "Amount": f"${amt:,.2f}",
+                    "Channel": ch,
+                }
+            )
+
+        feed_rows.append(
+            {
+                "Time": str(txn["booked_at"])[:19],
                 "Customer": txn["customer_id"],
-                "Rule": matched_rule,
-                "Severity": rule_obj.severity if rule_obj else "?",
                 "Amount": f"${amt:,.2f}",
                 "Channel": ch,
-            })
-
-        feed_rows.append({
-            "Time": str(txn["booked_at"])[:19],
-            "Customer": txn["customer_id"],
-            "Amount": f"${amt:,.2f}",
-            "Channel": ch,
-            "Dir": txn["direction"],
-            "Alert": matched_rule or "",
-        })
+                "Dir": txn["direction"],
+                "Alert": matched_rule or "",
+            }
+        )
 
         if processed % 3 == 0 or i == total - 1:
             kpi_txn_count.markdown(
@@ -262,33 +270,50 @@ if start:
             )
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                y=volume_history, mode="lines",
-                line=dict(color="#2563eb", width=2),
-                fill="tozeroy", fillcolor="rgba(37, 99, 235, 0.1)",
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    y=volume_history,
+                    mode="lines",
+                    line=dict(color="#2563eb", width=2),
+                    fill="tozeroy",
+                    fillcolor="rgba(37, 99, 235, 0.1)",
+                )
+            )
             fig.update_layout(
                 title="Cumulative Volume ($)",
-                height=280, margin=dict(t=40, b=20, l=40, r=20),
+                height=280,
+                margin=dict(t=40, b=20, l=40, r=20),
                 template="plotly_white",
-                xaxis_title="Transactions", yaxis_title="",
+                xaxis_title="Transactions",
+                yaxis_title="",
                 showlegend=False,
             )
             chart_placeholder.plotly_chart(fig, use_container_width=True)
 
             if channel_counts:
-                ch_colors = {"cash": "#d97706", "wire": "#2563eb", "ach": "#7c3aed",
-                             "card": "#6b7280", "e_transfer": "#0891b2", "cheque": "#059669"}
-                fig2 = go.Figure(go.Bar(
-                    x=list(channel_counts.values()),
-                    y=list(channel_counts.keys()),
-                    orientation="h",
-                    marker_color=[ch_colors.get(c, "#94a3b8") for c in channel_counts.keys()],
-                ))
+                ch_colors = {
+                    "cash": "#d97706",
+                    "wire": "#2563eb",
+                    "ach": "#7c3aed",
+                    "card": "#6b7280",
+                    "e_transfer": "#0891b2",
+                    "cheque": "#059669",
+                }
+                fig2 = go.Figure(
+                    go.Bar(
+                        x=list(channel_counts.values()),
+                        y=list(channel_counts.keys()),
+                        orientation="h",
+                        marker_color=[ch_colors.get(c, "#94a3b8") for c in channel_counts.keys()],
+                    )
+                )
                 fig2.update_layout(
                     title="Channel Activity",
-                    height=280, margin=dict(t=40, b=20, l=60, r=20),
-                    template="plotly_white", xaxis_title="Count", yaxis_title="",
+                    height=280,
+                    margin=dict(t=40, b=20, l=60, r=20),
+                    template="plotly_white",
+                    xaxis_title="Count",
+                    yaxis_title="",
                     showlegend=False,
                 )
                 channel_placeholder.plotly_chart(fig2, use_container_width=True)
@@ -303,13 +328,16 @@ if start:
                 alert_placeholder.markdown(f"### Live Alerts ({alerts_fired})")
                 alert_placeholder.dataframe(
                     pd.DataFrame(recent_alerts[-8:][::-1]),
-                    use_container_width=True, hide_index=True,
+                    use_container_width=True,
+                    hide_index=True,
                 )
 
             time.sleep(delay)
 
     st.session_state["monitoring_active"] = False
-    st.success(f"Monitoring complete. {processed} transactions, {alerts_fired} alerts from spec rules.")
+    st.success(
+        f"Monitoring complete. {processed} transactions, {alerts_fired} alerts from spec rules."
+    )
 
 elif not st.session_state.get("monitoring_active", False):
     screens = _build_screening_rules(spec)
@@ -318,9 +346,9 @@ elif not st.session_state.get("monitoring_active", False):
         f'<div style="text-align:center; padding:3rem; color:#94a3b8;">'
         f'<div style="font-size:3rem;">&#9654;</div>'
         f'<div style="font-size:1.1rem;">Press <b>Start Monitoring</b> to begin '
-        f'real-time transaction replay</div>'
+        f"real-time transaction replay</div>"
         f'<div style="font-size:0.85rem; margin-top:0.5rem;">'
-        f'{len(df_txns)} transactions | {rule_count} screening rules from spec</div>'
-        f'</div>',
+        f"{len(df_txns)} transactions | {rule_count} screening rules from spec</div>"
+        f"</div>",
         unsafe_allow_html=True,
     )

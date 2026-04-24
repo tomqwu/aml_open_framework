@@ -57,8 +57,12 @@ def run(
     seed: int = typer.Option(42, help="Synthetic data seed."),
     as_of: str | None = typer.Option(None, help="ISO timestamp used as the rule 'now'."),
     artifacts: Path = typer.Option(Path(".artifacts"), help="Artifacts root."),
-    data_source: str = typer.Option("synthetic", help="Data source: synthetic, csv, parquet, duckdb."),
-    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files. Default: data/input/"),
+    data_source: str = typer.Option(
+        "synthetic", help="Data source: synthetic, csv, parquet, duckdb."
+    ),
+    data_dir: str | None = typer.Option(
+        None, help="Directory with CSV/Parquet files. Default: data/input/"
+    ),
 ) -> None:
     """End-to-end: load data, execute rules, emit cases + audit bundle."""
     from aml_framework.data.sources import resolve_source
@@ -66,8 +70,11 @@ def run(
     spec = load_spec(spec_path)
     as_of_dt = _parse_as_of(as_of)
     data = resolve_source(
-        source_type=data_source, spec=spec, as_of=as_of_dt,
-        seed=seed, data_dir=data_dir,
+        source_type=data_source,
+        spec=spec,
+        as_of=as_of_dt,
+        seed=seed,
+        data_dir=data_dir,
     )
 
     result = run_spec(
@@ -117,11 +124,15 @@ def run(
 @app.command()
 def report(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
-    audience: str | None = typer.Option(None, help="Filter reports by audience (e.g. svp, vp, director)."),
+    audience: str | None = typer.Option(
+        None, help="Filter reports by audience (e.g. svp, vp, director)."
+    ),
     report_id: str | None = typer.Option(None, "--report", help="Render a specific report id."),
     run_dir: Path | None = typer.Option(None, help="Specific run dir; defaults to latest."),
     artifacts: Path = typer.Option(Path(".artifacts")),
-    stdout: bool = typer.Option(False, help="Print the first matching report to stdout instead of listing."),
+    stdout: bool = typer.Option(
+        False, help="Print the first matching report to stdout instead of listing."
+    ),
 ) -> None:
     """Show or print role-specific reports from a completed run."""
     spec = load_spec(spec_path)
@@ -138,9 +149,9 @@ def report(
         raise typer.Exit(code=1)
 
     selected = [
-        r for r in spec.reports
-        if (audience is None or r.audience == audience)
-        and (report_id is None or r.id == report_id)
+        r
+        for r in spec.reports
+        if (audience is None or r.audience == audience) and (report_id is None or r.id == report_id)
     ]
     if not selected:
         console.print("[yellow]No reports match the filter.[/yellow]")
@@ -196,10 +207,18 @@ def dashboard(
     dashboard_app = Path(__file__).parent / "dashboard" / "app.py"
     subprocess.run(
         [
-            sys.executable, "-m", "streamlit", "run", str(dashboard_app),
-            "--server.port", str(port),
-            "--server.headless", "true",
-            "--", str(spec_path.resolve()), str(seed),
+            sys.executable,
+            "-m",
+            "streamlit",
+            "run",
+            str(dashboard_app),
+            "--server.port",
+            str(port),
+            "--server.headless",
+            "true",
+            "--",
+            str(spec_path.resolve()),
+            str(seed),
         ],
         check=False,
     )
@@ -273,7 +292,11 @@ def replay(
 
     replay_root = artifacts / "replay"
     result = run_spec(
-        spec=spec, spec_path=spec_path, data=data, as_of=as_of_dt, artifacts_root=replay_root,
+        spec=spec,
+        spec_path=spec_path,
+        data=data,
+        as_of=as_of_dt,
+        artifacts_root=replay_root,
     )
 
     # Compare hashes.
@@ -296,7 +319,9 @@ def replay(
             if not match:
                 all_match = False
             table.add_row(
-                rule_id, orig[:16] + "...", repl[:16] + "...",
+                rule_id,
+                orig[:16] + "...",
+                repl[:16] + "...",
                 "[green]YES[/green]" if match else "[red]NO[/red]",
             )
         console.print(table)
@@ -332,10 +357,14 @@ def api(
 
     subprocess.run(
         [
-            sys.executable, "-m", "uvicorn",
+            sys.executable,
+            "-m",
+            "uvicorn",
             "aml_framework.api.main:app",
-            "--host", host,
-            "--port", str(port),
+            "--host",
+            host,
+            "--port",
+            str(port),
         ],
         check=False,
     )

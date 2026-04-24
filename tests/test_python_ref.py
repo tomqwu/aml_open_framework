@@ -14,7 +14,9 @@ def _run(tmp_path):
     spec = load_spec(EXAMPLE)
     as_of = datetime(2026, 4, 23, 12, 0, 0)
     data = generate_dataset(as_of=as_of, seed=42)
-    return spec, run_spec(spec=spec, spec_path=EXAMPLE, data=data, as_of=as_of, artifacts_root=tmp_path)
+    return spec, run_spec(
+        spec=spec, spec_path=EXAMPLE, data=data, as_of=as_of, artifacts_root=tmp_path
+    )
 
 
 def test_python_ref_rule_executes(tmp_path):

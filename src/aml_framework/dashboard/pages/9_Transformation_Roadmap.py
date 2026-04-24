@@ -35,8 +35,7 @@ if st.session_state.get("guided_demo"):
 # --- KPI row ---
 completed = sum(1 for p in ROADMAP_PHASES if p["status"] == "complete")
 progress_weeks = sum(
-    p["end_week"] - p["start_week"] + 1
-    for p in ROADMAP_PHASES if p["status"] == "complete"
+    p["end_week"] - p["start_week"] + 1 for p in ROADMAP_PHASES if p["status"] == "complete"
 )
 total_weeks = sum(p["end_week"] - p["start_week"] + 1 for p in ROADMAP_PHASES)
 current_phase = next((p["phase"] for p in ROADMAP_PHASES if p["status"] == "in_progress"), "N/A")
@@ -47,7 +46,11 @@ with c1:
 with c2:
     kpi_card("Phases Complete", f"{completed} / {len(ROADMAP_PHASES)}", "#059669")
 with c3:
-    kpi_card("Current Phase", current_phase.split(": ")[-1] if ": " in current_phase else current_phase, "#7c3aed")
+    kpi_card(
+        "Current Phase",
+        current_phase.split(": ")[-1] if ": " in current_phase else current_phase,
+        "#7c3aed",
+    )
 with c4:
     kpi_card("Progress", f"{progress_weeks / total_weeks:.0%}", "#d97706")
 
@@ -57,22 +60,31 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("### Program Timeline")
 gantt_data = []
 for phase in ROADMAP_PHASES:
-    gantt_data.append({
-        "Phase": phase["phase"],
-        "Start_date": pd.Timestamp("2026-01-01") + pd.Timedelta(weeks=phase["start_week"] - 1),
-        "Finish_date": pd.Timestamp("2026-01-01") + pd.Timedelta(weeks=phase["end_week"]),
-        "Status": phase["status"].replace("_", " ").title(),
-    })
+    gantt_data.append(
+        {
+            "Phase": phase["phase"],
+            "Start_date": pd.Timestamp("2026-01-01") + pd.Timedelta(weeks=phase["start_week"] - 1),
+            "Finish_date": pd.Timestamp("2026-01-01") + pd.Timedelta(weeks=phase["end_week"]),
+            "Status": phase["status"].replace("_", " ").title(),
+        }
+    )
 
 df_gantt = pd.DataFrame(gantt_data)
 status_colors = {"Complete": "#16a34a", "In Progress": "#2563eb", "Planned": "#94a3b8"}
 fig = px.timeline(
-    df_gantt, x_start="Start_date", x_end="Finish_date", y="Phase",
-    color="Status", color_discrete_map=status_colors,
+    df_gantt,
+    x_start="Start_date",
+    x_end="Finish_date",
+    y="Phase",
+    color="Status",
+    color_discrete_map=status_colors,
 )
 fig.update_yaxes(autorange="reversed")
-fig.update_layout(showlegend=True, legend_title_text="",
-                  legend=dict(orientation="h", yanchor="bottom", y=-0.25, x=0.5, xanchor="center"))
+fig.update_layout(
+    showlegend=True,
+    legend_title_text="",
+    legend=dict(orientation="h", yanchor="bottom", y=-0.25, x=0.5, xanchor="center"),
+)
 st.plotly_chart(chart_layout(fig, 300), use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -87,10 +99,10 @@ for i, phase in enumerate(ROADMAP_PHASES):
             f'<div class="metric-card" style="border-top:4px solid {color}; text-align:center;">'
             f'<div class="label">{phase["status"].replace("_", " ").upper()}</div>'
             f'<div style="font-weight:700; font-size:0.95rem; margin:0.3rem 0;">'
-            f'{phase["phase"].split(": ")[-1]}</div>'
+            f"{phase['phase'].split(': ')[-1]}</div>"
             f'<div style="font-size:0.78rem; color:#64748b;">'
-            f'Weeks {phase["start_week"]}\u2013{phase["end_week"]}</div>'
-            f'</div>',
+            f"Weeks {phase['start_week']}\u2013{phase['end_week']}</div>"
+            f"</div>",
             unsafe_allow_html=True,
         )
 
@@ -101,7 +113,9 @@ st.markdown("### Phase Details")
 for phase in ROADMAP_PHASES:
     color = status_colors_card.get(phase["status"], "#94a3b8")
     status_label = phase["status"].replace("_", " ").title()
-    with st.expander(f'{phase["phase"]} (Weeks {phase["start_week"]}\u2013{phase["end_week"]}) -- {status_label}'):
+    with st.expander(
+        f"{phase['phase']} (Weeks {phase['start_week']}\u2013{phase['end_week']}) -- {status_label}"
+    ):
         col_m, col_d = st.columns(2)
         with col_m:
             st.markdown("**Milestones**")

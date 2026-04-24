@@ -158,7 +158,12 @@ def list_runs() -> list[dict[str, Any]]:
                     "SELECT run_id, spec_path, seed, created_at FROM runs ORDER BY created_at DESC LIMIT 50"
                 )
                 return [
-                    {"run_id": r[0], "spec_path": r[1], "seed": r[2], "created_at": r[3].isoformat()}
+                    {
+                        "run_id": r[0],
+                        "spec_path": r[1],
+                        "seed": r[2],
+                        "created_at": r[3].isoformat(),
+                    }
                     for r in cur.fetchall()
                 ]
         finally:

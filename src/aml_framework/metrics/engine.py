@@ -128,12 +128,7 @@ def _compute(formula: Any, ctx: "MetricContext") -> float:
             # Covered_by: distinct tags that actually triggered at least one alert.
             if formula.covered_by == "rule_tags":
                 all_tags = {t for r in ctx.spec.rules for t in r.tags}
-                fired = {
-                    t
-                    for r in ctx.spec.rules
-                    for t in r.tags
-                    if ctx.alerts.get(r.id)
-                }
+                fired = {t for r in ctx.spec.rules for t in r.tags if ctx.alerts.get(r.id)}
                 return 0.0 if not all_tags else len(fired) / len(all_tags)
         # Other combinations fall back to a neutral 0.0 — a real deployment
         # would extend this; the spec shape is forward-compatible.
@@ -197,16 +192,16 @@ def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
             d.get("case_id", "").split("__")[1]
             for d in ctx.decisions
             if d.get("event") == "case_opened"
-            and any(c.get("queue") == "closed_no_action" for c in ctx.cases
-                    if c.get("case_id") == d.get("case_id"))
+            and any(
+                c.get("queue") == "closed_no_action"
+                for c in ctx.cases
+                if c.get("case_id") == d.get("case_id")
+            )
         }
         if not closed_customers:
             return 0.0
         # Check if any closed customer has multiple alerts.
-        all_alerted = [
-            a.get("customer_id")
-            for alerts in ctx.alerts.values() for a in alerts
-        ]
+        all_alerted = [a.get("customer_id") for alerts in ctx.alerts.values() for a in alerts]
         repeat_count = sum(1 for cid in closed_customers if all_alerted.count(cid) > 1)
         total_closed = len(closed_customers) or 1
         return repeat_count / total_closed
@@ -233,14 +228,15 @@ def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
         # Count cash transactions >= 10000 as reportable.
         txns = ctx.data.get("txn", [])
         reportable = sum(
-            1 for t in txns
-            if t.get("channel") == "cash" and float(t.get("amount", 0)) >= 10000
+            1 for t in txns if t.get("channel") == "cash" and float(t.get("amount", 0)) >= 10000
         )
         if reportable == 0:
             return 1.0  # No reportable transactions = 100% compliant.
         # In the reference engine, LCTRs aren't actually filed (no filing
         # system). Count alerts from cash rules as a proxy for "detected".
-        cash_alerts = len(ctx.alerts.get("large_cash_lctr", []) or ctx.alerts.get("large_cash_ctr", []))
+        cash_alerts = len(
+            ctx.alerts.get("large_cash_lctr", []) or ctx.alerts.get("large_cash_ctr", [])
+        )
         return min(cash_alerts / reportable, 1.0)
 
     # --- EDD review adherence proxy ---
@@ -273,7 +269,8 @@ def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
     # --- SLA compliance proxy ---
     if "sla" in sql_lower or "on_time" in sql_lower:
         resolution_decisions = [
-            d for d in ctx.decisions
+            d
+            for d in ctx.decisions
             if d.get("event") in ("escalated", "escalated_to_str", "closed")
         ]
         if not resolution_decisions:
@@ -316,16 +313,18 @@ def evaluate_metrics(
     for metric in spec.metrics:
         value = _compute(metric.formula, ctx)
         rag, target_met = _rag_band(value, metric)
-        results.append(MetricResult(
-            id=metric.id,
-            name=metric.name,
-            category=metric.category,
-            audience=list(metric.audience),
-            owner=metric.owner,
-            unit=metric.unit,
-            value=round(value, 4),
-            rag=rag,
-            target_met=target_met,
-            formula_type=metric.formula.type,
-        ))
+        results.append(
+            MetricResult(
+                id=metric.id,
+                name=metric.name,
+                category=metric.category,
+                audience=list(metric.audience),
+                owner=metric.owner,
+                unit=metric.unit,
+                value=round(value, 4),
+                rag=rag,
+                target_met=target_met,
+                formula_type=metric.formula.type,
+            )
+        )
     return results

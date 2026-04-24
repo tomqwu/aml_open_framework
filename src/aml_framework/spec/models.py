@@ -122,8 +122,15 @@ class Reporting(_Base):
 
 
 Audience = Literal[
-    "svp", "vp", "director", "manager", "pm", "developer",
-    "business", "auditor", "analyst",
+    "svp",
+    "vp",
+    "director",
+    "manager",
+    "pm",
+    "developer",
+    "business",
+    "auditor",
+    "analyst",
 ]
 MetricCategory = Literal["operational", "effectiveness", "risk", "regulatory", "delivery"]
 Cadence = Literal["daily", "weekly", "monthly", "quarterly", "annual", "on_demand"]
@@ -213,13 +220,11 @@ class AMLSpec(_Base):
         for rule in self.rules:
             if hasattr(rule.logic, "source") and rule.logic.source not in contract_ids:
                 raise ValueError(
-                    f"rule '{rule.id}' references unknown data_contract "
-                    f"'{rule.logic.source}'"
+                    f"rule '{rule.id}' references unknown data_contract '{rule.logic.source}'"
                 )
             if rule.escalate_to not in queue_ids:
                 raise ValueError(
-                    f"rule '{rule.id}' escalates to unknown queue "
-                    f"'{rule.escalate_to}'"
+                    f"rule '{rule.id}' escalates to unknown queue '{rule.escalate_to}'"
                 )
 
         metric_ids = {m.id for m in self.metrics}

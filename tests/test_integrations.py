@@ -13,6 +13,7 @@ class TestJiraIntegration:
 
     def test_create_issue_returns_none_when_unconfigured(self):
         from aml_framework.integrations.jira import create_issue
+
         result = create_issue({"case_id": "test", "severity": "high", "rule_id": "test_rule"})
         assert result is None
 

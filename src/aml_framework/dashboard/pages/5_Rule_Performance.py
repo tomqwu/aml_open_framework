@@ -54,21 +54,25 @@ for rule in spec.rules:
     cust_alerted = len({a.get("customer_id") for a in alerts if a.get("customer_id")})
     detection_rate = cust_alerted / n_customers if n_customers > 0 else 0
     refs = ", ".join(r.citation for r in rule.regulation_refs)
-    rows.append({
-        "Rule": rule.id,
-        "Name": rule.name,
-        "Severity": rule.severity,
-        "Logic": rule.logic.type,
-        "Alerts": alert_count,
-        "Customers": cust_alerted,
-        "Detection %": f"{detection_rate:.1%}",
-    })
+    rows.append(
+        {
+            "Rule": rule.id,
+            "Name": rule.name,
+            "Severity": rule.severity,
+            "Logic": rule.logic.type,
+            "Alerts": alert_count,
+            "Customers": cust_alerted,
+            "Detection %": f"{detection_rate:.1%}",
+        }
+    )
 
 df_rules = pd.DataFrame(rows)
+
 
 def _sev_style(val: str) -> str:
     c = SEVERITY_COLORS.get(val, "")
     return f"color: {c}; font-weight: 700;" if c else ""
+
 
 styled = df_rules.style.map(_sev_style, subset=["Severity"])
 st.dataframe(styled, use_container_width=True, hide_index=True)
@@ -82,7 +86,10 @@ with col_left:
     st.markdown("### Alerts by Severity")
     sev_data = df_rules.groupby("Severity")["Alerts"].sum().reset_index()
     fig = px.bar(
-        sev_data, x="Severity", y="Alerts", color="Severity",
+        sev_data,
+        x="Severity",
+        y="Alerts",
+        color="Severity",
         color_discrete_map=SEVERITY_COLORS,
     )
     fig.update_layout(showlegend=False)
@@ -91,8 +98,13 @@ with col_left:
 with col_right:
     st.markdown("### Detection by Logic Type")
     logic_data = df_rules.groupby("Logic")["Alerts"].sum().reset_index()
-    fig = px.pie(logic_data, names="Logic", values="Alerts", hole=0.45,
-                 color_discrete_sequence=["#2563eb", "#7c3aed", "#d97706"])
+    fig = px.pie(
+        logic_data,
+        names="Logic",
+        values="Alerts",
+        hole=0.45,
+        color_discrete_sequence=["#2563eb", "#7c3aed", "#d97706"],
+    )
     fig.update_traces(textposition="inside", textinfo="percent+label")
     st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
 
@@ -103,14 +115,17 @@ st.markdown("### Regulation Cross-Reference")
 ref_rows = []
 for rule in spec.rules:
     for ref in rule.regulation_refs:
-        ref_rows.append({
-            "Rule": rule.id,
-            "Severity": rule.severity,
-            "Citation": ref.citation,
-            "Description": ref.description,
-        })
+        ref_rows.append(
+            {
+                "Rule": rule.id,
+                "Severity": rule.severity,
+                "Citation": ref.citation,
+                "Description": ref.description,
+            }
+        )
 df_refs = pd.DataFrame(ref_rows)
 st.dataframe(
     df_refs.style.map(_sev_style, subset=["Severity"]),
-    use_container_width=True, hide_index=True,
+    use_container_width=True,
+    hide_index=True,
 )

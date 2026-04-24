@@ -42,12 +42,15 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("### Rule Output Hashes")
 if rule_outputs:
     import pandas as pd
+
     hash_rows = []
     for rule_id, output_hash in rule_outputs.items():
-        hash_rows.append({
-            "Rule": rule_id,
-            "SHA-256": output_hash,
-        })
+        hash_rows.append(
+            {
+                "Rule": rule_id,
+                "SHA-256": output_hash,
+            }
+        )
     st.dataframe(pd.DataFrame(hash_rows), use_container_width=True, hide_index=True)
 
 st.markdown("<br>", unsafe_allow_html=True)

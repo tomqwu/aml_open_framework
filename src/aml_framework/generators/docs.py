@@ -25,8 +25,13 @@ def render_control_matrix(spec: AMLSpec) -> str:
             f"| {refs} | `{rule.escalate_to}` |"
         )
 
-    lines += ["", "## Reviewer queues", "", "| Queue | SLA | Next | Regulator form |",
-              "|---|---|---|---|"]
+    lines += [
+        "",
+        "## Reviewer queues",
+        "",
+        "| Queue | SLA | Next | Regulator form |",
+        "|---|---|---|---|",
+    ]
     for q in spec.workflow.queues:
         nxt = ", ".join(f"`{n}`" for n in q.next) if q.next else "—"
         form = f"`{q.regulator_form}`" if q.regulator_form else "—"

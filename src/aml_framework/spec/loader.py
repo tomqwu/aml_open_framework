@@ -39,10 +39,11 @@ def load_spec(path: str | Path) -> AMLSpec:
     validator = Draft202012Validator(schema)
     errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
     if errors:
-        msgs = [f"  - {'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}" for e in errors]
+        msgs = [
+            f"  - {'/'.join(map(str, e.absolute_path)) or '<root>'}: {e.message}" for e in errors
+        ]
         raise ValueError(
-            f"aml.yaml failed JSON Schema validation ({len(errors)} error(s)):\n"
-            + "\n".join(msgs)
+            f"aml.yaml failed JSON Schema validation ({len(errors)} error(s)):\n" + "\n".join(msgs)
         )
 
     return AMLSpec.model_validate(data)

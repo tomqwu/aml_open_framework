@@ -52,8 +52,11 @@ with c2:
 with c3:
     kpi_card("Current Cases", len(result.case_ids), "#d97706")
 with c4:
-    kpi_card("Spec Hash", st.session_state.result.manifest.get(
-        "spec_content_hash", "")[:12] + "...", "#7c3aed")
+    kpi_card(
+        "Spec Hash",
+        st.session_state.result.manifest.get("spec_content_hash", "")[:12] + "...",
+        "#7c3aed",
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -72,7 +75,7 @@ else:
     st.caption(
         "No stored runs yet. Runs are persisted when using the API "
         "(`aml api` or Docker Compose). Try: "
-        "`curl -X POST localhost:8000/api/v1/login -d '{\"username\":\"admin\",\"password\":\"admin\"}'` "
+        '`curl -X POST localhost:8000/api/v1/login -d \'{"username":"admin","password":"admin"}\'` '
         "then `curl -X POST localhost:8000/api/v1/runs -H 'Authorization: Bearer <token>'`"
     )
 

@@ -50,7 +50,8 @@ def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
     if "df_decisions" in st.session_state:
         new_row = pd.DataFrame([decision])
         st.session_state.df_decisions = pd.concat(
-            [st.session_state.df_decisions, new_row], ignore_index=True,
+            [st.session_state.df_decisions, new_row],
+            ignore_index=True,
         )
 
     st.success(f"Decision recorded: **{event}** -> {disposition}")
@@ -95,10 +96,10 @@ st.markdown(
     f'<span style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.05em; '
     f'color:{sev_color}; font-weight:700;">{sev} severity</span><br>'
     f'<span style="font-size:1.1rem; font-weight:600; color:#0f172a;">'
-    f'{case.get("rule_name", case.get("rule_id", ""))}</span><br>'
+    f"{case.get('rule_name', case.get('rule_id', ''))}</span><br>"
     f'<span style="font-size:0.85rem; color:#475569;">'
-    f'Queue: {case.get("queue", "")} &middot; Status: {case.get("status", "")}</span>'
-    f'</div>',
+    f"Queue: {case.get('queue', '')} &middot; Status: {case.get('status', '')}</span>"
+    f"</div>",
     unsafe_allow_html=True,
 )
 
@@ -119,13 +120,13 @@ with col_profile:
             f'<div class="metric-card">'
             f'<div style="font-size:1.1rem; font-weight:600;">{c["full_name"]}</div>'
             f'<div style="font-size:0.85rem; color:#64748b; margin:0.3rem 0 0.8rem;">'
-            f'{c["customer_id"]} &middot; {c["country"]}</div>'
+            f"{c['customer_id']} &middot; {c['country']}</div>"
             f'<div><span style="font-size:0.78rem; color:#64748b;">Risk Rating</span><br>'
             f'<span style="color:{risk_color}; font-weight:700;">{c["risk_rating"].upper()}</span>'
-            f'</div>'
+            f"</div>"
             f'<div style="margin-top:0.5rem;"><span style="font-size:0.78rem; color:#64748b;">'
-            f'Onboarded</span><br>{str(c["onboarded_at"])[:10]}</div>'
-            f'</div>',
+            f"Onboarded</span><br>{str(c['onboarded_at'])[:10]}</div>"
+            f"</div>",
             unsafe_allow_html=True,
         )
     else:
@@ -145,10 +146,10 @@ with col_alert:
         f'<span style="font-size:1.4rem; font-weight:700;">${amt:,.2f}</span></div>'
         f'<div><span style="font-size:0.78rem; color:#64748b;">Transactions</span><br>'
         f'<span style="font-size:1.4rem; font-weight:700;">{count}</span></div>'
-        f'</div>'
+        f"</div>"
         f'<div><span style="font-size:0.78rem; color:#64748b;">Window</span><br>'
-        f'{w_start} to {w_end}</div>'
-        f'</div>',
+        f"{w_start} to {w_end}</div>"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -171,20 +172,27 @@ if customer_id and not df_txns.empty:
             lambda r: r["amount"] if r["direction"] == "in" else -r["amount"], axis=1
         )
         fig = px.scatter(
-            cust_txns, x="booked_at", y="signed_amount",
-            color="channel", size=cust_txns["amount"].abs(),
+            cust_txns,
+            x="booked_at",
+            y="signed_amount",
+            color="channel",
+            size=cust_txns["amount"].abs(),
             hover_data=["txn_id", "direction", "amount", "channel"],
             labels={"booked_at": "Date", "signed_amount": "Amount (signed)"},
             color_discrete_map={
-                "cash": "#d97706", "wire": "#2563eb", "ach": "#7c3aed",
-                "card": "#6b7280", "eft": "#0891b2",
+                "cash": "#d97706",
+                "wire": "#2563eb",
+                "ach": "#7c3aed",
+                "card": "#6b7280",
+                "eft": "#0891b2",
             },
         )
         w_start_full = alert_data.get("window_start")
         w_end_full = alert_data.get("window_end")
         if w_start_full and w_end_full:
             fig.add_vrect(
-                x0=str(w_start_full), x1=str(w_end_full),
+                x0=str(w_start_full),
+                x1=str(w_end_full),
                 fillcolor="rgba(220, 38, 38, 0.08)",
                 line=dict(color="rgba(220, 38, 38, 0.4)", width=1),
                 annotation_text="Alert Window",
@@ -203,9 +211,11 @@ st.markdown("### Transaction Flow by Channel")
 if customer_id and not df_txns.empty:
     cust_txns = df_txns[df_txns["customer_id"] == customer_id].copy()
     if not cust_txns.empty:
-        flow = cust_txns.groupby(["channel", "direction"]).agg(
-            total=("amount", "sum"), count=("txn_id", "count")
-        ).reset_index()
+        flow = (
+            cust_txns.groupby(["channel", "direction"])
+            .agg(total=("amount", "sum"), count=("txn_id", "count"))
+            .reset_index()
+        )
 
         labels = [customer_id]
         channels = flow["channel"].unique().tolist()
@@ -213,8 +223,11 @@ if customer_id and not df_txns.empty:
 
         sources, targets_list, values, link_colors = [], [], [], []
         channel_colors = {
-            "cash": "#d97706", "wire": "#2563eb", "ach": "#7c3aed",
-            "card": "#6b7280", "eft": "#0891b2",
+            "cash": "#d97706",
+            "wire": "#2563eb",
+            "ach": "#7c3aed",
+            "card": "#6b7280",
+            "eft": "#0891b2",
         }
         for _, row in flow.iterrows():
             ch_idx = labels.index(row["channel"])
@@ -226,17 +239,21 @@ if customer_id and not df_txns.empty:
                 sources.append(0)
                 targets_list.append(ch_idx)
             values.append(float(row["total"]))
-                        # Convert hex to rgba for Plotly compatibility.
+            # Convert hex to rgba for Plotly compatibility.
             r, g, b = int(base_color[1:3], 16), int(base_color[3:5], 16), int(base_color[5:7], 16)
             link_colors.append(f"rgba({r},{g},{b},0.25)")
 
-        fig = go.Figure(go.Sankey(
-            node=dict(
-                label=labels, pad=20, thickness=25,
-                color=["#2563eb"] + [channel_colors.get(c, "#94a3b8") for c in channels],
-            ),
-            link=dict(source=sources, target=targets_list, value=values, color=link_colors),
-        ))
+        fig = go.Figure(
+            go.Sankey(
+                node=dict(
+                    label=labels,
+                    pad=20,
+                    thickness=25,
+                    color=["#2563eb"] + [channel_colors.get(c, "#94a3b8") for c in channels],
+                ),
+                link=dict(source=sources, target=targets_list, value=values, color=link_colors),
+            )
+        )
         st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
 
 # --- Evidence Requested ---
@@ -249,7 +266,7 @@ if evidence:
             st.markdown(
                 f'<div class="metric-card" style="text-align:center; padding:0.8rem;">'
                 f'<span style="font-size:0.85rem;">{item.replace("_", " ").title()}</span>'
-                f'</div>',
+                f"</div>",
                 unsafe_allow_html=True,
             )
 else:

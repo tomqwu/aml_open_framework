@@ -132,6 +132,7 @@ def apply_theme() -> None:
 # Components
 # ---------------------------------------------------------------------------
 
+
 def page_header(title: str, description: str | None = None) -> None:
     """Consistent page header."""
     st.markdown(f"# {title}")
@@ -163,7 +164,7 @@ def severity_badge(severity: str) -> str:
     return (
         f'<span style="background:{color}; color:white; padding:2px 10px; '
         f'border-radius:12px; font-size:0.78rem; font-weight:600;">'
-        f'{severity}</span>'
+        f"{severity}</span>"
     )
 
 
@@ -179,13 +180,15 @@ def metric_table(metrics: list[MetricResult], audience: str | None = None) -> No
 
     rows = []
     for m in filtered:
-        rows.append({
-            "RAG": m.rag.upper() if m.rag != "unset" else "-",
-            "Metric": m.name,
-            "Category": m.category,
-            "Value": _fmt_value(m),
-            "Owner": m.owner or "\u2014",
-        })
+        rows.append(
+            {
+                "RAG": m.rag.upper() if m.rag != "unset" else "-",
+                "Metric": m.name,
+                "Category": m.category,
+                "Value": _fmt_value(m),
+                "Owner": m.owner or "\u2014",
+            }
+        )
 
     df = pd.DataFrame(rows)
 

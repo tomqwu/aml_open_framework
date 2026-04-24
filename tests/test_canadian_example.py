@@ -73,10 +73,12 @@ def test_run_is_reproducible(tmp_path):
     as_of = datetime(2026, 4, 23, 12, 0, 0)
     data = generate_dataset(as_of=as_of, seed=42)
 
-    r1 = run_spec(spec=spec, spec_path=EXAMPLE, data=data, as_of=as_of, artifacts_root=tmp_path / "a")
-    r2 = run_spec(spec=spec, spec_path=EXAMPLE, data=data, as_of=as_of, artifacts_root=tmp_path / "b")
+    r1 = run_spec(
+        spec=spec, spec_path=EXAMPLE, data=data, as_of=as_of, artifacts_root=tmp_path / "a"
+    )
+    r2 = run_spec(
+        spec=spec, spec_path=EXAMPLE, data=data, as_of=as_of, artifacts_root=tmp_path / "b"
+    )
 
     for rule_id, hash1 in r1.manifest["rule_outputs"].items():
-        assert hash1 == r2.manifest["rule_outputs"][rule_id], (
-            f"output hash drift on rule {rule_id}"
-        )
+        assert hash1 == r2.manifest["rule_outputs"][rule_id], f"output hash drift on rule {rule_id}"
