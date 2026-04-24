@@ -58,7 +58,7 @@ def run(
     as_of: str | None = typer.Option(None, help="ISO timestamp used as the rule 'now'."),
     artifacts: Path = typer.Option(Path(".artifacts"), help="Artifacts root."),
     data_source: str = typer.Option("synthetic", help="Data source: synthetic, csv, parquet, duckdb."),
-    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files (one per contract)."),
+    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files. Default: data/input/"),
 ) -> None:
     """End-to-end: load data, execute rules, emit cases + audit bundle."""
     from aml_framework.data.sources import resolve_source
