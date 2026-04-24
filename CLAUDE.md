@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Spec-driven AML (Anti-Money Laundering) automation framework. A single `aml.yaml` file is the source of truth for data contracts, detection rules, case workflow, metrics, and regulator reporting. All runtime artifacts (SQL, DAG stubs, audit logs, reports, SAR exports) are generated from it.
 
+## CI/CD
+
+All PRs to main run 5 CI jobs: lint, unit-tests (67), api-tests (9), e2e-dashboard (24 Playwright), docker-build.
+Merging requires all checks to pass.
+
 ## Commands
 
 ```bash
