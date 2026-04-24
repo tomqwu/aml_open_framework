@@ -233,6 +233,21 @@ async def list_webhooks(
     return _webhooks
 
 
+@app.post("/api/v1/upload")
+async def upload_data(
+    txn_file: Any = None,
+    customer_file: Any = None,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, str]:
+    """Upload CSV files for a run. Use with multipart/form-data."""
+    # This is a stub — full implementation would save files to data/input/
+    # and trigger a run. For now, document the interface.
+    return {
+        "status": "upload endpoint ready",
+        "note": "Use POST /api/v1/runs with data_source=csv and data_dir pointing to uploaded files",
+    }
+
+
 @app.get("/api/v1/runs/{run_id}/alerts/cef")
 async def get_alerts_cef(
     run_id: str,

@@ -50,32 +50,66 @@ queues, and produce an immutable audit trail with SHA-256 hash verification.
 ## Quickstart
 
 ```bash
-pip install -e ".[dev]"
+# Install
+make install                  # or: pip install -e ".[dev,dashboard,api]"
 
-# 1. Validate the example spec against the JSON schema.
-aml validate examples/community_bank/aml.yaml
+# Validate a spec
+make validate                 # checks all 3 example specs
 
-# 2. Generate SQL rules, DAG stub, and persona docs into .artifacts/
-aml generate examples/community_bank/aml.yaml
+# Run with sample CSV data (included in data/input/)
+make run                      # or: aml run examples/canadian_schedule_i_bank/aml.yaml --data-source csv --data-dir data/input/
 
-# 3. Run end-to-end: synthesize transactions, execute rules, compute
-#    metrics, render role-specific reports, and write the audit bundle.
-aml run examples/community_bank/aml.yaml --seed 42
+# Run with synthetic data (no files needed)
+make run-synthetic            # or: aml run examples/canadian_schedule_i_bank/aml.yaml --seed 42
 
-# 4. Show or print a role-specific report (SVP / VP / Director / Manager /
-#    PM / Developer / Business).
-aml report examples/community_bank/aml.yaml --audience svp
-aml report examples/community_bank/aml.yaml --report svp_exec_brief --stdout
+# Launch the interactive dashboard
+make dashboard                # opens at http://localhost:8501
 
-# 5. Produce a regulator-ready evidence bundle (zipped, signed manifest).
-aml export examples/community_bank/aml.yaml --out .artifacts/evidence.zip
+# Run tests
+make test                     # unit + API tests (fast, ~10s)
+make test-all                 # includes Playwright browser tests
+
+# View all available commands
+make help
+```
+
+### Bring your own data
+
+Drop CSV files into `data/input/` matching the data contract schema:
+
+```
+data/input/
+  txn.csv          # txn_id, customer_id, amount, currency, channel, direction, booked_at
+  customer.csv     # customer_id, full_name, country, risk_rating, onboarded_at
+```
+
+Then run:
+```bash
+aml run examples/canadian_schedule_i_bank/aml.yaml --data-source csv --data-dir data/input/
+```
+
+Sample CSV files with 438 transactions and 25 customers are included for
+immediate testing.
+
+### CLI commands
+
+```bash
+aml validate spec.yaml                              # validate spec
+aml run spec.yaml [--data-source csv --data-dir ./]  # execute rules
+aml report spec.yaml --audience svp --stdout         # print role report
+aml export spec.yaml --out evidence.zip              # evidence bundle
+aml export-alerts spec.yaml --out alerts.csv         # alert CSV export
+aml diff spec_a.yaml spec_b.yaml                     # compare two specs
+aml replay spec.yaml run-dir/                         # verify determinism
+aml dashboard spec.yaml                               # launch web UI
+aml api --port 8000                                   # launch REST API
 ```
 
 ## Interactive Dashboard
 
 The framework includes a Streamlit web dashboard for interactive demos and
 stakeholder presentations. It runs the full engine on startup and presents
-results across 9 purpose-built pages.
+results across 15 purpose-built pages.
 
 ```bash
 pip install -e ".[dev,dashboard]"

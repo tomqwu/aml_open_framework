@@ -39,7 +39,20 @@ def initialize_session() -> None:
     as_of = datetime.now(tz=timezone.utc).replace(tzinfo=None)
 
     spec = load_spec(spec_path)
-    data = generate_dataset(as_of=as_of, seed=seed)
+
+    # Check for CSV files in data/input/ — use them if present.
+    data_input_dir = _PROJECT_ROOT / "data" / "input"
+    csv_files_present = (
+        data_input_dir.exists()
+        and (data_input_dir / "txn.csv").exists()
+        and (data_input_dir / "customer.csv").exists()
+    )
+    if csv_files_present:
+        from aml_framework.data.sources import load_csv_source
+
+        data = load_csv_source(data_input_dir, spec, as_of)
+    else:
+        data = generate_dataset(as_of=as_of, seed=seed)
 
     artifacts = Path(tempfile.mkdtemp(prefix="aml_dashboard_"))
     result = run_spec(
