@@ -6,11 +6,13 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Run History",
     "Past engine executions stored in the persistence layer.",
 )
+show_audience_context("Run History")
 
 if st.session_state.get("guided_demo"):
     st.info(

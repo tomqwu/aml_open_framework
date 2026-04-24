@@ -435,7 +435,7 @@ metrics:
       numerator:
         type: count
         source: cases
-        filter: { queue: str_filing }
+        filter: { status: str_filing }
       denominator:
         type: count
         source: alerts

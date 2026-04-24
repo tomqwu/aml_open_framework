@@ -10,10 +10,12 @@ from aml_framework.dashboard.components import chart_layout, page_header
 
 
 def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
-    """Write a decision event to the audit ledger and update case file."""
+    """Write a decision to the audit ledger, update case file, and sync session state."""
     import json
     from datetime import datetime, timezone
     from pathlib import Path
+
+    import pandas as pd
 
     decisions_path = Path(run_dir) / "decisions.jsonl"
     decision = {
@@ -38,8 +40,21 @@ def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
             json.dumps(case_data, indent=2, sort_keys=True, default=str).encode("utf-8")
         )
 
+    # Cascade: update session state so other pages reflect the change.
+    if "df_cases" in st.session_state and not st.session_state.df_cases.empty:
+        mask = st.session_state.df_cases["case_id"] == case["case_id"]
+        if mask.any():
+            st.session_state.df_cases.loc[mask, "status"] = disposition
+
+    # Add decision to session decisions DataFrame.
+    if "df_decisions" in st.session_state:
+        new_row = pd.DataFrame([decision])
+        st.session_state.df_decisions = pd.concat(
+            [st.session_state.df_decisions, new_row], ignore_index=True,
+        )
+
     st.success(f"Decision recorded: **{event}** -> {disposition}")
-    st.caption(f"Written to {decisions_path.name}")
+    st.caption(f"Written to {decisions_path.name} and synced to session.")
 
 
 page_header(

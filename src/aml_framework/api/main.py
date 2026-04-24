@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import uuid
 from contextlib import asynccontextmanager
@@ -112,13 +113,22 @@ async def create_run(
         metrics=[m.to_dict() for m in result.metrics],
     )
 
-    return {
+    run_summary = {
         "run_id": run_id,
         "total_alerts": result.total_alerts,
         "total_cases": len(result.case_ids),
         "total_metrics": len(result.metrics),
         "reports": sorted(result.reports.keys()),
     }
+
+    # Fire registered webhooks.
+    _fire_webhooks("run_completed", run_summary)
+    if result.total_alerts > 0:
+        _fire_webhooks("alert_created", {
+            "run_id": run_id, "alert_count": result.total_alerts,
+        })
+
+    return run_summary
 
 
 @app.get("/api/v1/runs")
@@ -215,6 +225,29 @@ async def list_webhooks(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> list[dict]:
     return _webhooks
+
+
+def _fire_webhooks(event: str, payload: dict[str, Any]) -> None:
+    """POST to all registered webhooks matching the event."""
+    import logging
+
+    logger = logging.getLogger("aml.webhooks")
+    for hook in _webhooks:
+        if event in hook.get("events", []):
+            try:
+                import urllib.request
+
+                data = json.dumps({"event": event, **payload}).encode("utf-8")
+                req = urllib.request.Request(
+                    hook["url"],
+                    data=data,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=5)
+                logger.info("Webhook %s fired for %s", hook["name"], event)
+            except Exception as e:
+                logger.warning("Webhook %s failed: %s", hook["name"], e)
 
 
 def _serialize(obj: Any) -> Any:

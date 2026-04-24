@@ -6,11 +6,13 @@ import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Risk Assessment",
     "Customer risk distribution, geographic exposure, and risk heatmaps.",
 )
+show_audience_context("Risk Assessment")
 
 df_customers = st.session_state.df_customers
 df_txns = st.session_state.df_txns

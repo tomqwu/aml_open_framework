@@ -415,7 +415,7 @@ metrics:
       numerator:
         type: count
         source: cases
-        filter: { queue: sar_filing }
+        filter: { status: sar_filing }
       denominator:
         type: count
         source: alerts
