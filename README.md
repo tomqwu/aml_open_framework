@@ -113,7 +113,7 @@ Data sources: `--data-source synthetic` (default), `csv`, `parquet`, `duckdb`, `
 
 The framework includes a Streamlit web dashboard for interactive demos and
 stakeholder presentations. It runs the full engine on startup and presents
-results across 17 purpose-built pages.
+results across 19 purpose-built pages.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -274,6 +274,22 @@ with breach detection, and column-level statistics (non-null count, unique
 values, types).
 
 ![Data Quality](docs/screenshots/14_data_quality.png)
+
+### Typology Catalogue
+
+Pre-built library of 20+ AML detection rule templates across 9 categories:
+structuring, layering, shell companies, sanctions/PEP, behavioral anomalies,
+trade-based ML, mule activity, crypto/virtual assets, and geographic risk.
+Browse templates and add to your spec with institution-specific thresholds.
+
+![Typology Catalogue](docs/screenshots/18_typology_catalogue.png)
+
+### Comparative Analytics
+
+Run-over-run comparison showing metrics vs targets, RAG distribution,
+and per-rule alert counts. With stored run history, shows trends over time.
+
+![Comparative Analytics](docs/screenshots/19_comparative_analytics.png)
 
 ## User Workflows by Persona
 
@@ -442,7 +458,7 @@ src/aml_framework/
   metrics/                      Metric evaluation engine + report rendering
   cases/                        Case files, reviewer workflow artifacts
   data/                         Synthetic data generator with planted positives
-  dashboard/                    Streamlit web dashboard (17 pages)
+  dashboard/                    Streamlit web dashboard (19 pages)
   models/                       ML scoring callables for python_ref rules
   api/                          FastAPI REST layer with JWT auth
   cli.py                        `aml` command-line entry point
@@ -481,7 +497,7 @@ pytest tests/
 |-------|-------|----------------|
 | **Unit/Integration** | 27 | Spec validation, all rule types (aggregation_window, custom_sql, python_ref, list_match), metrics, planted positives, reproducibility |
 | **API E2E** | 9 | FastAPI health, JWT auth (login/reject/all users), run creation, error handling |
-| **Dashboard E2E (Playwright)** | 23 | All 17 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
+| **Dashboard E2E (Playwright)** | 23 | All 19 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
 
 ## Status
 

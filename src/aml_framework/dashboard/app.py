@@ -107,6 +107,16 @@ ALL_PAGES = [
     st.Page("pages/15_Run_History.py", title="Run History", icon=":material/history:"),
     st.Page("pages/16_Rule_Tuning.py", title="Rule Tuning", icon=":material/tune:"),
     st.Page("pages/17_Customer_360.py", title="Customer 360", icon=":material/person_search:"),
+    st.Page(
+        "pages/18_Typology_Catalogue.py",
+        title="Typology Catalogue",
+        icon=":material/library_books:",
+    ),
+    st.Page(
+        "pages/19_Comparative_Analytics.py",
+        title="Comparative Analytics",
+        icon=":material/trending_up:",
+    ),
 ]
 
 # Filter pages by audience if one is selected.

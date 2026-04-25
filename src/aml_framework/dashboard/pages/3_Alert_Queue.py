@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime as _dt
+
 import plotly.express as px
 import streamlit as st
 
@@ -74,6 +76,12 @@ with c4:
     else:
         kpi_card("Customers", "N/A", "#6b7280")
 
+# Initialize acknowledge/snooze state.
+if "acknowledged_alerts" not in st.session_state:
+    st.session_state["acknowledged_alerts"] = set()
+if "snoozed_alerts" not in st.session_state:
+    st.session_state["snoozed_alerts"] = {}  # {alert_key: snooze_until}
+
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Filters ---
@@ -89,6 +97,32 @@ filtered = df_alerts[df_alerts["rule_id"].isin(selected_rules)]
 filtered = filtered[filtered["rule_id"].map(sev_map).isin(selected_sev)]
 display_df = filtered.copy()
 display_df["severity"] = display_df["rule_id"].map(sev_map)
+
+# --- Filter out snoozed alerts ---
+
+now = _dt.now()
+active_snoozes = {k: v for k, v in st.session_state["snoozed_alerts"].items() if v > now}
+st.session_state["snoozed_alerts"] = active_snoozes
+
+
+# Add status column.
+def _alert_key(row):
+    return f"{row.get('rule_id', '')}_{row.get('customer_id', '')}"
+
+
+display_df["_key"] = display_df.apply(_alert_key, axis=1)
+display_df["status"] = display_df["_key"].apply(
+    lambda k: (
+        "snoozed"
+        if k in active_snoozes
+        else ("reviewed" if k in st.session_state["acknowledged_alerts"] else "new")
+    )
+)
+
+# Show/hide snoozed toggle.
+show_snoozed = st.checkbox("Show snoozed alerts", value=False)
+if not show_snoozed:
+    display_df = display_df[display_df["status"] != "snoozed"]
 
 # --- Alert Table ---
 col_title, col_download = st.columns([3, 1])
@@ -115,7 +149,7 @@ col_download.download_button(
     "text/csv",
     use_container_width=True,
 )
-show_cols = ["rule_id", "severity"]
+show_cols = ["rule_id", "severity", "status"]
 for c in ["customer_id", "sum_amount", "count", "window_start", "window_end"]:
     if c in display_df.columns:
         show_cols.append(c)
@@ -129,8 +163,45 @@ def _highlight_severity(val: str) -> str:
     return ""
 
 
+def _status_style(val: str) -> str:
+    colors = {"new": "#dc2626", "reviewed": "#059669", "snoozed": "#6b7280"}
+    c = colors.get(val, "")
+    return f"color: {c}; font-weight: 700;" if c else ""
+
+
 styled = display_df[available].style.map(_highlight_severity, subset=["severity"])
+if "status" in available:
+    styled = styled.map(_status_style, subset=["status"])
 st.dataframe(styled, use_container_width=True, hide_index=True, height=400)
+
+# --- Acknowledge / Snooze ---
+new_alerts = display_df[display_df["status"] == "new"]
+if not new_alerts.empty:
+    st.markdown("### Quick Actions")
+    selected_for_action = st.multiselect(
+        "Select alerts to acknowledge or snooze",
+        new_alerts["_key"].tolist(),
+        format_func=lambda k: k.replace("_", " → ", 1),
+    )
+    if selected_for_action:
+        col_ack, col_snz = st.columns(2)
+        with col_ack:
+            if st.button(f"Acknowledge ({len(selected_for_action)})", use_container_width=True):
+                for k in selected_for_action:
+                    st.session_state["acknowledged_alerts"].add(k)
+                st.success(f"Acknowledged {len(selected_for_action)} alerts.")
+        with col_snz:
+            from datetime import timedelta as _td
+
+            if st.button(
+                f"Snooze 24h ({len(selected_for_action)})",
+                use_container_width=True,
+                type="primary",
+            ):
+                snooze_until = _dt.now() + _td(hours=24)
+                for k in selected_for_action:
+                    st.session_state["snoozed_alerts"][k] = snooze_until
+                st.success(f"Snoozed {len(selected_for_action)} alerts for 24h.")
 
 st.markdown("<br>", unsafe_allow_html=True)
 

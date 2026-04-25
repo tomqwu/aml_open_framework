@@ -429,5 +429,56 @@ def api(
     )
 
 
+@app.command(name="email-digest")
+def email_digest(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    audience: str = typer.Option("svp", help="Report audience (svp, vp, director, etc.)."),
+    to: str = typer.Option(..., help="Recipient email address."),
+    smtp_host: str = typer.Option("localhost", help="SMTP server host."),
+    smtp_port: int = typer.Option(587, help="SMTP server port."),
+    seed: int = typer.Option(42, help="Synthetic data seed."),
+) -> None:
+    """Generate and email a role-specific report digest."""
+    from aml_framework.data.sources import resolve_source
+
+    spec = load_spec(spec_path)
+    as_of_dt = _parse_as_of(None)
+    data = resolve_source(source_type="synthetic", spec=spec, as_of=as_of_dt, seed=seed)
+
+    result = run_spec(
+        spec=spec,
+        spec_path=spec_path,
+        data=data,
+        as_of=as_of_dt,
+        artifacts_root=Path(".artifacts"),
+    )
+
+    # Find the report for the audience.
+    matching = [r for r in result.reports.items() if audience in r[0]]
+    if not matching:
+        console.print(f"[red]No report found for audience '{audience}'.[/red]")
+        raise typer.Exit(code=1)
+
+    report_id, markdown = matching[0]
+
+    # Send via SMTP.
+    import smtplib
+    from email.mime.text import MIMEText
+
+    msg = MIMEText(markdown, "plain", "utf-8")
+    msg["Subject"] = f"AML Report: {report_id} ({spec.program.name})"
+    msg["From"] = f"aml-framework@{spec.program.name}"
+    msg["To"] = to
+
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.send_message(msg)
+        console.print(f"[green]Sent[/green] {report_id} to {to}")
+    except Exception as e:
+        console.print(f"[red]SMTP error:[/red] {e}")
+        console.print("Report content saved to stdout:")
+        console.print(markdown)
+
+
 if __name__ == "__main__":
     app()
