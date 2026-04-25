@@ -14,6 +14,13 @@ from aml_framework.spec import load_spec
 SPEC_US = Path(__file__).resolve().parents[1] / "examples" / "community_bank" / "aml.yaml"
 SPEC_CA = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_i_bank" / "aml.yaml"
 
+try:
+    import jwt  # noqa: F401
+
+    HAS_FASTAPI = True
+except ImportError:
+    HAS_FASTAPI = False
+
 
 # --- export.py ---
 
@@ -185,6 +192,7 @@ class TestDataSourcesExtended:
 # --- api/auth.py ---
 
 
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi/jwt not installed")
 class TestRBAC:
     def test_require_role_exists(self):
         from aml_framework.api.auth import ROLE_PERMISSIONS, require_role

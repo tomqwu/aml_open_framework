@@ -347,6 +347,65 @@ def diff(
 
 
 @app.command()
+def schedule(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    interval: str = typer.Option("1h", help="Run interval: 1h, 6h, 24h, etc."),
+    data_source: str = typer.Option("csv", help="Data source: synthetic, csv, parquet."),
+    data_dir: str | None = typer.Option("data/input", help="Data directory."),
+    artifacts: Path = typer.Option(Path(".artifacts"), help="Artifacts root."),
+) -> None:
+    """Run the engine on a schedule (press Ctrl+C to stop)."""
+    import time
+
+    from aml_framework.data.sources import resolve_source
+    from aml_framework.generators.sql import parse_window
+
+    interval_td = parse_window(interval)
+    interval_seconds = interval_td.total_seconds()
+
+    console.print(
+        f"[green]Scheduled[/green] every {interval} for {spec_path.name} "
+        f"(data_source={data_source}). Press Ctrl+C to stop."
+    )
+
+    run_count = 0
+    while True:
+        run_count += 1
+        try:
+            spec = load_spec(spec_path)
+            as_of_dt = _parse_as_of(None)
+            data = resolve_source(
+                source_type=data_source,
+                spec=spec,
+                as_of=as_of_dt,
+                seed=run_count,
+                data_dir=data_dir,
+            )
+            result = run_spec(
+                spec=spec,
+                spec_path=spec_path,
+                data=data,
+                as_of=as_of_dt,
+                artifacts_root=artifacts,
+            )
+            console.print(
+                f"[green]Run #{run_count}[/green] {result.total_alerts} alerts, "
+                f"{len(result.case_ids)} cases. Next in {interval}."
+            )
+        except KeyboardInterrupt:
+            console.print(f"\n[yellow]Stopped[/yellow] after {run_count} runs.")
+            break
+        except Exception as e:
+            console.print(f"[red]Error[/red] in run #{run_count}: {e}")
+
+        try:
+            time.sleep(interval_seconds)
+        except KeyboardInterrupt:
+            console.print(f"\n[yellow]Stopped[/yellow] after {run_count} runs.")
+            break
+
+
+@app.command()
 def api(
     port: int = typer.Option(8000, help="API server port."),
     host: str = typer.Option("0.0.0.0", help="Bind address."),

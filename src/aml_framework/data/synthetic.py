@@ -28,6 +28,7 @@ def _customer_row(
     full_name: str | None = None,
     business_activity: str | None = None,
     edd_last_review: datetime | None = None,
+    pep_status: str | None = None,
 ) -> dict[str, Any]:
     return {
         "customer_id": customer_id,
@@ -38,6 +39,7 @@ def _customer_row(
         "onboarded_at": onboarded_at,
         "business_activity": business_activity or "",
         "edd_last_review": edd_last_review,
+        "pep_status": pep_status or "",
     }
 
 
@@ -99,6 +101,18 @@ def generate_dataset(
         risk_rating="low",
         full_name="Sarah Thompson",
     )
+    # PEP customer for EU spec testing.
+    if n_customers > 9:
+        customers[9] = _customer_row(
+            fake,
+            "C0009",
+            as_of - timedelta(days=400),
+            country="DE",
+            risk_rating="high",
+            full_name="Hans Mueller",
+            pep_status="domestic_pep",
+            edd_last_review=as_of - timedelta(days=30),
+        )
 
     txns: list[dict[str, Any]] = []
     tid = 0

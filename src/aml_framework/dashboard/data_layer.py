@@ -410,6 +410,59 @@ OSFI_B8_PRINCIPLES = [
     },
 ]
 
+# --- EU: AMLD6 Key Requirements ---
+AMLD6_REQUIREMENTS = [
+    {
+        "article": "Art. 8",
+        "name": "Risk Assessment",
+        "spec_element": "rules + risk_rating + metrics",
+        "status": "mapped",
+        "notes": "Risk-based approach implemented via spec-driven rule severity and customer risk ratings.",
+    },
+    {
+        "article": "Art. 11-14",
+        "name": "Customer Due Diligence",
+        "spec_element": "data_contracts.customer + KYC fields",
+        "status": "mapped",
+        "notes": "CDD data contract with risk_rating, PEP status, and EDD review tracking.",
+    },
+    {
+        "article": "Art. 18-18a",
+        "name": "Enhanced Due Diligence",
+        "spec_element": "rules.high_risk_jurisdiction + pep_screening",
+        "status": "mapped",
+        "notes": "EDD triggered for high-risk third countries and PEPs.",
+    },
+    {
+        "article": "Art. 20-23",
+        "name": "PEP Requirements",
+        "spec_element": "rules.pep_screening",
+        "status": "mapped",
+        "notes": "PEP screening rule with EDD trigger and source-of-wealth evidence.",
+    },
+    {
+        "article": "Art. 30",
+        "name": "Beneficial Ownership",
+        "spec_element": "data_contracts.customer (beneficial_ownership)",
+        "status": "partial",
+        "notes": "Customer data contract supports BO fields; registry integration is roadmap.",
+    },
+    {
+        "article": "Art. 50",
+        "name": "Suspicious Transaction Reporting",
+        "spec_element": "reporting.forms.EU_STR + workflow",
+        "status": "mapped",
+        "notes": "STR filing workflow with SLAs, narrative generation, and evidence assembly.",
+    },
+    {
+        "article": "Art. 46",
+        "name": "Record Keeping (5 years)",
+        "spec_element": "retention_policy",
+        "status": "mapped",
+        "notes": "5-year retention for all transaction, customer, and case records.",
+    },
+]
+
 WOLFSBERG_MAPPING = [
     {
         "principle": "Risk-Based Approach",
@@ -446,6 +499,8 @@ def get_framework_tabs(jurisdiction: str) -> list[dict[str, Any]]:
         tabs.append(
             {"label": "OSFI Guideline B-8", "data": OSFI_B8_PRINCIPLES, "type": "principles"}
         )
+    elif jurisdiction == "EU":
+        tabs.append({"label": "AMLD6 Requirements", "data": AMLD6_REQUIREMENTS, "type": "pillars"})
     else:
         tabs.append({"label": "FinCEN BSA Pillars", "data": FINCEN_BSA_PILLARS, "type": "pillars"})
     tabs.append({"label": "Wolfsberg Principles", "data": WOLFSBERG_MAPPING, "type": "principles"})

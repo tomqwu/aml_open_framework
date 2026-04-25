@@ -1,0 +1,261 @@
+# AML spec for an EU-regulated bank under AMLD6.
+# Covers STR filing to national FIU, PEP screening, and EDD triggers.
+
+version: 1
+
+program:
+  name: eu_bank_aml
+  jurisdiction: EU
+  regulator: EBA
+  owner: money_laundering_reporting_officer
+  effective_date: 2026-01-01
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,      type: string,    nullable: false }
+      - { name: customer_id, type: string,    nullable: false, pii: true }
+      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,    type: string,    nullable: false }
+      - { name: channel,     type: string,    enum: [cash, wire, sepa, card] }
+      - { name: direction,   type: string,    enum: [in, out] }
+      - { name: booked_at,   type: timestamp, nullable: false }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique: [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,  type: string, nullable: false, pii: true }
+      - { name: full_name,    type: string, nullable: false, pii: true }
+      - { name: country,      type: string, nullable: false }
+      - { name: risk_rating,  type: string, enum: [low, medium, high] }
+      - { name: onboarded_at, type: timestamp, nullable: false }
+      - { name: business_activity, type: string, nullable: true }
+      - { name: edd_last_review, type: timestamp, nullable: true }
+      - { name: pep_status,   type: string, nullable: true }
+
+rules:
+  - id: structuring_cash
+    name: Cash structuring below EUR 15,000 threshold
+    severity: high
+    regulation_refs:
+      - citation: "AMLD6 Art. 50"
+        description: "Suspicious transaction reporting obligation."
+      - citation: "Directive 2015/849 Art. 11"
+        description: "CDD threshold for cash transactions >= EUR 15,000."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+        direction: in
+        amount: { between: [8000, 14999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 30000 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [structuring, cash, amld6]
+
+  - id: high_risk_jurisdiction
+    name: Transactions with EU high-risk third countries
+    severity: high
+    regulation_refs:
+      - citation: "AMLD6 Art. 18a"
+        description: "Enhanced due diligence for high-risk third countries."
+      - citation: "EU Delegated Regulation 2016/1675"
+        description: "List of high-risk third countries."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'high_risk_jurisdiction' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN customer c ON t.customer_id = c.customer_id
+        WHERE c.country IN ('RU', 'IR', 'KP', 'MM', 'SY', 'AF', 'YE')
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 5000
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - jurisdiction_risk_assessment
+    tags: [high_risk_jurisdiction, edd]
+
+  - id: pep_screening
+    name: Politically Exposed Person screening
+    severity: critical
+    regulation_refs:
+      - citation: "AMLD6 Art. 20-23"
+        description: "Enhanced due diligence for PEPs and their family members."
+      - citation: "AMLD6 Art. 3(9)"
+        description: "Definition of politically exposed person."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'pep_screening' AS rule_id,
+            c.customer_id,
+            SUM(t.amount) AS sum_amount,
+            COUNT(*) AS count,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM customer c
+        JOIN txn t ON c.customer_id = t.customer_id
+        WHERE c.pep_status IS NOT NULL AND c.pep_status != ''
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY c.customer_id
+        HAVING SUM(t.amount) >= 10000
+        ORDER BY c.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - customer_kyc_profile
+      - pep_screening_results
+      - source_of_wealth_documentation
+    tags: [pep, edd, amld6]
+
+  - id: rapid_movement_sepa
+    name: Rapid SEPA pass-through within 48h
+    severity: medium
+    regulation_refs:
+      - citation: "AMLD6 Art. 50"
+        description: "STR for layering via SEPA transfers."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: { in: [sepa, wire] }
+      group_by: [customer_id]
+      window: 7d
+      having:
+        sum_amount: { gte: 50000 }
+        count: { gte: 4 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+    tags: [rapid_movement, layering, sepa]
+
+  - id: sanctions_screening
+    name: EU sanctions list screening
+    severity: critical
+    regulation_refs:
+      - citation: "EU Regulation 269/2014"
+        description: "Restrictive measures against Russia."
+      - citation: "EU Regulation 2580/2001"
+        description: "Measures against terrorism financing."
+    logic:
+      type: list_match
+      source: customer
+      field: full_name
+      list: sanctions
+      match: fuzzy
+      threshold: 0.8
+    escalate_to: l2_investigator
+    evidence:
+      - customer_kyc_profile
+      - sanctions_match_details
+    tags: [sanctions, eu_sanctions]
+
+workflow:
+  queues:
+    - id: l1_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [str_filing, closed_no_action]
+    - id: str_filing
+      sla: 30d
+      regulator_form: EU_STR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    EU_STR:
+      template: eu_str_v1
+      mandatory_fields: [subject, narrative, triggering_rules, transactions]
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 5y
+
+metrics:
+  - id: alert_volume_total
+    name: Total alerts produced
+    category: operational
+    audience: [director, manager, analyst]
+    owner: money_laundering_reporting_officer
+    formula:
+      type: count
+      source: alerts
+
+  - id: typology_coverage
+    name: Typology coverage
+    category: effectiveness
+    audience: [vp, director]
+    owner: money_laundering_reporting_officer
+    unit: "%"
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+    target: { gte: 0.8 }
+    thresholds:
+      green: { gte: 0.8 }
+      amber: { gte: 0.5 }
+      red:   { lt: 0.5 }
+
+  - id: pep_alerts
+    name: PEP-related alerts
+    category: risk
+    audience: [svp, vp, director]
+    owner: money_laundering_reporting_officer
+    formula:
+      type: count
+      source: alerts
+      filter: { rule_id: { in: [pep_screening] } }
+
+  - id: rules_active_count
+    name: Active rules deployed
+    category: delivery
+    audience: [svp, vp, director, pm]
+    owner: money_laundering_reporting_officer
+    formula:
+      type: count
+      source: rules
+      filter: { status: active }
+    thresholds:
+      green: { gte: 4 }
+      amber: { gte: 2 }
+      red:   { lt: 2 }
+
+reports:
+  - id: mlro_quarterly
+    title: MLRO quarterly brief
+    audience: svp
+    cadence: quarterly
+    sections:
+      - title: Program effectiveness
+        metrics: [typology_coverage, pep_alerts]
+      - title: Program scale
+        metrics: [alert_volume_total, rules_active_count]
