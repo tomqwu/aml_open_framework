@@ -1,0 +1,11 @@
+apiVersion: v2
+name: aml-open-framework
+description: Spec-driven AML compliance automation platform
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - aml
+  - compliance
+  - fintech
+  - regtech

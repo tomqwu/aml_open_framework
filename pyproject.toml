@@ -42,6 +42,10 @@ api = [
     "psycopg2-binary>=2.9",
     "httpx>=0.27",
 ]
+ml = [
+    "xgboost>=2.0",
+    "scikit-learn>=1.4",
+]
 
 [project.scripts]
 aml = "aml_framework.cli:app"

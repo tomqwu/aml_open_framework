@@ -184,4 +184,60 @@ def resolve_source(
             raise ValueError("--db-path required for duckdb source")
         return load_duckdb_source(db_path, spec)
 
+    if source_type == "snowflake":
+        return _load_warehouse_via_duckdb(
+            spec,
+            "snowflake",
+            data_dir or "",
+            "DuckDB snowflake extension required: INSTALL snowflake; LOAD snowflake;",
+        )
+
+    if source_type == "bigquery":
+        return _load_warehouse_via_duckdb(
+            spec,
+            "bigquery",
+            data_dir or "",
+            "DuckDB bigquery extension required: INSTALL bigquery; LOAD bigquery;",
+        )
+
     raise ValueError(f"Unknown data source: {source_type}")
+
+
+def _load_warehouse_via_duckdb(
+    spec: AMLSpec,
+    extension: str,
+    connection_string: str,
+    error_hint: str,
+) -> dict[str, list[dict[str, Any]]]:
+    """Connect to cloud warehouses via DuckDB extensions.
+
+    Requires the DuckDB extension to be installed:
+      duckdb.install_extension('snowflake')  or  duckdb.install_extension('bigquery')
+    """
+    import duckdb
+
+    data: dict[str, list[dict[str, Any]]] = {}
+    con = duckdb.connect(":memory:")
+
+    try:
+        con.execute(f"INSTALL {extension}")
+        con.execute(f"LOAD {extension}")
+    except Exception as e:
+        raise RuntimeError(f"{error_hint}\nError: {e}") from e
+
+    if connection_string:
+        try:
+            con.execute(f"CALL {extension}_attach('{connection_string}')")
+        except Exception:
+            pass  # Some extensions don't need explicit attach.
+
+    for contract in spec.data_contracts:
+        try:
+            rows = con.execute(f"SELECT * FROM {contract.source}").fetchall()
+            cols = [d[0] for d in con.description] if con.description else []
+            data[contract.id] = [dict(zip(cols, r)) for r in rows]
+        except Exception:
+            data[contract.id] = []
+
+    con.close()
+    return data
