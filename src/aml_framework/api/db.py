@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS runs (
     spec_path TEXT NOT NULL,
     seed INTEGER NOT NULL,
     manifest TEXT NOT NULL,
+    tenant_id TEXT DEFAULT 'default',
     created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS run_alerts (
@@ -59,6 +60,14 @@ CREATE TABLE IF NOT EXISTS run_metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     run_id TEXT REFERENCES runs(run_id),
     metrics TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS spec_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    spec_hash TEXT NOT NULL,
+    spec_content TEXT NOT NULL,
+    program_name TEXT,
+    tenant_id TEXT DEFAULT 'default',
+    created_at TEXT NOT NULL
 );
 """
 
@@ -227,3 +236,45 @@ def get_run_metrics(run_id: str) -> list[dict[str, Any]]:
         row = conn.execute("SELECT metrics FROM run_metrics WHERE run_id = ?", (run_id,)).fetchone()
         conn.close()
         return json.loads(row[0]) if row else []
+
+
+def store_spec_version(
+    spec_hash: str,
+    spec_content: str,
+    program_name: str,
+    tenant_id: str = "default",
+) -> None:
+    """Store a spec version for tracking."""
+    now = datetime.now(tz=timezone.utc).isoformat()
+    if not _use_postgres():
+        conn = _get_sqlite_conn()
+        existing = conn.execute(
+            "SELECT id FROM spec_versions WHERE spec_hash = ?", (spec_hash,)
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                "INSERT INTO spec_versions (spec_hash, spec_content, program_name, tenant_id, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (spec_hash, spec_content, program_name, tenant_id, now),
+            )
+            conn.commit()
+        conn.close()
+
+
+def list_spec_versions(tenant_id: str | None = None) -> list[dict[str, Any]]:
+    """List stored spec versions."""
+    if not _use_postgres():
+        conn = _get_sqlite_conn()
+        query = "SELECT spec_hash, program_name, tenant_id, created_at FROM spec_versions"
+        params: tuple = ()
+        if tenant_id:
+            query += " WHERE tenant_id = ?"
+            params = (tenant_id,)
+        query += " ORDER BY created_at DESC LIMIT 50"
+        rows = conn.execute(query, params).fetchall()
+        conn.close()
+        return [
+            {"spec_hash": r[0], "program_name": r[1], "tenant_id": r[2], "created_at": r[3]}
+            for r in rows
+        ]
+    return []

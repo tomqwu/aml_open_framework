@@ -19,6 +19,22 @@ logger = logging.getLogger("aml.integrations.notifications")
 _SLACK_URL = os.environ.get("SLACK_WEBHOOK_URL", "")
 _TEAMS_URL = os.environ.get("TEAMS_WEBHOOK_URL", "")
 
+# Configurable severity routing — override via API or environment.
+ROUTING_RULES: list[dict[str, str]] = [
+    {"severity": "critical", "channel": "cco"},
+    {"severity": "high", "channel": "investigators"},
+    {"severity": "medium", "channel": "analysts"},
+    {"severity": "low", "channel": "analysts"},
+]
+
+
+def get_channel_for_severity(severity: str) -> str:
+    """Return the channel name for a given severity level."""
+    for rule in ROUTING_RULES:
+        if rule["severity"] == severity:
+            return rule["channel"]
+    return "general"
+
 
 def is_configured() -> bool:
     return bool(_SLACK_URL or _TEAMS_URL)

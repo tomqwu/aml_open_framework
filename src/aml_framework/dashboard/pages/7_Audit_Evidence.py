@@ -55,10 +55,43 @@ if rule_outputs:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- Decision Log ---
+# --- Decision Log with Search ---
 st.markdown("### Decision Log")
 if not df_decisions.empty:
-    st.dataframe(df_decisions, use_container_width=True, hide_index=True, height=300)
+    col_f1, col_f2, col_f3 = st.columns(3)
+    with col_f1:
+        event_filter = st.multiselect(
+            "Event type",
+            df_decisions["event"].unique().tolist() if "event" in df_decisions.columns else [],
+            default=None,
+        )
+    with col_f2:
+        search_text = st.text_input("Search", placeholder="case_id, rule_id...")
+    with col_f3:
+        csv_export = st.download_button(
+            "Export Decisions CSV",
+            df_decisions.to_csv(index=False),
+            "decisions.csv",
+            "text/csv",
+            use_container_width=True,
+        )
+
+    filtered_decisions = df_decisions
+    if event_filter:
+        filtered_decisions = filtered_decisions[filtered_decisions["event"].isin(event_filter)]
+    if search_text:
+        mask = filtered_decisions.apply(
+            lambda row: search_text.lower() in str(row.values).lower(), axis=1
+        )
+        filtered_decisions = filtered_decisions[mask]
+
+    st.dataframe(
+        filtered_decisions,
+        use_container_width=True,
+        hide_index=True,
+        height=300,
+    )
+    st.caption(f"Showing {len(filtered_decisions)} of {len(df_decisions)} decisions.")
 else:
     st.caption("No decisions recorded.")
 

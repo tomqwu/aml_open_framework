@@ -113,6 +113,7 @@ pg = st.navigation(
         ),
         st.Page("pages/14_Data_Quality.py", title="Data Quality", icon=":material/fact_check:"),
         st.Page("pages/15_Run_History.py", title="Run History", icon=":material/history:"),
+        st.Page("pages/16_Rule_Tuning.py", title="Rule Tuning", icon=":material/tune:"),
     ]
 )
 
