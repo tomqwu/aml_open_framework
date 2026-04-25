@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from aml_framework.data import generate_dataset
 from aml_framework.engine import run_spec
 from aml_framework.spec import load_spec
@@ -116,3 +118,108 @@ class TestScheduleCommand:
     def test_schedule_function_exists(self):
         """The schedule function should be importable from cli."""
         from aml_framework.cli import schedule  # noqa: F401
+
+
+# --- UK spec ---
+
+SPEC_UK = Path(__file__).resolve().parents[1] / "examples" / "uk_bank" / "aml.yaml"
+
+
+class TestUKSpec:
+    def test_uk_spec_validates(self):
+        spec = load_spec(SPEC_UK)
+        assert spec.program.jurisdiction == "UK"
+        assert spec.program.regulator == "FCA"
+        assert len(spec.rules) == 4
+
+    def test_uk_spec_runs(self, tmp_path):
+        spec = load_spec(SPEC_UK)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_UK, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        assert result.total_alerts >= 1
+
+    def test_uk_ofsi_sanctions_fires(self, tmp_path):
+        spec = load_spec(SPEC_UK)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_UK, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        sanctions = result.alerts.get("sanctions_ofsi", [])
+        assert len(sanctions) >= 1
+
+
+# --- S3/GCS source ---
+
+
+class TestCloudSources:
+    def test_s3_without_dir_raises(self):
+        from aml_framework.data.sources import resolve_source
+
+        spec = load_spec(SPEC_CA)
+        with pytest.raises(ValueError, match="data-dir"):
+            resolve_source("s3", spec, datetime(2026, 4, 23))
+
+    def test_gcs_without_dir_raises(self):
+        from aml_framework.data.sources import resolve_source
+
+        spec = load_spec(SPEC_CA)
+        with pytest.raises(ValueError, match="data-dir"):
+            resolve_source("gcs", spec, datetime(2026, 4, 23))
+
+
+# --- Audit log tamper detection ---
+
+
+class TestAuditTamperDetection:
+    def test_decisions_hash_in_manifest(self, tmp_path):
+        spec = load_spec(SPEC_CA)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        assert "decisions_hash" in result.manifest
+        assert len(result.manifest["decisions_hash"]) == 64  # SHA-256 hex.
+
+    def test_verify_decisions_passes(self, tmp_path):
+        from aml_framework.engine.audit import AuditLedger
+
+        spec = load_spec(SPEC_CA)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        run_dir = Path(result.manifest["run_dir"])
+        valid, msg = AuditLedger.verify_decisions(run_dir)
+        assert valid, msg
+
+    def test_verify_detects_tamper(self, tmp_path):
+        from aml_framework.engine.audit import AuditLedger
+
+        spec = load_spec(SPEC_CA)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        run_dir = Path(result.manifest["run_dir"])
+
+        # Tamper with the decisions log.
+        decisions_path = run_dir / "decisions.jsonl"
+        original = decisions_path.read_text()
+        decisions_path.write_text(original + '{"event":"tampered"}\n')
+
+        valid, msg = AuditLedger.verify_decisions(run_dir)
+        assert not valid
+        assert "Tamper" in msg
+
+    def test_verify_missing_manifest(self, tmp_path):
+        from aml_framework.engine.audit import AuditLedger
+
+        valid, msg = AuditLedger.verify_decisions(tmp_path)
+        assert not valid

@@ -1,0 +1,254 @@
+# AML spec for a UK-regulated bank under FCA/MLR 2017.
+# Covers SAR filing to NCA (UKFIU), sanctions via OFSI, and PEP screening.
+
+version: 1
+
+program:
+  name: uk_bank_aml
+  jurisdiction: UK
+  regulator: FCA
+  owner: money_laundering_reporting_officer
+  effective_date: 2026-01-01
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,      type: string,    nullable: false }
+      - { name: customer_id, type: string,    nullable: false, pii: true }
+      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,    type: string,    nullable: false }
+      - { name: channel,     type: string,    enum: [cash, wire, faster_payments, card] }
+      - { name: direction,   type: string,    enum: [in, out] }
+      - { name: booked_at,   type: timestamp, nullable: false }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique: [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,  type: string, nullable: false, pii: true }
+      - { name: full_name,    type: string, nullable: false, pii: true }
+      - { name: country,      type: string, nullable: false }
+      - { name: risk_rating,  type: string, enum: [low, medium, high] }
+      - { name: onboarded_at, type: timestamp, nullable: false }
+      - { name: business_activity, type: string, nullable: true }
+      - { name: edd_last_review, type: timestamp, nullable: true }
+      - { name: pep_status,   type: string, nullable: true }
+
+rules:
+  - id: structuring_cash
+    name: Cash structuring below GBP 10,000
+    severity: high
+    regulation_refs:
+      - citation: "POCA 2002 s.330"
+        description: "Regulated sector SAR obligation."
+      - citation: "MLR 2017 reg. 28"
+        description: "Customer due diligence measures."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+        direction: in
+        amount: { between: [5000, 9999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 20000 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [structuring, cash, poca]
+
+  - id: high_risk_jurisdiction
+    name: Transactions with FATF high-risk jurisdictions
+    severity: high
+    regulation_refs:
+      - citation: "MLR 2017 reg. 33"
+        description: "Enhanced due diligence for high-risk countries."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'high_risk_jurisdiction' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN customer c ON t.customer_id = c.customer_id
+        WHERE c.country IN ('RU', 'IR', 'KP', 'MM', 'SY', 'AF')
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 5000
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - jurisdiction_risk_assessment
+    tags: [high_risk_jurisdiction, edd]
+
+  - id: sanctions_ofsi
+    name: OFSI sanctions screening
+    severity: critical
+    regulation_refs:
+      - citation: "SAMLA 2018"
+        description: "Sanctions and Anti-Money Laundering Act 2018."
+      - citation: "OFSI Financial Sanctions"
+        description: "HM Treasury consolidated list."
+    logic:
+      type: list_match
+      source: customer
+      field: full_name
+      list: sanctions
+      match: fuzzy
+      threshold: 0.8
+    escalate_to: l2_investigator
+    evidence:
+      - customer_kyc_profile
+      - sanctions_match_details
+    tags: [sanctions, ofsi, samla]
+
+  - id: unusual_volume_spike
+    name: Unusual volume spike
+    severity: medium
+    regulation_refs:
+      - citation: "POCA 2002 s.330"
+        description: "SAR obligation for suspicious activity."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH recent AS (
+            SELECT customer_id, SUM(amount) AS recent_total
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{recent_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+            GROUP BY customer_id
+        ),
+        baseline AS (
+            SELECT customer_id, SUM(amount) / 4.0 AS weekly_avg
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{baseline_start}'
+              AND booked_at <  TIMESTAMP '{recent_start}'
+            GROUP BY customer_id
+            HAVING COUNT(*) >= 2
+        )
+        SELECT
+            'unusual_volume_spike' AS rule_id,
+            r.customer_id,
+            r.recent_total AS sum_amount,
+            b.weekly_avg AS baseline_avg,
+            r.recent_total / NULLIF(b.weekly_avg, 0) AS spike_ratio,
+            TIMESTAMP '{recent_start}' AS window_start,
+            TIMESTAMP '{as_of}' AS window_end
+        FROM recent r
+        JOIN baseline b ON r.customer_id = b.customer_id
+        WHERE r.recent_total > b.weekly_avg * 5
+          AND r.recent_total >= 5000
+        ORDER BY r.customer_id
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+    tags: [unusual_activity, behavioral]
+
+workflow:
+  queues:
+    - id: l1_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [sar_filing, closed_no_action]
+    - id: sar_filing
+      sla: 30d
+      regulator_form: UK_SAR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    UK_SAR:
+      template: uk_sar_v1
+      mandatory_fields: [subject, narrative, triggering_rules, transactions]
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 5y
+
+metrics:
+  - id: alert_volume_total
+    name: Total alerts produced
+    category: operational
+    audience: [director, manager, analyst]
+    owner: money_laundering_reporting_officer
+    formula:
+      type: count
+      source: alerts
+
+  - id: typology_coverage
+    name: Typology coverage
+    category: effectiveness
+    audience: [vp, director]
+    owner: money_laundering_reporting_officer
+    unit: "%"
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+    target: { gte: 0.8 }
+    thresholds:
+      green: { gte: 0.8 }
+      amber: { gte: 0.5 }
+      red:   { lt: 0.5 }
+
+  - id: rules_active_count
+    name: Active rules deployed
+    category: delivery
+    audience: [svp, vp, director, pm]
+    owner: money_laundering_reporting_officer
+    formula:
+      type: count
+      source: rules
+      filter: { status: active }
+
+  - id: alert_to_sar_rate
+    name: Alert-to-SAR conversion rate
+    category: regulatory
+    audience: [svp, vp, director]
+    owner: money_laundering_reporting_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: cases
+        filter: { status: sar_filing }
+      denominator:
+        type: count
+        source: alerts
+    target: { gte: 0.1 }
+    thresholds:
+      green: { gte: 0.1 }
+      amber: { gte: 0.05 }
+      red:   { lt: 0.05 }
+
+reports:
+  - id: mlro_quarterly
+    title: MLRO quarterly brief
+    audience: svp
+    cadence: quarterly
+    sections:
+      - title: Program effectiveness
+        metrics: [typology_coverage, alert_to_sar_rate]
+      - title: Program scale
+        metrics: [alert_volume_total, rules_active_count]

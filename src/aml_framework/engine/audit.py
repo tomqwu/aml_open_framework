@@ -104,6 +104,9 @@ class AuditLedger:
             f.write(_canonical_json(event) + b"\n")
 
     def finalize(self) -> dict[str, Any]:
+        # Compute decision log hash chain for tamper detection.
+        decisions_hash = self._compute_decisions_hash()
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -112,6 +115,7 @@ class AuditLedger:
             "as_of": self.as_of.isoformat(),
             "inputs": self.input_manifest,
             "rule_outputs": self.rule_outputs,
+            "decisions_hash": decisions_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         (self.run_dir / "manifest.json").write_bytes(
@@ -120,4 +124,50 @@ class AuditLedger:
         (self.run_dir / "input_manifest.json").write_bytes(
             json.dumps(self.input_manifest, indent=2, sort_keys=True).encode("utf-8")
         )
+        return manifest
+
+    def _compute_decisions_hash(self) -> str:
+        """Hash chain over all decisions for tamper detection.
+
+        Each line is hashed with the previous hash to form a chain.
+        If any line is modified, the final hash changes.
+        """
+        decisions_path = self.run_dir / "decisions.jsonl"
+        if not decisions_path.exists():
+            return _sha256(b"")
+        chain_hash = b""
+        for line in decisions_path.read_bytes().splitlines():
+            if line.strip():
+                chain_hash = hashlib.sha256(chain_hash + line).digest()
+        return chain_hash.hex()
+
+    @staticmethod
+    def verify_decisions(run_dir: Path) -> tuple[bool, str]:
+        """Verify the decision log hasn't been tampered with.
+
+        Returns (is_valid, message). Compares the hash chain against
+        the stored decisions_hash in the manifest.
+        """
+        manifest_path = run_dir / "manifest.json"
+        if not manifest_path.exists():
+            return False, "manifest.json not found"
+
+        manifest = json.loads(manifest_path.read_bytes())
+        stored_hash = manifest.get("decisions_hash", "")
+        if not stored_hash:
+            return False, "No decisions_hash in manifest"
+
+        decisions_path = run_dir / "decisions.jsonl"
+        if not decisions_path.exists():
+            computed = _sha256(b"")
+        else:
+            chain_hash = b""
+            for line in decisions_path.read_bytes().splitlines():
+                if line.strip():
+                    chain_hash = hashlib.sha256(chain_hash + line).digest()
+            computed = chain_hash.hex()
+
+        if computed == stored_hash:
+            return True, "Decision log integrity verified"
+        return False, f"Tamper detected: stored={stored_hash[:16]}... computed={computed[:16]}..."
         return manifest

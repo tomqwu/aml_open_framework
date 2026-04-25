@@ -200,6 +200,11 @@ def resolve_source(
             "DuckDB bigquery extension required: INSTALL bigquery; LOAD bigquery;",
         )
 
+    if source_type in ("s3", "gcs"):
+        if not data_dir:
+            raise ValueError(f"--data-dir required for {source_type} (bucket URI)")
+        return _load_cloud_storage(source_type, data_dir, spec)  # pragma: no cover
+
     raise ValueError(f"Unknown data source: {source_type}")
 
 
@@ -237,6 +242,40 @@ def _load_warehouse_via_duckdb(  # pragma: no cover
             cols = [d[0] for d in con.description] if con.description else []
             data[contract.id] = [dict(zip(cols, r)) for r in rows]
         except Exception:
+            data[contract.id] = []
+
+    con.close()
+    return data
+
+
+def _load_cloud_storage(  # pragma: no cover
+    provider: str,
+    bucket_path: str,
+    spec: AMLSpec,
+) -> dict[str, list[dict[str, Any]]]:
+    """Load CSV/Parquet from S3 or GCS via DuckDB's httpfs extension."""
+    import duckdb
+
+    data: dict[str, list[dict[str, Any]]] = {}
+    con = duckdb.connect(":memory:")
+
+    try:
+        con.execute("INSTALL httpfs")
+        con.execute("LOAD httpfs")
+    except Exception as e:
+        raise RuntimeError(f"DuckDB httpfs extension required for {provider}: {e}") from e
+
+    for contract in spec.data_contracts:
+        for ext in ("csv", "parquet"):
+            path = f"{bucket_path.rstrip('/')}/{contract.id}.{ext}"
+            try:
+                rows = con.execute(f"SELECT * FROM '{path}'").fetchall()
+                cols = [d[0] for d in con.description] if con.description else []
+                data[contract.id] = [dict(zip(cols, r)) for r in rows]
+                break
+            except Exception:
+                continue
+        if contract.id not in data:
             data[contract.id] = []
 
     con.close()
