@@ -6,10 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Spec-driven AML (Anti-Money Laundering) automation framework. A single `aml.yaml` file is the source of truth for data contracts, detection rules, case workflow, metrics, and regulator reporting. All runtime artifacts (SQL, DAG stubs, audit logs, reports, SAR exports) are generated from it.
 
-## CI/CD
+## CI/CD & Testing Rules
 
-All PRs to main run 5 CI jobs: lint, unit-tests (67), api-tests (9), e2e-dashboard (24 Playwright), docker-build.
-Merging requires all checks to pass.
+All PRs to main run 5 CI jobs: lint, unit-tests, api-tests, e2e-dashboard (Playwright), docker-build.
+
+**Before every commit/push, always run:**
+```bash
+ruff format src/ tests/                    # auto-format
+ruff check src/ tests/                     # lint
+pytest tests/ --ignore=tests/test_e2e_dashboard.py -q   # unit + API tests
+```
+
+**Before opening a PR, also run:**
+```bash
+pytest tests/test_e2e_dashboard.py -q      # Playwright browser tests
+```
+
+**Key rules:**
+- Never push to main without all tests passing locally
+- Dashboard code (audience.py, data_layer.py) must NOT import `streamlit` at module level — the unit-test CI job only installs `.[dev]`, not `.[dashboard]`. Use lazy imports inside functions.
+- Tests that need `jwt`, `fastapi`, or `streamlit` must use `pytest.mark.skipif` guards
+- Every new feature needs: tests, screenshots (if UI), README section, CLAUDE.md update
 
 ## Commands
 

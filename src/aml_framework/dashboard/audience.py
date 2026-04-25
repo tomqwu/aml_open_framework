@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import streamlit as st
-
 # Which pages are most relevant per audience.
 AUDIENCE_PAGES = {
     "svp": [
@@ -37,6 +35,8 @@ AUDIENCE_PAGES = {
 
 def show_audience_context(page_title: str) -> None:
     """Show a subtle context line if an audience is selected."""
+    import streamlit as st
+
     audience = st.session_state.get("selected_audience")
     if not audience:
         return
