@@ -24,7 +24,9 @@ from aml_framework.api.db import (
     get_run_metrics,
     init_db,
     list_runs,
+    list_spec_versions,
     store_run,
+    store_spec_version,
 )
 from aml_framework.engine import run_spec
 from aml_framework.spec import load_spec
@@ -74,8 +76,13 @@ async def login(req: LoginRequest) -> dict[str, str]:
     user = DEMO_USERS.get(req.username)
     if not user or user["password"] != req.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = create_token(req.username, user["role"])
-    return {"access_token": token, "token_type": "bearer", "role": user["role"]}
+    token = create_token(req.username, user["role"], user.get("tenant", "default"))
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user["role"],
+        "tenant": user.get("tenant", "default"),
+    }
 
 
 @app.post("/api/v1/runs")
@@ -123,6 +130,14 @@ async def create_run(
         manifest=manifest,
         alerts=alerts_dict,
         metrics=[m.to_dict() for m in result.metrics],
+    )
+
+    # Store spec version for tracking.
+    store_spec_version(
+        spec_hash=manifest.get("spec_content_hash", ""),
+        spec_content=spec_path.read_text(encoding="utf-8"),
+        program_name=spec.program.name,
+        tenant_id=user.get("tenant", "default"),
     )
 
     run_summary = {
@@ -256,6 +271,15 @@ async def upload_data(
         "status": "upload endpoint ready",
         "note": "Use POST /api/v1/runs with data_source=csv and data_dir pointing to uploaded files",
     }
+
+
+@app.get("/api/v1/specs")
+async def get_specs(
+    user: dict[str, Any] = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """List stored spec versions."""
+    tenant = user.get("tenant", "default")
+    return list_spec_versions(tenant_id=tenant)
 
 
 @app.get("/api/v1/runs/{run_id}/alerts/cef")
