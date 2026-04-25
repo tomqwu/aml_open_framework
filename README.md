@@ -406,7 +406,7 @@ src/aml_framework/
   metrics/                      Metric evaluation engine + report rendering
   cases/                        Case files, reviewer workflow artifacts
   data/                         Synthetic data generator with planted positives
-  dashboard/                    Streamlit web dashboard (14 pages)
+  dashboard/                    Streamlit web dashboard (16 pages)
   models/                       ML scoring callables for python_ref rules
   api/                          FastAPI REST layer with JWT auth
   cli.py                        `aml` command-line entry point
@@ -442,7 +442,7 @@ pytest tests/
 |-------|-------|----------------|
 | **Unit/Integration** | 27 | Spec validation, all rule types (aggregation_window, custom_sql, python_ref, list_match), metrics, planted positives, reproducibility |
 | **API E2E** | 9 | FastAPI health, JWT auth (login/reject/all users), run creation, error handling |
-| **Dashboard E2E (Playwright)** | 23 | All 14 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
+| **Dashboard E2E (Playwright)** | 23 | All 16 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
 
 ## Status
 

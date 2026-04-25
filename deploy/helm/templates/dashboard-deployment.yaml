@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dashboard
+  labels:
+    app: aml-dashboard
+spec:
+  replicas: {{ .Values.dashboard.replicas }}
+  selector:
+    matchLabels:
+      app: aml-dashboard
+  template:
+    metadata:
+      labels:
+        app: aml-dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "streamlit", "run", "src/aml_framework/dashboard/app.py", "--server.port", "{{ .Values.dashboard.port }}", "--server.headless", "true", "--", "{{ .Values.dashboard.spec }}", "{{ .Values.dashboard.seed }}"]
+          ports:
+            - containerPort: {{ .Values.dashboard.port }}
+          resources:
+            {{- toYaml .Values.dashboard.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-dashboard
+spec:
+  selector:
+    app: aml-dashboard
+  ports:
+    - port: {{ .Values.dashboard.port }}
+      targetPort: {{ .Values.dashboard.port }}
