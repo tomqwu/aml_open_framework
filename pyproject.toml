@@ -60,6 +60,27 @@ aml_framework = ["templates/*.sql.j2", "templates/*.md.j2"]
 testpaths = ["tests"]
 addopts = "-ra"
 
+[tool.coverage.run]
+source = ["aml_framework"]
+omit = [
+    "*/dashboard/pages/*",
+    "*/dashboard/app.py",
+    "*/dashboard/state.py",
+    "*/dashboard/components.py",
+    "*/dashboard/audience.py",
+    "*/dashboard/data_layer.py",
+    "*/cli.py",
+    "*/models/xgboost_scorer.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__",
+    "raise NotImplementedError",
+]
+fail_under = 90
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
