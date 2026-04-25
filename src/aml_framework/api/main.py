@@ -47,6 +47,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# --- OpenTelemetry tracing (optional) ---
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor  # pragma: no cover
+
+    FastAPIInstrumentor.instrument_app(app)  # pragma: no cover
+except ImportError:
+    pass  # OpenTelemetry not installed — tracing disabled.
+
 
 # --- Models ---
 

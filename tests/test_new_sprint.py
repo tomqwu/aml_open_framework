@@ -223,3 +223,37 @@ class TestAuditTamperDetection:
 
         valid, msg = AuditLedger.verify_decisions(tmp_path)
         assert not valid
+
+
+class TestAdverseMedia:
+    def test_adverse_media_list_exists(self):
+        from pathlib import Path
+
+        list_path = (
+            Path(__file__).resolve().parents[1]
+            / "src"
+            / "aml_framework"
+            / "data"
+            / "lists"
+            / "adverse_media.csv"
+        )
+        assert list_path.exists()
+        content = list_path.read_text()
+        assert "ALEXEI VOLKOV" in content
+
+    def test_adverse_media_rule_in_spec(self):
+        spec = load_spec(SPEC_CA)
+        am_rules = [r for r in spec.rules if r.id == "adverse_media_screening"]
+        assert len(am_rules) == 1
+        assert am_rules[0].logic.type == "list_match"
+        assert am_rules[0].logic.list == "adverse_media"
+
+    def test_adverse_media_fires(self, tmp_path):
+        spec = load_spec(SPEC_CA)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        am_alerts = result.alerts.get("adverse_media_screening", [])
+        assert len(am_alerts) >= 1  # Should match planted customers.
