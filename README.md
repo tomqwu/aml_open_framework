@@ -184,9 +184,19 @@ regulator view.
 Three-tab mapping of spec primitives to international regulatory standards:
 - **FATF 40 Recommendations** — 10 key recommendations mapped with coverage status
 - **FinCEN BSA 6 Pillars** — including the April 2026 proposed 6th pillar (formalized risk assessment)
+- **AMLD6 Requirements** — 7 EU articles mapped (Art.8 Risk Assessment through Art.50 STR)
 - **Wolfsberg Principles** — 8 principles with gap identification
 
 Each mapping shows fully mapped, partially mapped, and gap status with explanatory notes.
+Tabs auto-switch based on jurisdiction (US → FinCEN BSA, CA → PCMLTFA/OSFI, EU → AMLD6).
+
+### Customer 360
+
+Complete single-customer view: profile card with risk rating, transaction
+history chart + table, alerts triggered, open cases, and channel breakdown.
+Used by analysts for investigation prep.
+
+![Customer 360](docs/screenshots/17_customer_360.png)
 
 ![Framework Alignment](docs/screenshots/08_framework_alignment.png)
 
@@ -406,7 +416,7 @@ src/aml_framework/
   metrics/                      Metric evaluation engine + report rendering
   cases/                        Case files, reviewer workflow artifacts
   data/                         Synthetic data generator with planted positives
-  dashboard/                    Streamlit web dashboard (16 pages)
+  dashboard/                    Streamlit web dashboard (17 pages)
   models/                       ML scoring callables for python_ref rules
   api/                          FastAPI REST layer with JWT auth
   cli.py                        `aml` command-line entry point
@@ -442,7 +452,7 @@ pytest tests/
 |-------|-------|----------------|
 | **Unit/Integration** | 27 | Spec validation, all rule types (aggregation_window, custom_sql, python_ref, list_match), metrics, planted positives, reproducibility |
 | **API E2E** | 9 | FastAPI health, JWT auth (login/reject/all users), run creation, error handling |
-| **Dashboard E2E (Playwright)** | 23 | All 16 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
+| **Dashboard E2E (Playwright)** | 23 | All 17 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
 
 ## Status
 
