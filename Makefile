@@ -33,6 +33,7 @@ validate: ## Validate all example specs
 	aml validate examples/canadian_bank/aml.yaml
 	aml validate examples/canadian_schedule_i_bank/aml.yaml
 	aml validate examples/eu_bank/aml.yaml
+	aml validate examples/uk_bank/aml.yaml
 
 dashboard: ## Launch the interactive dashboard
 	aml dashboard examples/canadian_schedule_i_bank/aml.yaml

@@ -95,21 +95,25 @@ immediate testing.
 
 ```bash
 aml validate spec.yaml                              # validate spec
+aml generate spec.yaml                               # emit SQL, DAG stubs, control matrix
 aml run spec.yaml [--data-source csv --data-dir ./]  # execute rules
 aml report spec.yaml --audience svp --stdout         # print role report
 aml export spec.yaml --out evidence.zip              # evidence bundle
 aml export-alerts spec.yaml --out alerts.csv         # alert CSV export
 aml diff spec_a.yaml spec_b.yaml                     # compare two specs
 aml replay spec.yaml run-dir/                         # verify determinism
+aml schedule spec.yaml --interval 1h                  # run on a schedule
 aml dashboard spec.yaml                               # launch web UI
 aml api --port 8000                                   # launch REST API
 ```
+
+Data sources: `--data-source synthetic` (default), `csv`, `parquet`, `duckdb`, `s3`, `gcs`, `snowflake`, `bigquery`.
 
 ## Interactive Dashboard
 
 The framework includes a Streamlit web dashboard for interactive demos and
 stakeholder presentations. It runs the full engine on startup and presents
-results across 15 purpose-built pages.
+results across 17 purpose-built pages.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -189,6 +193,23 @@ Three-tab mapping of spec primitives to international regulatory standards:
 
 Each mapping shows fully mapped, partially mapped, and gap status with explanatory notes.
 Tabs auto-switch based on jurisdiction (US → FinCEN BSA, CA → PCMLTFA/OSFI, EU → AMLD6).
+
+### Run History
+
+Past engine executions from the persistence layer (SQLite locally,
+PostgreSQL in production). Shows current session metadata, stored runs
+with spec hashes, and run manifest for audit traceability.
+
+![Run History](docs/screenshots/15_run_history.png)
+
+### Rule Tuning
+
+Interactive threshold what-if analysis. Select an aggregation_window rule,
+adjust thresholds with sliders, and see the alert count change in real time.
+Sensitivity analysis chart shows threshold vs alert volume trade-off.
+Does not modify the spec — shows impact for review before YAML edit.
+
+![Rule Tuning](docs/screenshots/16_rule_tuning.png)
 
 ### Customer 360
 
@@ -318,12 +339,15 @@ and model risk management metadata.
 
 The framework supports **geo-based default policies** — the same architecture
 adapts to different regulatory regimes based on the `jurisdiction` field in the
-spec. Two complete example specs are included:
+spec. Five example specs are included across 4 jurisdictions:
 
-| Spec | Jurisdiction | Regulator | Currency | Filing Types |
-|------|-------------|-----------|----------|-------------|
-| `examples/community_bank/aml.yaml` | US | FinCEN | USD | SAR, CTR |
-| `examples/canadian_bank/aml.yaml` | CA | FINTRAC | CAD | STR, LCTR, EFTR |
+| Spec | Jurisdiction | Regulator | Filing Types |
+|------|-------------|-----------|-------------|
+| `examples/community_bank/aml.yaml` | US | FinCEN | SAR, CTR |
+| `examples/canadian_bank/aml.yaml` | CA | FINTRAC | STR, LCTR, EFTR |
+| `examples/canadian_schedule_i_bank/aml.yaml` | CA | FINTRAC/OSFI | STR, LCTR (TD case study) |
+| `examples/eu_bank/aml.yaml` | EU | EBA | EU STR (AMLD6) |
+| `examples/uk_bank/aml.yaml` | UK | FCA | UK SAR (POCA 2002) |
 
 ### Canadian Regulatory Support
 
@@ -409,6 +433,8 @@ RAG thresholds. See [`docs/metrics-framework.md`](docs/metrics-framework.md).
 schema/aml-spec.schema.json     JSON Schema for aml.yaml (the contract)
 examples/community_bank/        US community bank spec (FinCEN, USD, SAR/CTR)
 examples/canadian_bank/         Canadian bank spec (FINTRAC/OSFI, CAD, STR/LCTR/EFTR)
+examples/eu_bank/               EU bank spec (EBA/AMLD6, EUR, PEP screening)
+examples/uk_bank/               UK bank spec (FCA/POCA/SAMLA, GBP, OFSI sanctions)
 src/aml_framework/
   spec/                         Parse + validate the spec (JSON Schema + Pydantic)
   generators/                   Emit SQL, DAG stubs, control matrix, STR narratives
@@ -420,6 +446,9 @@ src/aml_framework/
   models/                       ML scoring callables for python_ref rules
   api/                          FastAPI REST layer with JWT auth
   cli.py                        `aml` command-line entry point
+  integrations/                 Jira, Slack/Teams, SIEM/CEF connectors
+data/input/                     Sample CSV data for testing (438 txns, 25 customers)
+deploy/helm/                    Helm chart for Kubernetes deployment
 docs/
   architecture.md               Reference architecture
   personas.md                   Who does what
