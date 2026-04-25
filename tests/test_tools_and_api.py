@@ -156,7 +156,7 @@ class TestExpandedAPI:
         assert resp.status_code == 200
         data = resp.json()
         assert data["valid"] is True
-        assert data["rules"] == 9
+        assert data["rules"] == 10
 
     def test_validate_bad_spec(self):
         token = _login()

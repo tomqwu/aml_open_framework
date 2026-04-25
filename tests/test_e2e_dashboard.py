@@ -37,6 +37,10 @@ PAGES = [
     "Model Performance",
     "Data Quality",
     "Run History",
+    "Rule Tuning",
+    "Customer 360",
+    "Typology Catalogue",
+    "Comparative Analytics",
 ]
 
 

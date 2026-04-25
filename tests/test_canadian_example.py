@@ -22,7 +22,7 @@ def test_spec_validates():
     spec = load_spec(EXAMPLE)
     assert spec.program.jurisdiction == "CA"
     assert spec.program.regulator == "FINTRAC"
-    assert len(spec.rules) == 9
+    assert len(spec.rules) == 10
     assert len(spec.workflow.queues) == 5
 
 

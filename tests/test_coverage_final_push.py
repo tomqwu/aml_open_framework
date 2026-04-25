@@ -543,4 +543,4 @@ def test_validate_invalid_spec_content(tmp_path):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.json()["valid"] is True
-    assert resp.json()["rules"] == 9
+    assert resp.json()["rules"] == 10

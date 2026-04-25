@@ -366,6 +366,28 @@ rules:
       - beneficial_ownership_records
     tags: [sanctions, terrorist_financing, sema]
 
+  # --- ADVERSE MEDIA SCREENING ---
+  - id: adverse_media_screening
+    name: Adverse media screening
+    severity: medium
+    regulation_refs:
+      - citation: "PCMLTFR s.123.1"
+        description: "Ongoing monitoring — adverse media as risk indicator."
+      - citation: "OSFI Guideline B-8 s.3"
+        description: "Automated monitoring including adverse media sources."
+    logic:
+      type: list_match
+      source: customer
+      field: full_name
+      list: adverse_media
+      match: fuzzy
+      threshold: 0.8
+    escalate_to: l1_aml_analyst
+    evidence:
+      - customer_kyc_profile
+      - adverse_media_articles
+    tags: [adverse_media, ongoing_monitoring]
+
   # --- ML-DRIVEN BEHAVIORAL RISK SCORING ---
   # Demonstrates the python_ref execution pipeline. The callable is a
   # heuristic scorer (velocity, amount deviation, channel mixing) that
