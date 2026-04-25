@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from aml_framework.dashboard.audience import AUDIENCE_PAGES
 from aml_framework.dashboard.components import apply_theme
 from aml_framework.dashboard.state import initialize_session
 
@@ -76,45 +77,48 @@ with st.sidebar:
         )
 
 # ---------------------------------------------------------------------------
-# Navigation
+# Navigation — role-based page visibility
 # ---------------------------------------------------------------------------
-pg = st.navigation(
-    [
-        st.Page(
-            "pages/1_Executive_Dashboard.py",
-            title="Executive Dashboard",
-            icon=":material/dashboard:",
-        ),
-        st.Page("pages/2_Program_Maturity.py", title="Program Maturity", icon=":material/speed:"),
-        st.Page("pages/3_Alert_Queue.py", title="Alert Queue", icon=":material/notifications:"),
-        st.Page(
-            "pages/4_Case_Investigation.py", title="Case Investigation", icon=":material/search:"
-        ),
-        st.Page("pages/5_Rule_Performance.py", title="Rule Performance", icon=":material/tune:"),
-        st.Page("pages/6_Risk_Assessment.py", title="Risk Assessment", icon=":material/map:"),
-        st.Page("pages/7_Audit_Evidence.py", title="Audit & Evidence", icon=":material/verified:"),
-        st.Page(
-            "pages/8_Framework_Alignment.py", title="Framework Alignment", icon=":material/rule:"
-        ),
-        st.Page(
-            "pages/9_Transformation_Roadmap.py",
-            title="Transformation Roadmap",
-            icon=":material/rocket_launch:",
-        ),
-        st.Page("pages/10_Network_Explorer.py", title="Network Explorer", icon=":material/hub:"),
-        st.Page("pages/11_Live_Monitor.py", title="Live Monitor", icon=":material/monitor_heart:"),
-        st.Page(
-            "pages/12_Sanctions_Screening.py", title="Sanctions Screening", icon=":material/shield:"
-        ),
-        st.Page(
-            "pages/13_Model_Performance.py",
-            title="Model Performance",
-            icon=":material/model_training:",
-        ),
-        st.Page("pages/14_Data_Quality.py", title="Data Quality", icon=":material/fact_check:"),
-        st.Page("pages/15_Run_History.py", title="Run History", icon=":material/history:"),
-        st.Page("pages/16_Rule_Tuning.py", title="Rule Tuning", icon=":material/tune:"),
-    ]
-)
+ALL_PAGES = [
+    st.Page(
+        "pages/1_Executive_Dashboard.py", title="Executive Dashboard", icon=":material/dashboard:"
+    ),
+    st.Page("pages/2_Program_Maturity.py", title="Program Maturity", icon=":material/speed:"),
+    st.Page("pages/3_Alert_Queue.py", title="Alert Queue", icon=":material/notifications:"),
+    st.Page("pages/4_Case_Investigation.py", title="Case Investigation", icon=":material/search:"),
+    st.Page("pages/5_Rule_Performance.py", title="Rule Performance", icon=":material/tune:"),
+    st.Page("pages/6_Risk_Assessment.py", title="Risk Assessment", icon=":material/map:"),
+    st.Page("pages/7_Audit_Evidence.py", title="Audit & Evidence", icon=":material/verified:"),
+    st.Page("pages/8_Framework_Alignment.py", title="Framework Alignment", icon=":material/rule:"),
+    st.Page(
+        "pages/9_Transformation_Roadmap.py",
+        title="Transformation Roadmap",
+        icon=":material/rocket_launch:",
+    ),
+    st.Page("pages/10_Network_Explorer.py", title="Network Explorer", icon=":material/hub:"),
+    st.Page("pages/11_Live_Monitor.py", title="Live Monitor", icon=":material/monitor_heart:"),
+    st.Page(
+        "pages/12_Sanctions_Screening.py", title="Sanctions Screening", icon=":material/shield:"
+    ),
+    st.Page(
+        "pages/13_Model_Performance.py", title="Model Performance", icon=":material/model_training:"
+    ),
+    st.Page("pages/14_Data_Quality.py", title="Data Quality", icon=":material/fact_check:"),
+    st.Page("pages/15_Run_History.py", title="Run History", icon=":material/history:"),
+    st.Page("pages/16_Rule_Tuning.py", title="Rule Tuning", icon=":material/tune:"),
+    st.Page("pages/17_Customer_360.py", title="Customer 360", icon=":material/person_search:"),
+]
+
+# Filter pages by audience if one is selected.
+selected_audience = st.session_state.get("selected_audience")
+if selected_audience:
+    relevant_titles = set(AUDIENCE_PAGES.get(selected_audience, []))
+    # Always show Executive Dashboard.
+    relevant_titles.add("Executive Dashboard")
+    visible_pages = [p for p in ALL_PAGES if p.title in relevant_titles]
+else:
+    visible_pages = ALL_PAGES
+
+pg = st.navigation(visible_pages)
 
 pg.run()
