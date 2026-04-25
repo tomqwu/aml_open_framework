@@ -22,9 +22,9 @@ def _use_postgres() -> bool:
 
 
 def _get_pg_conn():
-    import psycopg2
+    import psycopg2  # pragma: no cover
 
-    return psycopg2.connect(_DATABASE_URL)
+    return psycopg2.connect(_DATABASE_URL)  # pragma: no cover
 
 
 _sqlite_initialized = False

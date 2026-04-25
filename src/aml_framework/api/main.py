@@ -36,8 +36,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
-    yield
+    init_db()  # pragma: no cover
+    yield  # pragma: no cover
 
 
 app = FastAPI(

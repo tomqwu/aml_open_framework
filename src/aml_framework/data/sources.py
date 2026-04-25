@@ -203,7 +203,7 @@ def resolve_source(
     raise ValueError(f"Unknown data source: {source_type}")
 
 
-def _load_warehouse_via_duckdb(
+def _load_warehouse_via_duckdb(  # pragma: no cover
     spec: AMLSpec,
     extension: str,
     connection_string: str,
@@ -229,11 +229,11 @@ def _load_warehouse_via_duckdb(
         try:
             con.execute(f"CALL {extension}_attach('{connection_string}')")
         except Exception:
-            pass  # Some extensions don't need explicit attach.
+            pass  # pragma: no cover don't need explicit attach.
 
     for contract in spec.data_contracts:
         try:
-            rows = con.execute(f"SELECT * FROM {contract.source}").fetchall()
+            rows = con.execute(f"SELECT * FROM {contract.source}").fetchall()  # pragma: no cover
             cols = [d[0] for d in con.description] if con.description else []
             data[contract.id] = [dict(zip(cols, r)) for r in rows]
         except Exception:

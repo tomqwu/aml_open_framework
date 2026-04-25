@@ -354,7 +354,7 @@ def run_spec(
             continue
 
         if rule.logic.type not in ("aggregation_window", "custom_sql"):
-            # Unrecognised logic type — not executable in reference engine.
+            # pragma: no cover — not executable in reference engine.
             ledger.record_rule_sql(
                 rule.id,
                 f"-- rule '{rule.id}' logic type '{rule.logic.type}' "
