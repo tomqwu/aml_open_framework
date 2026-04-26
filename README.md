@@ -519,6 +519,8 @@ src/aml_framework/
   integrations/                 Jira, Slack/Teams, SIEM/CEF connectors
 data/input/                     Sample CSV data for testing (438 txns, 25 customers)
 deploy/helm/                    Helm chart for Kubernetes deployment
+CHANGELOG.md                    Release-by-release change log
+CONTRIBUTING.md                 Setup, PR process, key rules
 docs/
   architecture.md               Reference architecture
   personas.md                   Who does what
@@ -526,7 +528,11 @@ docs/
   spec-reference.md             Field-by-field spec guide
   metrics-framework.md          Metric types, RAG thresholds, audience model
   audit-evidence.md             Evidence bundle specification
-  screenshots/                  Dashboard screenshots
+  deployment.md                 Docker Compose + Helm deployment guide
+  api-reference.md              REST API endpoint catalogue
+  case-studies/                 Real-world enforcement walkthroughs (TD 2024, ...)
+  pitch/                        Executive deck images
+  screenshots/                  Dashboard screenshots (21 pages + workflows)
 ```
 
 ## Testing
@@ -534,21 +540,27 @@ docs/
 The framework has three layers of tests:
 
 ```bash
-# Unit + API tests (~250 tests across 8 modules)
+# Unit + API tests (258 tests across 8 modules, ~20s)
 pytest tests/ --ignore=tests/test_e2e_dashboard.py -q
 
-# Dashboard e2e tests via Playwright (21 tests, needs: pip install playwright && python -m playwright install chromium)
+# Dashboard e2e tests via Playwright (30 tests, needs: pip install playwright && python -m playwright install chromium)
 pytest tests/test_e2e_dashboard.py
 
-# All tests
+# All tests (288 total)
 pytest tests/
 ```
 
-| Layer | Tests | What It Covers |
-|-------|-------|----------------|
-| **Unit/Integration** | 27 | Spec validation, all rule types (aggregation_window, custom_sql, python_ref, list_match), metrics, planted positives, reproducibility |
-| **API E2E** | 9 | FastAPI health, JWT auth (login/reject/all users), run creation, error handling |
-| **Dashboard E2E (Playwright)** | 23 | All 21 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
+| File | Tests | What It Covers |
+|------|-------|----------------|
+| `test_spec.py` | 28 | Spec validation, cross-reference integrity, EU/UK spec runs, AMLD6 alignment, typology catalogue |
+| `test_engine.py` | 57 | All 4 rule types, audit ledger, hash-chain verification, reproducibility, case workflow |
+| `test_generators.py` | 26 | SQL emission, DAG stubs, control matrix, STR narratives, PDF export |
+| `test_metrics.py` | 30 | Metric evaluation, RAG bands, audience routing, report rendering |
+| `test_data_sources.py` | 37 | CSV / Parquet / DuckDB / S3 / GCS / Snowflake / BigQuery loaders |
+| `test_integrations.py` | 24 | Jira, Slack/Teams, SIEM/CEF connectors |
+| `test_api.py` | 54 | FastAPI health, JWT auth, run creation, validation, rate limiting, error handling |
+| `test_performance.py` | 2 | Engine throughput on 10k+ row datasets |
+| `test_e2e_dashboard.py` | 30 | All 21 pages render, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
 
 ## Status
 
