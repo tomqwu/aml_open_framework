@@ -31,7 +31,7 @@ def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
         f.write(json.dumps(decision, sort_keys=True, separators=(",", ":")) + "\n")
 
     # Update case file on disk.
-    case_path = Path(run_dir) / "cases" / f"{case['case_id']}.json"
+    case_path = Path(st.session_state.run_dir) / "cases" / f"{case['case_id']}.json"
     if case_path.exists():
         case_data = json.loads(case_path.read_bytes())
         case_data["status"] = disposition
@@ -293,6 +293,21 @@ if st.button(f"Generate {filing_label} Draft", type="primary"):
         jurisdiction=jurisdiction,
     )
     st.code(narrative, language="text")
+
+    # Save narrative to case file.
+    import json
+    from datetime import datetime as _dt_case
+    from pathlib import Path
+
+    case_path = Path(st.session_state.run_dir) / "cases" / f"{case['case_id']}.json"
+    if case_path.exists():
+        case_data = json.loads(case_path.read_bytes())
+        case_data["narrative_draft"] = narrative
+        case_data["narrative_generated_at"] = _dt_case.now().isoformat()
+        case_path.write_bytes(
+            json.dumps(case_data, indent=2, sort_keys=True, default=str).encode("utf-8")
+        )
+        st.caption("Narrative saved to case file.")
 
 # --- Case Action Buttons ---
 st.markdown("<br>", unsafe_allow_html=True)

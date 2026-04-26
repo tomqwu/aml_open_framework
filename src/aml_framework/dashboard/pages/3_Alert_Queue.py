@@ -269,10 +269,34 @@ if not df_cases.empty and "status" in df_cases.columns:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Show open/active cases table.
-    active = df_cases[~df_cases["status"].isin(["closed_no_action"])]
+    # Compute SLA status for active cases.
+    from aml_framework.generators.sql import parse_window
+
+    queue_sla_map = {q.id: q.sla for q in spec.workflow.queues}
+    now = _dt.now()
+
+    # Show open/active cases table with SLA.
+    active = df_cases[~df_cases["status"].isin(["closed_no_action"])].copy()
     if not active.empty:
-        show_cols = ["case_id", "rule_id", "severity", "status"]
+
+        def _sla_status(row):
+            queue = row.get("queue", "")
+            sla_str = queue_sla_map.get(queue, "")
+            if not sla_str:
+                return "N/A"
+            try:
+                sla_td = parse_window(sla_str)
+                sla_hours = sla_td.total_seconds() / 3600
+                res_hours = row.get("resolution_hours")
+                if res_hours is not None:
+                    return "Resolved" if res_hours <= sla_hours else "OVERDUE"
+                return f"{sla_str} SLA"
+            except Exception:
+                return "N/A"
+
+        active["SLA"] = active.apply(_sla_status, axis=1)
+
+        show_cols = ["case_id", "rule_id", "severity", "status", "SLA"]
         if "queue" in active.columns:
             show_cols.insert(3, "queue")
         available = [c for c in show_cols if c in active.columns]
@@ -281,7 +305,16 @@ if not df_cases.empty and "status" in df_cases.columns:
             c = status_colors_map.get(val, "")
             return f"color: {c}; font-weight: 700;" if c else ""
 
+        def _sla_color(val: str) -> str:
+            if val == "OVERDUE":
+                return "color: #dc2626; font-weight: 700;"
+            if val == "Resolved":
+                return "color: #059669; font-weight: 700;"
+            return ""
+
         styled = active[available].style.map(_status_color, subset=["status"])
+        if "SLA" in available:
+            styled = styled.map(_sla_color, subset=["SLA"])
         st.dataframe(styled, use_container_width=True, hide_index=True)
 
         # --- Bulk actions ---

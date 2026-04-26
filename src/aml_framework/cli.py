@@ -36,6 +36,33 @@ def validate(spec_path: Path = typer.Argument(..., exists=True, readable=True)) 
     )
 
 
+@app.command(name="validate-data")
+def validate_data(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    data_dir: Path = typer.Argument(..., exists=True, help="Directory with CSV files."),
+) -> None:
+    """Validate CSV data files against spec data contracts."""
+    from aml_framework.data.sources import validate_csv
+
+    spec = load_spec(spec_path)
+    all_errors: list[str] = []
+    for contract in spec.data_contracts:
+        csv_path = data_dir / f"{contract.id}.csv"
+        errors = validate_csv(csv_path, spec, contract.id)
+        if errors:
+            for e in errors:
+                console.print(f"  [red]{contract.id}[/red]: {e}")
+                all_errors.append(e)
+        else:
+            console.print(f"  [green]{contract.id}[/green]: OK")
+
+    if all_errors:
+        console.print(f"\n[red]{len(all_errors)} error(s)[/red] found.")
+        raise typer.Exit(code=1)
+    else:
+        console.print("\n[green]All contracts valid.[/green]")
+
+
 @app.command()
 def generate(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
