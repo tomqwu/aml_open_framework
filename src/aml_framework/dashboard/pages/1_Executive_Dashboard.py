@@ -167,3 +167,33 @@ with col_summary:
             "text/markdown",
             use_container_width=True,
         )
+
+    # Board PDF export.
+    if st.button("Generate Board PDF", use_container_width=True):
+        from aml_framework.dashboard.maturity import compute_maturity_scores
+        from aml_framework.generators.board_pdf import generate_board_pdf
+
+        import json
+        from pathlib import Path
+
+        run_dir = st.session_state.run_dir
+        cases = []
+        cases_dir = Path(run_dir) / "cases"
+        if cases_dir.exists():
+            for f in sorted(cases_dir.glob("*.json")):
+                cases.append(json.loads(f.read_bytes()))
+
+        maturity = compute_maturity_scores(spec)
+        pdf_bytes = generate_board_pdf(
+            spec=spec,
+            metrics=[m.to_dict() for m in result.metrics],
+            cases=cases,
+            maturity_scores=maturity,
+        )
+        st.download_button(
+            "Download Board PDF",
+            pdf_bytes,
+            f"{spec.program.name.replace(' ', '_')}_board_report.pdf",
+            "application/pdf",
+            use_container_width=True,
+        )

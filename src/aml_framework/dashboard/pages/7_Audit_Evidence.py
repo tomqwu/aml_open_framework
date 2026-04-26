@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.engine.audit import AuditLedger
 
 page_header(
     "Audit & Evidence",
@@ -38,14 +39,49 @@ with c4:
 
 # --- Integrity verification ---
 st.markdown("<br>", unsafe_allow_html=True)
-if st.button("Verify Decision Log Integrity", type="primary"):
-    from aml_framework.engine.audit import AuditLedger
+st.markdown("### Integrity Verification")
 
-    valid, msg = AuditLedger.verify_decisions(run_dir)
-    if valid:
-        st.success(f"Integrity verified: {msg}")
-    else:
-        st.error(f"INTEGRITY CHECK FAILED: {msg}")
+# Always show current integrity status.
+valid, msg = AuditLedger.verify_decisions(run_dir)
+if valid:
+    st.markdown(
+        '<div style="background:linear-gradient(135deg, #05966918, #05966908); '
+        "border-left:4px solid #059669; border-radius:8px; padding:1rem 1.5rem; "
+        'margin-bottom:0.5rem;">'
+        '<span style="font-size:1.1rem; font-weight:600; color:#059669;">'
+        "&#x2705; Decision Log Integrity Verified</span><br>"
+        f'<span style="font-size:0.85rem; color:#475569;">{msg}</span>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        '<div style="background:linear-gradient(135deg, #dc262618, #dc262608); '
+        "border-left:4px solid #dc2626; border-radius:8px; padding:1rem 1.5rem; "
+        'margin-bottom:0.5rem;">'
+        '<span style="font-size:1.1rem; font-weight:600; color:#dc2626;">'
+        "&#x1F6A8; TAMPER DETECTED</span><br>"
+        f'<span style="font-size:0.85rem; color:#475569;">{msg}</span>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+# Also verify rule output hashes against stored hashes.
+rule_outputs = manifest.get("rule_outputs", {})
+alerts_dir = run_dir / "alerts"
+mismatches = []
+if alerts_dir.exists():
+    for rule_id, stored_hash in rule_outputs.items():
+        hash_file = alerts_dir / f"{rule_id}.hash"
+        if hash_file.exists():
+            on_disk = hash_file.read_text(encoding="utf-8").strip()
+            if on_disk != stored_hash:
+                mismatches.append(rule_id)
+
+if mismatches:
+    st.error(f"Rule output hash mismatch for: {', '.join(mismatches)}")
+elif rule_outputs:
+    st.caption(f"All {len(rule_outputs)} rule output hashes match manifest.")
 
 st.markdown("<br>", unsafe_allow_html=True)
 

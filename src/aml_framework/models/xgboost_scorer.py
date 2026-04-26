@@ -27,7 +27,7 @@ _MODEL_PATH = _MODEL_DIR / "xgboost_risk_model.pkl"
 def _extract_features(con: duckdb.DuckDBPyConnection, as_of: datetime) -> list[dict[str, Any]]:
     """Extract per-customer features from the DuckDB warehouse."""
     window_start = as_of - timedelta(days=30)
-    sql = f"""
+    sql = """
     SELECT
         customer_id,
         COUNT(*) AS txn_count,
@@ -37,12 +37,12 @@ def _extract_features(con: duckdb.DuckDBPyConnection, as_of: datetime) -> list[d
         COUNT(DISTINCT channel) AS channel_count,
         COUNT(DISTINCT CAST(booked_at AS DATE)) AS active_days
     FROM txn
-    WHERE booked_at >= TIMESTAMP '{window_start.isoformat(sep=" ")}'
-      AND booked_at <  TIMESTAMP '{as_of.isoformat(sep=" ")}'
+    WHERE booked_at >= $1
+      AND booked_at <  $2
     GROUP BY customer_id
     HAVING COUNT(*) >= 3
     """
-    rows = con.execute(sql).fetchall()
+    rows = con.execute(sql, [window_start, as_of]).fetchall()
     cols = [d[0] for d in con.description]
     return [dict(zip(cols, r)) for r in rows]
 
@@ -95,6 +95,12 @@ def train_model(
     with _MODEL_PATH.open("wb") as f:
         pickle.dump({"model": model, "feature_cols": feature_cols}, f)
 
+    # Write a hash file so we can verify integrity before loading.
+    import hashlib
+
+    model_hash = hashlib.sha256(_MODEL_PATH.read_bytes()).hexdigest()
+    _MODEL_PATH.with_suffix(".sha256").write_text(model_hash, encoding="utf-8")
+
     logger.info("XGBoost model trained and saved to %s", _MODEL_PATH)
     return model
 
@@ -119,6 +125,19 @@ def xgboost_risk_scorer(
     if not _MODEL_PATH.exists():
         model = train_model(con, as_of)
         if model is None:
+            from aml_framework.models.scoring import heuristic_risk_scorer
+
+            return heuristic_risk_scorer(con, as_of)
+
+    # Verify model integrity before loading.
+    import hashlib
+
+    hash_path = _MODEL_PATH.with_suffix(".sha256")
+    if hash_path.exists():
+        expected = hash_path.read_text(encoding="utf-8").strip()
+        actual = hashlib.sha256(_MODEL_PATH.read_bytes()).hexdigest()
+        if actual != expected:
+            logger.error("Model file integrity check failed — possible tampering")
             from aml_framework.models.scoring import heuristic_risk_scorer
 
             return heuristic_risk_scorer(con, as_of)

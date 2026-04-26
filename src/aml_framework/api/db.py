@@ -142,7 +142,8 @@ def store_run(
     else:
         conn = _get_sqlite_conn()
         conn.execute(
-            "INSERT INTO runs (run_id, spec_path, seed, manifest, created_at) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO runs (run_id, spec_path, seed, manifest, created_at)"
+            " VALUES (?, ?, ?, ?, ?)",
             (run_id, spec_path, seed, json.dumps(manifest), now),
         )
         for rule_id, rule_alerts in alerts.items():

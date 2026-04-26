@@ -15,28 +15,39 @@ _SECRET = os.environ.get("JWT_SECRET", "aml-framework-dev-secret")
 _ALGORITHM = "HS256"
 _EXPIRY_HOURS = 24
 
-# Demo users — production would use an identity provider.
+# Demo users — production MUST use OIDC_ISSUER_URL for real authentication.
+# Passwords default to username for local development only.
 DEMO_USERS: dict[str, dict[str, Any]] = {
-    "admin": {"password": "admin", "role": "admin", "audience": "svp", "tenant": "bank_a"},
+    "admin": {
+        "password": os.environ.get("DEMO_ADMIN_PASSWORD", "admin"),
+        "role": "admin",
+        "audience": "svp",
+        "tenant": "bank_a",
+    },
     "analyst": {
-        "password": "analyst",
+        "password": os.environ.get("DEMO_ANALYST_PASSWORD", "analyst"),
         "role": "analyst",
         "audience": "analyst",
         "tenant": "bank_a",
     },
     "auditor": {
-        "password": "auditor",
+        "password": os.environ.get("DEMO_AUDITOR_PASSWORD", "auditor"),
         "role": "auditor",
         "audience": "auditor",
         "tenant": "bank_a",
     },
     "manager": {
-        "password": "manager",
+        "password": os.environ.get("DEMO_MANAGER_PASSWORD", "manager"),
         "role": "manager",
         "audience": "manager",
         "tenant": "bank_a",
     },
-    "bank_b_admin": {"password": "admin", "role": "admin", "audience": "svp", "tenant": "bank_b"},
+    "bank_b_admin": {
+        "password": os.environ.get("DEMO_BANK_B_PASSWORD", "admin"),
+        "role": "admin",
+        "audience": "svp",
+        "tenant": "bank_b",
+    },
 }
 
 # Role-based permissions.

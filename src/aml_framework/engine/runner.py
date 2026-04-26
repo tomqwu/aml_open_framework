@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta as _timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import duckdb
 
@@ -17,6 +18,32 @@ from aml_framework.metrics.engine import MetricResult, evaluate_metrics
 from aml_framework.metrics.reports import render_all_reports
 from aml_framework.spec.loader import spec_content_hash
 from aml_framework.spec.models import AMLSpec, Rule
+
+logger = logging.getLogger("aml.engine.runner")
+
+
+class CaseDict(TypedDict):
+    case_id: str
+    rule_id: str
+    rule_name: str
+    severity: str
+    regulation_refs: list[dict[str, str]]
+    queue: str
+    alert: dict[str, Any]
+    evidence_requested: list[str]
+    spec_program: str
+    input_hash: dict[str, Any]
+    status: str
+
+
+class DecisionEvent(TypedDict, total=False):
+    event: str
+    case_id: str
+    rule_id: str
+    queue: str
+    disposition: str
+    resolution_hours: float
+    within_sla: bool
 
 
 @dataclass
@@ -78,7 +105,7 @@ def _ddl_for_contract(contract) -> str:
 
 def _build_case(
     rule: Rule, alert: dict[str, Any], spec: AMLSpec, input_hash: dict[str, Any]
-) -> dict[str, Any]:
+) -> CaseDict:
     # Minimal case file: enough for a reviewer to act, enough for an auditor
     # to trace the alert back to a spec clause.
     case_id = f"{rule.id}__{alert.get('customer_id', 'unknown')}__{alert.get('window_end', '')}"
@@ -98,28 +125,69 @@ def _build_case(
     }
 
 
+def _open_cases_for_alerts(
+    rule: Rule,
+    alerts: list[dict[str, Any]],
+    spec: AMLSpec,
+    ledger: AuditLedger,
+    case_ids: list[str],
+) -> None:
+    """Create a case for each alert, record to ledger, and append to case_ids."""
+    for alert in alerts:
+        case = _build_case(rule, alert, spec, ledger.input_manifest)
+        ledger.record_case(case["case_id"], case)
+        case_ids.append(case["case_id"])
+        ledger.append_decision(
+            {
+                "event": "case_opened",
+                "case_id": case["case_id"],
+                "rule_id": rule.id,
+                "queue": rule.escalate_to,
+            }
+        )
+
+
+def _fuzzy_match(value: str, list_entries: list[str], threshold: float) -> tuple[str, float] | None:
+    """Return (matched_entry, score) if token-overlap score meets threshold."""
+    value_tokens = set(value.split())
+    for entry in list_entries:
+        entry_tokens = set(entry.split())
+        if not entry_tokens:
+            continue
+        overlap = len(value_tokens & entry_tokens)
+        score = overlap / max(len(value_tokens), len(entry_tokens))
+        if score >= threshold:
+            return entry, round(score, 3)
+    return None
+
+
+def _load_reference_list(list_name: str) -> list[str] | None:
+    """Load a reference list CSV, returning uppercased names or None if missing."""
+    import csv
+
+    lists_dir = Path(__file__).resolve().parents[1] / "data" / "lists"
+    list_path = lists_dir / f"{list_name}.csv"
+    if not list_path.exists():
+        return None
+    with list_path.open("r", encoding="utf-8") as f:
+        return [row["name"].strip().upper() for row in csv.DictReader(f)]
+
+
 def _execute_list_match(
     rule: Rule,
     con: duckdb.DuckDBPyConnection,
     as_of: datetime,
 ) -> list[dict[str, Any]]:
     """Screen a data source field against a reference list (sanctions, PEP, etc.)."""
-    import csv
-
     logic = rule.logic
     list_name = logic.list
     field = logic.field
     match_type = logic.match
     threshold = logic.threshold or 0.8
 
-    # Load the reference list from bundled CSV files.
-    lists_dir = Path(__file__).resolve().parents[1] / "data" / "lists"
-    list_path = lists_dir / f"{list_name}.csv"
-    if not list_path.exists():
+    list_entries = _load_reference_list(list_name)
+    if list_entries is None:
         return []
-
-    with list_path.open("r", encoding="utf-8") as f:
-        list_entries = [row["name"].strip().upper() for row in csv.DictReader(f)]
 
     # Get source data.
     source_table = logic.source
@@ -127,55 +195,67 @@ def _execute_list_match(
         rows = con.execute(f"SELECT * FROM {source_table}").fetchall()
         cols = [d[0] for d in con.description] if con.description else []
     except Exception:
+        logger.warning("list_match: table '%s' not found for rule '%s'", source_table, rule.id)
         return []
 
     source_rows = [dict(zip(cols, r)) for r in rows]
     alerts: list[dict[str, Any]] = []
+    base_alert = {
+        "rule_id": rule.id,
+        "list_name": list_name,
+        "window_start": as_of,
+        "window_end": as_of,
+    }
 
     for row in source_rows:
         value = str(row.get(field, "")).strip().upper()
         if not value:
             continue
+        customer_id = row.get("customer_id", "")
 
-        if match_type == "exact":
-            if value in list_entries:
+        if match_type == "exact" and value in list_entries:
+            alerts.append(
+                {
+                    **base_alert,
+                    "customer_id": customer_id,
+                    "matched_name": value,
+                    "match_type": "exact",
+                    "match_score": 1.0,
+                }
+            )
+        elif match_type == "fuzzy":
+            result = _fuzzy_match(value, list_entries, threshold)
+            if result:
+                entry, score = result
                 alerts.append(
                     {
-                        "rule_id": rule.id,
-                        "customer_id": row.get("customer_id", ""),
+                        **base_alert,
+                        "customer_id": customer_id,
                         "matched_name": value,
-                        "list_name": list_name,
-                        "match_type": "exact",
-                        "match_score": 1.0,
-                        "window_start": as_of,
-                        "window_end": as_of,
+                        "list_entry": entry,
+                        "match_type": "fuzzy",
+                        "match_score": score,
                     }
                 )
-        elif match_type == "fuzzy":
-            # Simple token-overlap fuzzy matching (no external deps).
-            value_tokens = set(value.split())
-            for entry in list_entries:
-                entry_tokens = set(entry.split())
-                if not entry_tokens:
-                    continue
-                overlap = len(value_tokens & entry_tokens)
-                score = overlap / max(len(value_tokens), len(entry_tokens))
-                if score >= threshold:
-                    alerts.append(
-                        {
-                            "rule_id": rule.id,
-                            "customer_id": row.get("customer_id", ""),
-                            "matched_name": value,
-                            "list_entry": entry,
-                            "list_name": list_name,
-                            "match_type": "fuzzy",
-                            "match_score": round(score, 3),
-                            "window_start": as_of,
-                            "window_end": as_of,
-                        }
-                    )
-                    break  # One match per customer is sufficient.
     return alerts
+
+
+def _decide_disposition(severity: str, queue_next: list[str], idx: int) -> tuple[str, str]:
+    """Return (event, disposition) for a case based on severity and queue config."""
+    if severity in ("high", "critical"):
+        filing_queues = [q for q in queue_next if "str" in q or "sar" in q or "filing" in q]
+        if filing_queues:
+            return "escalated_to_str", filing_queues[0]
+        if queue_next:
+            return "escalated", queue_next[0]
+        return "closed", "closed_no_action"
+
+    # Medium/low — escalate every 3rd case, close the rest.
+    if idx % 3 == 0:
+        non_close = [q for q in queue_next if "closed" not in q]
+        if non_close:
+            return "escalated", non_close[0]
+    return "closed", "closed_no_action"
 
 
 def _simulate_case_resolution(
@@ -217,35 +297,8 @@ def _simulate_case_resolution(
 
         resolved_at = as_of + _timedelta(hours=resolution_hours)
 
-        # Decide disposition based on severity.
         severity = case.get("severity", "medium")
-        if severity in ("high", "critical"):
-            # High/critical → escalate to next queue or STR filing.
-            next_queues = queue_obj.next or []
-            str_queues = [q for q in next_queues if "str" in q or "sar" in q or "filing" in q]
-            if str_queues:
-                disposition = str_queues[0]
-                event = "escalated_to_str"
-            elif next_queues:
-                disposition = next_queues[0]
-                event = "escalated"
-            else:
-                disposition = "closed_no_action"
-                event = "closed"
-        else:
-            # Medium/low → close most, escalate some.
-            if idx % 3 == 0:
-                next_queues = queue_obj.next or []
-                non_close = [q for q in next_queues if "closed" not in q]
-                if non_close:
-                    disposition = non_close[0]
-                    event = "escalated"
-                else:
-                    disposition = "closed_no_action"
-                    event = "closed"
-            else:
-                disposition = "closed_no_action"
-                event = "closed"
+        event, disposition = _decide_disposition(severity, queue_obj.next or [], idx)
 
         # Record the resolution decision.
         ledger.append_decision(
@@ -312,19 +365,7 @@ def run_spec(
             alerts = scorer(con, as_of)
             alerts_by_rule[rule.id] = alerts
             ledger.record_alerts(rule.id, alerts)
-
-            for alert in alerts:
-                case = _build_case(rule, alert, spec, ledger.input_manifest)
-                ledger.record_case(case["case_id"], case)
-                case_ids.append(case["case_id"])
-                ledger.append_decision(
-                    {
-                        "event": "case_opened",
-                        "case_id": case["case_id"],
-                        "rule_id": rule.id,
-                        "queue": rule.escalate_to,
-                    }
-                )
+            _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)
             continue
 
         # --- list_match: screen against a reference list ---
@@ -339,18 +380,7 @@ def run_spec(
                 f"-- match: {rule.logic.match}\n",
             )
             ledger.record_alerts(rule.id, alerts)
-            for alert in alerts:
-                case = _build_case(rule, alert, spec, ledger.input_manifest)
-                ledger.record_case(case["case_id"], case)
-                case_ids.append(case["case_id"])
-                ledger.append_decision(
-                    {
-                        "event": "case_opened",
-                        "case_id": case["case_id"],
-                        "rule_id": rule.id,
-                        "queue": rule.escalate_to,
-                    }
-                )
+            _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)
             continue
 
         if rule.logic.type not in ("aggregation_window", "custom_sql"):
@@ -374,26 +404,24 @@ def run_spec(
         alerts_by_rule[rule.id] = alerts
         ledger.record_alerts(rule.id, alerts)
 
-        for alert in alerts:
-            case = _build_case(rule, alert, spec, ledger.input_manifest)
-            ledger.record_case(case["case_id"], case)
-            case_ids.append(case["case_id"])
-            ledger.append_decision(
-                {
-                    "event": "case_opened",
-                    "case_id": case["case_id"],
-                    "rule_id": rule.id,
-                    "queue": rule.escalate_to,
-                }
-            )
+        _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)
 
     # --- Simulate case resolution ---
     # Walk each case through the workflow queues to generate realistic
     # decision events, resolution times, and SLA compliance data.
     _simulate_case_resolution(spec, case_ids, ledger, as_of)
 
-    # Metrics are evaluated against the run's own artifacts so their values
-    # are part of the same evidence bundle as the alerts they describe.
+    return _finalize_run(spec, ledger, alerts_by_rule, case_ids, data)
+
+
+def _finalize_run(
+    spec: AMLSpec,
+    ledger: AuditLedger,
+    alerts_by_rule: dict[str, list[dict[str, Any]]],
+    case_ids: list[str],
+    data: dict[str, list[dict[str, Any]]],
+) -> RunResult:
+    """Evaluate metrics, render reports, and write the final manifest."""
     cases_rows: list[dict[str, Any]] = []
     for case_file in sorted((ledger.run_dir / "cases").glob("*.json")):
         cases_rows.append(json.loads(case_file.read_bytes()))

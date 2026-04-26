@@ -196,5 +196,43 @@ for cr in contract_results:
             col_rows.append(col_info)
         st.dataframe(pd.DataFrame(col_rows), use_container_width=True, hide_index=True)
 
+        # Contract compliance — check actual data matches declared schema.
+        if not df.empty:
+            schema_issues: list[str] = []
+            for col in contract.columns:
+                if col.name not in df.columns:
+                    schema_issues.append(f"Missing column: **{col.name}** (declared in contract)")
+                    continue
+                # Type checking.
+                series = df[col.name]
+                if col.type == "integer" and series.notna().any():
+                    non_int = series.dropna().apply(
+                        lambda x: (
+                            not isinstance(x, (int, float))
+                            or (isinstance(x, float) and x != int(x))
+                        )
+                    )
+                    if non_int.any():
+                        schema_issues.append(
+                            f"**{col.name}**: {int(non_int.sum())} values are not integers"
+                        )
+                if not col.nullable and series.isna().any():
+                    schema_issues.append(
+                        f"**{col.name}**: {int(series.isna().sum())} nulls in non-nullable column"
+                    )
+
+            # Check for undeclared columns.
+            declared = {c.name for c in contract.columns}
+            extra = set(df.columns) - declared
+            if extra:
+                schema_issues.append(f"Undeclared columns: {', '.join(sorted(extra))}")
+
+            if schema_issues:
+                st.markdown("**Contract Compliance Issues**")
+                for issue in schema_issues:
+                    st.markdown(f"- {issue}")
+            else:
+                st.markdown("**Contract Compliance:** All columns match declared schema.")
+
         # Freshness detail.
         st.markdown(f"**Freshness:** {cr['freshness_detail']}")

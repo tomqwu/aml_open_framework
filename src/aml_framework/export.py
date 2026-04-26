@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import zipfile
 from pathlib import Path
+
+logger = logging.getLogger("aml.export")
 
 
 def export_bundle(run_dir: Path, out_path: Path, spec_path: Path | None = None) -> Path:
@@ -31,6 +34,6 @@ def export_bundle(run_dir: Path, out_path: Path, spec_path: Path | None = None) 
                 matrix_md = render_control_matrix(spec)
                 zf.writestr("control_matrix.md", matrix_md)
             except Exception:
-                pass  # Don't fail export if control matrix generation fails.
+                logger.warning("Control matrix generation failed; skipping in export bundle")
 
     return out_path
