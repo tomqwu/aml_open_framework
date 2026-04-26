@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -62,6 +63,48 @@ def require_role(*allowed_roles: str):
     return _check
 
 
+# --- OIDC support stub ---
+# Set OIDC_ISSUER_URL to enable OIDC token validation instead of local JWT.
+# Example: OIDC_ISSUER_URL=https://login.microsoftonline.com/{tenant}/v2.0
+_OIDC_ISSUER = os.environ.get("OIDC_ISSUER_URL", "")
+
+
+def _verify_oidc_token(token: str) -> dict[str, Any]:  # pragma: no cover
+    """Validate a token against an OIDC identity provider.
+
+    Requires: pip install python-jose[cryptography]
+    In production, fetch JWKS from {issuer}/.well-known/openid-configuration.
+    """
+    try:
+        from jose import jwt as jose_jwt
+
+        # Fetch JWKS keys from the issuer's well-known endpoint.
+        import urllib.request
+
+        well_known_url = f"{_OIDC_ISSUER}/.well-known/openid-configuration"
+        config = json.loads(urllib.request.urlopen(well_known_url, timeout=5).read())
+        jwks_url = config["jwks_uri"]
+        jwks = json.loads(urllib.request.urlopen(jwks_url, timeout=5).read())
+
+        payload = jose_jwt.decode(
+            token,
+            jwks,
+            algorithms=["RS256"],
+            audience=os.environ.get("OIDC_AUDIENCE", ""),
+            issuer=_OIDC_ISSUER,
+        )
+        return {
+            "sub": payload.get("sub", ""),
+            "role": payload.get("roles", ["analyst"])[0] if payload.get("roles") else "analyst",
+            "tenant": payload.get("tid", "default"),
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"OIDC validation failed: {e}",
+        ) from e
+
+
 _security = HTTPBearer()
 
 
@@ -87,4 +130,6 @@ def verify_token(token: str) -> dict[str, Any]:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_security),
 ) -> dict[str, Any]:
+    if _OIDC_ISSUER:
+        return _verify_oidc_token(credentials.credentials)  # pragma: no cover
     return verify_token(credentials.credentials)
