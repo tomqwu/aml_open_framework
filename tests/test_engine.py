@@ -814,3 +814,100 @@ class TestLoadPerformance:
         # Conservative threshold to avoid flaky failures on slow CI runners.
         min_tps = int(os.environ.get("PERF_MIN_TPS_SMALL", "20"))
         assert txns_per_sec > min_tps, f"Too slow: {txns_per_sec:.0f} txns/sec (need >{min_tps})"
+
+
+# ---------------------------------------------------------------------------
+# Export with control matrix
+# ---------------------------------------------------------------------------
+
+
+class TestExportWithControlMatrix:
+    def test_export_includes_control_matrix(self, tmp_path):
+        from aml_framework.export import export_bundle
+
+        spec = load_spec(SPEC_CA)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        run_dir = Path(result.manifest["run_dir"])
+        out = tmp_path / "bundle.zip"
+        export_bundle(run_dir, out, spec_path=SPEC_CA)
+        import zipfile
+
+        with zipfile.ZipFile(out) as zf:
+            names = zf.namelist()
+            assert "control_matrix.md" in names
+            content = zf.read("control_matrix.md").decode()
+            assert len(content) > 50
+
+    def test_export_without_spec_path(self, tmp_path):
+        from aml_framework.export import export_bundle
+
+        spec = load_spec(SPEC_CA)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        run_dir = Path(result.manifest["run_dir"])
+        out = tmp_path / "bundle_no_spec.zip"
+        export_bundle(run_dir, out)
+        import zipfile
+
+        with zipfile.ZipFile(out) as zf:
+            assert "control_matrix.md" not in zf.namelist()
+
+
+# ---------------------------------------------------------------------------
+# Board PDF fallback path
+# ---------------------------------------------------------------------------
+
+
+class TestBoardPDFFallback:
+    def test_fallback_pdf_produces_valid_output(self):
+        from unittest.mock import patch
+
+        from aml_framework.generators.board_pdf import generate_board_pdf
+
+        spec = load_spec(SPEC_CA)
+        # Force ImportError on reportlab to trigger fallback
+        with patch(
+            "aml_framework.generators.board_pdf._build_reportlab_pdf",
+            side_effect=ImportError("no reportlab"),
+        ):
+            pdf_bytes = generate_board_pdf(spec=spec, metrics=[], cases=[])
+            assert pdf_bytes[:5] == b"%PDF-"
+            assert len(pdf_bytes) > 50
+
+
+# ---------------------------------------------------------------------------
+# Frameworks coverage (EU/UK tabs)
+# ---------------------------------------------------------------------------
+
+
+class TestFrameworksTabs:
+    def test_eu_tabs(self):
+        from aml_framework.dashboard.frameworks import get_framework_tabs
+
+        tabs = get_framework_tabs("EU")
+        labels = [t["label"] for t in tabs]
+        assert "AMLD6 Requirements" in labels
+        assert "Wolfsberg Principles" in labels
+
+    def test_uk_tabs(self):
+        from aml_framework.dashboard.frameworks import get_framework_tabs
+
+        tabs = get_framework_tabs("UK")
+        labels = [t["label"] for t in tabs]
+        # UK falls through to US/default path
+        assert "FinCEN BSA Pillars" in labels
+
+    def test_ca_tabs(self):
+        from aml_framework.dashboard.frameworks import get_framework_tabs
+
+        tabs = get_framework_tabs("CA")
+        labels = [t["label"] for t in tabs]
+        assert "PCMLTFA Pillars" in labels
+        assert "OSFI Guideline B-8" in labels

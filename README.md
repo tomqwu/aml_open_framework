@@ -322,6 +322,29 @@ and per-rule alert counts. With stored run history, shows trends over time.
 
 ![Comparative Analytics](docs/screenshots/19_comparative_analytics.png)
 
+### Spec Editor & Rule Builder
+
+Edit the AML spec YAML in-browser with live validation. The interactive
+**Rule Builder** generates YAML snippets for all 4 rule types (aggregation_window,
+custom_sql, list_match, python_ref) — configure fields, thresholds, and
+escalation targets through a form UI.
+
+![Spec Editor](docs/screenshots/20_spec_editor.png)
+
+### My Queue (Analyst Dashboard)
+
+Personal analyst dashboard showing assigned cases, open/resolved counts,
+SLA compliance percentage, and resolution time distribution. Select your
+queue to see cases by severity, recent activity log, and workload charts.
+
+![My Queue](docs/screenshots/21_my_queue.png)
+
+### Board PDF Export
+
+Generate a board-ready PDF report from the Executive Dashboard with program
+overview, key metrics (RAG-colored), case summary, and maturity assessment.
+Uses reportlab for professional formatting.
+
 ## User Workflows by Persona
 
 The same dashboard serves 6 distinct personas, each with a different workflow
