@@ -188,7 +188,7 @@ def export(
             raise typer.Exit(code=1)
         run_dir = candidates[0]
 
-    out_path = export_bundle(run_dir, out)
+    out_path = export_bundle(run_dir, out, spec_path=spec_path)
     console.print(f"[green]Bundle[/green] {out_path} (from {run_dir})")
 
 

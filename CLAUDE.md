@@ -97,7 +97,7 @@ The canonical contract is `schema/aml-spec.schema.json`. The Pydantic models in 
 
 ### Dashboard (`dashboard/`)
 
-Streamlit multi-page web app that runs the engine once on startup and caches results in `st.session_state`. 19 pages:
+Streamlit multi-page web app that runs the engine once on startup and caches results in `st.session_state`. 20 pages:
 - Executive Dashboard, Program Maturity (spider chart), Alert Queue (with CSV export + bulk actions), Case Investigation (timeline + Sankey + STR generator), Rule Performance, Risk Assessment (heatmaps), Audit & Evidence (search + tamper detection), Framework Alignment (FATF/FinCEN/PCMLTFA/OSFI/AMLD6/Wolfsberg), Transformation Roadmap (Gantt), Network Explorer (temporal correlation graph), Live Monitor (spec-derived screening), Sanctions Screening (list_match results), Model Performance (python_ref analytics), Data Quality (contract validation), Run History (stored runs), Rule Tuning (threshold what-if), Customer 360 (single-customer deep-dive).
 - `state.py` initializes session: `load_spec` → `generate_dataset` or CSV → `run_spec` → DataFrames.
 - `data_layer.py` holds consulting content (maturity model, framework mappings for 4 jurisdictions, roadmap phases).

@@ -18,3 +18,5 @@ COPY tests/ tests/
 RUN pip install --no-cache-dir -e ".[dev,dashboard,api]"
 
 EXPOSE 8000 8501
+
+CMD ["python", "-m", "uvicorn", "aml_framework.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
