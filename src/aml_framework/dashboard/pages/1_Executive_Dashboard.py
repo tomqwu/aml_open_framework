@@ -154,3 +154,16 @@ with col_summary:
 | **Reports generated** | {len(result.reports)} |
 """
     )
+
+    # Export report download.
+    audience_sel = st.session_state.get("selected_audience") or "svp"
+    matching_reports = [(rid, md) for rid, md in result.reports.items() if audience_sel in rid]
+    if matching_reports:
+        rid, md = matching_reports[0]
+        st.download_button(
+            f"Download {rid} report",
+            md,
+            f"{rid}.md",
+            "text/markdown",
+            use_container_width=True,
+        )

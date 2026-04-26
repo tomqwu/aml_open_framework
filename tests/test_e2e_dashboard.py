@@ -41,6 +41,7 @@ PAGES = [
     "Customer 360",
     "Typology Catalogue",
     "Comparative Analytics",
+    "Spec Editor",
 ]
 
 

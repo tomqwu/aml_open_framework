@@ -117,6 +117,7 @@ ALL_PAGES = [
         title="Comparative Analytics",
         icon=":material/trending_up:",
     ),
+    st.Page("pages/20_Spec_Editor.py", title="Spec Editor", icon=":material/edit_note:"),
 ]
 
 # Filter pages by audience if one is selected.

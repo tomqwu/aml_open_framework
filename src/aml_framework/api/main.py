@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import uuid
 from contextlib import asynccontextmanager
@@ -46,6 +47,32 @@ app = FastAPI(
     description="Spec-driven AML compliance automation — REST interface.",
     lifespan=lifespan,
 )
+
+# --- Rate limiting (simple in-memory) ---
+_request_counts: dict[str, list[float]] = {}
+_RATE_LIMIT = int(os.environ.get("API_RATE_LIMIT", "600"))  # requests per minute per IP
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    """Simple in-memory rate limiter."""
+    import time
+
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    window = _request_counts.setdefault(client_ip, [])
+    # Remove entries older than 60 seconds.
+    _request_counts[client_ip] = [t for t in window if now - t < 60]
+    if len(_request_counts[client_ip]) >= _RATE_LIMIT:
+        from starlette.responses import JSONResponse
+
+        return JSONResponse(
+            {"detail": "Rate limit exceeded. Try again later."},
+            status_code=429,
+        )
+    _request_counts[client_ip].append(now)
+    return await call_next(request)
+
 
 # --- OpenTelemetry tracing (optional) ---
 try:
@@ -172,9 +199,17 @@ async def create_run(
 
 @app.get("/api/v1/runs")
 async def get_runs(
+    limit: int = 50,
+    offset: int = 0,
     user: dict[str, Any] = Depends(get_current_user),
-) -> list[dict[str, Any]]:
-    return list_runs()
+) -> dict[str, Any]:
+    runs = list_runs()
+    return {
+        "items": runs[offset : offset + limit],
+        "total": len(runs),
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @app.get("/api/v1/runs/{run_id}")
