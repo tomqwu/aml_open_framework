@@ -144,7 +144,7 @@ Rate limiting: 600 requests/minute per IP (configurable via `API_RATE_LIMIT` env
 
 The framework includes a Streamlit web dashboard for interactive demos and
 stakeholder presentations. It runs the full engine on startup and presents
-results across 20 purpose-built pages.
+results across 21 purpose-built pages.
 
 ```bash
 pip install -e ".[dev,dashboard]"

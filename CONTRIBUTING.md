@@ -50,4 +50,4 @@ make test       # run unit + API tests (~20s)
 - **Never push to main without all tests passing locally**
 - **Dashboard modules must lazy-import `streamlit`** — unit-test CI only installs `.[dev]`
 - **Tests needing `jwt`, `fastapi`, or `streamlit` must use `pytest.mark.skipif` guards**
-- **Every new feature needs: tests, screenshots (if UI), README update, CLAUDE.md update**
+- **Every new feature needs: tests, screenshots (if UI), README update, CHANGELOG entry, CLAUDE.md update if architecture changes**
