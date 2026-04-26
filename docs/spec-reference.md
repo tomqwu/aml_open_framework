@@ -14,6 +14,8 @@ rules: [ ... ]              # detection rules, each with regulation refs
 workflow: { ... }           # reviewer queues + escalation paths
 reporting: { ... }          # regulator forms (optional)
 retention_policy: { ... }   # retention windows per artifact class (optional)
+metrics: [ ... ]            # program metrics with RAG bands (optional)
+reports: [ ... ]            # audience-routed reports (optional)
 ```
 
 ## `program`
@@ -55,10 +57,12 @@ data_contracts:
 Each rule has:
 
 - `id`, `name`, `severity` (`low | medium | high | critical`)
+- `status` — `active | experimental | deprecated` (default `active`)
 - `regulation_refs` — at least one; each with `citation` and `description`
 - `logic` — one of the declarative types below, or an escape hatch
 - `escalate_to` — initial queue id from `workflow.queues`
 - `evidence` — what to attach to the case file
+- `tags` — typology labels (e.g. `structuring`, `pep`); used by coverage metrics
 
 ### Logic type: `aggregation_window`
 
@@ -152,6 +156,73 @@ retention_policy:
   case_decisions: 5y
   raw_transactions: 7y  # depends on institution policy
 ```
+
+Duration suffixes accepted by retention values: `s`, `m`, `h`, `d`, `y`.
+
+## `metrics`
+
+Program metrics with RAG bands. Each metric has an `id`, `category`
+(`operational | effectiveness | risk | regulatory | delivery`), `audience`
+(any of `svp`, `vp`, `director`, `manager`, `pm`, `developer`, `business`,
+`auditor`, `analyst`), and a `formula`.
+
+```yaml
+metrics:
+  - id: total_alerts
+    name: Total Alerts
+    category: operational
+    audience: [manager, director]
+    owner: head_of_aml_ops
+    unit: count
+    formula: { type: count, source: alerts }
+    target: { value: 100 }
+    thresholds:
+      green: { lte: 100 }
+      amber: { lte: 200 }
+      red:   { gt: 200 }
+
+  - id: alert_to_sar_rate
+    name: Alert-to-SAR Conversion
+    category: regulatory
+    audience: [vp, auditor]
+    formula:
+      type: ratio
+      numerator:   { type: count, source: cases, filter: { outcome: filed } }
+      denominator: { type: count, source: alerts }
+
+  - id: typology_coverage
+    name: Typology Coverage
+    category: effectiveness
+    audience: [director]
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+```
+
+Formula types: `count`, `sum`, `ratio`, `coverage`, `sql`. See
+[`metrics-framework.md`](metrics-framework.md) for RAG semantics and audience
+routing.
+
+## `reports`
+
+Audience-routed report definitions referencing metric ids.
+
+```yaml
+reports:
+  - id: svp_exec_brief
+    title: SVP Executive Brief
+    audience: svp
+    cadence: quarterly
+    sections:
+      - title: Program Health
+        metrics: [total_alerts, alert_to_sar_rate, typology_coverage]
+        commentary: Quarterly program-level RAG.
+```
+
+Cadences: `daily | weekly | monthly | quarterly | annual | on_demand`. Each
+section's `metrics` list must reference declared `metrics[*].id` values —
+cross-reference integrity is enforced at validation time.
 
 ## Versioning
 
