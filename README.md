@@ -109,11 +109,42 @@ aml api --port 8000                                   # launch REST API
 
 Data sources: `--data-source synthetic` (default), `csv`, `parquet`, `duckdb`, `s3`, `gcs`, `snowflake`, `bigquery`.
 
+### REST API
+
+```bash
+aml api --port 8000
+# Interactive docs: http://localhost:8000/docs (Swagger UI)
+```
+
+```bash
+# Login (demo users: admin, analyst, auditor, manager)
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r .access_token)
+
+# Create a run
+curl -X POST http://localhost:8000/api/v1/runs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"spec_path":"examples/canadian_schedule_i_bank/aml.yaml","seed":42}'
+
+# List runs
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/runs
+
+# Validate a spec
+curl -X POST http://localhost:8000/api/v1/validate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"spec_path":"examples/eu_bank/aml.yaml"}'
+```
+
+Rate limiting: 600 requests/minute per IP (configurable via `API_RATE_LIMIT` env var).
+
 ## Interactive Dashboard
 
 The framework includes a Streamlit web dashboard for interactive demos and
 stakeholder presentations. It runs the full engine on startup and presents
-results across 19 purpose-built pages.
+results across 20 purpose-built pages.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -458,7 +489,7 @@ src/aml_framework/
   metrics/                      Metric evaluation engine + report rendering
   cases/                        Case files, reviewer workflow artifacts
   data/                         Synthetic data generator with planted positives
-  dashboard/                    Streamlit web dashboard (19 pages)
+  dashboard/                    Streamlit web dashboard (20 pages)
   models/                       ML scoring callables for python_ref rules
   api/                          FastAPI REST layer with JWT auth
   cli.py                        `aml` command-line entry point
@@ -497,7 +528,7 @@ pytest tests/
 |-------|-------|----------------|
 | **Unit/Integration** | 27 | Spec validation, all rule types (aggregation_window, custom_sql, python_ref, list_match), metrics, planted positives, reproducibility |
 | **API E2E** | 9 | FastAPI health, JWT auth (login/reject/all users), run creation, error handling |
-| **Dashboard E2E (Playwright)** | 23 | All 19 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
+| **Dashboard E2E (Playwright)** | 23 | All 20 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
 
 ## Status
 

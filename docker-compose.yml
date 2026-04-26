@@ -34,7 +34,7 @@ services:
     command: >
       python -m streamlit run src/aml_framework/dashboard/app.py
       --server.port 8501 --server.headless true
-      -- examples/canadian_schedule_i_bank/aml.yaml 42
+      -- ${SPEC_PATH:-examples/canadian_schedule_i_bank/aml.yaml} 42
     ports:
       - "8501:8501"
 

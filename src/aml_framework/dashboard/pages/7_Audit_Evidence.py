@@ -36,6 +36,17 @@ with c3:
 with c4:
     kpi_card("Engine Version", manifest.get("engine_version", "N/A"), "#6b7280")
 
+# --- Integrity verification ---
+st.markdown("<br>", unsafe_allow_html=True)
+if st.button("Verify Decision Log Integrity", type="primary"):
+    from aml_framework.engine.audit import AuditLedger
+
+    valid, msg = AuditLedger.verify_decisions(run_dir)
+    if valid:
+        st.success(f"Integrity verified: {msg}")
+    else:
+        st.error(f"INTEGRITY CHECK FAILED: {msg}")
+
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Hash Verification ---

@@ -1,4 +1,4 @@
-.PHONY: install test lint run dashboard api docker clean help
+.PHONY: install test lint run dashboard api docker clean help demo
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -49,6 +49,16 @@ diff: ## Compare US and Canadian specs
 
 export-alerts: ## Export alerts from latest run to CSV
 	aml export-alerts examples/canadian_schedule_i_bank/aml.yaml
+
+demo: ## One-command end-to-end demo (validate, run, launch dashboard)
+	@echo "Validating all specs..."
+	@aml validate examples/canadian_schedule_i_bank/aml.yaml
+	@echo "Running engine with sample data..."
+	@aml run examples/canadian_schedule_i_bank/aml.yaml --seed 42
+	@echo ""
+	@echo "Launching dashboard at http://localhost:8501"
+	@echo "Press Ctrl+C to stop."
+	@aml dashboard examples/canadian_schedule_i_bank/aml.yaml
 
 clean: ## Remove build artifacts and temp files
 	rm -rf .artifacts/ dist/ build/ *.egg-info .pytest_cache .ruff_cache htmlcov
