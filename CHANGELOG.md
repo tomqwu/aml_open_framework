@@ -13,6 +13,8 @@ that introduced them.
   top-level `metrics` and `reports`).
 - Add `CHANGELOG.md`, `docs/deployment.md`, `docs/api-reference.md`.
 - Update repo-layout block to surface `docs/case-studies/`, `docs/pitch/`.
+- README dashboard intro now says "21 purpose-built pages" (was 20).
+- `CONTRIBUTING.md` checklist now requires a `CHANGELOG.md` entry per feature.
 
 ## 2026-04-26 — PR #17 (`feature/docs-screenshots-coverage`)
 
