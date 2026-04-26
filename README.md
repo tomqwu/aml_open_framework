@@ -489,7 +489,7 @@ src/aml_framework/
   metrics/                      Metric evaluation engine + report rendering
   cases/                        Case files, reviewer workflow artifacts
   data/                         Synthetic data generator with planted positives
-  dashboard/                    Streamlit web dashboard (20 pages)
+  dashboard/                    Streamlit web dashboard (21 pages)
   models/                       ML scoring callables for python_ref rules
   api/                          FastAPI REST layer with JWT auth
   cli.py                        `aml` command-line entry point
@@ -511,11 +511,8 @@ docs/
 The framework has three layers of tests:
 
 ```bash
-# Unit + integration tests (27 tests, no external deps)
-pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_api.py
-
-# API e2e tests via FastAPI TestClient (9 tests, needs: pip install -e ".[api]")
-pytest tests/test_e2e_api.py
+# Unit + API tests (~250 tests across 8 modules)
+pytest tests/ --ignore=tests/test_e2e_dashboard.py -q
 
 # Dashboard e2e tests via Playwright (21 tests, needs: pip install playwright && python -m playwright install chromium)
 pytest tests/test_e2e_dashboard.py
@@ -528,7 +525,7 @@ pytest tests/
 |-------|-------|----------------|
 | **Unit/Integration** | 27 | Spec validation, all rule types (aggregation_window, custom_sql, python_ref, list_match), metrics, planted positives, reproducibility |
 | **API E2E** | 9 | FastAPI health, JWT auth (login/reject/all users), run creation, error handling |
-| **Dashboard E2E (Playwright)** | 23 | All 20 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
+| **Dashboard E2E (Playwright)** | 23 | All 21 pages render without errors, sidebar nav, KPI cards, charts, network graph, sanctions matches, model scores, data quality checks |
 
 ## Status
 

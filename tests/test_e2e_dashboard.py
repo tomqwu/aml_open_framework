@@ -42,6 +42,7 @@ PAGES = [
     "Typology Catalogue",
     "Comparative Analytics",
     "Spec Editor",
+    "My Queue",
 ]
 
 

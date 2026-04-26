@@ -118,6 +118,7 @@ ALL_PAGES = [
         icon=":material/trending_up:",
     ),
     st.Page("pages/20_Spec_Editor.py", title="Spec Editor", icon=":material/edit_note:"),
+    st.Page("pages/21_My_Queue.py", title="My Queue", icon=":material/assignment_ind:"),
 ]
 
 # Filter pages by audience if one is selected.

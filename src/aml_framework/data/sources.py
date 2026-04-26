@@ -8,12 +8,15 @@ the CLI/API boundary so the engine doesn't need to know about connectors.
 from __future__ import annotations
 
 import csv
+import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
 from aml_framework.spec.models import AMLSpec, ColumnType
+
+logger = logging.getLogger("aml.data.sources")
 
 # Type parsers for CSV string values.
 _PARSERS: dict[ColumnType, Any] = {
@@ -149,6 +152,7 @@ def load_duckdb_source(
             cols = [d[0] for d in con.description] if con.description else []
             data[contract.id] = [dict(zip(cols, r)) for r in rows]
         except Exception:
+            logger.warning("duckdb: failed to load contract '%s'", contract.id)
             data[contract.id] = []
 
     con.close()
@@ -233,8 +237,8 @@ def _load_warehouse_via_duckdb(  # pragma: no cover
     if connection_string:
         try:
             con.execute(f"CALL {extension}_attach('{connection_string}')")
-        except Exception:
-            pass  # pragma: no cover don't need explicit attach.
+        except Exception:  # pragma: no cover
+            logger.debug("%s_attach not required for this connection", extension)
 
     for contract in spec.data_contracts:
         try:
@@ -242,6 +246,7 @@ def _load_warehouse_via_duckdb(  # pragma: no cover
             cols = [d[0] for d in con.description] if con.description else []
             data[contract.id] = [dict(zip(cols, r)) for r in rows]
         except Exception:
+            logger.warning("warehouse: failed to load contract '%s' via %s", contract.id, extension)
             data[contract.id] = []
 
     con.close()
@@ -273,7 +278,8 @@ def _load_cloud_storage(  # pragma: no cover
                 cols = [d[0] for d in con.description] if con.description else []
                 data[contract.id] = [dict(zip(cols, r)) for r in rows]
                 break
-            except Exception:
+            except Exception:  # pragma: no cover
+                logger.debug("cloud: %s.%s not found at %s", contract.id, ext, bucket_path)
                 continue
         if contract.id not in data:
             data[contract.id] = []

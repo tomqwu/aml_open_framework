@@ -170,4 +170,3 @@ class AuditLedger:
         if computed == stored_hash:
             return True, "Decision log integrity verified"
         return False, f"Tamper detected: stored={stored_hash[:16]}... computed={computed[:16]}..."
-        return manifest

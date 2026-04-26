@@ -29,6 +29,125 @@ try:
 except Exception:
     current_yaml = "# Could not load spec file"
 
+# --- Interactive Rule Builder ---
+with st.expander("Rule Builder — create a new rule interactively"):
+    rb_col1, rb_col2 = st.columns(2)
+    with rb_col1:
+        rb_id = st.text_input("Rule ID", value="new_rule", help="Unique identifier (snake_case)")
+        rb_name = st.text_input("Rule Name", value="New Detection Rule")
+        rb_severity = st.selectbox("Severity", ["low", "medium", "high", "critical"], index=1)
+        rb_status = st.selectbox("Status", ["active", "draft", "disabled"], index=0)
+        rb_escalate = st.selectbox(
+            "Escalate to",
+            [q.id for q in spec.workflow.queues],
+            index=0,
+        )
+    with rb_col2:
+        rb_type = st.selectbox(
+            "Logic Type",
+            ["aggregation_window", "custom_sql", "list_match", "python_ref"],
+            index=0,
+        )
+        rb_source = st.selectbox(
+            "Source Table",
+            [c.id for c in spec.data_contracts],
+            index=0,
+        )
+        if rb_type == "aggregation_window":
+            rb_window = st.text_input("Window", value="30d", help="e.g. 30d, 24h, 7d")
+            rb_group = st.text_input("Group By", value="customer_id")
+            rb_having = st.text_input("Having (JSON)", value='{"sum_amount": {"gte": 10000}}')
+        elif rb_type == "custom_sql":
+            rb_sql_template = st.text_area(
+                "SQL Template",
+                value="SELECT customer_id, SUM(amount) AS sum_amount\nFROM {source}\nWHERE booked_at >= TIMESTAMP '{window_start}'\nGROUP BY customer_id\nHAVING SUM(amount) >= 10000",
+                height=120,
+            )
+        elif rb_type == "list_match":
+            rb_list = st.text_input(
+                "List Name", value="sanctions", help="CSV file name in data/lists/"
+            )
+            rb_field = st.text_input("Match Field", value="full_name")
+            rb_match = st.selectbox("Match Type", ["exact", "fuzzy"])
+        elif rb_type == "python_ref":
+            rb_callable = st.text_input(
+                "Callable", value="aml_framework.models.scoring:heuristic_risk_scorer"
+            )
+            rb_model_id = st.text_input("Model ID", value="risk_scorer_v1")
+
+    # Generate YAML snippet.
+    if st.button("Generate Rule YAML"):
+        import json as _json
+
+        snippet_lines = [
+            f"  - id: {rb_id}",
+            f'    name: "{rb_name}"',
+            f"    severity: {rb_severity}",
+            f"    status: {rb_status}",
+            f"    escalate_to: {rb_escalate}",
+            "    evidence: []",
+            "    regulation_refs: []",
+            "    logic:",
+        ]
+        if rb_type == "aggregation_window":
+            snippet_lines.extend(
+                [
+                    "      type: aggregation_window",
+                    f"      source: {rb_source}",
+                    f"      window: {rb_window}",
+                    f"      group_by: [{rb_group}]",
+                ]
+            )
+            try:
+                having = _json.loads(rb_having)
+                for k, v in having.items():
+                    if isinstance(v, dict):
+                        for op, val in v.items():
+                            snippet_lines.append("      having:")
+                            snippet_lines.append(f"        {k}:")
+                            snippet_lines.append(f"          {op}: {val}")
+                            break
+                    else:
+                        snippet_lines.append("      having:")
+                        snippet_lines.append(f"        {k}: {v}")
+            except _json.JSONDecodeError:
+                snippet_lines.append(f"      having: {rb_having}")
+        elif rb_type == "custom_sql":
+            snippet_lines.extend(
+                [
+                    "      type: custom_sql",
+                    f"      source: {rb_source}",
+                    "      sql: |",
+                ]
+            )
+            for sql_line in rb_sql_template.splitlines():
+                snippet_lines.append(f"        {sql_line}")
+        elif rb_type == "list_match":
+            snippet_lines.extend(
+                [
+                    "      type: list_match",
+                    f"      source: {rb_source}",
+                    f"      list: {rb_list}",
+                    f"      field: {rb_field}",
+                    f"      match: {rb_match}",
+                ]
+            )
+        elif rb_type == "python_ref":
+            snippet_lines.extend(
+                [
+                    "      type: python_ref",
+                    f'      callable: "{rb_callable}"',
+                    f"      model_id: {rb_model_id}",
+                    '      model_version: "1.0"',
+                ]
+            )
+
+        snippet = "\n".join(snippet_lines)
+        st.code(snippet, language="yaml")
+        st.caption("Copy this snippet and paste it into the rules section of your spec below.")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
 # --- Editor ---
 st.markdown("### YAML Editor")
 edited_yaml = st.text_area(
