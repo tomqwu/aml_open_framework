@@ -238,7 +238,7 @@ def _build_fallback_pdf(
 ) -> bytes:
     """Minimal text-based PDF when reportlab is not available."""
     lines = [
-        f"AML Program Status Report — {spec.program.name}",
+        f"AML Program Status Report - {spec.program.name}",
         f"Jurisdiction: {spec.program.jurisdiction} / {spec.program.regulator}",
         f"Owner: {spec.program.owner}",
         "",

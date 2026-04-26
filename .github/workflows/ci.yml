@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_api.py -q
+      - run: pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_api.py -q
 
   api-tests:
     runs-on: ubuntu-latest
@@ -39,7 +39,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev,api]"
-      - run: pytest tests/test_e2e_api.py -q
+      - run: pytest tests/test_api.py -q
 
   e2e-dashboard:
     runs-on: ubuntu-latest
@@ -61,5 +61,4 @@ jobs:
       - run: |
           docker run --rm aml-framework:test \
             python -m pytest tests/ \
-            --ignore=tests/test_e2e_dashboard.py \
-            --ignore=tests/test_e2e_api.py -q
+            --ignore=tests/test_e2e_dashboard.py -q
