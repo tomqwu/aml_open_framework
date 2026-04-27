@@ -426,12 +426,11 @@ def run_spec(
             module_path, func_name = rule.logic.callable.split(":")
             allowed = _allowed_python_ref_prefixes()
             if not any(module_path == p.rstrip(".") or module_path.startswith(p) for p in allowed):
+                # Spec-level violation — fail fast, this isn't a runtime fault.
                 raise ValueError(
                     f"python_ref module '{module_path}' is not under an allowed prefix "
                     f"({', '.join(allowed)}). Set AML_PYTHON_REF_PREFIX to extend."
                 )
-            mod = importlib.import_module(module_path)
-            scorer = getattr(mod, func_name)
             ledger.record_rule_sql(
                 rule.id,
                 f"-- rule '{rule.id}' executed via python_ref\n"
@@ -439,7 +438,32 @@ def run_spec(
                 f"-- model_id: {rule.logic.model_id}\n"
                 f"-- model_version: {rule.logic.model_version}\n",
             )
-            alerts = scorer(con, as_of)
+            try:
+                mod = importlib.import_module(module_path)
+                scorer = getattr(mod, func_name)
+                alerts = scorer(con, as_of)
+            except Exception as exc:
+                # A scorer that raises (missing module, missing attr, runtime
+                # error inside the model) must not abort the whole run — that
+                # would leave the audit ledger half-written. Log, record zero
+                # alerts, emit a rule_failed event, continue.
+                logger.exception(
+                    "python_ref rule '%s' failed: %s — recording zero alerts",
+                    rule.id,
+                    exc,
+                )
+                alerts = []
+                alerts_by_rule[rule.id] = alerts
+                ledger.record_alerts(rule.id, alerts)
+                ledger.append_decision(
+                    {
+                        "event": "rule_failed",
+                        "rule_id": rule.id,
+                        "logic_type": "python_ref",
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+                continue
             alerts_by_rule[rule.id] = alerts
             ledger.record_alerts(rule.id, alerts)
             _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)

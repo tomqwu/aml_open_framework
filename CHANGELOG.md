@@ -25,6 +25,14 @@ that introduced them.
 - 9 new tests under `TestFuzzyMatcher` cover accents, typos, suffixes,
   transposed tokens, the genuinely-different-name negative case, and the
   best-of-many tie-break.
+- **`python_ref` error boundary** (`engine/runner.py`): a scorer that raises
+  (missing module, missing attribute, runtime exception inside the model)
+  no longer aborts the whole run mid-write. The engine logs the exception,
+  records zero alerts for that rule, appends a `rule_failed` decision event
+  with the error class + message, and continues with the remaining rules.
+  The audit ledger now reflects which rules failed instead of being left
+  partially written. Spec-level violations (allow-list miss) still raise —
+  those indicate a bad spec, not a runtime fault.
 
 ### Refactor
 - **`metrics/engine._compute_sql_proxy` split** — the 110-line keyword-dispatch
