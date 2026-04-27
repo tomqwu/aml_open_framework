@@ -33,6 +33,31 @@ with st.sidebar:
     )
     st.divider()
 
+    # Tenant selector — only shown when multiple tenants are configured AND
+    # the dashboard wasn't launched with an explicit CLI spec path. Single-
+    # tenant deployments and `aml dashboard <spec>` invocations see no
+    # selector (zero added UI noise for the common case).
+    all_tenants = st.session_state.get("all_tenants", [])
+    active_tenant = st.session_state.get("active_tenant")
+    if len(all_tenants) > 1 and active_tenant is not None:
+        tenant_ids = [t.id for t in all_tenants]
+        labels = {t.id: t.display_name for t in all_tenants}
+        current_idx = tenant_ids.index(active_tenant.id)
+        selected = st.selectbox(
+            "Tenant",
+            options=tenant_ids,
+            index=current_idx,
+            format_func=lambda tid: labels.get(tid, tid),
+            help="Switch between configured AML programs. "
+            "Display-only — server-side authorization lives in the REST API.",
+        )
+        if selected != active_tenant.id:
+            # Trigger re-run of the engine for the newly selected tenant.
+            st.session_state["selected_tenant_id"] = selected
+            st.session_state.pop("active_cache_key", None)
+            st.rerun()
+        st.divider()
+
     # Program info as a compact block
     jurisdiction_flag = {"CA": "CA", "US": "US", "UK": "UK", "EU": "EU"}.get(
         spec.program.jurisdiction, spec.program.jurisdiction
