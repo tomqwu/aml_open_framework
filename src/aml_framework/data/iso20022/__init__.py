@@ -36,6 +36,7 @@ Design
 from aml_framework.data.iso20022.parser import (
     Pacs008Parser,
     Pacs009Parser,
+    Pain001Parser,
     load_iso20022_dir,
     parse_iso20022_xml,
 )
@@ -43,6 +44,7 @@ from aml_framework.data.iso20022.parser import (
 __all__ = [
     "Pacs008Parser",
     "Pacs009Parser",
+    "Pain001Parser",
     "parse_iso20022_xml",
     "load_iso20022_dir",
 ]

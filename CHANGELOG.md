@@ -8,6 +8,62 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **pain.001 corporate-batch ingestion**
+  (`data/iso20022/parser.py:Pain001Parser`,
+  `data/iso20022/sample_pain001.xml`). Round-5 PR #4 of 5 — extends
+  PR #56's parser module. **Wolfsberg Group's Feb 2026
+  correspondent-banking guidance** flagged corporate-banking AML as
+  the surveillance gap: bulk pain.001 files (Customer Credit
+  Transfer Initiation) often slip past per-transaction monitoring
+  because the debtor + KYC context is shared at the file level
+  rather than repeated per row. New `Pain001Parser` consumes
+  `<CstmrCdtTrfInitn>` payloads and produces dicts conforming to
+  the same `txn` data contract as pacs.008/009 — engine + every
+  downstream rule type works unchanged. Per-row mapping mirrors
+  PR #56 with two structural differences:
+  - The **debtor block lives at the `<PmtInf>` level** (Payment
+    Information group), not per `<CdtTrfTxInf>`. The parser
+    propagates `customer_id` / `debtor_iban` / `debtor_country` /
+    `debtor_bic` / `charge_bearer` / `requested_execution_date`
+    from each parent `<PmtInf>` down to all child transfers in
+    that group. A single corporate file can carry multiple
+    `<PmtInf>` blocks with different debtors (e.g. multi-currency
+    multi-account disbursements); each group's debtor is correctly
+    isolated.
+  - The amount lives in `<Amt>/<InstdAmt Ccy=...>` instead of
+    `<IntrBkSttlmAmt>`; new `_extract_pain001_amount()` helper
+    handles the difference.
+  - **UETR is empty** on pain.001 rows (the message is
+    customer-initiated; the FI assigns UETR when forwarding as
+    pacs.008). Travel-rule validator (PR #57) treats missing UETR
+    as informational, not a finding.
+  Two new pain.001-specific extras preserved on every row:
+  `payment_information_id` (operator-supplied batch id) and
+  `requested_execution_date` (corporate's intended booking date,
+  may differ from FI booking date). Auto-detect dispatch in
+  `parse_iso20022_xml` now: pain.001 → pacs.009 → pacs.008
+  fallback. The `iso20022` source type from PR #56 picks pain.001
+  files up automatically — the directory walk + dispatcher already
+  iterate every `*.xml` under `data_dir`.
+  Bundled `sample_pain001.xml` covers ACME GMBH submitting one
+  corporate batch with 2 `<PmtInf>` groups (different execution
+  dates) carrying 4 transfers total: SUPP supplier payment to FR,
+  SALA payroll, two INVS transfers to a CH offshore vehicle. This
+  exercises shared-debtor propagation, multi-PmtInf grouping,
+  three different purpose codes, and cross-border to non-EEA.
+  29 new tests under `TestPain001Parser` (4-row extraction +
+  shared-debtor + EndToEndId / amount / currency / purpose / BIC /
+  IBAN / ReqdExctnDt / payment_information_id / charge-bearer
+  inheritance / empty-UETR / msg_id / channel + direction
+  constants / structured remittance), `TestEdgeCases` (minimal
+  message / missing optionals / malformed XML / no PmtInf / PmtInf
+  without transfers / multiple PmtInf with different debtors /
+  namespace-agnostic / fallback txn_id), `TestAutoDetect` (pain.001
+  dispatch), `TestMixedIngestionDir` (loads pain.001 alongside
+  pacs.008 in the same dir), and `TestComposesWithTravelRule`
+  (full-fields rows produce zero R.16 alerts; stripping
+  beneficiary IBAN fires exactly one alert with
+  `beneficiary_account` in `missing_fields`).
 - **FATF R.16 Travel Rule field validator**
   (`models/travel_rule.py`, `examples/eu_bank/aml.yaml`). Round-5
   PR #2 of 5 — composes directly with PR #56 ISO 20022 ingestion.

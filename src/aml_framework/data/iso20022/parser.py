@@ -255,6 +255,154 @@ class Pacs009Parser(_BaseParser):
 
 
 # ---------------------------------------------------------------------------
+# pain.001 — Customer Credit Transfer Initiation (corporate batches)
+# ---------------------------------------------------------------------------
+#
+# Round-5 PR #4. pacs.008/009 (PRs #56 above) are FI-to-FI inter-bank
+# messages. pain.001 is the **corporate-banking** equivalent: a single
+# corporate customer submits one batch with debtor info at the top and
+# many beneficiary credit transfers underneath. Wolfsberg Group's Feb
+# 2026 correspondent-banking guidance flagged this layer as the
+# surveillance gap — bulk corporate files often slip past per-txn
+# monitoring because the debtor + KYC context is shared at the file
+# level, not repeated per row.
+#
+# pain.001 structure:
+#   <Document>/<CstmrCdtTrfInitn>
+#     <GrpHdr>                      (MsgId, CtrlSum, NbOfTxs, ...)
+#     <PmtInf>                       (one per execution date / debtor)
+#       <PmtInfId>                   (payment-information id)
+#       <ReqdExctnDt>                (requested execution date)
+#       <Dbtr>/<Nm>                  (debtor — shared across all CdtTrfTxInf)
+#       <DbtrAcct>/<Id>/<IBAN>
+#       <DbtrAgt>/<FinInstnId>/<BICFI>
+#       <CdtTrfTxInf>                (one per beneficiary transfer)
+#         <PmtId>/<EndToEndId>
+#         <Amt>/<InstdAmt Ccy="EUR">
+#         <CdtrAgt>/<FinInstnId>/<BICFI>
+#         <Cdtr>/<Nm>
+#         <CdtrAcct>/<Id>/<IBAN>
+#         <RmtInf>/<Strd>
+
+
+def _extract_pain001_amount(parent: ET.Element) -> tuple[Decimal, str]:
+    """pain.001 uses `<Amt>/<InstdAmt Ccy=...>` instead of pacs.008's
+    `<IntrBkSttlmAmt>`. Returns (amount, currency)."""
+    amt_block = _find_local(parent, "Amt")
+    if amt_block is None:
+        return Decimal("0"), ""
+    instd = _find_local(amt_block, "InstdAmt")
+    if instd is None:
+        return Decimal("0"), ""
+    return _decimal(instd.text), instd.attrib.get("Ccy", "")
+
+
+def _normalise_pain001_tx(
+    tx: ET.Element,
+    *,
+    pmt_inf: ET.Element,
+    msg_id: str,
+    pmt_inf_id: str,
+    seq: int,
+    debtor: dict[str, str],
+    debtor_iban: str,
+    debtor_bic: str,
+    execution_date: datetime | None,
+) -> dict[str, Any]:
+    """Map one `<CdtTrfTxInf>` inside a `<PmtInf>` to a txn dict.
+
+    The debtor block is taken from the parent `<PmtInf>` (shared
+    across all transfers in this corporate batch) — that's the key
+    structural difference vs pacs.008/009 where each transfer carries
+    its own debtor.
+    """
+    pmt_id = _find_local(tx, "PmtId")
+    end_to_end = _text(_find_local(pmt_id, "EndToEndId")) if pmt_id is not None else ""
+    instr_id = _text(_find_local(pmt_id, "InstrId")) if pmt_id is not None else ""
+    txn_id = end_to_end or instr_id or f"{msg_id}-{pmt_inf_id}-{seq}"
+
+    amount, currency = _extract_pain001_amount(tx)
+    creditor = _extract_party(tx, "Cdtr")
+
+    return {
+        "txn_id": txn_id,
+        "customer_id": debtor["name"] or f"UNKNOWN-{msg_id}-{seq}",
+        "amount": amount,
+        "currency": currency,
+        "channel": "wire",
+        "direction": "out",
+        "booked_at": execution_date,
+        "counterparty_name": creditor["name"],
+        "counterparty_country": creditor["country"],
+        "counterparty_account": _extract_account_iban(tx, "CdtrAcct"),
+        # pain.001 doesn't carry UETR — it's a customer-initiated message;
+        # UETR is assigned by the FI when it forwards as pacs.008.
+        "uetr": "",
+        "msg_id": msg_id,
+        "msg_kind": "pain.001",
+        "purpose_code": _extract_purpose_code(tx),
+        "debtor_iban": debtor_iban,
+        "debtor_bic": debtor_bic,
+        "creditor_bic": _extract_agent_bic(tx, "CdtrAgt"),
+        "instructing_agent": "",
+        "instructed_agent": "",
+        "charge_bearer": _text(_find_local(tx, "ChrgBr")) or _text(_find_local(pmt_inf, "ChrgBr")),
+        "debtor_country": debtor["country"],
+        "structured_remittance": _extract_structured_remittance(tx),
+        # pain.001-specific extras for downstream corporate-banking analytics:
+        "payment_information_id": pmt_inf_id,
+        "requested_execution_date": execution_date,
+    }
+
+
+class Pain001Parser:
+    """pain.001 — Customer Credit Transfer Initiation (corporate batches).
+
+    Output rows conform to the same `txn` data contract as pacs.008/009,
+    so the downstream engine + travel-rule validator + purpose-code
+    library all work unchanged.
+    """
+
+    msg_kind = "pain.001"
+
+    def parse(self, payload: bytes | str) -> list[dict[str, Any]]:
+        text = payload.decode("utf-8", "replace") if isinstance(payload, bytes) else payload
+        try:
+            root = ET.fromstring(text)
+        except ET.ParseError:
+            return []
+
+        grp_hdr = _find_local(root, "GrpHdr")
+        msg_id = _text(_find_local(grp_hdr, "MsgId")) if grp_hdr is not None else ""
+
+        out: list[dict[str, Any]] = []
+        for pmt_inf in _find_all_local(root, "PmtInf"):
+            pmt_inf_id = _text(_find_local(pmt_inf, "PmtInfId"))
+            execution_date = _parse_iso_date(_text(_find_local(pmt_inf, "ReqdExctnDt")))
+            debtor = _extract_party(pmt_inf, "Dbtr")
+            debtor_iban = _extract_account_iban(pmt_inf, "DbtrAcct")
+            debtor_bic = _extract_agent_bic(pmt_inf, "DbtrAgt")
+            for seq, tx in enumerate(_find_all_local(pmt_inf, "CdtTrfTxInf"), start=1):
+                out.append(
+                    _normalise_pain001_tx(
+                        tx,
+                        pmt_inf=pmt_inf,
+                        msg_id=msg_id,
+                        pmt_inf_id=pmt_inf_id,
+                        seq=seq,
+                        debtor=debtor,
+                        debtor_iban=debtor_iban,
+                        debtor_bic=debtor_bic,
+                        execution_date=execution_date,
+                    )
+                )
+        return out
+
+    def load(self, path: str | Path) -> list[dict[str, Any]]:
+        return self.parse(Path(path).read_bytes())
+
+
+# ---------------------------------------------------------------------------
 # Auto-detect helper
 # ---------------------------------------------------------------------------
 
@@ -262,11 +410,11 @@ class Pacs009Parser(_BaseParser):
 def parse_iso20022_xml(payload: bytes | str) -> list[dict[str, Any]]:
     """Auto-detect message kind from the root element and dispatch.
 
-    Falls back to pacs.008 layout for unknown variants — both message
-    types share the `<CdtTrfTxInf>` block shape, so the parser still
-    extracts usable rows even if `msg_kind` is mislabelled.
+    Dispatch order: pain.001 → pacs.009 → pacs.008 fallback.
     """
     text = payload.decode("utf-8", "replace") if isinstance(payload, bytes) else payload
+    if "pain.001" in text or "CstmrCdtTrfInitn" in text:
+        return Pain001Parser().parse(text)
     if "pacs.009" in text or "FICdtTrf" in text:
         return Pacs009Parser().parse(text)
     return Pacs008Parser().parse(text)
