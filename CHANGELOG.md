@@ -8,6 +8,41 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **AMLA harmonised STR profile** (`generators/amla_str.py`,
+  `cli.py:export-amla-str`): emits an AMLA RTS-aligned JSON
+  payload from a finalised run directory. The EU's Anti-Money
+  Laundering Authority (AMLA) is finalising a single harmonised
+  SAR/STR template across the bloc — the Regulatory Technical
+  Standards (RTS) for the SAR template have a delivery deadline
+  of **2026-07-10**. This generator targets the February 2026
+  consultation draft so EU obliged entities have a day-zero
+  adapter the moment the RTS ratifies. Maps the framework's
+  primitives to AMLA fields: `rule_id` + `tags` →
+  `amla_typology_codes` (Annex II placeholder set: STR-001
+  Structuring … STR-008 Virtual Asset Layering),
+  `regulation_refs` → `indicators[].source_regulation`,
+  customer → `subject` (natural_person vs legal_entity branch
+  with optional `lei` + `beneficial_owner_chain`),
+  cross-border counterparty → `cross_border_indicator`. Every
+  payload carries a prominent `_draft_warning` field plus a
+  `conformance` block listing which AMLA-mandatory fields the
+  spec successfully populated and which need analyst fill-in
+  (so auditors get one-shot view of what's automated vs manual).
+  Same determinism contract as `goaml_xml.py` — same inputs +
+  same `submission_date` → identical JSON bytes. CLI:
+  ```
+  aml export-amla-str spec.yaml --lei 529900T8BM49AURSDO55 \
+    --sector CREDIT_INSTITUTION --out amla_str.json
+  ```
+  Round-3 PR #2 of 4. Sources for the RTS draft cited in
+  module docstring; 26 new tests under `TestTypologyMapping`,
+  `TestBuildReport`, `TestPayload`, and `TestRunDirRoundTrip`
+  cover typology hint matching, natural-person vs legal-entity
+  subject branches, beneficial-ownership pass-through, cross-
+  border indicator computation, draft-warning emission,
+  conformance counting (populated vs unmapped), byte-determinism,
+  and end-to-end payload generation against the EU bank + crypto
+  VASP example specs.
 - **Analyst Review Queue dashboard page**
   (`dashboard/pages/22_Analyst_Review_Queue.py` +
   `dashboard/queue_state.py`): a triage view that composes the new

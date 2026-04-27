@@ -76,6 +76,99 @@ def validate_data(
         console.print("\n[green]All contracts valid.[/green]")
 
 
+@app.command(name="export-amla-str")
+def export_amla_str_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path | None = typer.Option(None, help="Run dir; defaults to latest."),
+    out: Path = typer.Option(Path(".artifacts/amla_str.json"), help="Output JSON path."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+    seed: int = typer.Option(42, help="Synthetic data seed (matches `aml run`)."),
+    data_source: str = typer.Option(
+        "synthetic", help="Data source: synthetic, csv, parquet, duckdb."
+    ),
+    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files."),
+    lei: str = typer.Option(
+        "00000000000000000000",
+        help="ISO 17442 Legal Entity Identifier of the obliged entity.",
+    ),
+    sector: str = typer.Option(
+        "CREDIT_INSTITUTION",
+        help="Obliged entity sector code (CREDIT_INSTITUTION, VASP, EMI, etc.).",
+    ),
+    submission_date: str | None = typer.Option(
+        None, help="ISO 8601 submission date; defaults to now (UTC)."
+    ),
+) -> None:
+    """Export finalised cases as an AMLA RTS-aligned STR payload (JSON).
+
+    ⚠️  AMLA RTS is in consultation (draft 2026-02). Field names and
+    typology codes will change before the 2026-07-10 final-RTS deadline.
+    The output payload is marked with `_draft_warning` — do NOT submit
+    to a regulator without first updating this generator against the
+    final RTS.
+    """
+    from aml_framework.data.sources import resolve_source
+    from aml_framework.generators.amla_str import (
+        DRAFT_WARNING,
+        ObligedEntity,
+        export_amla_str_from_run_dir,
+    )
+
+    run_dir = _resolve_run_dir(run_dir, artifacts)
+    spec = load_spec(spec_path)
+
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[red]No manifest.json in {run_dir}[/red]")
+        raise typer.Exit(code=1)
+    import json as _json
+
+    manifest = _json.loads(manifest_path.read_bytes())
+    as_of_dt = datetime.fromisoformat(manifest["as_of"])
+
+    data = resolve_source(
+        source_type=data_source, spec=spec, as_of=as_of_dt, seed=seed, data_dir=data_dir
+    )
+
+    submit_dt = (
+        datetime.fromisoformat(submission_date)
+        if submission_date
+        else datetime.now(tz=timezone.utc)
+    )
+
+    payload_bytes = export_amla_str_from_run_dir(
+        run_dir,
+        spec,
+        customers=data.get("customer", []),
+        transactions=data.get("txn", []),
+        obliged_entity=ObligedEntity(
+            lei=lei,
+            name=spec.program.name,
+            sector=sector,  # type: ignore[arg-type]
+            jurisdiction=spec.program.jurisdiction,
+            programme_name=spec.program.name,
+        ),
+        submission_date=submit_dt,
+    )
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(payload_bytes)
+
+    payload = _json.loads(payload_bytes)
+    conformance = payload.get("conformance", {})
+    console.print(f"[yellow]⚠️  {DRAFT_WARNING}[/yellow]")
+    console.print(
+        f"[green]AMLA STR[/green] {out} "
+        f"({len(payload_bytes):,} bytes, {len(payload.get('reports', []))} report(s), "
+        f"conformance {conformance.get('mandatory_fields_populated')}/"
+        f"{conformance.get('mandatory_fields_total')} mandatory fields populated)"
+    )
+    if conformance.get("unmapped_required"):
+        console.print("[yellow]Unmapped mandatory fields (need analyst fill-in):[/yellow]")
+        for field_name in conformance["unmapped_required"]:
+            console.print(f"  - {field_name}")
+
+
 @app.command(name="pkyc-scan")
 def pkyc_scan_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
