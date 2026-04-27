@@ -15,6 +15,7 @@ import duckdb
 
 from aml_framework.engine.audit import AuditLedger
 from aml_framework.engine.constants import Event, Queue
+from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.generators.sql import compile_rule_sql
 from aml_framework.metrics.engine import MetricResult, evaluate_metrics
 from aml_framework.metrics.reports import render_all_reports
@@ -415,6 +416,7 @@ def run_spec(
     con = duckdb.connect(":memory:")
     _harden_duckdb(con)
     _build_warehouse(con, spec, data)
+    resolve_entities(con, spec)
 
     alerts_by_rule: dict[str, list[dict[str, Any]]] = {}
     case_ids: list[str] = []
