@@ -76,6 +76,160 @@ def validate_data(
         console.print("\n[green]All contracts valid.[/green]")
 
 
+@app.command(name="pkyc-scan")
+def pkyc_scan_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    seed: int = typer.Option(42, help="Synthetic data seed (matches `aml run`)."),
+    data_source: str = typer.Option(
+        "synthetic", help="Data source: synthetic, csv, parquet, duckdb."
+    ),
+    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files."),
+    high_risk_countries: str = typer.Option(
+        "",
+        help="Comma-separated ISO-2 country codes treated as high-risk (e.g. RU,KP,IR).",
+    ),
+    sanctions_added_file: Path | None = typer.Option(
+        None,
+        help="Path to a SyncResult JSON whose `added` entries seed the sanctions detector.",
+    ),
+    alert_lookback_days: int = typer.Option(
+        90, help="How far back to count alerts for the transaction-pattern detector."
+    ),
+    alert_threshold: int = typer.Option(
+        3, help="Minimum alerts to fire the transaction-pattern trigger."
+    ),
+    run_dir: Path | None = typer.Option(
+        None, help="Run dir whose alerts seed the pattern detector; defaults to latest."
+    ),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+    out: Path | None = typer.Option(
+        None, help="Write the scan result as JSON; otherwise summary printed."
+    ),
+) -> None:
+    """Run pKYC trigger scan over current customers — flag re-reviews."""
+    import json as _json
+    from datetime import timedelta
+
+    from aml_framework.data.sources import resolve_source
+    from aml_framework.pkyc import (
+        ScanContext,
+        TransactionPatternDetector,
+        run_scan,
+    )
+    from aml_framework.pkyc.detectors import (
+        AdverseMediaDetector,
+        CountryRiskDetector,
+        SanctionsHitDetector,
+        StaleKYCDetector,
+    )
+    from aml_framework.sanctions.base import SanctionEntry
+
+    spec = load_spec(spec_path)
+    as_of_dt = _parse_as_of(None)
+    data = resolve_source(
+        source_type=data_source,
+        spec=spec,
+        as_of=as_of_dt,
+        seed=seed,
+        data_dir=data_dir,
+    )
+    customers = data.get("customer", [])
+
+    sanctions_added: list[SanctionEntry] = []
+    if sanctions_added_file is not None:
+        sync_payload = _json.loads(sanctions_added_file.read_text())
+        for row in sync_payload.get("added", []):
+            sanctions_added.append(
+                SanctionEntry(
+                    name=row.get("name", ""),
+                    list_source=row.get("list_source", ""),
+                    country=row.get("country", ""),
+                    type=row.get("type", "individual"),
+                )
+            )
+
+    recent_alerts: dict[str, int] = {}
+    try:
+        rd = _resolve_run_dir(run_dir, artifacts)
+        alerts_dir = rd / "alerts"
+        if alerts_dir.exists():
+            cutoff = as_of_dt - timedelta(days=alert_lookback_days)
+            for jsonl in alerts_dir.glob("*.jsonl"):
+                for line in jsonl.read_text().splitlines():
+                    if not line.strip():
+                        continue
+                    a = _json.loads(line)
+                    cid = a.get("customer_id")
+                    if not cid:
+                        continue
+                    ts = a.get("window_end") or a.get("window_start")
+                    if ts:
+                        try:
+                            t = datetime.fromisoformat(str(ts).replace(" ", "T", 1))
+                            if t < cutoff:
+                                continue
+                        except ValueError:
+                            pass
+                    recent_alerts[cid] = recent_alerts.get(cid, 0) + 1
+    except typer.Exit:
+        # No prior run; transaction-pattern detector simply gets empty input.
+        pass
+
+    countries = {c.strip().upper() for c in high_risk_countries.split(",") if c.strip()}
+
+    context = ScanContext(
+        as_of=as_of_dt,
+        sanctions_added=sanctions_added,
+        adverse_media_entries=[],
+        high_risk_countries=countries,
+        recent_alerts_by_customer=recent_alerts,
+        lookback_days=alert_lookback_days,
+    )
+
+    detectors = [
+        SanctionsHitDetector(),
+        AdverseMediaDetector(),
+        CountryRiskDetector(),
+        TransactionPatternDetector(threshold=alert_threshold),
+        StaleKYCDetector(),
+    ]
+    scan = run_scan(customers, context, detectors=detectors)
+
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(_json.dumps(scan.to_dict(), indent=2, default=str))
+        console.print(
+            f"[green]pkyc[/green] {out} "
+            f"(triggers={len(scan.triggers)}, rating_changes={len(scan.rating_changes)})"
+        )
+        return
+
+    table = Table(title="pKYC scan result")
+    table.add_column("Customer")
+    table.add_column("Trigger")
+    table.add_column("Severity")
+    table.add_column("Action")
+    table.add_column("Detector")
+    for t in scan.triggers[:50]:
+        table.add_row(t.customer_id, t.kind, t.severity, t.recommended_action, t.detector)
+    console.print(table)
+
+    if scan.rating_changes:
+        ctable = Table(title="Risk rating changes")
+        ctable.add_column("Customer")
+        ctable.add_column("Old")
+        ctable.add_column("New")
+        ctable.add_column("Triggers", justify="right")
+        for rc in scan.rating_changes:
+            ctable.add_row(rc.customer_id, rc.old_rating, rc.new_rating, str(len(rc.triggers)))
+        console.print(ctable)
+    console.print(
+        f"Scanned {scan.customers_scanned} customers, "
+        f"fired {len(scan.triggers)} trigger(s), "
+        f"{len(scan.rating_changes)} rating change(s)."
+    )
+
+
 @app.command(name="draft-narrative")
 def draft_narrative_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
