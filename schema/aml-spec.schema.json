@@ -109,7 +109,8 @@
         { "$ref": "#/$defs/logic_aggregation_window" },
         { "$ref": "#/$defs/logic_list_match" },
         { "$ref": "#/$defs/logic_custom_sql" },
-        { "$ref": "#/$defs/logic_python_ref" }
+        { "$ref": "#/$defs/logic_python_ref" },
+        { "$ref": "#/$defs/logic_network_pattern" }
       ]
     },
     "logic_aggregation_window": {
@@ -156,6 +157,18 @@
         "callable":      { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_]*$" },
         "model_id":      { "type": "string" },
         "model_version": { "type": "string" }
+      }
+    },
+    "logic_network_pattern": {
+      "type": "object",
+      "required": ["type", "having"],
+      "additionalProperties": false,
+      "properties": {
+        "type":     { "const": "network_pattern" },
+        "source":   { "type": "string" },
+        "pattern":  { "type": "string", "enum": ["component_size", "common_counterparty"] },
+        "max_hops": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "having":   { "type": "object", "minProperties": 1 }
       }
     },
     "workflow": {

@@ -311,6 +311,106 @@ def _execute_list_match(
     return alerts
 
 
+def _execute_network_pattern(
+    rule: Rule,
+    con: duckdb.DuckDBPyConnection,
+    as_of: datetime,
+) -> list[dict[str, Any]]:
+    """Walk `resolved_entity_link` to find customers whose ego-network
+    satisfies a `having` condition.
+
+    Patterns supported in v1:
+    - `component_size`: count of distinct customers reachable within
+      `max_hops` (including self). Catches mule herds and nested-account
+      rings.
+    - `common_counterparty`: count of distinct linking attributes shared
+      with neighbours. High value = the entity is sharing many of phone /
+      email / device / address with others — classic synthetic-identity
+      pattern.
+    """
+    logic = rule.logic
+    max_hops = int(logic.max_hops or 2)
+    having = logic.having or {}
+
+    # Recursive CTE walks the link table up to max_hops away from each seed.
+    # DuckDB recursive CTE syntax: WITH RECURSIVE walk(...) AS (base UNION ALL step)
+    walk_sql = f"""
+    WITH RECURSIVE walk(seed_id, reached_id, hops) AS (
+        SELECT customer_id AS seed_id,
+               customer_id AS reached_id,
+               0           AS hops
+        FROM customer
+        UNION ALL
+        SELECT w.seed_id,
+               CASE WHEN l.left_customer_id = w.reached_id
+                    THEN l.right_customer_id
+                    ELSE l.left_customer_id END AS reached_id,
+               w.hops + 1
+        FROM walk w
+        JOIN resolved_entity_link l
+          ON w.reached_id IN (l.left_customer_id, l.right_customer_id)
+        WHERE w.hops < {max_hops}
+    )
+    SELECT seed_id AS customer_id,
+           COUNT(DISTINCT reached_id)        AS component_size,
+           COUNT(DISTINCT
+                 CASE WHEN reached_id != seed_id THEN reached_id END
+                ) AS counterparty_count
+    FROM walk
+    GROUP BY seed_id
+    """
+    try:
+        rows = con.execute(walk_sql).fetchall()
+        cols = [d[0] for d in con.description] if con.description else []
+    except Exception as e:
+        logger.warning("network_pattern '%s' failed: %s", rule.id, e)
+        return []
+
+    alerts: list[dict[str, Any]] = []
+    for row in rows:
+        record = dict(zip(cols, row))
+        # Apply the having condition. Supports {gte, lte, gt, lt, eq}.
+        passes = True
+        for metric, cond in having.items():
+            value = record.get(metric)
+            if value is None:
+                passes = False
+                break
+            if isinstance(cond, dict):
+                for op, arg in cond.items():
+                    if op == "gte" and not value >= arg:
+                        passes = False
+                    elif op == "lte" and not value <= arg:
+                        passes = False
+                    elif op == "gt" and not value > arg:
+                        passes = False
+                    elif op == "lt" and not value < arg:
+                        passes = False
+                    elif op == "eq" and not value == arg:
+                        passes = False
+                    if not passes:
+                        break
+            else:
+                if value != cond:
+                    passes = False
+            if not passes:
+                break
+        if passes:
+            alerts.append(
+                {
+                    "rule_id": rule.id,
+                    "customer_id": record["customer_id"],
+                    "component_size": record["component_size"],
+                    "counterparty_count": record["counterparty_count"],
+                    "max_hops": max_hops,
+                    "pattern": logic.pattern,
+                    "window_start": as_of,
+                    "window_end": as_of,
+                }
+            )
+    return alerts
+
+
 def _decide_disposition(severity: str, queue_next: list[str], idx: int) -> tuple[str, str]:
     """Return (event, disposition) for a case based on severity and queue config."""
     if severity in ("high", "critical"):
@@ -483,6 +583,21 @@ def run_spec(
                 f"-- list: {rule.logic.list}\n"
                 f"-- field: {rule.logic.field}\n"
                 f"-- match: {rule.logic.match}\n",
+            )
+            ledger.record_alerts(rule.id, alerts)
+            _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)
+            continue
+
+        # --- network_pattern: walk resolved_entity_link via recursive CTE ---
+        if rule.logic.type == "network_pattern":
+            alerts = _execute_network_pattern(rule, con, as_of)
+            alerts_by_rule[rule.id] = alerts
+            ledger.record_rule_sql(
+                rule.id,
+                f"-- rule '{rule.id}' executed via network_pattern\n"
+                f"-- pattern: {rule.logic.pattern}\n"
+                f"-- max_hops: {rule.logic.max_hops}\n"
+                f"-- having: {rule.logic.having}\n",
             )
             ledger.record_alerts(rule.id, alerts)
             _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)

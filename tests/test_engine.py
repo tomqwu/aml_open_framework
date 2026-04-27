@@ -469,6 +469,124 @@ class TestEntityResolution:
         con.close()
 
 
+class TestNetworkPattern:
+    """The network_pattern rule type walks resolved_entity_link via recursive
+    CTE and flags customers whose ego-network satisfies a having clause."""
+
+    def _build_link_world(self, link_pairs: list[tuple[str, str, str]]):
+        """Create a DuckDB connection populated with a customer table and a
+        resolved_entity_link table. Each tuple = (left, right, attribute)."""
+        from aml_framework.engine.runner import _harden_duckdb
+
+        con = duckdb.connect(":memory:")
+        _harden_duckdb(con)
+        customers = sorted({c for pair in link_pairs for c in pair[:2]})
+        con.execute("CREATE TABLE customer (customer_id VARCHAR)")
+        con.executemany(
+            "INSERT INTO customer (customer_id) VALUES (?)",
+            [(c,) for c in customers],
+        )
+        con.execute(
+            "CREATE TABLE resolved_entity_link"
+            " (left_customer_id VARCHAR, right_customer_id VARCHAR,"
+            "  attribute VARCHAR, weight DOUBLE)"
+        )
+        con.executemany(
+            "INSERT INTO resolved_entity_link"
+            " (left_customer_id, right_customer_id, attribute, weight)"
+            " VALUES (?, ?, ?, 1.0)",
+            link_pairs,
+        )
+        return con
+
+    def _network_rule(self, having: dict, max_hops: int = 2):
+        from aml_framework.spec.models import NetworkPatternLogic
+
+        return Rule(
+            id="net_test",
+            name="Test network pattern",
+            severity="high",
+            regulation_refs=[RegulationRef(citation="x", description="y")],
+            logic=NetworkPatternLogic(
+                type="network_pattern",
+                source="customer",
+                pattern="component_size",
+                max_hops=max_hops,
+                having=having,
+            ),
+            escalate_to="q",
+        )
+
+    def test_three_customer_ring_fires_at_component_size_3(self):
+        from aml_framework.engine.runner import _execute_network_pattern
+
+        con = self._build_link_world([("A", "B", "phone"), ("B", "C", "phone")])
+        rule = self._network_rule(having={"component_size": {"gte": 3}}, max_hops=2)
+        alerts = _execute_network_pattern(rule, con, datetime(2026, 1, 1))
+        ids = sorted(a["customer_id"] for a in alerts)
+        assert ids == ["A", "B", "C"]
+        for a in alerts:
+            assert a["component_size"] >= 3
+            assert a["pattern"] == "component_size"
+        con.close()
+
+    def test_isolated_customer_does_not_fire(self):
+        from aml_framework.engine.runner import _execute_network_pattern
+
+        con = self._build_link_world([("A", "B", "phone")])
+        con.execute("INSERT INTO customer (customer_id) VALUES ('C')")
+        rule = self._network_rule(having={"component_size": {"gte": 3}}, max_hops=2)
+        alerts = _execute_network_pattern(rule, con, datetime(2026, 1, 1))
+        assert alerts == []
+        con.close()
+
+    def test_two_customer_pair_fires_at_component_size_2(self):
+        from aml_framework.engine.runner import _execute_network_pattern
+
+        con = self._build_link_world([("A", "B", "device_id")])
+        rule = self._network_rule(having={"component_size": {"gte": 2}}, max_hops=1)
+        alerts = _execute_network_pattern(rule, con, datetime(2026, 1, 1))
+        ids = sorted(a["customer_id"] for a in alerts)
+        assert ids == ["A", "B"]
+        con.close()
+
+    def test_no_links_returns_no_alerts(self):
+        from aml_framework.engine.runner import _execute_network_pattern, _harden_duckdb
+
+        con = duckdb.connect(":memory:")
+        _harden_duckdb(con)
+        con.execute("CREATE TABLE customer (customer_id VARCHAR)")
+        con.executemany("INSERT INTO customer (customer_id) VALUES (?)", [("A",), ("B",), ("C",)])
+        con.execute(
+            "CREATE TABLE resolved_entity_link"
+            " (left_customer_id VARCHAR, right_customer_id VARCHAR,"
+            "  attribute VARCHAR, weight DOUBLE)"
+        )
+        rule = self._network_rule(having={"component_size": {"gte": 2}})
+        alerts = _execute_network_pattern(rule, con, datetime(2026, 1, 1))
+        assert alerts == []
+        con.close()
+
+    def test_counterparty_count_pattern(self):
+        from aml_framework.engine.runner import _execute_network_pattern
+
+        # Hub-and-spoke: H links to A, B, C, D — high counterparty count.
+        con = self._build_link_world(
+            [
+                ("A", "H", "phone"),
+                ("B", "H", "phone"),
+                ("C", "H", "phone"),
+                ("D", "H", "phone"),
+            ]
+        )
+        rule = self._network_rule(having={"counterparty_count": {"gte": 4}}, max_hops=1)
+        alerts = _execute_network_pattern(rule, con, datetime(2026, 1, 1))
+        assert any(a["customer_id"] == "H" for a in alerts)
+        for a in alerts:
+            assert a["counterparty_count"] >= 4
+        con.close()
+
+
 class TestPythonRefErrorBoundary:
     """A scorer that raises must NOT abort the whole run."""
 
