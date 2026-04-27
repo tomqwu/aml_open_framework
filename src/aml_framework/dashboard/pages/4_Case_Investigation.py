@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from aml_framework.dashboard.components import chart_layout, page_header
+from aml_framework.engine.constants import Event, Queue
 
 
 def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
@@ -318,21 +319,21 @@ st.caption("Actions write to the immutable audit ledger (decisions.jsonl).")
 run_dir = st.session_state.run_dir
 case_status = case.get("status", "open")
 
-if "closed" in case_status or case_status in ("str_filing", "sar_filing"):
+if "closed" in case_status or case_status in (Queue.STR_FILING, Queue.SAR_FILING):
     st.success(f"Case already resolved: **{case_status}**")
 else:
     col_a1, col_a2, col_a3, col_a4 = st.columns(4)
 
     with col_a1:
         if st.button("Escalate to L2", use_container_width=True):
-            _record_action(run_dir, case, "escalated", "l2_investigator")
+            _record_action(run_dir, case, Event.ESCALATED, Queue.L2_INVESTIGATOR)
     with col_a2:
-        filing_q = "str_filing" if jurisdiction == "CA" else "sar_filing"
+        filing_q = Queue.STR_FILING if jurisdiction == "CA" else Queue.SAR_FILING
         if st.button(f"File {filing_label}", type="primary", use_container_width=True):
             _record_action(run_dir, case, f"escalated_to_{filing_label.lower()}", filing_q)
     with col_a3:
         if st.button("Close - No Action", use_container_width=True):
-            _record_action(run_dir, case, "closed", "closed_no_action")
+            _record_action(run_dir, case, Event.CLOSED, Queue.CLOSED_NO_ACTION)
     with col_a4:
         if st.button("Request EDD", use_container_width=True):
             _record_action(run_dir, case, "edd_requested", "edd_review")

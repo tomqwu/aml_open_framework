@@ -39,6 +39,12 @@ that introduced them.
   `decisions.jsonl` stays append-capable.
 
 ### Refactor
+- **Dashboard pages now use `Event` / `Queue` constants** (`pages/3_Alert_Queue.py`,
+  `pages/4_Case_Investigation.py`): the bulk-action and per-case action
+  buttons that write to `decisions.jsonl` (and the `isin([...])` filters that
+  drive the open-case view) reference the `engine.constants` enums instead
+  of inline string literals. Closes the original review's smell about
+  audit-log strings drifting between the engine and UI writers.
 - **`engine/constants.py` — single source of truth for event + queue names.**
   String literals like `"case_opened"`, `"escalated_to_str"`,
   `"closed_no_action"` were duplicated across `runner.py`, dashboard pages,
