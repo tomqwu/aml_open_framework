@@ -203,6 +203,116 @@ class TestEngineHardening:
         assert "my_org.scorers." in prefixes
 
 
+class TestPythonRefErrorBoundary:
+    """A scorer that raises must NOT abort the whole run."""
+
+    def _spec_with_failing_scorer(self, tmp_path: Path, callable_str: str) -> Path:
+        import yaml as _yaml
+
+        spec_raw = _yaml.safe_load(SPEC_CA.read_text())
+        replaced = False
+        for rule in spec_raw["rules"]:
+            if rule.get("logic", {}).get("type") == "python_ref":
+                rule["logic"]["callable"] = callable_str
+                replaced = True
+                break
+        if not replaced:
+            pytest.skip("CA spec has no python_ref rule to hijack")
+        bad = tmp_path / "aml.yaml"
+        bad.write_text(_yaml.safe_dump(spec_raw))
+        return bad
+
+    def test_missing_module_does_not_abort_run(self, tmp_path):
+        spec_path = self._spec_with_failing_scorer(
+            tmp_path, "aml_framework.models.does_not_exist:score"
+        )
+        spec = load_spec(spec_path)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=spec_path, data=data, as_of=as_of, artifacts_root=tmp_path / "x"
+        )
+        # Run completed despite the missing module — manifest exists, other
+        # rules produced their normal alerts.
+        assert "rule_outputs" in result.manifest
+        assert result.total_alerts > 0  # other rules ran
+
+    def test_failed_rule_records_zero_alerts(self, tmp_path):
+        spec_path = self._spec_with_failing_scorer(tmp_path, "aml_framework.models.nope:score")
+        spec = load_spec(spec_path)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=spec_path, data=data, as_of=as_of, artifacts_root=tmp_path / "x"
+        )
+        # Find the python_ref rule that failed and assert its alert list is empty.
+        py_ref_rules = [r for r in spec.rules if r.logic.type == "python_ref"]
+        assert py_ref_rules, "spec must have a python_ref rule for this test to be meaningful"
+        for rule in py_ref_rules:
+            assert result.alerts.get(rule.id, []) == []
+
+    def test_failure_emits_rule_failed_event_in_decisions(self, tmp_path):
+        spec_path = self._spec_with_failing_scorer(tmp_path, "aml_framework.models.nope:score")
+        spec = load_spec(spec_path)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=spec_path, data=data, as_of=as_of, artifacts_root=tmp_path / "x"
+        )
+        run_dir = Path(result.manifest["run_dir"])
+        decisions = [
+            json.loads(line)
+            for line in (run_dir / "decisions.jsonl").read_text().splitlines()
+            if line.strip()
+        ]
+        failed = [d for d in decisions if d.get("event") == "rule_failed"]
+        assert len(failed) >= 1
+        assert failed[0]["logic_type"] == "python_ref"
+        assert "ModuleNotFoundError" in failed[0].get("error", "") or "No module" in failed[0].get(
+            "error", ""
+        )
+
+    def test_runtime_error_inside_scorer_is_caught(self, tmp_path, monkeypatch):
+        """A scorer that imports cleanly but raises at call time also gets caught."""
+        import sys
+        import types
+
+        # Build a fake module under the allowed prefix that raises on call.
+        mod = types.ModuleType("aml_framework.models.crashing_scorer")
+
+        def _crash(con, as_of):
+            raise RuntimeError("simulated model failure")
+
+        mod.score = _crash
+        sys.modules["aml_framework.models.crashing_scorer"] = mod
+        try:
+            spec_path = self._spec_with_failing_scorer(
+                tmp_path, "aml_framework.models.crashing_scorer:score"
+            )
+            spec = load_spec(spec_path)
+            as_of = datetime(2026, 4, 23, 12, 0, 0)
+            data = generate_dataset(as_of=as_of, seed=42)
+            result = run_spec(
+                spec=spec,
+                spec_path=spec_path,
+                data=data,
+                as_of=as_of,
+                artifacts_root=tmp_path / "x",
+            )
+            # Run completed.
+            assert "rule_outputs" in result.manifest
+            run_dir = Path(result.manifest["run_dir"])
+            decisions = [
+                json.loads(line)
+                for line in (run_dir / "decisions.jsonl").read_text().splitlines()
+                if line.strip()
+            ]
+            failed = [d for d in decisions if d.get("event") == "rule_failed"]
+            assert any("RuntimeError" in d.get("error", "") for d in failed)
+        finally:
+            sys.modules.pop("aml_framework.models.crashing_scorer", None)
+
+
 class TestThresholdBoundaries:
     """Negative tests: just-below-threshold data must NOT fire.
 
