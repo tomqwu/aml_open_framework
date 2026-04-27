@@ -85,6 +85,7 @@
         "name":     { "type": "string", "minLength": 1 },
         "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
         "status":   { "type": "string", "enum": ["active", "experimental", "deprecated"], "default": "active" },
+        "evaluation_mode": { "type": "string", "enum": ["batch", "streaming", "both"], "default": "batch" },
         "regulation_refs": {
           "type": "array",
           "minItems": 1,

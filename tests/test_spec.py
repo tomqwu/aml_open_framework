@@ -70,6 +70,74 @@ def test_missing_required_field_fails_schema(tmp_path):
         load_spec(bad)
 
 
+class TestEvaluationMode:
+    """`rule.evaluation_mode` records institution intent (batch / streaming /
+    both) so an operator can route at deployment time. v1 engine only runs
+    batch — the field is a contract for downstream tooling."""
+
+    def test_default_is_batch(self):
+        spec = load_spec(EXAMPLE)
+        for rule in spec.rules:
+            assert rule.evaluation_mode == "batch"
+
+    def test_explicit_streaming_is_accepted(self, tmp_path):
+        raw = yaml.safe_load(EXAMPLE.read_text())
+        raw["rules"][0]["evaluation_mode"] = "streaming"
+        good = tmp_path / "aml.yaml"
+        good.write_text(yaml.safe_dump(raw))
+        spec = load_spec(good)
+        assert spec.rules[0].evaluation_mode == "streaming"
+
+    def test_explicit_both_is_accepted(self, tmp_path):
+        raw = yaml.safe_load(EXAMPLE.read_text())
+        raw["rules"][0]["evaluation_mode"] = "both"
+        good = tmp_path / "aml.yaml"
+        good.write_text(yaml.safe_dump(raw))
+        spec = load_spec(good)
+        assert spec.rules[0].evaluation_mode == "both"
+
+    def test_invalid_mode_rejected(self, tmp_path):
+        raw = yaml.safe_load(EXAMPLE.read_text())
+        raw["rules"][0]["evaluation_mode"] = "realtime"  # not in enum
+        bad = tmp_path / "aml.yaml"
+        bad.write_text(yaml.safe_dump(raw))
+        with pytest.raises(ValueError):
+            load_spec(bad)
+
+    def test_engine_runs_batch_regardless_of_field(self, tmp_path):
+        """v1 engine only executes batch. Setting evaluation_mode='streaming'
+        on a rule must NOT change the run output — this protects existing
+        users when the streaming evaluator lands later."""
+        raw = yaml.safe_load(EXAMPLE.read_text())
+        for rule in raw["rules"]:
+            rule["evaluation_mode"] = "streaming"
+        labelled = tmp_path / "aml.yaml"
+        labelled.write_text(yaml.safe_dump(raw))
+
+        spec_default = load_spec(EXAMPLE)
+        spec_streaming = load_spec(labelled)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+
+        r1 = run_spec(
+            spec=spec_default,
+            spec_path=EXAMPLE,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path / "a",
+        )
+        r2 = run_spec(
+            spec=spec_streaming,
+            spec_path=labelled,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path / "b",
+        )
+        # Same alert hashes — evaluation_mode is metadata, not behavior.
+        for rid in r1.manifest["rule_outputs"]:
+            assert r1.manifest["rule_outputs"][rid] == r2.manifest["rule_outputs"][rid]
+
+
 # ---------------------------------------------------------------------------
 # From test_canadian_example.py
 # ---------------------------------------------------------------------------

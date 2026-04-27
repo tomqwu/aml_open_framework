@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Severity = Literal["low", "medium", "high", "critical"]
 RuleStatus = Literal["active", "experimental", "deprecated"]
+EvaluationMode = Literal["batch", "streaming", "both"]
 ColumnType = Literal["string", "integer", "decimal", "boolean", "date", "timestamp"]
 
 
@@ -115,6 +116,12 @@ class Rule(_Base):
     name: str
     severity: Severity
     status: RuleStatus = "active"
+    # Declares whether the rule is meant to run as a batch sweep, against
+    # a streaming source (Kafka/Kinesis), or both. The reference engine in
+    # v1 only executes batch; the field records institution intent so an
+    # operator can route at deployment time. `both` means the same logic
+    # is valid for either mode.
+    evaluation_mode: EvaluationMode = "batch"
     regulation_refs: list[RegulationRef] = Field(min_length=1)
     logic: RuleLogic
     escalate_to: str
