@@ -57,6 +57,8 @@ aml dashboard examples/community_bank/aml.yaml
 | 📚 [Case Studies](docs/case-studies/) | Real enforcement walkthroughs (TD 2024 etc.) |
 | 🤝 [Contributing](CONTRIBUTING.md) | Setup, PR process, project rules |
 | 📋 [Changelog](CHANGELOG.md) | Round-by-round PR-level history |
+| 📊 [Progress Snapshot](docs/progress.md) | Fact-based audit of what's shipped (modules, tests, regulatory coverage) |
+| 🔍 [Competitive Positioning Research](docs/research/2026-04-competitive-positioning.md) | Where the framework slots vs. Actimize / Hawk / Marble / Jube + ranked next features |
 
 ---
 
