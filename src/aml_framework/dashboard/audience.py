@@ -10,6 +10,23 @@ AUDIENCE_PAGES = {
         "Framework Alignment",
         "Transformation Roadmap",
     ],
+    "cto": [
+        "Executive Dashboard",
+        "Program Maturity",
+        "Framework Alignment",
+        "Model Performance",
+        "Run History",
+        "Transformation Roadmap",
+    ],
+    "cco": [
+        "Executive Dashboard",
+        "Program Maturity",
+        "Framework Alignment",
+        "Risk Assessment",
+        "Audit & Evidence",
+        "Investigations",
+        "Transformation Roadmap",
+    ],
     "vp": [
         "Executive Dashboard",
         "Rule Performance",

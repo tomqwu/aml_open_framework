@@ -99,9 +99,32 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 st.markdown("### Alerts by Rule")
 
+# Interactive controls — let operators slice the rule comparison view
+# (otherwise it's an unfilterable bar chart that gets noisy on big specs).
+all_severities = sorted({r.severity for r in spec.rules})
+fc1, fc2 = st.columns([3, 1])
+with fc1:
+    selected_severities = st.multiselect(
+        "Severity filter",
+        options=all_severities,
+        default=all_severities,
+        key="comparative_sev_filter",
+    )
+with fc2:
+    hide_silent = st.toggle(
+        "Hide silent rules",
+        value=False,
+        help="Drop rules that produced zero alerts in this run.",
+        key="comparative_hide_silent",
+    )
+
 rule_data = []
 for rule in spec.rules:
+    if rule.severity not in selected_severities:
+        continue
     alert_count = len(result.alerts.get(rule.id, []))
+    if hide_silent and alert_count == 0:
+        continue
     rule_data.append(
         {
             "Rule": rule.id,
@@ -110,6 +133,10 @@ for rule in spec.rules:
             "Status": "Active" if alert_count > 0 else "Silent",
         }
     )
+
+if not rule_data:
+    st.info("No rules match the current filters.")
+    st.stop()
 
 df_rules = pd.DataFrame(rule_data)
 fig = go.Figure()

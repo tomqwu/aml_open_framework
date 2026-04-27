@@ -7,6 +7,64 @@ that introduced them.
 
 ## [Unreleased]
 
+### Added
+- **Workflow audit + executive font scale + page interactivity**
+  (`dashboard/components.py`, `dashboard/app.py`,
+  `dashboard/audience.py`, `dashboard/pages/5_Rule_Performance.py`,
+  `dashboard/pages/6_Risk_Assessment.py`,
+  `dashboard/pages/12_Sanctions_Screening.py`,
+  `dashboard/pages/19_Comparative_Analytics.py`,
+  `tests/test_dashboard_workflows.py`). User-driven workflow audit
+  — verify every persona has a complete experience.
+
+  **Executive font scale** — new `EXECUTIVE_AUDIENCES` frozenset
+  ({svp, vp, director, cto, cco}) drives an additional CSS overlay
+  injected by `apply_theme()` when the audience selector is set to
+  one of those personas. KPI values jump from 1.8rem → 2.4rem,
+  metric-card values from 2rem → 2.8rem, headers up by ~30%, body
+  text +5%. Tables stay at base size to avoid breaking dense
+  layouts. The use case: SVP/CTO reading from a meeting-room
+  display want bigger numbers without leaning in.
+
+  **Two new personas** in the audience map: `cto` (Executive
+  Dashboard, Program Maturity, Framework Alignment, Model
+  Performance, Run History, Transformation Roadmap) and `cco`
+  (Executive Dashboard, Program Maturity, Framework Alignment,
+  Risk Assessment, Audit & Evidence, Investigations,
+  Transformation Roadmap). Audience selectbox updated to expose
+  all 10 personas with a help line explaining the executive font
+  scale.
+
+  **Pages 22 + 23 registered in `ALL_PAGES`** — Analyst Review
+  Queue and Tuning Lab existed on disk and were referenced in the
+  audience map but never registered in `app.py`'s sidebar nav, so
+  they were invisible to operators. Drift bug from a previous PR.
+  Both now appear with appropriate icons.
+
+  **Filters added to 4 previously-static pages**:
+  - **Rule Performance** — multiselect severity + multiselect
+    logic-type + "only fired" toggle
+  - **Risk Assessment** — multiselect country + multiselect risk
+    rating; filtered df cascades to all KPIs/charts/tables on the
+    page so the view stays consistent
+  - **Sanctions Screening** — multiselect match type + multiselect
+    severity + min-score slider; filtered counter shows
+    "N of M shown"
+  - **Comparative Analytics** — multiselect severity + "hide silent
+    rules" toggle for the per-rule alert chart
+
+  **15 new tests** under `tests/test_dashboard_workflows.py` —
+  audience-map ↔ pages-on-disk coverage (handles three
+  page_header patterns: positional string, kwarg string,
+  PAGE_TITLE constant), executive-personas always include
+  Executive Dashboard, EXECUTIVE_CSS constant present + wired into
+  apply_theme, audience selectbox exposes every mapped persona,
+  every persona's pages exist as registered file in `ALL_PAGES`
+  (regression guard for the pages-22/23-missing bug), every
+  previously-non-interactive page now carries a widget (regression
+  guard against filters being stripped), every page reads session
+  state or is in the documented STATIC_PAGES exception list.
+
 ### Fixed
 - **`aml --help` crashed on fresh installs** (`pyproject.toml`).
   Bumped `typer>=0.12` floor to `typer>=0.16`. typer 0.15 was

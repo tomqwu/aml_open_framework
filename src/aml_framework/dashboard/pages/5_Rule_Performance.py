@@ -45,10 +45,41 @@ with c4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# --- Filter controls ---
+all_severities = sorted({r.severity for r in spec.rules})
+all_logics = sorted({r.logic.type for r in spec.rules})
+fc1, fc2, fc3 = st.columns([2, 2, 1])
+with fc1:
+    selected_severities = st.multiselect(
+        "Filter severity",
+        options=all_severities,
+        default=all_severities,
+        help="Limit the table + charts to these severities.",
+    )
+with fc2:
+    selected_logics = st.multiselect(
+        "Filter logic type",
+        options=all_logics,
+        default=all_logics,
+        help="aggregation_window / custom_sql / list_match / python_ref / network_pattern.",
+    )
+with fc3:
+    only_fired = st.toggle(
+        "Only fired",
+        value=False,
+        help="Hide rules that produced zero alerts in this run.",
+    )
+
 # --- Rule Analytics Table ---
 st.markdown("### Rule Analytics")
 rows = []
 for rule in spec.rules:
+    if rule.severity not in selected_severities:
+        continue
+    if rule.logic.type not in selected_logics:
+        continue
+    if only_fired and not result.alerts.get(rule.id):
+        continue
     alert_count = len(result.alerts.get(rule.id, []))
     alerts = result.alerts.get(rule.id, [])
     cust_alerted = len({a.get("customer_id") for a in alerts if a.get("customer_id")})

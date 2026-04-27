@@ -50,10 +50,46 @@ with c4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# --- Filter controls ---
+all_match_types = sorted({a.get("match_type", "") for a in sanctions_alerts if a.get("match_type")})
+all_severities = sorted({a.get("severity", "") for a in sanctions_alerts if a.get("severity")})
+fc1, fc2, fc3 = st.columns([2, 2, 1])
+with fc1:
+    selected_match_types = st.multiselect(
+        "Filter match type",
+        options=all_match_types,
+        default=all_match_types,
+        help="Show only exact / fuzzy matches.",
+    )
+with fc2:
+    selected_severities = st.multiselect(
+        "Filter severity",
+        options=all_severities,
+        default=all_severities,
+    )
+with fc3:
+    min_score = st.slider(
+        "Min match score",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.0,
+        step=0.05,
+        help="Hide matches scoring below this confidence threshold.",
+    )
+
+# Apply filters to the working set.
+filtered_alerts = [
+    a
+    for a in sanctions_alerts
+    if (not selected_match_types or a.get("match_type") in selected_match_types)
+    and (not selected_severities or a.get("severity") in selected_severities)
+    and (a.get("match_score", 1.0) or 1.0) >= min_score
+]
+
 # Match results table.
-if sanctions_alerts:
-    st.markdown("### Match Results")
-    match_df = pd.DataFrame(sanctions_alerts)
+if filtered_alerts:
+    st.markdown(f"### Match Results ({len(filtered_alerts)} of {len(sanctions_alerts)} shown)")
+    match_df = pd.DataFrame(filtered_alerts)
     show_cols = [
         "customer_id",
         "matched_name",
@@ -81,13 +117,18 @@ if sanctions_alerts:
 
     # Matched customer profiles.
     st.markdown("### Matched Customer Profiles")
-    matched_ids = [a["customer_id"] for a in sanctions_alerts]
+    matched_ids = [a["customer_id"] for a in filtered_alerts]
     matched = df_customers[df_customers["customer_id"].isin(matched_ids)]
     cols = ["customer_id", "full_name", "country", "risk_rating"]
     st.dataframe(
         matched[[c for c in cols if c in matched.columns]],
         use_container_width=True,
         hide_index=True,
+    )
+elif sanctions_alerts:
+    st.info(
+        f"No matches pass the current filters "
+        f"({len(sanctions_alerts)} total matches available). Adjust the filters above."
     )
 else:
     st.success("No sanctions matches found.")
