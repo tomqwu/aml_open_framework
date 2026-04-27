@@ -155,8 +155,7 @@ def _build_case(
         # added the optional `url` field; pre-Round-7 narrative models
         # don't tolerate None values.
         "regulation_refs": [
-            {k: v for k, v in r.model_dump().items() if v is not None}
-            for r in rule.regulation_refs
+            {k: v for k, v in r.model_dump().items() if v is not None} for r in rule.regulation_refs
         ],
         "queue": rule.escalate_to,
         "alert": alert,
