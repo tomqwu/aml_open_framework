@@ -100,6 +100,7 @@ aml run spec.yaml [--data-source csv --data-dir ./]  # execute rules
 aml report spec.yaml --audience svp --stdout         # print role report
 aml export spec.yaml --out evidence.zip              # evidence bundle
 aml export-alerts spec.yaml --out alerts.csv         # alert CSV export
+aml export-goaml spec.yaml --out goaml.xml           # goAML 5.0.2 STR/SAR XML
 aml diff spec_a.yaml spec_b.yaml                     # compare two specs
 aml replay spec.yaml run-dir/                         # verify determinism
 aml schedule spec.yaml --interval 1h                  # run on a schedule
