@@ -107,6 +107,7 @@ aml draft-narrative spec.yaml CASE_ID --backend ollama  # structured STR/SAR dra
 aml pkyc-scan spec.yaml --high-risk-countries RU,KP    # perpetual KYC trigger scan
 aml tune spec.yaml --rule RULE_ID --labels labels.csv  # threshold sweep + shadow diff
 aml effectiveness-pack spec.yaml --out pack.json       # FinCEN NPRM evidence pack
+aml mrm-bundle spec.yaml --out-dir mrm/                # SR 26-2 model-risk dossiers
 aml diff spec_a.yaml spec_b.yaml                     # compare two specs
 aml replay spec.yaml run-dir/                         # verify determinism
 aml schedule spec.yaml --interval 1h                  # run on a schedule

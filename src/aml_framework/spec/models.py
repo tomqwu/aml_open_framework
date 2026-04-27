@@ -36,6 +36,11 @@ AmlPriority = Literal[
     "other",
 ]
 
+# Model-risk tiering used by the MRM bundle generator (`generators/mrm.py`)
+# — institutions tier rules by materiality so the SR 26-2 / 2021
+# Interagency Statement validation cadence is risk-proportional.
+ModelTier = Literal["high", "medium", "low"]
+
 
 class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -159,6 +164,17 @@ class Rule(_Base):
     # Defaults to None — rules without an explicit priority get bucketed
     # under "other" in the pack so the MLRO sees the gap.
     aml_priority: AmlPriority | None = None
+    # Model-risk-management tier (SR 26-2 / 2021 Interagency Statement).
+    # Consumed by `generators/mrm.py` to drive validation cadence and
+    # materiality classification in the per-rule MRM dossier. Defaults
+    # to None — rules without a tier get bucketed as "low" by the
+    # generator with a flag asking the second-line model-validation team
+    # to classify explicitly.
+    model_tier: ModelTier | None = None
+    # Required validation cadence in months. SR 26-2 expects high-tier
+    # models annually (12), medium every 18-24, low every 24-36.
+    # If unset, the MRM generator picks a default by tier.
+    validation_cadence_months: int | None = Field(default=None, ge=1, le=60)
 
 
 class Queue(_Base):

@@ -25,6 +25,17 @@ from aml_framework.generators.effectiveness import (
     export_pack_from_run_dir,
     render_effectiveness_markdown,
 )
+from aml_framework.generators.mrm import (
+    GUIDANCE_VERSION as MRM_GUIDANCE_VERSION,
+    DEFAULT_CADENCE_MONTHS,
+    MRMDossier,
+    ValidationEvidence,
+    build_dossier,
+    build_dossier_json,
+    build_inventory,
+    export_bundle_from_run_dir as export_mrm_bundle,
+    render_dossier_markdown,
+)
 
 __all__ = [
     "compile_rule_sql",
@@ -48,4 +59,13 @@ __all__ = [
     "build_effectiveness_pack_json",
     "export_pack_from_run_dir",
     "render_effectiveness_markdown",
+    "MRM_GUIDANCE_VERSION",
+    "DEFAULT_CADENCE_MONTHS",
+    "MRMDossier",
+    "ValidationEvidence",
+    "build_dossier",
+    "build_dossier_json",
+    "build_inventory",
+    "export_mrm_bundle",
+    "render_dossier_markdown",
 ]
