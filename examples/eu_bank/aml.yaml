@@ -15,13 +15,19 @@ data_contracts:
     source: raw.transactions
     freshness_sla: 1h
     columns:
-      - { name: txn_id,      type: string,    nullable: false }
-      - { name: customer_id, type: string,    nullable: false, pii: true }
-      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
-      - { name: currency,    type: string,    nullable: false }
-      - { name: channel,     type: string,    enum: [cash, wire, sepa, card] }
-      - { name: direction,   type: string,    enum: [in, out] }
-      - { name: booked_at,   type: timestamp, nullable: false }
+      - { name: txn_id,             type: string,    nullable: false }
+      - { name: customer_id,        type: string,    nullable: false, pii: true }
+      - { name: amount,             type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,           type: string,    nullable: false }
+      - { name: channel,            type: string,    enum: [cash, wire, sepa, card] }
+      - { name: direction,          type: string,    enum: [in, out] }
+      - { name: booked_at,          type: timestamp, nullable: false }
+      # Round-5 #3 — ISO 20022 ExternalPurpose1Code populated by the
+      # iso20022 ingestion adapter (PR #56). NULL on synthetic / CSV
+      # data sources that don't supply it; downstream purpose-code
+      # rules degrade gracefully when the column is empty.
+      - { name: purpose_code,       type: string,    nullable: true }
+      - { name: counterparty_country, type: string,  nullable: true }
     quality_checks:
       - { not_null: [txn_id, customer_id, amount, booked_at] }
       - { unique: [txn_id] }
@@ -199,6 +205,42 @@ rules:
       - originator_kyc_record
       - beneficiary_lookup
     tags: [travel_rule, fatf_r16, cross_border]
+
+  # --- ISO 20022 PURPOSE-CODE TYPOLOGY (Round-5 #3) ---
+  # Snippet copied from `spec/library/iso20022_purpose_codes.yaml` —
+  # demonstrates a high-risk purpose-code rule reading the purpose_code
+  # column the iso20022 ingestion adapter (PR #56) writes. The snippet
+  # detects investment-purpose churn (FATF Feb 2026 Cyber-Enabled
+  # Fraud calls out INVS as the canonical pig-butchering payout
+  # marker). Operators tune count + sum_amount via the tuning_grid.
+  - id: invs_velocity_investment_scam
+    name: INVS purpose-code velocity — investment-scam indicator
+    severity: high
+    regulation_refs:
+      - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
+        description: "Investment-scam typology — purpose-code INVS misuse."
+      - citation: "FinCEN FIN-2023-Alert005"
+        description: "Pig-butchering / relationship-investment scams."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: out
+        purpose_code: INVS
+      group_by: [customer_id]
+      window: 14d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 5000 }
+    escalate_to: l2_investigator
+    evidence:
+      - matching_invs_transactions
+      - customer_kyc_profile
+      - beneficiary_lookup
+    tags: [iso20022, purpose_code, invs, pig_butchering, cyber_enabled_fraud]
+    tuning_grid:
+      logic.having.count:      [{gte: 2}, {gte: 3}, {gte: 5}]
+      logic.having.sum_amount: [{gte: 2500}, {gte: 5000}, {gte: 10000}]
 
 workflow:
   queues:

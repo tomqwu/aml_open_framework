@@ -55,6 +55,47 @@ that introduced them.
   `TestSchemaTolerance` (minimal 7-col schema; missing txn
   table → empty), and `TestPythonRefIntegration` (end-to-end
   through `run_spec` with a built-in-line spec).
+- **ISO 20022 purpose-code typology library**
+  (`spec/library/iso20022_purpose_codes.yaml`,
+  `data/lists/iso20022_high_risk_purpose_codes.csv`). Round-5 PR #3
+  of 5. SWIFT's MX-only cutover (2025-11-22) replaced the legacy
+  free-text "purpose of payment" string with the structured
+  ExternalPurpose1Code enum (~150 codes). That enum unlocks
+  typology rules that simply weren't expressible before — distinguishing
+  "INVS misuse in a fake-investment scam" from "CHAR donation routed
+  via shell-charity" cleanly. Library v1 ships **4 reusable rule
+  snippets** (copy-pasteable, not auto-included — preserves the
+  "every line of the spec was written by a human" defensibility
+  story):
+  1. **`invs_velocity_investment_scam`** — `aggregation_window`
+     detecting INVS purpose-code velocity (FATF Feb 2026 names INVS
+     as the canonical pig-butchering payout marker). Ships with a
+     `tuning_grid` for count + sum_amount sweeps.
+  2. **`char_gift_burst_shell_charity`** — `aggregation_window`
+     for CHAR/GIFT clustering (shell-charity / romance-scam payout).
+  3. **`deri_from_retail_mandate_mismatch`** — `custom_sql` joining
+     txn.purpose_code='DERI' against customer.business_activity
+     (MiFID II Art. 16 mandate-suitability + AMLD6 Art. 18a EDD).
+  4. **`trad_to_high_risk_jurisdiction_tbml`** — `custom_sql` for
+     TRAD-purpose payments to FATF black/grey-list countries
+     (early-warning rule for the upcoming Round-7 #2 TBML spec).
+  Reference data `iso20022_high_risk_purpose_codes.csv` ships 28
+  ISO 20022 ExternalPurpose1Code values with risk_band classification
+  (low/medium/high) and typology mapping; operators read it via
+  the dashboard or for reporting. Wired into `examples/eu_bank/aml.yaml`
+  as a working demo (Snippet #1 INVS velocity); the EU spec's `txn`
+  data contract gained `purpose_code` (nullable) + `counterparty_country`
+  (nullable) so the rule executes without crashing on synthetic data
+  (rule produces zero alerts on synthetic since purpose_code is NULL,
+  and fires correctly when fed real pacs.008 data via PR #56). 16 new
+  tests under `TestLibraryYAML` (snippet validity, every snippet must
+  be a Pydantic-valid Rule, all carry the iso20022 tag, all 4 known
+  IDs present), `TestHighRiskCSV` (schema, every cited code present,
+  valid risk_band values, no duplicates), `TestEUBankWiring` (INVS
+  rule loaded, purpose_code column declared, tuning_grid present),
+  and `TestEndToEnd` (rule fires on planted INVS positives;
+  below-threshold yields zero alerts; synthetic data degrades
+  gracefully with no crash).
 - **ISO 20022 payment-message ingestion** (`data/iso20022/`).
   Round-5 PR #1 of 5. SWIFT completed its MX-only cutover on
   **2025-11-22** (CBPR+ coexistence ended); FedNow/RTP/SEPA Instant

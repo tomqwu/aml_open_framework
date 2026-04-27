@@ -1,0 +1,29 @@
+code,category,risk_band,typology,notes
+INVS,investment,high,investment_scam,Pig-butchering payout marker (FATF Feb 2026 Cyber-Enabled Fraud)
+GIFT,gift,medium,romance_scam,Romance-scam payout marker (FinCEN FIN-2023-Alert005)
+CHAR,charity,medium,shell_charity,Shell-charity laundering vector
+TRAD,trade,medium,tbml,Trade-based money laundering invoice manipulation
+DERI,derivatives,high,mandate_mismatch,Outside-mandate trading from retail accounts
+LOAN,loan,medium,disguised_loan,Loans to non-customers as disguised payments
+SCVE,services,low,routine,Service charges - generally benign
+CASH,cash_mgmt,medium,layering,Cash-management transfer used for layering
+TAXS,tax,low,routine,Tax payment - generally benign but flag if unusual
+SALA,salary,low,routine,Salary payment - benign baseline
+PENS,pension,low,routine,Pension payment - benign baseline
+DIVD,dividend,low,routine,Dividend payment - benign baseline
+INTC,intra_company,medium,intercompany,Intra-company transfer; shell-company indicator
+SUPP,supplier,low,routine,Supplier payment - benign baseline
+GDDS,goods,low,routine,Goods purchase - benign baseline
+SCVS,scvs_service,low,routine,Service payment - benign baseline
+TREA,treasury,medium,treasury_movement,Treasury operations; flag if to non-FI counterparty
+COLL,collateral,medium,collateral_post,Collateral movement; flag if novel counterparty
+COMM,commission,low,routine,Commission payment - benign baseline
+CMDT,commodity,medium,trade,Commodity trade - flag if mismatched HS codes
+CCRD,credit_card,low,routine,Credit card payment - benign baseline
+DCRD,debit_card,low,routine,Debit card payment - benign baseline
+ICCP,irrev_credit_card,low,routine,Irrevocable credit card payment - benign baseline
+NWCH,network_charge,low,routine,Network charge - benign baseline
+NWCM,network_communication,low,routine,Network communication payment - benign baseline
+RVPM,reversal_purchase,low,routine,Reversal of payment - benign baseline
+TRAN,transfer,low,routine,Generic transfer - default catch-all
+WHLD,withholding,low,routine,Withholding tax - benign baseline
