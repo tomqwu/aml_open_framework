@@ -70,6 +70,9 @@ def heuristic_risk_scorer(
         customer_id,
         total_amount                              AS sum_amount,
         txn_count                                 AS count,
+        velocity_score,
+        deviation_score,
+        channel_score,
         ROUND(
             velocity_score * 0.4
             + deviation_score * 0.3
@@ -85,4 +88,27 @@ def heuristic_risk_scorer(
 
     rows = con.execute(sql).fetchall()
     cols = [d[0] for d in con.description] if con.description else []
-    return [dict(zip(cols, r)) for r in rows]
+    alerts = [dict(zip(cols, r)) for r in rows]
+    # Emit feature_attribution so the case file + STR narrative can show
+    # *why* the score was high. Each component carries its weighted contribution
+    # to the final score; the analyst can see at a glance which signal drove
+    # the alert.
+    for a in alerts:
+        v = float(a.pop("velocity_score", 0))
+        d = float(a.pop("deviation_score", 0))
+        c = float(a.pop("channel_score", 0))
+        a["feature_attribution"] = {
+            "velocity": round(v * 0.4, 4),
+            "amount_deviation": round(d * 0.3, 4),
+            "channel_mixing": round(c * 0.3, 4),
+        }
+        # Identify the dominant signal for a one-line explanation.
+        dominant = max(
+            (("velocity", v * 0.4), ("amount_deviation", d * 0.3), ("channel_mixing", c * 0.3)),
+            key=lambda kv: kv[1],
+        )
+        a["explanation"] = (
+            f"Behavioral score driven primarily by '{dominant[0]}' "
+            f"(contribution {dominant[1]:.2f} to risk_score {a['risk_score']})."
+        )
+    return alerts
