@@ -218,6 +218,50 @@ def effectiveness_pack_cmd(
         console.print(f"[green]Markdown[/green] {markdown_out}")
 
 
+@app.command(name="mrm-bundle")
+def mrm_bundle_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    rule: list[str] = typer.Option(
+        [], "--rule", help="Rule id(s) to dossier; repeat for multiple. Default: all rules."
+    ),
+    out_dir: Path = typer.Option(
+        Path(".artifacts/mrm"), help="Output directory for per-rule dossiers + inventory."
+    ),
+    run_dir: Path | None = typer.Option(None, help="Run dir; defaults to latest."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+) -> None:
+    """Build per-rule MRM dossiers (SR 26-2 / OCC Bulletin 2026-13) + inventory.
+
+    Composes the audit ledger, alerts, decisions (including any
+    `tuning_run` events from `aml tune --audit-run-dir …`), and the
+    spec's model_tier / validation_cadence_months fields into per-rule
+    Markdown + JSON dossiers the bank's second-line model-validation
+    team reads. Also writes a spec-wide `inventory.json` aggregating
+    every rule's tier + cadence + classification status.
+    """
+    from aml_framework.generators.mrm import export_bundle_from_run_dir
+
+    run_dir = _resolve_run_dir(run_dir, artifacts)
+    spec = load_spec(spec_path)
+
+    result = export_bundle_from_run_dir(spec, run_dir, out_dir, rule_ids=rule or None)
+
+    summary = result["summary"]
+    console.print(
+        f"[green]MRM bundle[/green] {result['out_dir']} — "
+        f"{len(result['rules_written'])} dossier(s); "
+        f"tiers high={summary['by_tier']['high']} "
+        f"medium={summary['by_tier']['medium']} "
+        f"low={summary['by_tier']['low']}"
+    )
+    classification = summary.get("by_classification_status", {})
+    if classification.get("defaulted_to_low"):
+        console.print(
+            f"[yellow]⚠️  {classification['defaulted_to_low']} rule(s) defaulted to "
+            "tier 'low' — second-line should classify explicitly via Rule.model_tier.[/yellow]"
+        )
+
+
 @app.command(name="export-amla-str")
 def export_amla_str_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

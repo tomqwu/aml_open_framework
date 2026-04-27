@@ -122,6 +122,17 @@
             "proliferation_financing",
             "other"
           ]
+        },
+        "model_tier": {
+          "type": "string",
+          "description": "MRM tier (SR 26-2 / Interagency Statement) used by `generators/mrm.py` to set validation cadence and materiality.",
+          "enum": ["high", "medium", "low"]
+        },
+        "validation_cadence_months": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Required validation cadence in months. Defaults by tier (high=12, medium=18, low=24)."
         }
       }
     },

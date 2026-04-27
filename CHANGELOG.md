@@ -108,6 +108,65 @@ that introduced them.
   counting, Markdown rendering of pillars + audit anchor, end-to-end
   run-dir round-trip against the bundled CA spec, and Pydantic enum
   validation on the new field.
+- **MRM bundle (SR 26-2 / OCC Bulletin 2026-13)**
+  (`generators/mrm.py`, `cli.py:mrm-bundle`, `Rule.model_tier`
+  + `Rule.validation_cadence_months` spec fields). Round-4 PR #2
+  of 2 — pairs with PR #52 Effectiveness Pack.
+  The Federal Reserve, FDIC, and OCC formally rescinded SR 11-7
+  on **2026-04-17** and replaced it with **OCC Bulletin 2026-13 /
+  SR 26-2**, a more risk-based, principles-driven model-risk-
+  management framework that explicitly re-confirms AML transaction-
+  monitoring rules and sanctions-screening tools meet the "model"
+  definition. Banks have a 12-month implementation window. This
+  generator emits the per-rule MRM dossier the bank's second-line
+  model-validation team needs:
+  1. **Inventory** — id, name, severity, tier, cadence,
+     evaluation_mode, classification status (explicit vs defaulted).
+  2. **Conceptual soundness** — auto-generated narrative + structured
+     logic block + regulation_refs (the model is documented from
+     the spec, not hand-written by the validator).
+  3. **Implementation** — engine version, code path the rule runs
+     through, spec content hash, evaluation mode.
+  4. **Validation evidence** — pulls every `tuning_run` event for
+     this rule from `decisions.jsonl` (so `aml tune --audit-run-dir
+     <run>` becomes the bank's auditable validation evidence). When
+     no tuning runs exist the dossier prints a one-liner pointing
+     the validator at the right command.
+  5. **Ongoing monitoring** — alert count this run, cadence months,
+     next-validation-due date (cadence ahead of as_of).
+  6. **Audit-trail anchor** — spec_content_hash + decisions_hash +
+     as_of + run_dir.
+  Each rule produces a Markdown document + JSON sidecar. A spec-wide
+  `inventory.json` aggregates every rule's tier + cadence +
+  classification status (sorted high → medium → low). Defaults:
+  `model_tier` defaults to `"low"` with `tier_classification_status:
+  "defaulted_to_low"` so the second-line sees where they need to
+  classify explicitly; `validation_cadence_months` defaults by tier
+  (high=12, medium=18, low=24).
+  Pairs with `generators/effectiveness.py` (PR #52): Effectiveness
+  Pack speaks to the first line + senior management ("does the
+  programme work?"); MRM bundle speaks to the second-line model-
+  validation team ("how was each rule validated?"). Different
+  audiences, different review paths — intentionally **not** bundled
+  into one PR.
+  CLI:
+  ```
+  aml mrm-bundle examples/canadian_schedule_i_bank/aml.yaml \
+    --out-dir mrm/  # one Markdown + JSON per rule + inventory.json
+  aml mrm-bundle examples/canadian_schedule_i_bank/aml.yaml \
+    --rule structuring_cash_deposits --out-dir mrm/  # single rule
+  ```
+  28 new tests under `TestSpecFields`, `TestTierCadenceResolution`,
+  `TestDossierSections`, `TestInventory`, `TestRendering`,
+  `TestRunDirRoundTrip`, and `TestCadenceTable` cover spec field
+  validation (invalid tier rejected, cadence bounds enforced),
+  tier defaulting + classification status reporting, default-cadence
+  table, dossier section composition (logic capture, regulation
+  refs, validation evidence routing by rule_id), Markdown rendering
+  (guidance header, defaulted-to-low warning, validation evidence
+  display), spec-wide inventory aggregation (by_tier + by_status
+  counters, sort order), and end-to-end run-dir round-trip against
+  the bundled CA spec (10 dossier files + inventory written).
 - **Tuning Lab Streamlit page** (`dashboard/pages/23_Tuning_Lab.py` +
   `dashboard/tuning_state.py`): UI surface for `aml tune` (PR #50). MLRO
   picks a tunable rule, optionally uploads a labels CSV
