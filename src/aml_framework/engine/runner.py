@@ -234,8 +234,9 @@ def _load_reference_list(list_name: str) -> list[str] | None:
     """Load a reference list CSV, returning uppercased names or None if missing."""
     import csv
 
-    lists_dir = Path(__file__).resolve().parents[1] / "data" / "lists"
-    list_path = lists_dir / f"{list_name}.csv"
+    from aml_framework.paths import REFERENCE_LISTS_DIR
+
+    list_path = REFERENCE_LISTS_DIR / f"{list_name}.csv"
     if not list_path.exists():
         return None
     with list_path.open("r", encoding="utf-8") as f:

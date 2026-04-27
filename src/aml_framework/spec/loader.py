@@ -15,9 +15,8 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator
 
+from aml_framework.paths import SCHEMA_PATH as _SCHEMA_PATH
 from aml_framework.spec.models import AMLSpec
-
-_SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "aml-spec.schema.json"
 
 
 def _load_schema() -> dict:

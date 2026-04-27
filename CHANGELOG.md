@@ -39,6 +39,12 @@ that introduced them.
   `decisions.jsonl` stays append-capable.
 
 ### Refactor
+- **`paths.py` — single source for `PROJECT_ROOT`, `PACKAGE_ROOT`,
+  `SCHEMA_PATH`, `REFERENCE_LISTS_DIR`.** `Path(__file__).resolve().parents[3]`
+  was repeated in `spec/loader.py`, `dashboard/state.py`, and
+  `api/main.py` with a brittle index that breaks if the package gets
+  nested deeper. `engine/runner.py:_load_reference_list` carried its own
+  `parents[1]` for `data/lists`. All four now import from one module.
 - **`engine/constants.py` — single source of truth for event + queue names.**
   String literals like `"case_opened"`, `"escalated_to_str"`,
   `"closed_no_action"` were duplicated across `runner.py`, dashboard pages,
