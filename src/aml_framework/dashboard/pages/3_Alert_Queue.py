@@ -9,6 +9,7 @@ import streamlit as st
 
 from aml_framework.dashboard.components import SEVERITY_COLORS, chart_layout, kpi_card, page_header
 from aml_framework.dashboard.audience import show_audience_context
+from aml_framework.engine.constants import Event, Queue
 
 
 def _bulk_action(case_ids: list[str], event: str, disposition: str) -> None:
@@ -276,7 +277,7 @@ if not df_cases.empty and "status" in df_cases.columns:
     now = _dt.now()
 
     # Show open/active cases table with SLA.
-    active = df_cases[~df_cases["status"].isin(["closed_no_action"])].copy()
+    active = df_cases[~df_cases["status"].isin([Queue.CLOSED_NO_ACTION])].copy()
     if not active.empty:
 
         def _sla_status(row):
@@ -320,7 +321,7 @@ if not df_cases.empty and "status" in df_cases.columns:
         # --- Bulk actions ---
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### Bulk Actions")
-        open_cases = active[~active["status"].isin(["str_filing", "sar_filing"])]
+        open_cases = active[~active["status"].isin([Queue.STR_FILING, Queue.SAR_FILING])]
         if not open_cases.empty:
             selected = st.multiselect(
                 "Select cases",
@@ -334,7 +335,7 @@ if not df_cases.empty and "status" in df_cases.columns:
                         f"Bulk Close ({len(selected)})",
                         use_container_width=True,
                     ):
-                        _bulk_action(selected, "closed", "closed_no_action")
+                        _bulk_action(selected, Event.CLOSED, Queue.CLOSED_NO_ACTION)
                 with col_b2:
                     if st.button(
                         f"Bulk Escalate ({len(selected)})",
