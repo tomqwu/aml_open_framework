@@ -102,14 +102,24 @@ class TestRunnerEndToEnd:
 
 
 class TestAuditLedgerFrozen:
-    """After finalize(), the snapshot files are read-only on POSIX."""
+    """After finalize(), the snapshot files are read-only on POSIX.
 
-    def _is_posix(self):
-        return os.name != "nt"
+    Skipped on Windows (different ACL semantics) and when running as root
+    (root bypasses 0o444 — the docker CI job runs as root).
+    """
+
+    def _is_enforcing(self):
+        if os.name == "nt":
+            return False
+        # Root ignores rwx mode bits.
+        try:
+            return os.geteuid() != 0
+        except AttributeError:  # pragma: no cover — non-POSIX without geteuid
+            return False
 
     def test_manifest_is_read_only_after_finalize(self, tmp_path):
-        if not self._is_posix():
-            pytest.skip("chmod 0o444 doesn't enforce on Windows")
+        if not self._is_enforcing():
+            pytest.skip("chmod 0o444 not enforced (Windows or root)")
         _, _, result = _run(tmp_path)
         run_dir = Path(result.manifest["run_dir"])
         manifest_path = run_dir / "manifest.json"
@@ -117,8 +127,8 @@ class TestAuditLedgerFrozen:
         assert mode == 0o444, f"manifest.json mode is {oct(mode)}, expected 0o444"
 
     def test_alert_outputs_are_read_only_after_finalize(self, tmp_path):
-        if not self._is_posix():
-            pytest.skip("chmod 0o444 doesn't enforce on Windows")
+        if not self._is_enforcing():
+            pytest.skip("chmod 0o444 not enforced (Windows or root)")
         _, _, result = _run(tmp_path)
         run_dir = Path(result.manifest["run_dir"])
         alerts_dir = run_dir / "alerts"
@@ -140,8 +150,8 @@ class TestAuditLedgerFrozen:
         assert "manual_review" in text
 
     def test_manifest_write_after_finalize_raises(self, tmp_path):
-        if not self._is_posix():
-            pytest.skip("chmod 0o444 doesn't enforce on Windows")
+        if not self._is_enforcing():
+            pytest.skip("chmod 0o444 not enforced (Windows or root)")
         _, _, result = _run(tmp_path)
         manifest_path = Path(result.manifest["run_dir"]) / "manifest.json"
         with pytest.raises(PermissionError):
