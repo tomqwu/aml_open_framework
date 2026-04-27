@@ -7,6 +7,15 @@ that introduced them.
 
 ## [Unreleased]
 
+### Refactor
+- Extract `_resolve_run_dir` in `cli.py` — the "default to latest run-* under
+  artifacts" block was duplicated in `report`, `export`, and `export-alerts`.
+- Dashboard `Rule_Tuning` page now calls `engine.runner._build_warehouse`
+  twice instead of re-implementing the DDL+insert loop inline. Removes ~50
+  lines and an unintentional closure-over-`dtype` in the sensitivity loop
+  (the second copy referenced `dtype` from outer scope, which would crash
+  if every contract had `rows = []`).
+
 ### Tests
 - **`TestThresholdBoundaries`** in `test_engine.py` adds nine just-below-
   threshold cases for the Canadian Schedule I spec: structuring (count<3,

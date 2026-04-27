@@ -25,6 +25,19 @@ def _parse_as_of(value: str | None) -> datetime:
     return datetime.fromisoformat(value)
 
 
+def _resolve_run_dir(run_dir: Path | None, artifacts: Path) -> Path:
+    """Pick `run_dir` or fall back to the newest `run-*` under `artifacts`.
+    Exits with a clear message if no run directories exist.
+    """
+    if run_dir is not None:
+        return run_dir
+    candidates = sorted(artifacts.glob("run-*"), reverse=True)
+    if not candidates:
+        console.print("[red]No run directories found.[/red] Run `aml run` first.")
+        raise typer.Exit(code=1)
+    return candidates[0]
+
+
 @app.command()
 def validate(spec_path: Path = typer.Argument(..., exists=True, readable=True)) -> None:
     """Validate aml.yaml against the JSON Schema and cross-reference checks."""
@@ -163,12 +176,7 @@ def report(
 ) -> None:
     """Show or print role-specific reports from a completed run."""
     spec = load_spec(spec_path)
-    if run_dir is None:
-        candidates = sorted(artifacts.glob("run-*"), reverse=True)
-        if not candidates:
-            console.print("[red]No run directories found.[/red] Run `aml run` first.")
-            raise typer.Exit(code=1)
-        run_dir = candidates[0]
+    run_dir = _resolve_run_dir(run_dir, artifacts)
 
     reports_dir = run_dir / "reports"
     if not reports_dir.exists():
@@ -208,13 +216,7 @@ def export(
     artifacts: Path = typer.Option(Path(".artifacts")),
 ) -> None:
     """Zip a run directory into a regulator-ready evidence bundle."""
-    if run_dir is None:
-        candidates = sorted(artifacts.glob("run-*"), reverse=True)
-        if not candidates:
-            console.print("[red]No run directories found.[/red] Run `aml run` first.")
-            raise typer.Exit(code=1)
-        run_dir = candidates[0]
-
+    run_dir = _resolve_run_dir(run_dir, artifacts)
     out_path = export_bundle(run_dir, out, spec_path=spec_path)
     console.print(f"[green]Bundle[/green] {out_path} (from {run_dir})")
 
@@ -262,13 +264,7 @@ def export_alerts(
     import csv
     import json
 
-    if run_dir is None:
-        candidates = sorted(artifacts.glob("run-*"), reverse=True)
-        if not candidates:
-            console.print("[red]No run directories found.[/red] Run `aml run` first.")
-            raise typer.Exit(code=1)
-        run_dir = candidates[0]
-
+    run_dir = _resolve_run_dir(run_dir, artifacts)
     alerts_dir = run_dir / "alerts"
     if not alerts_dir.exists():
         console.print(f"[red]No alerts/[/red] in {run_dir}.")

@@ -12,6 +12,7 @@ import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.engine.runner import _build_warehouse
 from aml_framework.generators.sql import compile_rule_sql
 from aml_framework.spec.models import AggregationWindowLogic, Rule
 
@@ -91,31 +92,9 @@ st.divider()
 # --- Run the modified rule against the warehouse ---
 st.markdown("### Impact Preview")
 
-# Build DuckDB warehouse from session data.
+# Build DuckDB warehouse from session data — same builder the engine uses.
 con = duckdb.connect(":memory:")
-for contract in spec.data_contracts:
-    rows = data.get(contract.id, [])
-    if not rows:
-        continue
-    contract_cols = [c.name for c in contract.columns]
-    dtype = {
-        "string": "VARCHAR",
-        "integer": "BIGINT",
-        "decimal": "DECIMAL(18,2)",
-        "boolean": "BOOLEAN",
-        "date": "DATE",
-        "timestamp": "TIMESTAMP",
-    }
-    ddl = ", ".join(
-        f"{c.name} {dtype[c.type]}{'' if c.nullable else ' NOT NULL'}" for c in contract.columns
-    )
-    con.execute(f"CREATE TABLE {contract.id} ({ddl})")
-    placeholders = ", ".join(["?"] * len(contract_cols))
-    cols_str = ", ".join(contract_cols)
-    con.executemany(
-        f"INSERT INTO {contract.id} ({cols_str}) VALUES ({placeholders})",
-        [tuple(r.get(c) for c in contract_cols) for r in rows],
-    )
+_build_warehouse(con, spec, data)
 
 # Run original rule.
 original_sql = compile_rule_sql(rule, as_of=as_of, source_table=logic.source)
@@ -177,21 +156,7 @@ if main_metric and isinstance(having[main_metric], dict):
         test_counts = []
 
         con2 = duckdb.connect(":memory:")
-        for contract in spec.data_contracts:
-            rows = data.get(contract.id, [])
-            if rows:
-                contract_cols = [c.name for c in contract.columns]
-                ddl = ", ".join(
-                    f"{c.name} {dtype[c.type]}{'' if c.nullable else ' NOT NULL'}"
-                    for c in contract.columns
-                )
-                con2.execute(f"CREATE TABLE {contract.id} ({ddl})")
-                placeholders = ", ".join(["?"] * len(contract_cols))
-                cols_str = ", ".join(contract_cols)
-                con2.executemany(
-                    f"INSERT INTO {contract.id} ({cols_str}) VALUES ({placeholders})",
-                    [tuple(r.get(c) for c in contract_cols) for r in rows],
-                )
+        _build_warehouse(con2, spec, data)
 
         for tv in test_values:
             test_having = dict(adjusted_having)
