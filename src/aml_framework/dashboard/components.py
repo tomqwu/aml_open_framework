@@ -29,6 +29,17 @@ SEVERITY_COLORS = {
 CHART_TEMPLATE = "plotly_white"
 CHART_PALETTE = ["#2563eb", "#7c3aed", "#db2777", "#d97706", "#059669", "#6b7280"]
 
+# SLA band colors — mirrors the cases/sla.py state vocabulary
+# (green / amber / red / breached). Centralised here so per-page color
+# dicts can be deleted in Phase E.
+SLA_BAND_COLORS = {
+    "green": "#16a34a",
+    "amber": "#d97706",
+    "red": "#dc2626",
+    "breached": "#7c2d12",  # dark red — distinct from red so a glance separates them
+    "unknown": "#6b7280",
+}
+
 
 # ---------------------------------------------------------------------------
 # CSS Theme
@@ -305,6 +316,94 @@ def severity_badge(severity: str) -> str:
         f'border-radius:12px; font-size:0.78rem; font-weight:600;">'
         f"{severity}</span>"
     )
+
+
+# ---------------------------------------------------------------------------
+# Color resolvers — single source of truth, replacing per-page dicts
+# ---------------------------------------------------------------------------
+
+
+def severity_color(severity: str) -> str:
+    """Resolve a severity string to its hex color.
+
+    Replaces the per-page `_sev_style` / `colors = {...}` dicts that
+    drifted apart across pages #4, #5, #12, #17, #21, #22.
+    """
+    return SEVERITY_COLORS.get((severity or "").lower(), "#6b7280")
+
+
+def sla_band_color(state: str) -> str:
+    """Resolve a `cases/sla.py` SLA band ('green'/'amber'/'red'/'breached')
+    to its hex color. Used by the SLA timer ring + backlog tables."""
+    return SLA_BAND_COLORS.get((state or "").lower(), SLA_BAND_COLORS["unknown"])
+
+
+# ---------------------------------------------------------------------------
+# Empty-state helper — kills the inconsistent st.warning/info/error pattern
+# ---------------------------------------------------------------------------
+
+
+def empty_state(
+    message: str,
+    *,
+    icon: str = "ℹ️",
+    detail: str | None = None,
+    stop: bool = False,
+) -> None:
+    """Render a consistent empty-state block.
+
+    Replaces the ad-hoc `st.warning(...) + st.stop()` patterns scattered
+    across pages #3, #4, #21, #24. Operators see the same shape every
+    time so they learn it once.
+
+    Args:
+        message: short headline (e.g. "No alerts in this run.")
+        icon: leading emoji or icon string
+        detail: optional secondary line — what the operator should do next
+        stop: when True, calls `st.stop()` after rendering — for pages
+            that genuinely can't proceed without the missing data
+    """
+    body = f"### {icon} {message}"
+    if detail:
+        body += f"\n\n{detail}"
+    st.info(body)
+    if stop:
+        st.stop()
+
+
+# ---------------------------------------------------------------------------
+# Cross-page navigation helper — query-param-based deep links
+# ---------------------------------------------------------------------------
+
+
+def link_to_page(
+    page_path: str,
+    label: str,
+    **query_params: Any,
+) -> None:
+    """Render a Streamlit page link with optional query params.
+
+    Wraps `st.page_link` to give us one place to format URLs consistently
+    when we add deep-linking (e.g. an Alert Queue row links to
+    `Customer 360` with `?customer_id=C0001`). Streamlit reads query
+    params from the URL and the destination page calls
+    `query_params.read_param('customer_id')` to pre-select.
+
+    Args:
+        page_path: relative page filename, e.g. "pages/17_Customer_360.py"
+        label: clickable text shown to the user
+        **query_params: optional URL params; written to session state via
+            the `selected_*` convention so destination pages can read them
+            from `st.session_state` (Streamlit's `st.page_link` doesn't
+            yet pass query params natively).
+    """
+    if query_params:
+        # Streamlit's st.page_link doesn't currently pass query params on
+        # navigation, so we stash them in session state under the same
+        # `selected_<key>` namespace that destination pages already use.
+        for key, value in query_params.items():
+            st.session_state[f"selected_{key}"] = value
+    st.page_link(page_path, label=label)
 
 
 def metric_table(metrics: list[MetricResult], audience: str | None = None) -> None:

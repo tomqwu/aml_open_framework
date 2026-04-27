@@ -8,6 +8,45 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Dashboard cross-cutting helpers (Phase A)**
+  (`dashboard/components.py`, `dashboard/query_params.py`,
+  `tests/test_dashboard_components_helpers.py`). First PR of the
+  dashboard workflow + design plan. Adds the foundations every
+  subsequent integration PR depends on:
+  - **`severity_color(severity)`** — single-source-of-truth resolver
+    over `SEVERITY_COLORS`. Replaces the `_sev_style` / inline color
+    dicts duplicated in pages #4, #5, #12, #17, #21, #22 (cleanup
+    happens in Phase E).
+  - **`sla_band_color(state)`** — resolver over a new
+    `SLA_BAND_COLORS` constant covering the four `cases/sla.py`
+    states (green/amber/red/breached) plus `unknown` fallback. Used
+    by the SLA timer ring + backlog tables Phase B-1 introduces.
+  - **`empty_state(message, *, icon, detail, stop)`** — consistent
+    empty-state block. Replaces the ad-hoc
+    `st.warning(...) + st.stop()` patterns scattered across analyst
+    pages so operators see the same shape every time.
+  - **`link_to_page(page_path, label, **query_params)`** — Streamlit
+    `st.page_link` wrapper that mirrors query params into
+    `st.session_state["selected_<key>"]` so destination pages can
+    pre-select (Streamlit's native page-link doesn't pass query
+    params). Foundation for Phase C drill-downs.
+  - **New `dashboard/query_params.py` module** with `read_param`,
+    `set_param`, `consume_param`, `clear_param`. URL-first with
+    session-state fallback so deep links work whether the user
+    arrived via URL or in-app navigation. `consume_param` clears
+    on read so refreshes don't re-trigger one-shot drill-down state;
+    `clear_param` removes from both URL and session state for
+    explicit retirement after the drill-down resolves into the
+    page's canonical state.
+  - 21 new source-level tests under `TestSeverityColorHelper`,
+    `TestSLABandColorHelper`, `TestEmptyStateHelper`,
+    `TestLinkToPageHelper`, `TestQueryParamsModule`,
+    `TestNamespaceConsistency`. The cross-module test catches the
+    silent-broken-deep-link failure mode where `link_to_page` and
+    `query_params.read_param` could drift apart on the
+    `selected_<key>` namespace convention.
+  Total tests 1068 → 1089.
+
 - **Progress snapshot + competitive positioning research** (`docs/progress.md`,
   `docs/research/2026-04-competitive-positioning.md`, `README.md`).
   Two new docs:
