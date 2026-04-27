@@ -973,6 +973,88 @@ class TestRateLimiting:
 
 
 # ===========================================================================
+# Webhook HMAC signing
+# ===========================================================================
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestWebhookSigning:
+    def test_register_with_secret_marks_signed(self, monkeypatch):
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
+        token = _token("admin")
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "name": "signed_hook",
+                "url": "https://hooks.example.com/x",
+                "events": ["alert_created"],
+                "secret": "shared-secret-32-bytes-or-longer-aaaa",
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["signed"] is True
+
+    def test_register_without_secret_marks_unsigned(self, monkeypatch):
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
+        token = _token("admin")
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "name": "unsigned_hook",
+                "url": "https://hooks.example.com/y",
+                "events": ["alert_created"],
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["signed"] is False
+
+    def test_sign_webhook_helper_matches_hmac(self):
+        import hashlib
+        import hmac
+
+        from aml_framework.api.main import _sign_webhook
+
+        secret = "test-secret"
+        body = b'{"event":"x","run_id":"r1"}'
+        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+        assert _sign_webhook(secret, body) == expected
+
+    @patch("urllib.request.urlopen")
+    def test_signed_webhook_includes_x_aml_signature(self, mock_urlopen, monkeypatch):
+        """A registered webhook with a secret fires with X-AML-Signature header."""
+        import aml_framework.api.main as main_mod
+
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
+        main_mod._webhooks.clear()
+        token = _token("admin")
+        client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "name": "signed",
+                "url": "https://hooks.test/x",
+                "events": ["run_completed", "alert_created"],
+                "secret": "very-secret-key",
+            },
+        )
+        client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_path": "examples/community_bank/aml.yaml", "seed": 42},
+        )
+        # The first urlopen call's Request should carry our header.
+        assert mock_urlopen.call_count >= 1
+        sent_request = mock_urlopen.call_args_list[0].args[0]
+        sig = sent_request.headers.get("X-aml-signature")  # urllib title-cases keys
+        assert sig is not None
+        assert sig.startswith("sha256=")
+        assert len(sig) > len("sha256=") + 32  # hex digest must be present
+        main_mod._webhooks.clear()
+
+
+# ===========================================================================
 # Comparative Analytics (dashboard page existence)
 # ===========================================================================
 

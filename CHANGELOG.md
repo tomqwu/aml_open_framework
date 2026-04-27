@@ -17,6 +17,15 @@ that introduced them.
   issuance but not enforcement; this closes that gap.
 - 3 new tests under `TestTenantIsolation` confirm `bank_a` can't list,
   get, or read alerts for `bank_b`'s runs.
+- **Webhook HMAC signing** (`api/main.py`): `WebhookConfig.secret` is now an
+  optional field. When provided at registration, the dispatch path computes
+  `HMAC-SHA256(secret, body)` and sends it as `X-AML-Signature: sha256=<hex>`
+  alongside the JSON payload. Receivers verify by recomputing the HMAC over
+  the raw body and comparing constant-time. Same wire convention as Stripe /
+  GitHub webhooks. Hooks without a secret continue to work unsigned.
+- 4 new tests under `TestWebhookSigning` cover registration response
+  shape, the `_sign_webhook` helper matching stdlib `hmac`, and the
+  signature header being set on outgoing requests.
 
 ### Refactor (later)
 - **`api/db.py` Postgres/SQLite dedup**: `_with_conn()` context manager
