@@ -106,6 +106,7 @@ aml sanctions-sync ofac --from-file sdn_advanced.xml # refresh sanctions CSV fro
 aml draft-narrative spec.yaml CASE_ID --backend ollama  # structured STR/SAR draft
 aml pkyc-scan spec.yaml --high-risk-countries RU,KP    # perpetual KYC trigger scan
 aml tune spec.yaml --rule RULE_ID --labels labels.csv  # threshold sweep + shadow diff
+aml effectiveness-pack spec.yaml --out pack.json       # FinCEN NPRM evidence pack
 aml diff spec_a.yaml spec_b.yaml                     # compare two specs
 aml replay spec.yaml run-dir/                         # verify determinism
 aml schedule spec.yaml --interval 1h                  # run on a schedule

@@ -8,6 +8,48 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Effectiveness Evidence Pack** (`generators/effectiveness.py`,
+  `cli.py:effectiveness-pack`, `Rule.aml_priority` spec field).
+  Round-4 PR #1 of 2 (paired with the upcoming MRM bundle for
+  SR 26-2). FinCEN's **2026-04-07 NPRM** ("Reform of the AML/CFT
+  Programs Requirements") moves examiners from "existence" to
+  "effectiveness" standards — every BSA-covered institution will
+  need to *prove* program effectiveness against the FinCEN
+  AML/CFT priorities. This generator builds that proof from
+  artifacts the framework already produces. Output is a single
+  structured JSON document mapped to the four NPRM pillars:
+  - **Risk-assessment alignment** — counts rules with
+    `regulation_refs`, severity distribution.
+  - **AML/CFT priority coverage** — uses the new
+    `Rule.aml_priority` enum field to bucket rules by FinCEN
+    priority (corruption, cybercrime, terrorist_financing, fraud,
+    transnational_criminal_organization, drug_trafficking,
+    human_trafficking, proliferation_financing, other); flags
+    unmapped rules as gaps requiring MLRO classification.
+  - **Control output quality** — alert volume, false-positive
+    proxy (closed_no_action / total dispositions from
+    `decisions.jsonl`), narrative-review acceptance rate,
+    `tuning_run` event count, RED metric count.
+  - **Feedback-loop evidence** — `pkyc_review` count, threshold
+    `tuning_run` count, narrative action mix, STR escalation count.
+  Every payload also carries an `audit_trail_anchor` block
+  (spec_content_hash + decisions_hash + as_of + run_dir) so an
+  examiner can independently verify nothing was rewritten between
+  the run and the pack. Also ships `render_effectiveness_markdown()`
+  which produces a one-page board-ready Markdown rendering with
+  ✅/⚠️/❌ icons per finding. Same determinism contract as
+  `goaml_xml.py`/`amla_str.py` — same inputs → same JSON bytes.
+  CLI:
+  ```
+  aml effectiveness-pack examples/canadian_schedule_i_bank/aml.yaml \
+    --out pack.json --markdown-out pack.md
+  ```
+  25 new tests cover schema envelope, byte-determinism, gap/satisfied/
+  warning status routing, priority bucketing, FP proxy math, narrative
+  acceptance rate, tuning-run satisfied-vs-warning logic, RED-metric
+  counting, Markdown rendering of pillars + audit anchor, end-to-end
+  run-dir round-trip against the bundled CA spec, and Pydantic enum
+  validation on the new field.
 - **Tuning Lab Streamlit page** (`dashboard/pages/23_Tuning_Lab.py` +
   `dashboard/tuning_state.py`): UI surface for `aml tune` (PR #50). MLRO
   picks a tunable rule, optionally uploads a labels CSV
