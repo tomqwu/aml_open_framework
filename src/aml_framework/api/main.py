@@ -331,6 +331,7 @@ class WebhookConfig(BaseModel):
     url: str
     events: list[str] = ["alert_created", "run_completed"]
     name: str = "default"
+    secret: str | None = None  # HMAC-SHA256 key. If set, payloads carry X-AML-Signature.
 
 
 def _validate_webhook_url(url: str) -> None:
@@ -384,8 +385,20 @@ async def register_webhook(
 ) -> dict[str, Any]:
     """Register a webhook URL for event notifications."""
     _validate_webhook_url(config.url)
-    _webhooks.append({"name": config.name, "url": config.url, "events": config.events})
-    return {"status": "registered", "name": config.name, "event_count": len(config.events)}
+    _webhooks.append(
+        {
+            "name": config.name,
+            "url": config.url,
+            "events": config.events,
+            "secret": config.secret,
+        }
+    )
+    return {
+        "status": "registered",
+        "name": config.name,
+        "event_count": len(config.events),
+        "signed": config.secret is not None,
+    }
 
 
 @app.get("/api/v1/webhooks")
@@ -435,6 +448,18 @@ async def get_alerts_cef(
     return {"format": "cef", "data": export_cef(alerts_dict, sev_map)}
 
 
+def _sign_webhook(secret: str, body: bytes) -> str:
+    """HMAC-SHA256 over the raw request body, hex-encoded.
+
+    Receivers verify by recomputing HMAC(secret, body) and comparing in
+    constant time. Standard convention shared with Stripe / GitHub webhooks.
+    """
+    import hashlib
+    import hmac
+
+    return hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+
+
 def _fire_webhooks(event: str, payload: dict[str, Any]) -> None:
     """POST to all registered webhooks matching the event."""
     import logging
@@ -449,10 +474,14 @@ def _fire_webhooks(event: str, payload: dict[str, Any]) -> None:
                 import urllib.request
 
                 data = json.dumps({"event": event, **payload}).encode("utf-8")
+                headers = {"Content-Type": "application/json"}
+                secret = hook.get("secret")
+                if secret:
+                    headers["X-AML-Signature"] = "sha256=" + _sign_webhook(secret, data)
                 req = urllib.request.Request(
                     hook["url"],
                     data=data,
-                    headers={"Content-Type": "application/json"},
+                    headers=headers,
                     method="POST",
                 )
                 urllib.request.urlopen(req, timeout=5)
