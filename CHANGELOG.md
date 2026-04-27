@@ -8,6 +8,64 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Investigation aggregator** (`cases/aggregator.py`,
+  `cases/__init__.py`). Round-6 PR #1 — opens the case-management
+  arc. The engine emits one case per alert
+  (`case_id = "{rule_id}__{customer_id}__{window_end}"`), so a
+  customer hit by 3 different rules in one run produces 3 separate
+  cases. **FinCEN's 2024 effectiveness rule (and its 2026
+  supervisory guidance) measures program effectiveness in terms of
+  *investigations*, not alerts** — an investigation is one subject
+  reviewed once with all related signals together. Without this
+  entity the framework couldn't compute the alert → investigation
+  → SAR funnel that FinCEN now treats as the canonical program
+  metric.
+  New `aggregate_investigations(cases, *, strategy=...)` is a pure
+  function over the engine's case list (no IO; the audit ledger
+  remains the persistence layer). Three grouping strategies in v1:
+  - `per_customer_window` (default) — group by (customer_id, 30-day
+    bucket from a fixed 2020-01-01 epoch). Two cases for the same
+    customer 25 days apart land in the same investigation; 35 days
+    apart land in different ones. Bucket epoch is fixed so
+    investigation IDs don't drift across runs.
+  - `per_customer_per_run` — every case for a customer in this run
+    becomes one investigation regardless of timing.
+  - `per_case` — singleton investigations (legacy compat for
+    operators who don't want grouping).
+  Each `Investigation` carries: `investigation_id` (deterministic
+  `INV-<sha256[:16]>` over sorted constituent case_ids — same input
+  always produces same ID), `customer_id`, `case_ids` / `rule_ids`
+  (sorted, deduped), `severity` (max across cases using
+  low<medium<high<critical ordering), `queues` / `tags` /
+  `evidence_requested` (union, sorted), `total_amount` (sum of
+  alert sum_amount fields, Decimal-safe with string-coercion
+  fallback), `window_start` / `window_end` (min/max across alert
+  windows), `case_count`, `rule_count`, `strategy`. Companion
+  helper `bucket_window_for(dt)` returns the 30-day [start, end)
+  bounds for dashboard queries that want to show "all cases in
+  this investigation's window" without recomputing bucket math.
+  Foundation for Round-6 features 3-5 (SLA timer, case-to-STR
+  auto-bundling, case dashboard page) and Round-7 #1 (outcome
+  metrics — alert-to-investigation conversion + investigation-to-
+  SAR conversion are the two FinCEN-mandated funnel ratios).
+  34 new tests across `TestPerCustomerWindow` (collapse +
+  bucket-split + customer-split + default-strategy assertion),
+  `TestPerCustomerPerRun` (cross-bucket collapse + customer
+  separation), `TestPerCase` (singleton invariant),
+  `TestSeverityEscalation` (max-wins + ordering + unknown-severity
+  default), `TestSumAmount` (Decimal sum + missing-defaults-zero +
+  string-coercion + unparseable-skipped), `TestWindowBounds`
+  (datetime + ISO-string + no-timestamps), `TestDeterminism`
+  (same-input same-IDs + order-independence + ID format + distinct
+  inputs distinct IDs + sorted output), `TestBucketing` (30-day
+  width + abutting consecutive buckets + monotonic indices),
+  `TestEdgeCases` (empty input + missing customer_id dropped +
+  unknown strategy raises + no-window collapse + tag/evidence/queue
+  union), `TestEndToEndWithEngine` (aggregator runs over a real
+  Canadian Schedule-I bank engine run; all cases end up in some
+  investigation — no losses; Investigation TypedDict shape
+  matches). Total test count 792 → 826.
+
 - **pacs.004 payment-return ingestion + return-reason mining library**
   (`data/iso20022/parser.py:Pacs004Parser`,
   `data/iso20022/sample_pacs004.xml`,
