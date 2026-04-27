@@ -142,3 +142,53 @@ for rule in sanctions_rules:
         f"field: `{rule.logic.field}`, match: `{rule.logic.match}`, "
         f"threshold: {rule.logic.threshold or 'N/A'}"
     )
+
+
+# ---------------------------------------------------------------------------
+# VoP outcomes (PSD3 / Verification of Payee — Round-7 PR #77)
+# ---------------------------------------------------------------------------
+# When the txn data carries a `confirmation_of_payee_status` column
+# (populated by the data/psd3 ingestion adapter or the UK CoP scheme),
+# this section breaks down the outcomes. PSD3 + UK PSR SD17 use the
+# same vocabulary so one column serves both regulators.
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### Verification of Payee outcomes (PSD3 / UK CoP)")
+st.caption(
+    "Per-outcome breakdown of payee-name verification responses. Same "
+    "vocabulary covers EU PSD3 VoP and UK Confirmation of Payee — one "
+    "txn column for both regulators. Populated by `data/psd3` ingestion "
+    "or written directly by the UK CoP scheme."
+)
+df_txns = st.session_state.get("df_txns")
+if df_txns is None or df_txns.empty:
+    st.caption("No transaction data loaded.")
+elif "confirmation_of_payee_status" not in df_txns.columns:
+    st.info(
+        "This run's txn data does not carry a `confirmation_of_payee_status` "
+        "column. Populate it via the `data/psd3` adapter or by extending "
+        "your `txn` data contract. (Round-5 ISO 20022 enrichment leaves "
+        "this field blank by default; UK APP-fraud spec declares it.)"
+    )
+else:
+    _vop_status = df_txns["confirmation_of_payee_status"].fillna("").replace("", "not_set")
+    _vop_counts = _vop_status.value_counts().reset_index()
+    _vop_counts.columns = ["outcome", "count"]
+
+    # 5 PSD3 outcomes per data/psd3/parser.py:VOP_OUTCOMES + the
+    # synthetic "not_set" bucket for txns that haven't been screened.
+    _vop_kpi_cols = st.columns(5)
+    _vop_outcomes_order = ["match", "close_match", "no_match", "not_checked", "outside_scope"]
+    _vop_outcome_colors = {
+        "match": "#16a34a",
+        "close_match": "#d97706",
+        "no_match": "#dc2626",
+        "not_checked": "#6b7280",
+        "outside_scope": "#0891b2",
+    }
+    for _idx, _outcome in enumerate(_vop_outcomes_order):
+        _count = int(_vop_counts.loc[_vop_counts["outcome"] == _outcome, "count"].sum())
+        with _vop_kpi_cols[_idx]:
+            kpi_card(_outcome, _count, _vop_outcome_colors[_outcome])
+    # Show the table in case operators want to see counts for non-canonical
+    # outcome values (e.g. "not_set" or institution-specific extensions).
+    st.dataframe(_vop_counts, use_container_width=True, hide_index=True)
