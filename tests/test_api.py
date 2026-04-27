@@ -271,6 +271,81 @@ class TestRoleEnforcement:
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestTenantIsolation:
+    """A tenant must NOT see another tenant's runs/alerts/metrics."""
+
+    def test_list_runs_filters_by_tenant(self):
+        # Create one run under bank_a, one under bank_b.
+        token_a = _token("admin")  # tenant=bank_a
+        token_b = _token("bank_b_admin", "admin")  # tenant=bank_b
+        spec_path = "examples/canadian_schedule_i_bank/aml.yaml"
+
+        resp_a = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token_a}"},
+            json={"spec_path": spec_path, "seed": 42},
+        )
+        resp_b = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token_b}"},
+            json={"spec_path": spec_path, "seed": 43},
+        )
+        assert resp_a.status_code == 200
+        assert resp_b.status_code == 200
+        run_a = resp_a.json()["run_id"]
+        run_b = resp_b.json()["run_id"]
+
+        # bank_a sees its own run, NOT bank_b's.
+        listed = client.get("/api/v1/runs", headers={"Authorization": f"Bearer {token_a}"}).json()
+        ids_a = {item["run_id"] for item in listed["items"]}
+        assert run_a in ids_a
+        assert run_b not in ids_a
+
+        # bank_b sees its own run, NOT bank_a's.
+        listed = client.get("/api/v1/runs", headers={"Authorization": f"Bearer {token_b}"}).json()
+        ids_b = {item["run_id"] for item in listed["items"]}
+        assert run_b in ids_b
+        assert run_a not in ids_b
+
+    def test_get_run_cross_tenant_returns_404(self):
+        token_a = _token("admin")
+        token_b = _token("bank_b_admin", "admin")
+        spec_path = "examples/canadian_schedule_i_bank/aml.yaml"
+        resp = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token_b}"},
+            json={"spec_path": spec_path, "seed": 99},
+        )
+        run_b = resp.json()["run_id"]
+
+        # bank_a cannot fetch bank_b's run by id.
+        leak = client.get(
+            f"/api/v1/runs/{run_b}",
+            headers={"Authorization": f"Bearer {token_a}"},
+        )
+        assert leak.status_code == 404
+
+    def test_get_run_alerts_cross_tenant_empty(self):
+        token_a = _token("admin")
+        token_b = _token("bank_b_admin", "admin")
+        spec_path = "examples/canadian_schedule_i_bank/aml.yaml"
+        resp = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token_b}"},
+            json={"spec_path": spec_path, "seed": 100},
+        )
+        run_b = resp.json()["run_id"]
+
+        # bank_a's alerts query for bank_b's run returns []
+        alerts = client.get(
+            f"/api/v1/runs/{run_b}/alerts",
+            headers={"Authorization": f"Bearer {token_a}"},
+        )
+        assert alerts.status_code == 200
+        assert alerts.json() == []
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestOIDCDisablesLogin:
     def test_login_returns_404_when_oidc_enabled(self, monkeypatch):
         import aml_framework.api.auth as auth_mod
