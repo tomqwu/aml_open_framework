@@ -8,6 +8,32 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Investigations dashboard page** (#24)
+  (`dashboard/pages/24_Investigations.py`,
+  `dashboard/audience.py`, `dashboard/app.py`). Round-6 PR #5 of 5
+  — **closes the case-management arc**. Surfaces the investigation
+  aggregator (PR #61) + SLA timer (PR #63) in one operator-facing
+  view that consolidates the per-alert case backlog into the
+  unit FinCEN's effectiveness rule + FCA's Mar 2026 Dear CEO
+  letter both treat as canonical. Three sections: queue backlog
+  (per-queue green/amber/red/breached counts with breach-rate +
+  oldest-age columns), investigations list (sortable by severity →
+  total_amount), and an investigation detail drill-down with KPI
+  metrics + per-constituent-case live SLA state + escalation
+  recommendation. Sidebar exposes aggregation-strategy control
+  (per_customer_window / per_customer_per_run / per_case) and an
+  "evaluate SLA against now()" toggle for live-ops vs backtest
+  view. Wired into `audience.py` for `manager` + `analyst`
+  personas, registered in `app.py` ALL_PAGES with the
+  `:material/group_work:` icon. Bails out gracefully with a
+  warning when no cases are loaded.
+  9 new unit tests under `TestPageFile`, `TestAudienceWiring`,
+  `TestAppRegistration`, `TestEndToEndComputables` (verifies the
+  4 case-module functions the page calls compose against a real
+  CA Schedule-I bank engine run without raising). Streamlit
+  rendering exercised by the e2e-dashboard CI job; unit tests
+  don't import streamlit so they run on the minimal CI image.
+
 - **SLA timer + escalation engine** (`cases/sla.py`). Round-6 PR #3.
   The framework's engine already records `within_sla` and
   `resolution_hours` in the simulated decisions ledger, but those

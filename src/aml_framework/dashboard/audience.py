@@ -28,6 +28,7 @@ AUDIENCE_PAGES = {
     "manager": [
         "Alert Queue",
         "Case Investigation",
+        "Investigations",
         "Risk Assessment",
         "Live Monitor",
         "My Queue",
@@ -37,6 +38,7 @@ AUDIENCE_PAGES = {
     "analyst": [
         "Alert Queue",
         "Case Investigation",
+        "Investigations",
         "Network Explorer",
         "Sanctions Screening",
         "Customer 360",
