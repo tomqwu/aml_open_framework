@@ -8,6 +8,38 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Network-pattern alert explainability** (`engine/explain.py`,
+  runner subgraph capture, queue page integration). Each
+  `network_pattern` alert now carries the actual matched
+  subgraph in `alert["subgraph"]`: nodes (with hop distance from
+  the seed), undirected edges (with linking attribute + weight),
+  and a SHA-256 `topology_hash` that's identical for two alerts
+  on the same shape of subgraph (cluster key for duplicate
+  detections — analysts can collapse 50 customers caught in one
+  ring instead of triaging each independently). The new
+  `engine/explain.py` provides `explain_network_alert(alert) →
+  ExplainPayload` (pure function, no IO) plus `to_mermaid(payload)`
+  for dashboard rendering. The Analyst Review Queue page (PR #47)
+  now renders the matched subgraph as a Mermaid graph for any
+  network_pattern case, with a one-line summary
+  (`Pattern 'component_size' fired on C0001: 3 entity(ies)
+  reachable within 2 hop(s), 2 unique counterpart(ies). Linking
+  attributes: device_id×1, phone×1.`) and the topology hash
+  prefix as an audit anchor. Round-3 PR #4 of 4 — the **dark-horse
+  winner** of the Round-3 research scan: graph alerts are
+  notoriously hard to defend in front of regulators
+  ("the recursive CTE matched a 4-hop ring"); shipping this gives
+  the framework an answer to "how is this not a black box?" that
+  no other open-source AML project has. The runner enrichment is
+  backward-compatible: alerts now carry an extra `subgraph` field
+  but the existing 5 `TestNetworkPattern` tests still pass
+  unchanged. 20 new tests under `TestExplainNetworkAlert`,
+  `TestToMermaid`, `TestExplainPayloadModel`,
+  `TestRunnerSubgraphCapture`, `TestDecimalHandling` cover happy
+  path / missing subgraph raise / Mermaid escaping / render cap /
+  seed fallback / triangle component round-trip / topology hash
+  determinism across seeds in the same component / DuckDB Decimal
+  coercion.
 - **AMLA harmonised STR profile** (`generators/amla_str.py`,
   `cli.py:export-amla-str`): emits an AMLA RTS-aligned JSON
   payload from a finalised run directory. The EU's Anti-Money

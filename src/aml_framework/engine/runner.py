@@ -396,6 +396,7 @@ def _execute_network_pattern(
             if not passes:
                 break
         if passes:
+            subgraph = _capture_subgraph(con, record["customer_id"], max_hops)
             alerts.append(
                 {
                     "rule_id": rule.id,
@@ -406,9 +407,133 @@ def _execute_network_pattern(
                     "pattern": logic.pattern,
                     "window_start": as_of,
                     "window_end": as_of,
+                    "subgraph": subgraph,
                 }
             )
     return alerts
+
+
+def _capture_subgraph(
+    con: duckdb.DuckDBPyConnection,
+    seed_id: str,
+    max_hops: int,
+) -> dict[str, Any]:
+    """Re-walk the link table for one seed and return the matched subgraph.
+
+    Returns nodes (deduped, with hop distance), edges (linking attribute +
+    weight), and a `topology_hash` — SHA-256 over the canonicalised
+    edge list so two alerts on the same subgraph share the same hash
+    even if they fire from different seeds. The hash lets the dashboard
+    cluster duplicate detections without re-rendering.
+
+    The reachability walk runs again because we discarded per-edge
+    attribution in the aggregation phase. Cost is bounded: max_hops ≤ 5
+    by the spec's pydantic constraint, and each call is O(degree^max_hops)
+    on the link graph — fine for the alert sample, never run on the
+    whole dataset.
+    """
+    import hashlib
+    import json as _json
+
+    # Walk that *carries the linking edge* (left_id, right_id, attr) so
+    # we can render the actual subgraph rather than just node sets.
+    edge_walk_sql = f"""
+    WITH RECURSIVE walk(seed_id, reached_id, hops, path_edges) AS (
+        SELECT customer_id AS seed_id,
+               customer_id AS reached_id,
+               0           AS hops,
+               '[]'        AS path_edges
+        FROM customer
+        WHERE customer_id = ?
+        UNION ALL
+        SELECT w.seed_id,
+               CASE WHEN l.left_customer_id = w.reached_id
+                    THEN l.right_customer_id
+                    ELSE l.left_customer_id END AS reached_id,
+               w.hops + 1,
+               CONCAT(
+                   w.path_edges, '|',
+                   l.left_customer_id, '->', l.right_customer_id,
+                   ':', COALESCE(l.attribute, '?')
+               )
+        FROM walk w
+        JOIN resolved_entity_link l
+          ON w.reached_id IN (l.left_customer_id, l.right_customer_id)
+        WHERE w.hops < {max_hops}
+    )
+    SELECT seed_id, reached_id, hops, path_edges
+    FROM walk
+    """
+    try:
+        rows = con.execute(edge_walk_sql, [seed_id]).fetchall()
+        cols = [d[0] for d in con.description] if con.description else []
+    except Exception as e:
+        logger.warning("subgraph capture failed for seed '%s': %s", seed_id, e)
+        return {"seed": seed_id, "nodes": [{"id": seed_id, "hops": 0}], "edges": []}
+
+    walk_rows = [dict(zip(cols, r)) for r in rows]
+
+    # Nodes: dedup by reached_id, keep min hops.
+    node_hops: dict[str, int] = {}
+    for r in walk_rows:
+        nid = r["reached_id"]
+        h = int(r["hops"])
+        if nid not in node_hops or h < node_hops[nid]:
+            node_hops[nid] = h
+    nodes = [{"id": nid, "hops": h} for nid, h in sorted(node_hops.items())]
+
+    # Edges: pull the unique link rows that touch any node in the subgraph.
+    node_ids = list(node_hops.keys())
+    edges: list[dict[str, Any]] = []
+    if node_ids:
+        # Query links where both endpoints are in the discovered subgraph.
+        placeholders = ", ".join(["?"] * len(node_ids))
+        edge_sql = f"""
+        SELECT left_customer_id, right_customer_id, attribute, weight
+        FROM resolved_entity_link
+        WHERE left_customer_id IN ({placeholders})
+          AND right_customer_id IN ({placeholders})
+        """
+        try:
+            erows = con.execute(edge_sql, node_ids + node_ids).fetchall()
+            ecols = [d[0] for d in con.description] if con.description else []
+        except Exception as e:
+            logger.warning("edge query failed for subgraph '%s': %s", seed_id, e)
+            erows, ecols = [], []
+        seen: set[tuple] = set()
+        for er in erows:
+            row = dict(zip(ecols, er))
+            l_id = row["left_customer_id"]
+            r_id = row["right_customer_id"]
+            # Canonicalise direction so (A,B) and (B,A) are deduped.
+            key = tuple(sorted([l_id, r_id])) + (row.get("attribute"),)
+            if key in seen:
+                continue
+            seen.add(key)
+            edges.append(
+                {
+                    "source": l_id,
+                    "target": r_id,
+                    "attribute": row.get("attribute") or "",
+                    "weight": float(row.get("weight") or 1.0),
+                }
+            )
+
+    # Stable topology hash: sort edges canonically and hash.
+    canonical = sorted(
+        (tuple(sorted([e["source"], e["target"]])) + (e["attribute"],) for e in edges)
+    )
+    topology_hash = hashlib.sha256(
+        _json.dumps(canonical, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
+    return {
+        "seed": seed_id,
+        "max_hops": max_hops,
+        "nodes": nodes,
+        "edges": edges,
+        "topology_hash": topology_hash,
+    }
 
 
 def _decide_disposition(severity: str, queue_next: list[str], idx: int) -> tuple[str, str]:

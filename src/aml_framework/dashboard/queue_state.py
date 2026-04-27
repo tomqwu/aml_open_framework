@@ -15,6 +15,11 @@ from typing import Any
 
 from aml_framework.engine.audit import AuditLedger
 from aml_framework.engine.constants import Event
+from aml_framework.engine.explain import (
+    ExplainPayload,
+    NotANetworkAlert,
+    explain_network_alert,
+)
 from aml_framework.narratives import (
     DraftedNarrative,
     TemplateBackend,
@@ -45,6 +50,7 @@ class QueueRow:
     drafted: DraftedNarrative
     triggers: list[Trigger]
     rating_change: RatingChange | None  # None when no rating movement
+    explanation: ExplainPayload | None = None  # set for network_pattern alerts only
 
 
 def _draft_for_case(
@@ -121,6 +127,11 @@ def build_queue_rows(
         customer = customer_idx.get(cust_id)
         case_txns = _txns_for_case(case, transactions)
         drafted = _draft_for_case(case, customer, case_txns, jurisdiction=jurisdiction)
+        explanation: ExplainPayload | None = None
+        try:
+            explanation = explain_network_alert(case.get("alert") or {})
+        except NotANetworkAlert:
+            explanation = None
         rows.append(
             QueueRow(
                 case_id=case.get("case_id", ""),
@@ -131,6 +142,7 @@ def build_queue_rows(
                 drafted=drafted,
                 triggers=triggers_by_customer.get(cust_id, []),
                 rating_change=changes_by_customer.get(cust_id),
+                explanation=explanation,
             )
         )
     return rows

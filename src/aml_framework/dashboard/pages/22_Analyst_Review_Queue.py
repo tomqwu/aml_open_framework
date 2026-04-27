@@ -30,6 +30,7 @@ from aml_framework.dashboard.queue_state import (
     event_for_pkyc_action,
     record_decision,
 )
+from aml_framework.engine.explain import to_mermaid
 
 PAGE_TITLE = "Analyst Review Queue"
 
@@ -158,6 +159,17 @@ for row in visible_rows[:50]:  # cap render to keep page responsive
             st.markdown("**Citations** (each ties back to a `regulation_refs` entry):")
             for cit in row.drafted.citations:
                 st.markdown(f"- `{cit.rule_id}` → **{cit.citation}**: {cit.claim}")
+
+        # Network-pattern explainability (only present for network_pattern rules)
+        if row.explanation is not None:
+            st.markdown("##### Why this graph alert fired")
+            st.info(row.explanation.summary)
+            st.caption(
+                f"Topology hash: `{row.explanation.topology_hash[:16]}…` — "
+                f"identical hash on a different alert means the same shape "
+                f"of subgraph (cluster key for duplicate detections)."
+            )
+            st.code(to_mermaid(row.explanation), language="mermaid")
 
         # pKYC triggers
         if row.triggers:
