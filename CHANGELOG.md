@@ -33,6 +33,12 @@ that introduced them.
   The audit ledger now reflects which rules failed instead of being left
   partially written. Spec-level violations (allow-list miss) still raise —
   those indicate a bad spec, not a runtime fault.
+- **Rate-limiter eviction + Retry-After** (`api/main.py`): the in-memory
+  `_request_counts` dict no longer grows unbounded under IP-rotation
+  attacks — empty windows are deleted, and a global cap (configurable via
+  `API_RATE_LIMIT_MAX_IPS`, default 10000) evicts the IPs with the oldest
+  activity when exceeded. 429 responses now include a `Retry-After`
+  header pointing to when the oldest tracked request leaves the window.
 
 ### Refactor
 - **`metrics/engine._compute_sql_proxy` split** — the 110-line keyword-dispatch

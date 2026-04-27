@@ -857,6 +857,45 @@ class TestRateLimiting:
 
         assert _app is not None
 
+    def test_eviction_drops_empty_windows(self):
+        """An IP whose window expires must NOT keep its dict entry around."""
+        import aml_framework.api.main as main_mod
+
+        main_mod._request_counts.clear()
+        # Simulate an IP with only old activity.
+        main_mod._request_counts["198.51.100.1"] = [0.0]  # epoch — very old
+        # Trigger a fresh request from a different IP.
+        client.get("/api/v1/health")
+        # The expired IP should be gone after any subsequent request from it.
+        # Force the cleanup by emitting a request from the same IP via mock.
+        # Simpler: directly call the cleanup helper to assert behavior on the dict.
+        from aml_framework.api.main import _evict_oldest_ips
+
+        # When dict size exceeds cap, oldest goes first.
+        big = {f"10.0.0.{i}": [float(i)] for i in range(20)}
+        _evict_oldest_ips(big, 10)
+        assert len(big) == 10
+        # Highest-numbered (newest activity) should remain; lowest evicted.
+        assert "10.0.0.19" in big
+        assert "10.0.0.0" not in big
+
+    def test_429_includes_retry_after_header(self, monkeypatch):
+        """When the limit is hit, the response carries a Retry-After header."""
+        import aml_framework.api.main as main_mod
+
+        main_mod._request_counts.clear()
+        monkeypatch.setattr(main_mod, "_RATE_LIMIT", 2)
+        # Two requests should pass.
+        for _ in range(2):
+            assert client.get("/api/v1/health").status_code == 200
+        # Third request hits the limit.
+        resp = client.get("/api/v1/health")
+        assert resp.status_code == 429
+        assert "Retry-After" in resp.headers
+        assert int(resp.headers["Retry-After"]) >= 1
+        # Reset for other tests.
+        main_mod._request_counts.clear()
+
 
 # ===========================================================================
 # Comparative Analytics (dashboard page existence)

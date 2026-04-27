@@ -66,26 +66,55 @@ app = FastAPI(
 # --- Rate limiting (simple in-memory) ---
 _request_counts: dict[str, list[float]] = {}
 _RATE_LIMIT = int(os.environ.get("API_RATE_LIMIT", "600"))  # requests per minute per IP
+_RATE_WINDOW_SECONDS = 60
+_MAX_TRACKED_IPS = int(os.environ.get("API_RATE_LIMIT_MAX_IPS", "10000"))
+
+
+def _evict_oldest_ips(counts: dict[str, list[float]], target_size: int) -> None:
+    """Evict IPs whose most-recent request is the oldest, until len(counts) <= target.
+    Caps memory under IP-rotation attacks."""
+    if len(counts) <= target_size:
+        return
+    sorted_ips = sorted(counts.items(), key=lambda kv: max(kv[1]) if kv[1] else 0.0)
+    drop = len(counts) - target_size
+    for ip, _ in sorted_ips[:drop]:
+        counts.pop(ip, None)
 
 
 @app.middleware("http")
 async def rate_limit_middleware(request, call_next):
-    """Simple in-memory rate limiter."""
+    """Simple in-memory rate limiter with per-IP eviction + Retry-After."""
     import time
 
     client_ip = request.client.host if request.client else "unknown"
     now = time.time()
-    window = _request_counts.setdefault(client_ip, [])
-    # Remove entries older than 60 seconds.
-    _request_counts[client_ip] = [t for t in window if now - t < 60]
-    if len(_request_counts[client_ip]) >= _RATE_LIMIT:
+    window = _request_counts.get(client_ip, [])
+    # Drop entries older than the window.
+    fresh = [t for t in window if now - t < _RATE_WINDOW_SECONDS]
+    if not fresh:
+        # Empty window — don't keep the key, prevents unbounded growth under IP rotation.
+        _request_counts.pop(client_ip, None)
+    else:
+        _request_counts[client_ip] = fresh
+
+    if len(fresh) >= _RATE_LIMIT:
         from starlette.responses import JSONResponse
 
+        # Time until the oldest tracked request leaves the window.
+        retry_after = max(1, int(_RATE_WINDOW_SECONDS - (now - fresh[0])))
         return JSONResponse(
             {"detail": "Rate limit exceeded. Try again later."},
             status_code=429,
+            headers={"Retry-After": str(retry_after)},
         )
-    _request_counts[client_ip].append(now)
+
+    fresh.append(now)
+    _request_counts[client_ip] = fresh
+
+    # Cap dict size — under IP rotation, evict the IPs with the oldest activity.
+    if len(_request_counts) > _MAX_TRACKED_IPS:
+        _evict_oldest_ips(_request_counts, _MAX_TRACKED_IPS)
+
     return await call_next(request)
 
 
