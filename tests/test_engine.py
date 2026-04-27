@@ -98,6 +98,68 @@ class TestRunnerEndToEnd:
             )
 
 
+class TestEngineHardening:
+    def test_duckdb_external_access_disabled(self):
+        """Hardened DuckDB connections must refuse to load HTTPFS / external URLs."""
+        from aml_framework.engine.runner import _harden_duckdb
+
+        con = duckdb.connect(":memory:")
+        _harden_duckdb(con)
+        # enable_external_access blocks HTTPFS and remote ATTACH at the engine
+        # layer. Confirm the setting is applied (DuckDB exposes settings via
+        # duckdb_settings()).
+        rows = con.execute(
+            "SELECT name, value FROM duckdb_settings() "
+            "WHERE name IN ('enable_external_access', 'autoload_known_extensions')"
+        ).fetchall()
+        settings = {name: value for name, value in rows}
+        # Older DuckDB releases may not expose these; if present, they must be off.
+        if "enable_external_access" in settings:
+            assert settings["enable_external_access"].lower() in ("false", "0")
+        if "autoload_known_extensions" in settings:
+            assert settings["autoload_known_extensions"].lower() in ("false", "0")
+        con.close()
+
+    def test_python_ref_module_outside_prefix_rejected(self, tmp_path, monkeypatch):
+        """python_ref pointing at an arbitrary stdlib module must be rejected."""
+        import yaml as _yaml
+
+        from aml_framework.engine.runner import _allowed_python_ref_prefixes
+
+        # Sanity: default prefix is restrictive.
+        assert _allowed_python_ref_prefixes() == ("aml_framework.models.",)
+
+        spec_raw = _yaml.safe_load(SPEC_CA.read_text())
+        # Replace the first python_ref rule's callable, if any, with os:getcwd.
+        replaced = False
+        for rule in spec_raw["rules"]:
+            if rule.get("logic", {}).get("type") == "python_ref":
+                rule["logic"]["callable"] = "os:getcwd"
+                replaced = True
+                break
+        if not replaced:
+            pytest.skip("CA spec has no python_ref rule to hijack")
+        bad_spec = tmp_path / "aml.yaml"
+        bad_spec.write_text(_yaml.safe_dump(spec_raw))
+
+        spec = load_spec(bad_spec)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        with pytest.raises(ValueError, match="not under an allowed prefix"):
+            run_spec(
+                spec=spec, spec_path=bad_spec, data=data, as_of=as_of, artifacts_root=tmp_path / "x"
+            )
+
+    def test_python_ref_prefix_extends_via_env(self, monkeypatch):
+        """AML_PYTHON_REF_PREFIX env var extends the allow-list (comma-separated)."""
+        from aml_framework.engine.runner import _allowed_python_ref_prefixes
+
+        monkeypatch.setenv("AML_PYTHON_REF_PREFIX", "aml_framework.models.,my_org.scorers.")
+        prefixes = _allowed_python_ref_prefixes()
+        assert "aml_framework.models." in prefixes
+        assert "my_org.scorers." in prefixes
+
+
 class TestRunnerEdgeCases:
     def test_run_produces_manifest(self, tmp_path):
         """Every run produces a manifest with required fields."""

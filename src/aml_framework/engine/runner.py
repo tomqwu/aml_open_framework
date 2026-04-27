@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta as _timedelta
 from pathlib import Path
@@ -20,6 +21,38 @@ from aml_framework.spec.loader import spec_content_hash
 from aml_framework.spec.models import AMLSpec, Rule
 
 logger = logging.getLogger("aml.engine.runner")
+
+# python_ref callables must live under one of these module prefixes. Keeps a
+# malicious spec author from importing arbitrary code on sys.path. Override
+# with AML_PYTHON_REF_PREFIX (comma-separated) for institution-specific
+# scorers in a separate package.
+_DEFAULT_PYTHON_REF_PREFIXES = ("aml_framework.models.",)
+
+
+def _allowed_python_ref_prefixes() -> tuple[str, ...]:
+    env = os.environ.get("AML_PYTHON_REF_PREFIX", "").strip()
+    if not env:
+        return _DEFAULT_PYTHON_REF_PREFIXES
+    return tuple(p.strip() for p in env.split(",") if p.strip())
+
+
+def _harden_duckdb(con: duckdb.DuckDBPyConnection) -> None:
+    """Lock down a DuckDB connection so a malicious custom_sql rule cannot
+    reach the network or filesystem. The reference engine only needs
+    in-memory tables and reference-list CSVs (loaded by Python, not DuckDB).
+    """
+    for stmt in (
+        "SET autoinstall_known_extensions=false",
+        "SET autoload_known_extensions=false",
+        "SET allow_unsigned_extensions=false",
+        "SET enable_external_access=false",
+    ):
+        try:
+            con.execute(stmt)
+        except Exception:
+            # Older DuckDB releases may not support every setting; skip
+            # silently. The CI matrix pins a known version.
+            pass
 
 
 class CaseDict(TypedDict):
@@ -341,6 +374,7 @@ def run_spec(
         ledger.record_input(contract_id, rows)
 
     con = duckdb.connect(":memory:")
+    _harden_duckdb(con)
     _build_warehouse(con, spec, data)
 
     alerts_by_rule: dict[str, list[dict[str, Any]]] = {}
@@ -353,6 +387,12 @@ def run_spec(
         # --- python_ref: dynamically load and call the scorer ---
         if rule.logic.type == "python_ref":
             module_path, func_name = rule.logic.callable.split(":")
+            allowed = _allowed_python_ref_prefixes()
+            if not any(module_path == p.rstrip(".") or module_path.startswith(p) for p in allowed):
+                raise ValueError(
+                    f"python_ref module '{module_path}' is not under an allowed prefix "
+                    f"({', '.join(allowed)}). Set AML_PYTHON_REF_PREFIX to extend."
+                )
             mod = importlib.import_module(module_path)
             scorer = getattr(mod, func_name)
             ledger.record_rule_sql(

@@ -281,6 +281,62 @@ class TestOIDCDisablesLogin:
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestWebhookSSRF:
+    def _admin_token(self):
+        return _token("admin")
+
+    def test_loopback_rejected(self):
+        token = self._admin_token()
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": "x", "url": "http://127.0.0.1/hook", "events": ["alert_created"]},
+        )
+        assert resp.status_code == 400
+
+    def test_link_local_metadata_rejected(self):
+        token = self._admin_token()
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "name": "x",
+                "url": "http://169.254.169.254/latest/meta-data/",
+                "events": ["alert_created"],
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_rfc1918_rejected(self):
+        token = self._admin_token()
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": "x", "url": "http://10.0.0.1/", "events": ["alert_created"]},
+        )
+        assert resp.status_code == 400
+
+    def test_non_http_scheme_rejected(self):
+        token = self._admin_token()
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": "x", "url": "file:///etc/shadow", "events": ["alert_created"]},
+        )
+        assert resp.status_code == 400
+
+    def test_allow_private_env_bypasses(self, monkeypatch):
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
+        token = self._admin_token()
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": "x", "url": "http://127.0.0.1/hook", "events": ["alert_created"]},
+        )
+        assert resp.status_code == 200
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestRoleBasedVisibility:
     def test_audience_pages_defined(self):
         from aml_framework.dashboard.audience import AUDIENCE_PAGES
@@ -550,7 +606,8 @@ class TestRunEndpoint:
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestAPIMainExtended:
-    def test_webhook_fire_and_list(self):
+    def test_webhook_fire_and_list(self, monkeypatch):
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
         token = _token()
         client.post(
             "/api/v1/webhooks",
@@ -672,7 +729,8 @@ class TestExpandedAPI:
         )
         assert resp.status_code == 404
 
-    def test_register_webhook(self):
+    def test_register_webhook(self, monkeypatch):
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
         token = _token()
         resp = client.post(
             "/api/v1/webhooks",
@@ -763,7 +821,8 @@ def test_validate_invalid_spec_content(tmp_path):
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestWebhookFire:
     @patch("urllib.request.urlopen")
-    def test_webhook_fires_on_run(self, mock_urlopen):
+    def test_webhook_fires_on_run(self, mock_urlopen, monkeypatch):
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
         token = _token()
         from aml_framework.api.main import _webhooks
 
