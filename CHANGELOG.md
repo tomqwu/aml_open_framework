@@ -43,6 +43,46 @@ that introduced them.
   25 new tests under `TestComputeSLAStatus`, `TestApplyEscalation`,
   `TestSummariseBacklog`, `TestEndToEndWithEngine`.
 
+- **Case-to-STR auto-bundling** (`cases/str_bundle.py`). Round-6
+  PR #4. The framework's existing artifacts make analyst handoff
+  work but require operator stitching: narrative.txt comes from
+  `generators/narrative.py`, the regulator-format XML from
+  `generators/goaml_xml.py`, the Mermaid network diagram from
+  `engine/explain.py`, and the case JSON itself from the audit
+  ledger. **Wolfsberg's Feb 2026 correspondent-banking guidance**
+  named "submission-ready packages" as the expectation for
+  issuer-FI handoffs to FIU; ad-hoc PDF bundles no longer cut it.
+  New `bundle_investigation_to_str(investigation, cases, *, spec,
+  customers, transactions)` produces one self-contained
+  `<investigation_id>.zip` containing:
+  - `investigation.json` — the Investigation dict from PR #61
+  - `cases/<case_id>.json` — every constituent case file
+  - `narrative.txt` — analyst-ready narrative joining all
+    constituent cases (auditors complained that per-case narratives
+    lost the link between alerts that fired together)
+  - `goaml_report.xml` — regulator-format XML covering all cases
+  - `network/<case_id>.mmd` — Mermaid diagram per case that has a
+    `network_pattern` subgraph (skipped for non-network rules)
+  - `manifest.json` — bundle metadata + per-file SHA-256 + bundle-
+    wide hash + spec_program + jurisdiction + sorted case_ids
+  Pure function returning bytes (no IO; caller decides where to
+  write). **Deterministic by construction**: sorted file order,
+  fixed `_ZIP_FIXED_TIME` baked into every ZipInfo, sorted JSON
+  keys, pinned `_FIXED_SUBMISSION_DATE` for the embedded goAML XML
+  so identical inputs produce byte-identical archives. Real
+  submission timestamps go in the audit ledger; the artifact uses
+  a synthetic anchor so deterministic-rerun verification holds
+  (composes with PR #53 MRM bundle). Companion `bundle_hash(bytes)`
+  returns SHA-256 over the entire ZIP for receipt records.
+  Robust to: cases not in the investigation's case_ids list
+  (silently dropped), unknown customers (narrative falls back),
+  malformed subgraph payloads (network diagram skipped, bundle
+  still valid), empty constituent set, mixed datetime / ISO-string
+  shapes in alert window bounds.
+  23 new tests under `TestBundleStructure`, `TestManifest`,
+  `TestDeterminism`, `TestNarrative`, `TestGoamlXml`,
+  `TestEdgeCases`, `TestEndToEndWithEngine`.
+
 - **Investigation aggregator** (`cases/aggregator.py`,
   `cases/__init__.py`). Round-6 PR #1 — opens the case-management
   arc. The engine emits one case per alert
