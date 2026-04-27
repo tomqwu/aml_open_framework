@@ -1,0 +1,241 @@
+# AML spec for a Virtual Asset Service Provider (VASP).
+#
+# Built around TRM Labs' 2026 Crypto Crime Report finding that stablecoins
+# accounted for ~84% of fraud-scheme inflows in 2025 with hold times collapsing
+# under 48 hours. This spec demonstrates the framework's network_pattern rule
+# type (PR16) and entity-resolution layer (PR15) in a crypto context.
+#
+# Citations target FATF Recommendation 16 (Travel Rule), FinCEN's Virtual
+# Currency guidance (FIN-2019-G001), and FINTRAC's PCMLTFR amendments for
+# dealers in virtual currency (PCMLTFR s.7.7).
+
+version: 1
+
+program:
+  name: crypto_vasp_aml
+  jurisdiction: VASP
+  regulator: FATF
+  owner: chief_compliance_officer
+  effective_date: 2026-04-27
+
+data_contracts:
+  - id: txn
+    source: raw.crypto_transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,        type: string,    nullable: false }
+      - { name: customer_id,   type: string,    nullable: false, pii: true }
+      - { name: amount,        type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,      type: string,    nullable: false }
+      - { name: channel,       type: string,    enum: [deposit, withdrawal, swap, transfer] }
+      - { name: direction,     type: string,    enum: [in, out] }
+      - { name: booked_at,     type: timestamp, nullable: false }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.vasp_customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,    type: string,    nullable: false, pii: true }
+      - { name: full_name,      type: string,    nullable: false, pii: true }
+      - { name: country,        type: string,    nullable: false }
+      - { name: risk_rating,    type: string,    enum: [low, medium, high] }
+      - { name: onboarded_at,   type: timestamp, nullable: false }
+      - { name: wallet_address, type: string,    nullable: true, pii: true }
+      - { name: device_id,      type: string,    nullable: true }
+
+rules:
+  # --- STABLECOIN LAYERING VELOCITY ---
+  # TRM 2026: stablecoin layering with hold time < 48h is the new structuring.
+  - id: stablecoin_velocity_48h
+    name: Stablecoin layering — 3+ swaps within 48h totalling $20k+
+    severity: high
+    regulation_refs:
+      - citation: "FATF R.16 (revised June 2025)"
+        description: "Travel Rule + Confirmation of Payee for VASP-to-VASP transfers."
+      - citation: "FIN-2019-G001"
+        description: "FinCEN guidance — convertible virtual currency money services."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        currency: { in: [USDT, USDC, DAI] }
+        channel: swap
+      group_by: [customer_id]
+      window: 48h
+      having:
+        count: { gte: 3 }
+        sum_amount: { gte: 20000 }
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - wallet_chain_history
+    tags: [stablecoin, layering, velocity]
+
+  # --- SANCTIONED WALLET SCREENING ---
+  - id: sanctioned_wallet_screening
+    name: Customer wallet appears on a sanctions list
+    severity: critical
+    regulation_refs:
+      - citation: "OFAC SDN — virtual currency addenda"
+        description: "OFAC sanctions list updates include identified wallet addresses."
+      - citation: "PCMLTFR s.7.7"
+        description: "Canadian dealers in virtual currency record-keeping."
+    logic:
+      type: list_match
+      source: customer
+      field: wallet_address
+      list: sanctioned_wallets
+      match: exact
+    escalate_to: str_filing
+    evidence:
+      - sanctions_list_snapshot
+      - customer_wallet_history
+    tags: [sanctions, vasp, critical]
+
+  # --- NESTED WALLET RING (uses entity resolution + network pattern) ---
+  # Multiple customer accounts sharing wallet_address or device_id form a
+  # cluster — a classic mule-account / nested-VASP pattern.
+  - id: nested_wallet_ring
+    name: Nested wallet ring (3+ customers sharing identifiers)
+    severity: high
+    regulation_refs:
+      - citation: "FATF R.16 nested service guidance"
+        description: "VASPs should detect customers acting as unregistered nested services."
+    logic:
+      type: network_pattern
+      source: customer
+      pattern: component_size
+      max_hops: 2
+      having:
+        component_size: { gte: 3 }
+    escalate_to: l2_investigator
+    evidence:
+      - resolved_entity_link
+      - customer_kyc_profile
+    tags: [nested_service, network, layering]
+
+  # --- LARGE SINGLE-SWAP THRESHOLD ---
+  # Mirrors LCTR / CTR for crypto. Set at $10k USD-equivalent.
+  - id: large_single_swap
+    name: Large single virtual-asset swap (>= $10k USD-eq)
+    severity: medium
+    regulation_refs:
+      - citation: "FINTRAC LVCTR (Large Virtual Currency Transaction Report)"
+        description: "Reportable threshold for virtual currency dealers."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: swap
+      group_by: [customer_id]
+      window: 1d
+      having:
+        sum_amount: { gte: 10000 }
+    escalate_to: l1_aml_analyst
+    evidence:
+      - all_matching_transactions
+    tags: [lvctr, threshold]
+
+workflow:
+  queues:
+    - id: l1_aml_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [str_filing, closed_no_action]
+    - id: str_filing
+      sla: 30d
+      regulator_form: FATF_R16_STR
+    - id: closed_no_action
+      sla: 1d
+
+reporting:
+  forms:
+    FATF_R16_STR:
+      template: fatf_r16_str_v1
+      mandatory_fields: [subject, narrative, triggering_rules, transactions, wallet_history]
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 5y
+
+metrics:
+  - id: stablecoin_alert_volume
+    name: Stablecoin layering alerts (this run)
+    category: operational
+    audience: [manager, vp]
+    owner: head_of_compliance
+    formula:
+      type: count
+      source: alerts
+      filter: { rule_id: stablecoin_velocity_48h }
+    target: { lte: 20 }
+    thresholds:
+      green: { lte: 10 }
+      amber: { lte: 20 }
+      red:   { gt: 20 }
+
+  - id: sanctioned_wallet_hits
+    name: Sanctioned wallet matches
+    category: regulatory
+    audience: [vp, director, auditor]
+    owner: chief_compliance_officer
+    formula:
+      type: count
+      source: alerts
+      filter: { rule_id: sanctioned_wallet_screening }
+    target: { eq: 0 }
+    thresholds:
+      green: { eq: 0 }
+      red:   { gt: 0 }
+
+  - id: nested_ring_count
+    name: Nested wallet rings detected
+    category: risk
+    audience: [vp, director]
+    owner: chief_compliance_officer
+    formula:
+      type: count
+      source: alerts
+      filter: { rule_id: nested_wallet_ring }
+      distinct_by: customer_id
+
+  - id: total_alert_volume
+    name: Total alerts (this run)
+    category: operational
+    audience: [svp, vp, director, manager]
+    owner: head_of_compliance
+    formula:
+      type: count
+      source: alerts
+
+reports:
+  - id: vasp_compliance_brief
+    title: VASP compliance officer brief
+    audience: vp
+    cadence: weekly
+    sections:
+      - title: Sanctions
+        metrics: [sanctioned_wallet_hits]
+        commentary: >
+          Any sanctioned-wallet hit requires immediate STR filing and customer
+          freeze under FATF R.16 + national VASP regulations.
+      - title: Layering signals
+        metrics: [stablecoin_alert_volume, nested_ring_count]
+      - title: Volume
+        metrics: [total_alert_volume]
+
+  - id: vasp_exec_summary
+    title: VASP exec summary
+    audience: svp
+    cadence: monthly
+    sections:
+      - title: Program health
+        metrics: [sanctioned_wallet_hits, nested_ring_count, total_alert_volume]

@@ -29,6 +29,7 @@ EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "community_bank" / 
 SPEC_CA = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_i_bank" / "aml.yaml"
 SPEC_EU = Path(__file__).resolve().parents[1] / "examples" / "eu_bank" / "aml.yaml"
 SPEC_UK = Path(__file__).resolve().parents[1] / "examples" / "uk_bank" / "aml.yaml"
+SPEC_VASP = Path(__file__).resolve().parents[1] / "examples" / "crypto_vasp" / "aml.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +283,36 @@ class TestUKSpec:
         )
         sanctions = result.alerts.get("sanctions_ofsi", [])
         assert len(sanctions) >= 1
+
+
+class TestCryptoVASPSpec:
+    """Crypto VASP example spec uses network_pattern + list_match against
+    sanctioned wallets. Demonstrates the framework's crypto coverage."""
+
+    def test_vasp_spec_validates(self):
+        spec = load_spec(SPEC_VASP)
+        assert spec.program.jurisdiction == "VASP"
+        assert spec.program.regulator == "FATF"
+        rule_types = {r.logic.type for r in spec.rules}
+        assert "network_pattern" in rule_types
+        assert "list_match" in rule_types
+        assert "aggregation_window" in rule_types
+
+    def test_vasp_spec_has_sanctioned_wallet_rule(self):
+        spec = load_spec(SPEC_VASP)
+        rule_ids = {r.id for r in spec.rules}
+        assert "sanctioned_wallet_screening" in rule_ids
+        assert "nested_wallet_ring" in rule_ids
+        assert "stablecoin_velocity_48h" in rule_ids
+
+    def test_sanctioned_wallets_list_exists(self):
+        from aml_framework.paths import REFERENCE_LISTS_DIR
+
+        path = REFERENCE_LISTS_DIR / "sanctioned_wallets.csv"
+        assert path.exists(), f"sanctioned_wallets.csv missing at {path}"
+        # Has at least one address row.
+        text = path.read_text()
+        assert "OFAC" in text or "FINTRAC" in text
 
 
 # ---------------------------------------------------------------------------
