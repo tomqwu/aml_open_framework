@@ -6,7 +6,8 @@ import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import chart_layout, kpi_card, link_to_page, page_header
+from aml_framework.dashboard.query_params import read_param
 
 page_header(
     "Customer 360",
@@ -29,8 +30,13 @@ if st.session_state.get("guided_demo"):
     )
 
 # --- Customer selector ---
+# Pre-select via deep link from Alert Queue / Network Explorer / Executive
+# Dashboard. `read_param` (not consume_param) keeps the value sticky across
+# page reruns so a selectbox change still works without losing the link state.
 customer_ids = sorted(df_customers["customer_id"].tolist())
-selected_cid = st.selectbox("Select customer", customer_ids)
+deep_link_cid = read_param("customer_id")
+default_cid_idx = customer_ids.index(deep_link_cid) if deep_link_cid in customer_ids else 0
+selected_cid = st.selectbox("Select customer", customer_ids, index=default_cid_idx)
 
 cust = df_customers[df_customers["customer_id"] == selected_cid].iloc[0]
 
@@ -166,11 +172,28 @@ if not cust_cases.empty:
 
     available = [c for c in show_cols if c in cust_cases.columns]
     st.dataframe(cust_cases[available], use_container_width=True, hide_index=True)
-    st.caption(
-        "Click a case_id to drill into the full investigation on the "
-        "[Case Investigation](./Case_Investigation) page (deep-link via "
-        "`?case_id=...` is in development)."
-    )
+
+    # Drill-down: pick a case and open it in Case Investigation. Streamlit
+    # dataframes don't support per-row click-through, so we surface a
+    # selectbox + page link that mirrors the table contents. The
+    # `link_to_page` helper writes `case_id` into session state under the
+    # `selected_case_id` key Case Investigation reads via `consume_param`.
+    case_id_options = cust_cases["case_id"].tolist()
+    if case_id_options:
+        drill_col1, drill_col2 = st.columns([3, 2])
+        with drill_col1:
+            drill_case = st.selectbox(
+                "Drill into case",
+                case_id_options,
+                key="customer360_case_drill",
+            )
+        with drill_col2:
+            st.write("")  # vertical alignment with the selectbox
+            link_to_page(
+                "pages/4_Case_Investigation.py",
+                f"→ Open {drill_case} in Case Investigation",
+                case_id=drill_case,
+            )
 else:
     st.caption("No cases for this customer.")
 

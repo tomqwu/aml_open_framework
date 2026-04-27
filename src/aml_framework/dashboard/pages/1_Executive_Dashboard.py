@@ -10,6 +10,7 @@ from aml_framework.dashboard.components import (
     SEVERITY_COLORS,
     chart_layout,
     kpi_card,
+    link_to_page,
     metric_table,
     page_header,
 )
@@ -58,6 +59,17 @@ with c6:
         kpi_card("Volume Screened", f"${tv.value:,.0f}", "#0891b2")
     else:
         kpi_card("Volume Screened", "N/A", "#6b7280")
+
+# --- KPI drill-downs ---
+# Streamlit metric-style cards aren't natively clickable, so each
+# clickable KPI gets a follow-up `st.page_link` row beneath the cards.
+# Pattern matches Alert Queue / Customer 360 — link_to_page writes the
+# session-state mirror for any drill-state we need on the destination.
+drill_total, drill_cases, _, _, _, _ = st.columns(6)
+with drill_total:
+    link_to_page("pages/3_Alert_Queue.py", "→ Triage alerts")
+with drill_cases:
+    link_to_page("pages/24_Investigations.py", "→ Open investigations")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
