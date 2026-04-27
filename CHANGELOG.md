@@ -8,6 +8,41 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **SLA timer + escalation engine** (`cases/sla.py`). Round-6 PR #3.
+  The framework's engine already records `within_sla` and
+  `resolution_hours` in the simulated decisions ledger, but those
+  are *retrospective*. **The FCA's March 2026 Dear CEO letter on
+  SAR backlogs** named real-time SLA tracking + active escalation
+  discipline as the gap UK firms most often failed on in
+  supervisory visits. This module gives operators the live-queue
+  view examiners want.
+  New `compute_sla_status(case, queue, *, as_of)` returns an
+  `SLAStatus` dict: `state` (green >50% / amber 10-50% / red 0-10%
+  / breached <0%), `queue_sla_hours`, `time_in_queue_hours`,
+  `time_remaining_hours`, `pct_remaining`, `opened_at`, `due_at`.
+  Bands fully overridable via `sla_thresholds` arg. Cases with no
+  resolvable open time return None (not silently misclassified
+  breached) so callers can surface data-quality issues separately.
+  Companion `apply_escalation(case, status, queue)` returns an
+  `EscalationAction` (frozen dataclass) only when SLA has actually
+  breached AND the queue's `next` list contains a non-closure
+  destination — picks the first non-`closed_*` / non-`*_no_action`
+  entry, typically the higher-tier investigator queue. Returns None
+  for green/amber/red (escalation is breach-only by policy),
+  terminal queues, and pure-closure next lists.
+  Companion `summarise_backlog(cases, spec, *, as_of)` rolls SLA
+  states up by queue. Returns one `BacklogStats` per queue defined
+  in the spec's workflow (zero-count rows preserved so the
+  dashboard's queue-health table doesn't omit empty rows). Each
+  row carries: queue_id, queue_sla_hours, total_cases, green/
+  amber/red/breached counts, oldest_age_hours, breach_rate_pct.
+  Composes with PR #61 investigation aggregator (per-investigation
+  backlog stats), feeds Round-6 #5 case dashboard page, and
+  contributes to Round-7 #1 outcome metrics (SLA-breach rate per
+  rule per quarter is one of the FinCEN NPRM funnel ratios).
+  25 new tests under `TestComputeSLAStatus`, `TestApplyEscalation`,
+  `TestSummariseBacklog`, `TestEndToEndWithEngine`.
+
 - **Investigation aggregator** (`cases/aggregator.py`,
   `cases/__init__.py`). Round-6 PR #1 — opens the case-management
   arc. The engine emits one case per alert
