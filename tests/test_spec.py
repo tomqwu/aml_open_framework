@@ -131,7 +131,7 @@ def test_all_five_reports_generated(tmp_path):
 
 
 def test_run_is_reproducible(tmp_path):
-    """Two identical runs must produce the same output hashes."""
+    """Two identical runs must produce the same output AND decisions hashes."""
     spec = load_spec(SPEC_CA)
     as_of = datetime(2026, 4, 23, 12, 0, 0)
     data = generate_dataset(as_of=as_of, seed=42)
@@ -145,6 +145,14 @@ def test_run_is_reproducible(tmp_path):
 
     for rule_id, hash1 in r1.manifest["rule_outputs"].items():
         assert hash1 == r2.manifest["rule_outputs"][rule_id], f"output hash drift on rule {rule_id}"
+
+    assert r1.manifest["decisions_hash"] == r2.manifest["decisions_hash"], (
+        "decisions_hash must be deterministic across runs"
+    )
+    assert r1.manifest["spec_content_hash"] == r2.manifest["spec_content_hash"]
+    assert r1.manifest["inputs"] == r2.manifest["inputs"], (
+        "input manifest must be byte-identical across runs"
+    )
 
 
 # ---------------------------------------------------------------------------
