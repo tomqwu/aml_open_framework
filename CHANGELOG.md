@@ -8,6 +8,16 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Crypto VASP example spec** (`examples/crypto_vasp/aml.yaml`): minimal AML
+  spec for a Virtual Asset Service Provider. Demonstrates the framework's
+  crypto coverage with four rules: stablecoin layering velocity (48h
+  window, $20k aggregate), sanctioned-wallet screening (`list_match` against
+  bundled `sanctioned_wallets.csv`), nested-wallet ring detection
+  (`network_pattern` over `resolved_entity_link`), and a single-day swap
+  threshold mirroring LVCTR. Built around TRM Labs' 2026 Crypto Crime
+  Report finding that stablecoins were ~84% of fraud-scheme inflows in
+  2025 with hold times collapsing under 48h. 3 new tests under
+  `TestCryptoVASPSpec` lock the spec shape and bundled wallet list.
 - **Entity-resolution layer** (`engine/entity_resolution.py`): runtime
   builds a `resolved_entity` view + `resolved_entity_link` table inside
   the engine's DuckDB. Linking attributes (`phone`, `email`, `device_id`,
