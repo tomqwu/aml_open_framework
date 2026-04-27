@@ -13,6 +13,13 @@ that introduced them.
   psycopg2 on the fly. Each public CRUD function now writes its query
   once instead of carrying two near-identical SQL bodies. ~50 LOC removed.
   No public API changes; existing Postgres mock tests pass unchanged.
+- **`data/synthetic.py` `_make_txn` helper**: extracted from eight near-
+  identical planted-positive blocks. Each used to be 7-8 lines of dict
+  literal repeating the same keys (`txn_id`, `customer_id`, `amount`,
+  `currency`, `channel`, `direction`, `booked_at`); call sites are now a
+  single `_make_txn(tid, customer, amount, booked_at, channel=..., ...)`
+  invocation. Output is byte-identical — the existing
+  `test_run_is_reproducible` test verifies this.
 
 ### Changed
 - **`list_match` fuzzy matcher upgrade** (`engine/runner.py`): the previous
