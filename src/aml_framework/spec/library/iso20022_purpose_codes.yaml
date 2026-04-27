@@ -1,0 +1,175 @@
+# ISO 20022 purpose-code typology library — Round-5 PR #3.
+#
+# When SWIFT completed its MX-only cutover on 2025-11-22, the legacy
+# free-text "purpose of payment" string disappeared and was replaced by
+# the structured ExternalPurpose1Code enum (~150 codes). That enum
+# unlocks typology rules that simply weren't expressible before — you
+# can now distinguish "INVS misuse in a fake-investment scam" from
+# "CHAR donation routed via shell-charity" cleanly.
+#
+# This file is a **library of copy-pasteable rule snippets**, not a spec
+# the engine loads. Drop the snippets you want into your own aml.yaml's
+# `rules:` block, adjust thresholds for your risk appetite, and add
+# regulation_refs that match your jurisdiction.
+#
+# All snippets read the `purpose_code` column the iso20022 ingestion
+# adapter (PR #56) writes into the txn data contract. Operators using
+# CSV/Parquet sources should add `purpose_code` as an optional column
+# on their txn data_contract — the rules degrade to no-op when the
+# column is NULL.
+#
+# Reference data: see `data/lists/iso20022_high_risk_purpose_codes.csv`
+# for the full ExternalPurpose1Code → risk_band classification used
+# by these snippets.
+
+# ---------------------------------------------------------------------------
+# Snippet 1: INVS velocity — investment-purpose churn (pig-butchering / fake-investment)
+# ---------------------------------------------------------------------------
+# FATF's Feb 2026 Cyber-Enabled Fraud paper specifically calls out
+# INVS misuse as the classic pig-butchering payout marker (victim
+# believes they're investing; funds end up at scam-controlled
+# beneficiaries). Composes with PR #54 cyber_enabled_fraud spec.
+- id: invs_velocity_investment_scam
+  name: INVS purpose-code velocity — investment-scam indicator
+  severity: high
+  regulation_refs:
+    - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
+      description: "Investment-scam typology — purpose-code INVS misuse."
+    - citation: "FinCEN FIN-2023-Alert005"
+      description: "Pig-butchering / relationship-investment scams."
+  logic:
+    type: aggregation_window
+    source: txn
+    filter:
+      direction: out
+      purpose_code: INVS
+    group_by: [customer_id]
+    window: 14d
+    having:
+      count:      { gte: 3 }
+      sum_amount: { gte: 5000 }
+  escalate_to: l2_investigator
+  evidence:
+    - matching_invs_transactions
+    - customer_kyc_profile
+    - beneficiary_lookup
+  tags: [iso20022, purpose_code, invs, pig_butchering, cyber_enabled_fraud]
+  tuning_grid:
+    logic.having.count:      [{gte: 2}, {gte: 3}, {gte: 5}]
+    logic.having.sum_amount: [{gte: 2500}, {gte: 5000}, {gte: 10000}]
+
+# ---------------------------------------------------------------------------
+# Snippet 2: CHAR/GIFT clustering — shell-charity / romance-scam
+# ---------------------------------------------------------------------------
+# Charitable + gift purpose codes are themselves benign, but a sudden
+# cluster from a single customer to multiple new beneficiaries is the
+# canonical shell-charity laundering and romance-scam payout pattern.
+- id: char_gift_burst_shell_charity
+  name: CHAR/GIFT burst — shell-charity / romance-scam indicator
+  severity: medium
+  regulation_refs:
+    - citation: "FATF Charities & NPOs Best Practices (2024 update)"
+      description: "Misuse of charitable purpose codes for laundering."
+    - citation: "FinCEN FIN-2023-Alert005"
+      description: "Romance-scam payout patterns include charitable purpose codes."
+  logic:
+    type: aggregation_window
+    source: txn
+    filter:
+      direction: out
+      purpose_code: { in: [CHAR, GIFT] }
+    group_by: [customer_id]
+    window: 30d
+    having:
+      count:      { gte: 5 }
+      sum_amount: { gte: 10000 }
+  escalate_to: l1_analyst
+  evidence:
+    - matching_char_gift_transactions
+    - beneficiary_unique_count
+    - customer_kyc_profile
+  tags: [iso20022, purpose_code, char, gift, shell_charity]
+
+# ---------------------------------------------------------------------------
+# Snippet 3: DERI from retail customer — outside-mandate trading
+# ---------------------------------------------------------------------------
+# Derivative purpose codes from accounts whose KYC business_activity
+# isn't institutional-trading is a classic mandate-mismatch signal.
+# Often hides front-running, market-manipulation, or shell-account
+# layering. Requires customer table to carry business_activity.
+- id: deri_from_retail_mandate_mismatch
+  name: DERI from retail customer — mandate mismatch
+  severity: high
+  regulation_refs:
+    - citation: "MiFID II Art. 16 (4)"
+      description: "Suitability + appropriateness of derivative trading."
+    - citation: "AMLD6 Art. 18a"
+      description: "Enhanced due diligence triggered by unusual transaction patterns."
+  logic:
+    type: custom_sql
+    sql: |
+      SELECT
+          'deri_from_retail_mandate_mismatch' AS rule_id,
+          t.customer_id,
+          COUNT(*) AS count,
+          SUM(t.amount) AS sum_amount,
+          MIN(t.booked_at) AS window_start,
+          MAX(t.booked_at) AS window_end
+      FROM txn t
+      JOIN customer c ON t.customer_id = c.customer_id
+      WHERE t.purpose_code = 'DERI'
+        AND COALESCE(c.business_activity, 'retail') NOT IN
+            ('investment_firm', 'institutional_trader', 'hedge_fund', 'broker_dealer')
+        AND t.booked_at >= TIMESTAMP '{window_start}'
+        AND t.booked_at <  TIMESTAMP '{as_of}'
+      GROUP BY t.customer_id
+      HAVING COUNT(*) >= 1
+      ORDER BY t.customer_id
+  escalate_to: l2_investigator
+  evidence:
+    - matching_deri_transactions
+    - customer_kyc_profile_with_business_activity
+    - source_of_funds_documentation
+  tags: [iso20022, purpose_code, deri, mandate_mismatch, mifid]
+
+# ---------------------------------------------------------------------------
+# Snippet 4: TRAD purpose to high-risk jurisdiction — TBML indicator
+# ---------------------------------------------------------------------------
+# Trade-purpose payments to FATF black/grey-list countries warrant a
+# closer look — often the TBML over/under-invoicing typology. Round-7
+# PR #2 ships a full TBML example spec; this snippet is the early-
+# warning rule for any operator running today.
+- id: trad_to_high_risk_jurisdiction_tbml
+  name: TRAD purpose to high-risk jurisdiction — TBML indicator
+  severity: high
+  regulation_refs:
+    - citation: "FATF Trade-Based Money Laundering (Sep 2025 update)"
+      description: "TBML typology — invoice manipulation via trade-purpose payments."
+    - citation: "EU Delegated Regulation 2016/1675"
+      description: "List of high-risk third countries."
+  logic:
+    type: custom_sql
+    sql: |
+      SELECT
+          'trad_to_high_risk_jurisdiction_tbml' AS rule_id,
+          t.customer_id,
+          COUNT(*) AS count,
+          SUM(t.amount) AS sum_amount,
+          MIN(t.booked_at) AS window_start,
+          MAX(t.booked_at) AS window_end
+      FROM txn t
+      WHERE t.purpose_code = 'TRAD'
+        AND UPPER(COALESCE(t.counterparty_country, '')) IN
+            ('RU', 'IR', 'KP', 'MM', 'SY', 'AF', 'YE')
+        AND t.amount >= 25000
+        AND t.booked_at >= TIMESTAMP '{window_start}'
+        AND t.booked_at <  TIMESTAMP '{as_of}'
+      GROUP BY t.customer_id
+      HAVING SUM(t.amount) >= 50000
+      ORDER BY t.customer_id
+  escalate_to: l2_investigator
+  evidence:
+    - matching_trad_transactions
+    - shipping_documents
+    - invoice_pricing_baseline
+  tags: [iso20022, purpose_code, trad, tbml, high_risk_jurisdiction]
