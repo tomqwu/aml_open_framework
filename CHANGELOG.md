@@ -34,6 +34,29 @@ that introduced them.
     comment-period closing June 9 2026. ~30 cited sources.
   Both documents linked from the README documentation map.
 
+- **AMLA STR/RTS effectiveness telemetry pack**
+  (`metrics/outcomes.py`, `cli.py:outcomes_pack_cmd`,
+  `tests/test_metrics_outcomes.py`). Round-7 PR #2 — second-ranked
+  feature from the 2026-04 positioning research. AMLA's RTS due
+  2026-07-10 + FinCEN's April 2026 NPRM both treat the
+  alert→case→STR conversion ratio as the canonical effectiveness
+  measure; the framework's existing per-rule alert counts didn't
+  roll up into that funnel.
+  New `compute_outcomes(cases, decisions, *, labels)` returns an
+  `OutcomesReport` with: per-rule funnel counts, conversion ratios
+  (alert→case, case→STR, alert→STR), SLA-breach rate, precision
+  per rule when label data supplied. Pure functions over the
+  engine's existing case + decision dicts — no new schema needed.
+  New `format_amla_rts_json` renders the AMLA RTS draft 2026-02
+  shape with deterministic `AMLA-<sha256[:16]>` submission id so
+  retransmissions are idempotent. New `aml outcomes-pack` CLI
+  takes the latest run dir, optionally loads `--labels` CSV, writes
+  the JSON. Same shape works for AMLA submission + FinCEN narrative
+  effectiveness pack.
+  21 new tests under `TestComputeOutcomes`, `TestSLABreaches`,
+  `TestLabelledPrecision`, `TestAMLARTSRenderer`,
+  `TestEndToEndWithEngine`. Total tests 953 → 974.
+
 - **Synthetic data enriched with ISO 20022 fields** (`data/synthetic.py`,
   `tests/test_iso20022_purpose_codes.py`). The default demo
   (`aml run --seed 42`) didn't exercise any Round 5/6 features

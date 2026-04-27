@@ -49,6 +49,99 @@ def validate(spec_path: Path = typer.Argument(..., exists=True, readable=True)) 
     )
 
 
+@app.command(name="outcomes-pack")
+def outcomes_pack_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Option(
+        None, "--run-dir", help="Run directory; defaults to newest under artifacts/."
+    ),
+    artifacts: Path = typer.Option(
+        Path("artifacts"), "--artifacts", help="Where engine runs are written."
+    ),
+    out: Path = typer.Option(
+        Path("amla-outcomes.json"),
+        "--out",
+        help="Output AMLA RTS draft 2026-02 JSON file.",
+    ),
+    lei: str = typer.Option("", "--lei", help="Legal Entity Identifier (20 chars)."),
+    entity_type: str = typer.Option(
+        "credit_institution",
+        "--entity-type",
+        help="AMLA obliged-entity type.",
+    ),
+    home_state: str = typer.Option(
+        "", "--home-state", help="ISO 3166-1 alpha-2 home Member State."
+    ),
+    period_start: str = typer.Option(
+        "", "--period-start", help="Reporting period start (YYYY-MM-DD)."
+    ),
+    period_end: str = typer.Option("", "--period-end", help="Reporting period end (YYYY-MM-DD)."),
+    labels_csv: Path | None = typer.Option(
+        None,
+        "--labels",
+        help="Optional CSV: case_id,is_true_positive (1/0) for precision.",
+    ),
+) -> None:
+    """Generate AMLA RTS effectiveness pack (alert→case→STR funnel)."""
+    import csv as _csv
+    import json as _json
+
+    from aml_framework.metrics.outcomes import compute_outcomes, format_amla_rts_json
+
+    spec = load_spec(spec_path)
+    run = _resolve_run_dir(run_dir, artifacts)
+
+    cases = []
+    cases_dir = run / "cases"
+    if cases_dir.exists():
+        for f in sorted(cases_dir.glob("*.json")):
+            cases.append(_json.loads(f.read_text()))
+    decisions = []
+    dec_path = run / "decisions.jsonl"
+    if dec_path.exists():
+        for line in dec_path.read_text().splitlines():
+            line = line.strip()
+            if line:
+                decisions.append(_json.loads(line))
+
+    labels: dict[str, bool] | None = None
+    if labels_csv is not None:
+        labels = {}
+        with labels_csv.open() as f:
+            for row in _csv.DictReader(f):
+                labels[row["case_id"]] = row.get("is_true_positive", "0") in (
+                    "1",
+                    "true",
+                    "True",
+                    "yes",
+                )
+
+    report = compute_outcomes(
+        cases=cases,
+        decisions=decisions,
+        spec_program=spec.program.name,
+        labels=labels,
+    )
+    payload = format_amla_rts_json(
+        report,
+        program_metadata={
+            "lei": lei,
+            "obliged_entity_type": entity_type,
+            "home_member_state": home_state,
+            "reporting_period_start": period_start,
+            "reporting_period_end": period_end,
+        },
+    )
+    out.write_bytes(payload)
+    console.print(
+        f"[green]Outcomes pack written[/green] {out}\n"
+        f"  total_alerts: {report.total_alerts}\n"
+        f"  total_cases: {report.total_cases}\n"
+        f"  total_str_filed: {report.total_str_filed}\n"
+        f"  alert_to_str: {report.alert_to_str_pct}%"
+    )
+
+
 @app.command(name="validate-data")
 def validate_data(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
