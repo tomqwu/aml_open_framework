@@ -13,25 +13,25 @@ from aml_framework.dashboard.audience import show_audience_context
 
 def _bulk_action(case_ids: list[str], event: str, disposition: str) -> None:
     """Apply an action to multiple cases at once."""
-    import json
     from datetime import datetime, timezone
     from pathlib import Path
 
-    run_dir = st.session_state.run_dir
-    decisions_path = Path(run_dir) / "decisions.jsonl"
-    ts = datetime.now(tz=timezone.utc).isoformat()
+    from aml_framework.engine.audit import AuditLedger
+
+    run_dir = Path(st.session_state.run_dir)
+    ts = datetime.now(tz=timezone.utc)
     count = 0
     for cid in case_ids:
-        decision = {
-            "ts": ts,
-            "event": event,
-            "case_id": cid,
-            "disposition": disposition,
-            "source": "bulk_action",
-        }
-        with decisions_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(decision, sort_keys=True, separators=(",", ":")) + "\n")
-        # Update session state.
+        AuditLedger.append_to_run_dir(
+            run_dir,
+            {
+                "event": event,
+                "case_id": cid,
+                "disposition": disposition,
+                "source": "bulk_action",
+            },
+            ts=ts,
+        )
         if "df_cases" in st.session_state and not st.session_state.df_cases.empty:
             mask = st.session_state.df_cases["case_id"] == cid
             if mask.any():

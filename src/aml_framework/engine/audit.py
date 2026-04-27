@@ -11,9 +11,17 @@ Writes artifacts under a run directory:
         cases/<case_id>.json
         decisions.jsonl
 
-Hashes are SHA-256 over canonicalised bytes. Decision events are append-only;
-the framework never rewrites this file — an attempted mutation is considered
-a control-integrity failure.
+Hashes are SHA-256 over canonicalised bytes. Engine-time decisions stamp `ts`
+from `as_of` so that a re-run with the same spec, data, and `as_of` produces
+the same `decisions_hash` — that's the contract `test_run_is_reproducible`
+verifies. Human decisions appended later (via `append_to_run_dir`) use a real
+wall-clock `ts` and are not part of the reproducibility contract.
+
+Tamper detection caveat: `verify_decisions` reads the expected hash from
+`manifest.json` in the same run directory. An attacker who can rewrite
+`decisions.jsonl` can also rewrite `manifest.json`. For real assurance,
+external callers should pass `expected_hash=...` from an out-of-band store
+(database row, signed log, WORM bucket).
 """
 
 from __future__ import annotations
@@ -95,12 +103,35 @@ class AuditLedger:
             json.dumps(case, indent=2, sort_keys=True, default=str).encode("utf-8")
         )
 
-    def append_decision(self, decision: dict[str, Any]) -> None:
+    def append_decision(self, decision: dict[str, Any], ts: datetime | None = None) -> None:
+        """Append an engine-time decision. `ts` defaults to `self.as_of` for
+        run-to-run determinism. Pass an explicit `ts` only if the caller has a
+        deterministic per-decision time (e.g. a simulated resolution time)."""
+        stamp = ts if ts is not None else self.as_of
         event = {
-            "ts": datetime.now(tz=timezone.utc).isoformat(),
+            "ts": stamp.isoformat() if hasattr(stamp, "isoformat") else str(stamp),
             **decision,
         }
         with (self.run_dir / "decisions.jsonl").open("ab") as f:
+            f.write(_canonical_json(event) + b"\n")
+
+    @staticmethod
+    def append_to_run_dir(
+        run_dir: Path, decision: dict[str, Any], ts: datetime | None = None
+    ) -> None:
+        """Append a human-time decision to a finalised run.
+
+        Used by the dashboard for analyst actions (escalate, file, close).
+        Uses wall-clock `ts` by default — these writes are not part of the
+        engine reproducibility contract. Single canonical writer so the
+        decisions.jsonl shape stays consistent across the codebase.
+        """
+        stamp = ts if ts is not None else datetime.now(tz=timezone.utc)
+        event = {
+            "ts": stamp.isoformat(),
+            **decision,
+        }
+        with (run_dir / "decisions.jsonl").open("ab") as f:
             f.write(_canonical_json(event) + b"\n")
 
     def finalize(self) -> dict[str, Any]:
@@ -142,20 +173,27 @@ class AuditLedger:
         return chain_hash.hex()
 
     @staticmethod
-    def verify_decisions(run_dir: Path) -> tuple[bool, str]:
+    def verify_decisions(run_dir: Path, expected_hash: str | None = None) -> tuple[bool, str]:
         """Verify the decision log hasn't been tampered with.
 
-        Returns (is_valid, message). Compares the hash chain against
-        the stored decisions_hash in the manifest.
+        Returns (is_valid, message). When `expected_hash` is provided, the
+        chain is compared against that value (the recommended path: pass a
+        hash retrieved from an out-of-band store). Otherwise the hash is
+        loaded from `manifest.json` in the same `run_dir` — which only
+        catches partial tampering, since an attacker who can rewrite the
+        decision log can usually rewrite the manifest too.
         """
-        manifest_path = run_dir / "manifest.json"
-        if not manifest_path.exists():
-            return False, "manifest.json not found"
+        if expected_hash is None:
+            manifest_path = run_dir / "manifest.json"
+            if not manifest_path.exists():
+                return False, "manifest.json not found"
 
-        manifest = json.loads(manifest_path.read_bytes())
-        stored_hash = manifest.get("decisions_hash", "")
-        if not stored_hash:
-            return False, "No decisions_hash in manifest"
+            manifest = json.loads(manifest_path.read_bytes())
+            stored_hash = manifest.get("decisions_hash", "")
+            if not stored_hash:
+                return False, "No decisions_hash in manifest"
+        else:
+            stored_hash = expected_hash
 
         decisions_path = run_dir / "decisions.jsonl"
         if not decisions_path.exists():

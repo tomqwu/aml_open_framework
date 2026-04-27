@@ -333,7 +333,8 @@ def _simulate_case_resolution(
         severity = case.get("severity", "medium")
         event, disposition = _decide_disposition(severity, queue_obj.next or [], idx)
 
-        # Record the resolution decision.
+        # Record the resolution decision. `ts` is derived from `as_of` so the
+        # decisions_hash is deterministic for a given (spec, data, as_of).
         ledger.append_decision(
             {
                 "event": event,
@@ -343,7 +344,8 @@ def _simulate_case_resolution(
                 "disposition": disposition,
                 "resolution_hours": round(resolution_hours, 2),
                 "within_sla": resolution_hours <= sla_hours,
-            }
+            },
+            ts=resolved_at,
         )
 
         # Update case status on disk.

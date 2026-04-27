@@ -17,9 +17,11 @@ def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
 
     import pandas as pd
 
-    decisions_path = Path(run_dir) / "decisions.jsonl"
+    from aml_framework.engine.audit import AuditLedger
+
+    run_dir_path = Path(run_dir)
+    ts = datetime.now(tz=timezone.utc)
     decision = {
-        "ts": datetime.now(tz=timezone.utc).isoformat(),
         "event": event,
         "case_id": case["case_id"],
         "rule_id": case.get("rule_id", ""),
@@ -27,15 +29,14 @@ def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
         "disposition": disposition,
         "source": "dashboard_ui",
     }
-    with decisions_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(decision, sort_keys=True, separators=(",", ":")) + "\n")
+    AuditLedger.append_to_run_dir(run_dir_path, decision, ts=ts)
 
     # Update case file on disk.
-    case_path = Path(st.session_state.run_dir) / "cases" / f"{case['case_id']}.json"
+    case_path = run_dir_path / "cases" / f"{case['case_id']}.json"
     if case_path.exists():
         case_data = json.loads(case_path.read_bytes())
         case_data["status"] = disposition
-        case_data["resolved_at"] = decision["ts"]
+        case_data["resolved_at"] = ts.isoformat()
         case_path.write_bytes(
             json.dumps(case_data, indent=2, sort_keys=True, default=str).encode("utf-8")
         )
@@ -48,14 +49,14 @@ def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
 
     # Add decision to session decisions DataFrame.
     if "df_decisions" in st.session_state:
-        new_row = pd.DataFrame([decision])
+        new_row = pd.DataFrame([{"ts": ts.isoformat(), **decision}])
         st.session_state.df_decisions = pd.concat(
             [st.session_state.df_decisions, new_row],
             ignore_index=True,
         )
 
     st.success(f"Decision recorded: **{event}** -> {disposition}")
-    st.caption(f"Written to {decisions_path.name} and synced to session.")
+    st.caption(f"Written to {(run_dir_path / 'decisions.jsonl').name} and synced to session.")
 
 
 page_header(

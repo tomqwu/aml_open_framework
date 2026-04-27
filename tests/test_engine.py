@@ -96,6 +96,49 @@ class TestRunnerEndToEnd:
             assert hash1 == r2.manifest["rule_outputs"][rule_id], (
                 f"output hash drift on rule {rule_id} — non-deterministic engine"
             )
+        assert r1.manifest["decisions_hash"] == r2.manifest["decisions_hash"], (
+            "decisions_hash must be deterministic across runs"
+        )
+
+
+class TestAuditLedgerDeterminism:
+    def test_append_to_run_dir_uses_wall_clock(self, tmp_path):
+        from aml_framework.engine.audit import AuditLedger
+
+        run_dir = tmp_path / "run-x"
+        run_dir.mkdir()
+        (run_dir / "decisions.jsonl").touch()
+        AuditLedger.append_to_run_dir(run_dir, {"event": "manual_review", "case_id": "C0042"})
+        line = (run_dir / "decisions.jsonl").read_text().strip()
+        assert '"event":"manual_review"' in line
+        assert '"case_id":"C0042"' in line
+        assert '"ts":"' in line  # timestamp written
+
+    def test_append_to_run_dir_explicit_ts_is_used(self, tmp_path):
+        from aml_framework.engine.audit import AuditLedger
+
+        run_dir = tmp_path / "run-x"
+        run_dir.mkdir()
+        (run_dir / "decisions.jsonl").touch()
+        ts = datetime(2026, 4, 23, 12, 0, 0)
+        AuditLedger.append_to_run_dir(run_dir, {"event": "x", "case_id": "Y"}, ts=ts)
+        line = (run_dir / "decisions.jsonl").read_text().strip()
+        assert '"ts":"2026-04-23T12:00:00"' in line
+
+    def test_verify_decisions_with_external_hash(self, tmp_path):
+        """verify_decisions accepts an out-of-band hash for stronger tamper detection."""
+        from aml_framework.engine.audit import AuditLedger
+
+        _, _, result = _run(tmp_path)
+        run_dir = Path(result.manifest["run_dir"])
+        external_hash = result.manifest["decisions_hash"]
+
+        ok, _ = AuditLedger.verify_decisions(run_dir, expected_hash=external_hash)
+        assert ok
+
+        ok, msg = AuditLedger.verify_decisions(run_dir, expected_hash="0" * 64)
+        assert not ok
+        assert "tamper" in msg.lower() or "computed" in msg.lower()
 
 
 class TestEngineHardening:

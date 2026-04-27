@@ -41,6 +41,27 @@ that introduced them.
 - **OIDC mode disables `/login`** (`api/main.py`): when `OIDC_ISSUER_URL` is
   set, the local-login endpoint returns 404 so demo credentials cannot be used.
 
+### Changed
+- **Audit-ledger determinism** (`engine/audit.py`): engine-time decisions now
+  stamp `ts` from `as_of` (or an explicit per-decision time like the simulated
+  resolution time) instead of wall-clock `datetime.now()`. The hash chain over
+  `decisions.jsonl` is now reproducible — re-running with the same spec, data,
+  and `as_of` produces an identical `decisions_hash`.
+- **`AuditLedger.append_to_run_dir`** is the single canonical entry point for
+  human-time decision writes. Both dashboard pages (`Alert_Queue`,
+  `Case_Investigation`) now route through it instead of opening
+  `decisions.jsonl` directly with drifted shapes.
+- **`AuditLedger.verify_decisions`** accepts an optional `expected_hash` for
+  out-of-band tamper detection. The default behaviour (read the hash from the
+  same `manifest.json` that lives next to `decisions.jsonl`) is documented as
+  weaker, with the recommended path explicitly called out.
+
+### Tests
+- `test_run_is_reproducible` now asserts equality of `decisions_hash`,
+  `spec_content_hash`, and the full `inputs` manifest across re-runs.
+- New `TestAuditLedgerDeterminism` covers `append_to_run_dir` and the
+  external-hash path through `verify_decisions`.
+
 ### Documentation
 - Refresh README test counts to match the 288-test suite across 9 files.
 - Sync `docs/spec-reference.md` with the schema (rule `status` and `tags`,
