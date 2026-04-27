@@ -7,6 +7,28 @@ that introduced them.
 
 ## [Unreleased]
 
+### Fixed
+- **`aml --help` crashed on fresh installs** (`pyproject.toml`).
+  Bumped `typer>=0.12` floor to `typer>=0.16`. typer 0.15 was
+  built against click 8.1.x but allowed by the old floor; click
+  8.3.0 changed `Parameter.make_metavar()` to require a `ctx`
+  argument, breaking typer 0.15's rich-help renderer with
+  `TypeError: Parameter.make_metavar() missing 1 required
+  positional argument: 'ctx'`. CI ran fine because fresh CI
+  installs picked typer 0.25; only locally-cached typer 0.15
+  installs hit the bug. New floor blocks the broken combination
+  at install time.
+
+### Added (docs sweep)
+- **`docs/jurisdictions.md` — `crypto_vasp` spec** added to the
+  bundled-specs table (was on disk in `examples/crypto_vasp/`
+  since Round-3 but only mentioned in passing). Its specialty
+  section now lists the regulatory hooks (FATF R.15-16, FinCEN
+  FIN-2019-G001, FINTRAC PCMLTFR s.7.7), the framework features
+  it exercises (network_pattern rule type, wallet sanctions
+  screening, VASP counterparty attribution), and a launch
+  command. Drift item from the 30-day docs sweep (issue #68).
+
 ### Added
 - **Documentation refactor + Getting Started guide** (`README.md`,
   `docs/getting-started.md`, `docs/dashboard-tour.md`,

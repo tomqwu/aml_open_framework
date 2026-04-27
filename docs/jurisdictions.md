@@ -12,6 +12,7 @@ The framework supports **geo-based default policies** — the same architecture 
 | `examples/eu_bank/aml.yaml` | EU | EBA | EU STR (AMLD6) |
 | `examples/uk_bank/aml.yaml` | UK | FCA | UK SAR (POCA 2002) |
 | `examples/cyber_enabled_fraud/aml.yaml` | US | FinCEN/FATF | SAR + investment-scam typology |
+| `examples/crypto_vasp/aml.yaml` | Cross-border | FATF R.16 / FinCEN / FINTRAC | VASP STR/SAR (network_pattern + Travel Rule) |
 
 All five execute the same engine; the jurisdictional differences live in:
 - the `regulation_refs` citations on each rule
@@ -110,15 +111,24 @@ aml dashboard examples/uk_bank/aml.yaml
 
 US-jurisdictional spec focused on the **FATF Cyber-Enabled Fraud (Feb 2026)** typology paper: pig-butchering / investment scams, romance scams, business email compromise, and APP-fraud convergence. Composes with the [pacs.004 return-reason library](../src/aml_framework/spec/library/iso20022_return_reasons.yaml) for UK PSR reimbursement-mandate analytics.
 
-### `examples/crypto_vasp/` (Round-3)
+### `examples/crypto_vasp/aml.yaml`
 
-Virtual Asset Service Provider spec aligned with FATF R.15-16 for crypto. Wallet-screening list match against `data/lists/sanctioned_wallets.csv` and counterparty attribution via `vasp/` (the public-data Chainalysis alternative shipped in PR #55).
+Virtual Asset Service Provider spec aligned with **FATF R.15-16** for crypto, **FinCEN's FIN-2019-G001** virtual currency guidance, and **FINTRAC's PCMLTFR s.7.7** (dealers in virtual currency). Built around TRM Labs' 2026 Crypto Crime Report finding that stablecoins accounted for ~84% of fraud-scheme inflows in 2025 with hold times collapsing under 48 hours.
+
+Demonstrates two framework features that don't appear in the fiat-bank specs:
+- **`network_pattern` rule type** (PR #16) — detects layering through multi-hop wallet graphs
+- **Wallet-screening `list_match`** against `data/lists/sanctioned_wallets.csv` (OFAC SDN crypto addresses)
+- **Counterparty attribution via `vasp/`** module (PR #55) — public-data Chainalysis alternative that maps wallet clusters to known VASPs
+
+```bash
+aml dashboard examples/crypto_vasp/aml.yaml
+```
 
 ---
 
 ## Adapting a Spec to Your Institution
 
-The five bundled specs are reference designs, not turnkey deployments. To adapt:
+The bundled specs are reference designs, not turnkey deployments. To adapt:
 
 1. **Copy the closest jurisdictional match** to a new directory under `examples/` or your own repo
 2. **Replace the program metadata**: `program.name`, `program.regulator`, `program.owner`, `program.effective_date`
