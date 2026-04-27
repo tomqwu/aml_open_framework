@@ -142,6 +142,92 @@ def outcomes_pack_cmd(
     )
 
 
+@app.command(name="regwatch")
+def regwatch_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    baseline: Path = typer.Option(
+        Path(".regwatch.json"),
+        "--baseline",
+        help="Path to the baseline JSON file (default: ./.regwatch.json).",
+    ),
+    update: bool = typer.Option(
+        False,
+        "--update",
+        help="Write the current scan as the new baseline instead of comparing.",
+    ),
+    offline: bool = typer.Option(
+        False,
+        "--offline",
+        help="Skip network fetches; only verify the baseline file's internal consistency.",
+    ),
+) -> None:
+    """Detect drift in cited regulation URLs.
+
+    Hashes the content of every URL referenced by `regulation_refs` in
+    the spec and compares against a saved baseline. Run with `--update`
+    to refresh the baseline after acknowledging drift.
+
+    Closes the gap from FinCEN BOI Mar 2025 narrowing — when a regulator
+    silently rewrites a page, the spec's citation goes stale without any
+    signal to the operator. Run weekly via cron.
+    """
+    from aml_framework.compliance.regwatch import (
+        check_drift,
+        fetch_current,
+        load_baseline,
+        save_baseline,
+        scan_spec,
+    )
+
+    spec = load_spec(spec_path)
+    citations = scan_spec(spec)
+
+    if update:
+        if offline:
+            console.print("[red]ERROR[/red] cannot --update in --offline mode")
+            raise typer.Exit(code=2)
+        entries, unreachable = fetch_current(citations)
+        save_baseline(entries, baseline)
+        console.print(
+            f"[green]Baseline written[/green] {baseline} — "
+            f"{len(entries)} citation(s) hashed, {len(unreachable)} unreachable."
+        )
+        for u in unreachable:
+            console.print(f"  [yellow]!{u['citation']}[/yellow] {u['reason']}")
+        raise typer.Exit(code=0)
+
+    if offline:
+        baseline_entries = load_baseline(baseline)
+        console.print(
+            f"[green]Offline check[/green] {baseline} — "
+            f"{len(baseline_entries)} entries in baseline, no network calls made."
+        )
+        raise typer.Exit(code=0)
+
+    baseline_entries = load_baseline(baseline)
+    if not baseline_entries:
+        console.print(f"[yellow]No baseline at {baseline}[/yellow] — run with --update first.")
+        raise typer.Exit(code=1)
+
+    report = check_drift(spec, baseline_entries)
+    if report.unchanged_count:
+        console.print(f"[green]✓[/green] {report.unchanged_count} unchanged")
+    for d in report.drifted:
+        console.print(
+            f"[red]DRIFTED[/red] {d['citation']}\n"
+            f"        url: {d['url']}\n"
+            f"        baseline: {d['baseline_hash'][:16]}... ({d['baseline_fetched_at']})\n"
+            f"        current:  {d['current_hash'][:16]}... ({d['current_fetched_at']})"
+        )
+    for u in report.unreachable:
+        console.print(f"[yellow]UNREACHABLE[/yellow] {u['citation']}: {u['reason']}")
+    for n in report.new:
+        console.print(f"[blue]NEW[/blue] {n['citation']} → {n['url']}")
+    for r in report.removed:
+        console.print(f"[magenta]REMOVED[/magenta] {r['citation']} → {r['url']}")
+    raise typer.Exit(code=1 if report.has_findings else 0)
+
+
 @app.command(name="validate-data")
 def validate_data(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

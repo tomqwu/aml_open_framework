@@ -95,7 +95,8 @@
             "additionalProperties": false,
             "properties": {
               "citation":    { "type": "string" },
-              "description": { "type": "string" }
+              "description": { "type": "string" },
+              "url":         { "type": "string", "format": "uri" }
             }
           }
         },
