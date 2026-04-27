@@ -8,6 +8,28 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Analyst Review Queue dashboard page**
+  (`dashboard/pages/22_Analyst_Review_Queue.py` +
+  `dashboard/queue_state.py`): a triage view that composes the new
+  `narratives/` and `pkyc/` packages so analysts can review draft
+  STR/SAR text + active pKYC triggers + recalculated risk ratings
+  in one place — instead of reading JSON files. Per-case actions
+  (Accept / Amend / Reject / Escalate-to-STR) write into the
+  existing `AuditLedger` via two new event types
+  (`Event.NARRATIVE_REVIEW`, `Event.PKYC_REVIEW`); the append-only
+  hash chain means every queue action is permanently part of the
+  run's audit trail. Filtering by severity, "only with pKYC
+  triggers", and "only with rating changes" keeps the page
+  responsive for large case loads (50-row render cap with
+  filter-to-narrow guidance). Page is mapped into `audience.py`
+  for `analyst` and `manager` personas. Round-3 PR #1 of 4 — closes
+  the "no UI surface" gap that made PR #45 + PR #46 feel half-shipped.
+  18 new tests under `TestBuildQueueRows`, `TestActionMapping`,
+  `TestRecordDecision`, `TestAuditChainIntegration`, and
+  `TestEndToEndWithRealRun` cover queue composition, narrative
+  attachment, country-risk + pattern trigger routing, rating-change
+  detection, audit-ledger hash-chain integration, and a
+  finalised-run round-trip — none of them import streamlit.
 - **pKYC trigger engine** (`pkyc/` package): Perpetual Know Your
   Customer — events trigger re-review instead of the calendar.
   Five built-in detectors: `SanctionsHitDetector` (consumes

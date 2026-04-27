@@ -18,6 +18,8 @@ class Event:
     CLOSED = "closed"
     RULE_FAILED = "rule_failed"
     MANUAL_REVIEW = "manual_review"
+    NARRATIVE_REVIEW = "narrative_review"  # analyst accepted/amended/rejected a draft
+    PKYC_REVIEW = "pkyc_review"  # analyst acted on a pKYC trigger
 
 
 class Queue:
