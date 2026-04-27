@@ -170,6 +170,54 @@ def tune_cmd(
             )
 
 
+@app.command(name="effectiveness-pack")
+def effectiveness_pack_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path | None = typer.Option(None, help="Run dir; defaults to latest."),
+    out: Path = typer.Option(Path(".artifacts/effectiveness_pack.json"), help="Output JSON path."),
+    markdown_out: Path | None = typer.Option(
+        None, help="Optional Markdown rendering of the same pack."
+    ),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+) -> None:
+    """Build an Effectiveness Evidence Pack (FinCEN April 2026 NPRM artifact).
+
+    Composes the audit ledger, alerts, decisions, and metrics from a
+    finalised run into one structured JSON document mapped to the four
+    pillars FinCEN's Reform NPRM names: risk-assessment alignment,
+    AML/CFT priority coverage, control output quality, feedback-loop
+    evidence.
+    """
+    import json as _json
+
+    from aml_framework.generators.effectiveness import (
+        export_pack_from_run_dir,
+        render_effectiveness_markdown,
+    )
+
+    run_dir = _resolve_run_dir(run_dir, artifacts)
+    spec = load_spec(spec_path)
+
+    pack_bytes = export_pack_from_run_dir(spec, run_dir)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(pack_bytes)
+
+    pack = _json.loads(pack_bytes)
+    summary = pack["summary"]
+    console.print(
+        f"[green]Effectiveness Pack[/green] {out} "
+        f"({len(pack_bytes):,} bytes) — "
+        f"✅ {summary['findings_satisfied']} satisfied · "
+        f"⚠️ {summary['findings_warning']} warnings · "
+        f"❌ {summary['findings_gap']} gaps"
+    )
+
+    if markdown_out is not None:
+        markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        markdown_out.write_text(render_effectiveness_markdown(pack), encoding="utf-8")
+        console.print(f"[green]Markdown[/green] {markdown_out}")
+
+
 @app.command(name="export-amla-str")
 def export_amla_str_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

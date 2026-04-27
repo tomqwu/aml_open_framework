@@ -17,6 +17,25 @@ RuleStatus = Literal["active", "experimental", "deprecated"]
 EvaluationMode = Literal["batch", "streaming", "both"]
 ColumnType = Literal["string", "integer", "decimal", "boolean", "date", "timestamp"]
 
+# FinCEN AML/CFT National Priorities (June 2021, reaffirmed in 2026 NPRM).
+# Used by `generators/effectiveness.py` to compute coverage-by-priority for
+# the Effectiveness Evidence Pack mandated by FinCEN's April 2026 NPRM.
+# Adding "other" as the catch-all for typologies not yet codified by FinCEN
+# (e.g. AMLA-specific or jurisdiction-specific). The pack reports unmapped
+# rules under "other" so the MLRO can decide whether to refile against a
+# new priority once FinCEN updates the list.
+AmlPriority = Literal[
+    "corruption",
+    "cybercrime",
+    "terrorist_financing",
+    "fraud",
+    "transnational_criminal_organization",
+    "drug_trafficking",
+    "human_trafficking",
+    "proliferation_financing",
+    "other",
+]
+
 
 class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -134,6 +153,12 @@ class Rule(_Base):
     # vs the production thresholds. Pure metadata; the runtime engine
     # ignores this field, so it's a strictly additive change.
     tuning_grid: dict[str, list[Any]] | None = None
+    # FinCEN AML/CFT priority this rule contributes to detecting. Consumed
+    # by `generators/effectiveness.py` to compute coverage-by-priority for
+    # the Effectiveness Evidence Pack required by the April 2026 NPRM.
+    # Defaults to None — rules without an explicit priority get bucketed
+    # under "other" in the pack so the MLRO sees the gap.
+    aml_priority: AmlPriority | None = None
 
 
 class Queue(_Base):

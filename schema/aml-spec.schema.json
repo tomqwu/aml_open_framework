@@ -107,6 +107,21 @@
           "type": "object",
           "description": "Sweep grid consumed by `aml tune`. Keys are dot-paths into the rule (e.g. `logic.having.count`); values are lists of candidate values.",
           "additionalProperties": { "type": "array", "minItems": 1 }
+        },
+        "aml_priority": {
+          "type": "string",
+          "description": "FinCEN AML/CFT priority this rule helps detect. Consumed by `generators/effectiveness.py` for the FinCEN-NPRM Effectiveness Evidence Pack.",
+          "enum": [
+            "corruption",
+            "cybercrime",
+            "terrorist_financing",
+            "fraud",
+            "transnational_criminal_organization",
+            "drug_trafficking",
+            "human_trafficking",
+            "proliferation_financing",
+            "other"
+          ]
         }
       }
     },
