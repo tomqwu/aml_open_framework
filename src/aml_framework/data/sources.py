@@ -209,6 +209,19 @@ def resolve_source(
             raise ValueError(f"--data-dir required for {source_type} (bucket URI)")
         return _load_cloud_storage(source_type, data_dir, spec)  # pragma: no cover
 
+    if source_type == "iso20022":
+        # Round-5 #1: ingest pacs.008 / pacs.009 XML messages from a
+        # directory and materialise them as txn rows. Customer rows
+        # come from a separate source — typical deployments pair
+        # `--data-source iso20022` with a CSV customer file via a
+        # follow-up `aml validate-data` pass.
+        if not data_dir:
+            raise ValueError("--data-dir required for iso20022 (XML directory)")
+        from aml_framework.data.iso20022 import load_iso20022_dir
+
+        txns = load_iso20022_dir(data_dir)
+        return {"txn": txns, "customer": []}
+
     raise ValueError(f"Unknown data source: {source_type}")
 
 
