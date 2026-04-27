@@ -8,6 +8,15 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **`rule.evaluation_mode` field** (`spec/models.py`,
+  `schema/aml-spec.schema.json`): each rule can now declare
+  `batch | streaming | both` (default `batch`). v1 engine still executes
+  batch only — the field is metadata that records institution intent so an
+  operator can route to a streaming runner at deployment time. Lays
+  groundwork for the Kafka/Kinesis evaluator (research scan #2). 5 new
+  tests under `TestEvaluationMode` confirm default, accepted values,
+  rejected invalid value, and that setting `streaming` does not change
+  the run output (back-compat invariant).
 - **Crypto VASP example spec** (`examples/crypto_vasp/aml.yaml`): minimal AML
   spec for a Virtual Asset Service Provider. Demonstrates the framework's
   crypto coverage with four rules: stablecoin layering velocity (48h
