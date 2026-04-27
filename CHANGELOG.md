@@ -51,6 +51,37 @@ that introduced them.
   guard against drift (helper imports, no inline band-classification
   reimplementation, no inline severity dicts). Total tests
   1089 → 1107.
+- **Effectiveness funnel + regulation drift on dashboard (Phase B-2)**
+  (`dashboard/pages/1_Executive_Dashboard.py`,
+  `dashboard/pages/7_Audit_Evidence.py`,
+  `tests/test_dashboard_outcomes_panel.py`). Phase B-2 of the
+  dashboard workflow plan — surfaces `metrics/outcomes.py`
+  (Round-7 PR #75) on the Executive Dashboard for SVP/CCO
+  consumption + `compliance/regwatch.py` (Round-7 PR #74) on
+  Audit & Evidence for auditor review.
+  **Page #1 Executive Dashboard** now ends with an
+  **Effectiveness Funnel** section: 4 KPI cards (Alerts / Cases /
+  STR filed / Alert→STR%) + per-rule funnel breakdown table
+  (alerts / cases / str_filed / closed / pending / SLA-breach % /
+  precision-when-labeled) + **📥 AMLA RTS JSON download** button.
+  Same numbers FinCEN's April 2026 NPRM and AMLA's RTS
+  (due 2026-07-10) treat as the canonical effectiveness measure.
+  For production submission with LEI / reporting period the CLI
+  `aml outcomes-pack` is still the right tool; the dashboard
+  download serves the demo + ad-hoc preview path.
+  **Page #7 Audit & Evidence** now ends with a **Regulation
+  Drift** section: 4 KPI cards (Citations / Resolvable URLs /
+  In baseline / Baseline path) + per-citation table showing
+  baseline-vs-current state. When no baseline exists, shows
+  the exact `aml regwatch <spec> --update` command to capture
+  one. The "why now" anchor (FinCEN BOI Mar 2025 narrowing) is
+  preserved in code comments so the panel doesn't get
+  accidentally removed by future maintainers.
+  Both panels wrapped in try/except — a missing decisions.jsonl,
+  schema mismatch, or absent module never crashes the page.
+  13 source-level tests under `TestExecutiveFunnel`,
+  `TestAuditEvidenceRegwatch`, `TestCrossPageInvariants`. Tests
+  1089 → 1102 (+13).
 
 - **Dashboard cross-cutting helpers (Phase A)**
   (`dashboard/components.py`, `dashboard/query_params.py`,
