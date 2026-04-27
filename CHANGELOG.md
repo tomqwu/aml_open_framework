@@ -130,6 +130,30 @@ that introduced them.
   no-python-ref guard (no callables shipped for these specs;
   enforces first-run cleanliness). Tests 953 → 970.
 
+- **PSD3 / Verification-of-Payee (VoP) ingestion adapter**
+  (`data/psd3/parser.py`, `data/psd3/sample_vop_responses.jsonl`,
+  `tests/test_psd3_vop.py`). Round-7 PR #4 — fourth-ranked feature
+  from the 2026-04 positioning research. PSD3 + PSR reached
+  Council/Parliament provisional agreement end-Q2 2026; VoP
+  liability applies 24 months after Official Journal entry into
+  force (~Q3 2028). The 2-year window is the right time for a
+  reference implementation to exist before banks have to procure.
+  Status: **DRAFT** — pinned to provisional text via
+  `VOP_SCHEMA_VERSION = "psd3-vop-2026-q2-draft"`.
+  `parse_vop_response(payload)` returns a `VopResponse` dataclass
+  (request/payment ids, payer+payee IBANs, names, match score,
+  outcome, account status, response time, received_at). Tolerates
+  both camelCase and snake_case field variants. Never raises on
+  malformed input.
+  `vop_match_outcome(*, score, ...)` classifies into the 5 PSD3
+  outcomes: match (≥0.85), close_match (0.70-0.84), no_match,
+  not_checked, outside_scope. Same value vocabulary as the UK
+  CoP scheme (Round-7 #3 UK APP-fraud spec) — one txn column
+  works for both schemes.
+  Bundled sample exercises all 5 outcomes. 25 new tests covering
+  classifier thresholds, parser robustness, schema pinning, bulk
+  loader. Tests 953 → 978.
+
 - **Synthetic data enriched with ISO 20022 fields** (`data/synthetic.py`,
   `tests/test_iso20022_purpose_codes.py`). The default demo
   (`aml run --seed 42`) didn't exercise any Round 5/6 features
