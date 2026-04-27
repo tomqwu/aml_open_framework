@@ -18,6 +18,8 @@ from aml_framework.api.auth import (
     DEMO_USERS,
     create_token,
     get_current_user,
+    is_oidc_enabled,
+    require_role,
 )
 from aml_framework.api.db import (
     get_run,
@@ -33,6 +35,19 @@ from aml_framework.engine import run_spec
 from aml_framework.spec import load_spec
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _safe_spec_path(raw: str) -> Path:
+    """Resolve a spec path within the project root. Reject traversal attempts."""
+    if not raw or raw.startswith("/") or ".." in raw.replace("\\", "/").split("/"):
+        raise HTTPException(status_code=400, detail="Invalid spec_path")
+    candidate = (_PROJECT_ROOT / raw).resolve()
+    project_root = _PROJECT_ROOT.resolve()
+    if not candidate.is_relative_to(project_root):
+        raise HTTPException(status_code=400, detail="Invalid spec_path")
+    if not candidate.exists():
+        raise HTTPException(status_code=404, detail=f"Spec not found: {raw}")
+    return candidate
 
 
 @asynccontextmanager
@@ -108,6 +123,11 @@ async def health() -> dict[str, str]:
 
 @app.post("/api/v1/login")
 async def login(req: LoginRequest) -> dict[str, str]:
+    if is_oidc_enabled():
+        raise HTTPException(
+            status_code=404,
+            detail="Local login is disabled when OIDC is configured.",
+        )
     user = DEMO_USERS.get(req.username)
     if not user or user["password"] != req.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -123,11 +143,9 @@ async def login(req: LoginRequest) -> dict[str, str]:
 @app.post("/api/v1/runs")
 async def create_run(
     req: RunRequest,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(require_role("admin", "manager", "analyst")),
 ) -> dict[str, Any]:
-    spec_path = _PROJECT_ROOT / req.spec_path
-    if not spec_path.exists():
-        raise HTTPException(status_code=404, detail=f"Spec not found: {req.spec_path}")
+    spec_path = _safe_spec_path(req.spec_path)
 
     from aml_framework.data.sources import resolve_source
 
@@ -245,9 +263,9 @@ async def validate_spec(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Validate a spec without running it."""
-    spec_path = _PROJECT_ROOT / req.spec_path
-    if not spec_path.exists():
-        raise HTTPException(status_code=404, detail=f"Spec not found: {req.spec_path}")
+    import logging
+
+    spec_path = _safe_spec_path(req.spec_path)
     try:
         spec = load_spec(spec_path)
         return {
@@ -258,8 +276,9 @@ async def validate_spec(
             "metrics": len(spec.metrics),
             "queues": len(spec.workflow.queues),
         }
-    except (ValueError, Exception) as e:
-        return {"valid": False, "error": str(e)}
+    except Exception as e:
+        logging.getLogger("aml.api").warning("validate_spec failed for %s: %s", req.spec_path, e)
+        return {"valid": False, "error": "Spec failed validation. See server logs for details."}
 
 
 @app.get("/api/v1/runs/{run_id}/reports")
@@ -287,7 +306,7 @@ class WebhookConfig(BaseModel):
 @app.post("/api/v1/webhooks")
 async def register_webhook(
     config: WebhookConfig,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(require_role("admin")),
 ) -> dict[str, Any]:
     """Register a webhook URL for event notifications."""
     _webhooks.append({"name": config.name, "url": config.url, "events": config.events})
@@ -305,7 +324,7 @@ async def list_webhooks(
 async def upload_data(
     txn_file: Any = None,
     customer_file: Any = None,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(require_role("admin", "manager", "analyst")),
 ) -> dict[str, str]:
     """Upload CSV files for a run. Use with multipart/form-data."""
     # This is a stub — full implementation would save files to data/input/

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -11,9 +13,30 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-_SECRET = os.environ.get("JWT_SECRET", "aml-framework-dev-secret")
+_logger = logging.getLogger("aml.auth")
+
+_MIN_SECRET_BYTES = 32
 _ALGORITHM = "HS256"
 _EXPIRY_HOURS = 24
+
+
+def _resolve_secret() -> str:
+    env = os.environ.get("JWT_SECRET")
+    if env is not None:
+        if len(env.encode("utf-8")) < _MIN_SECRET_BYTES:
+            raise RuntimeError(
+                f"JWT_SECRET is set but shorter than {_MIN_SECRET_BYTES} bytes. "
+                "Generate a strong value: python -c 'import secrets; print(secrets.token_urlsafe(48))'"
+            )
+        return env
+    _logger.warning(
+        "JWT_SECRET is not set; using a random per-process secret. "
+        "Issued tokens will not survive a restart. Set JWT_SECRET in any non-dev deployment."
+    )
+    return secrets.token_urlsafe(48)
+
+
+_SECRET = _resolve_secret()
 
 # Demo users — production MUST use OIDC_ISSUER_URL for real authentication.
 # Passwords default to username for local development only.
@@ -78,6 +101,10 @@ def require_role(*allowed_roles: str):
 # Set OIDC_ISSUER_URL to enable OIDC token validation instead of local JWT.
 # Example: OIDC_ISSUER_URL=https://login.microsoftonline.com/{tenant}/v2.0
 _OIDC_ISSUER = os.environ.get("OIDC_ISSUER_URL", "")
+
+
+def is_oidc_enabled() -> bool:
+    return bool(_OIDC_ISSUER)
 
 
 def _verify_oidc_token(token: str) -> dict[str, Any]:  # pragma: no cover
