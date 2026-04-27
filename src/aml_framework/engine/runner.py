@@ -559,6 +559,8 @@ def _finalize_run(
     (ledger.run_dir / "manifest.json").write_bytes(
         json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
     )
+    # All writes complete — snapshot files become read-only on POSIX.
+    ledger.freeze()
     return RunResult(
         manifest=manifest,
         alerts=alerts_by_rule,
