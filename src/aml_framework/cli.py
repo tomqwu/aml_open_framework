@@ -76,6 +76,61 @@ def validate_data(
         console.print("\n[green]All contracts valid.[/green]")
 
 
+@app.command(name="draft-narrative")
+def draft_narrative_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    case_id: str = typer.Argument(..., help="Case ID to draft a narrative for."),
+    backend: str = typer.Option("template", help="Drafter backend: template, ollama, openai."),
+    run_dir: Path | None = typer.Option(None, help="Run dir; defaults to latest."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+    seed: int = typer.Option(42, help="Synthetic data seed (matches `aml run`)."),
+    data_source: str = typer.Option(
+        "synthetic", help="Data source: synthetic, csv, parquet, duckdb."
+    ),
+    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files."),
+    out: Path | None = typer.Option(
+        None, help="Write JSON output to file; otherwise print to stdout."
+    ),
+) -> None:
+    """Draft a structured STR/SAR narrative for one case using a pluggable backend."""
+    import json as _json
+
+    from aml_framework.data.sources import resolve_source
+    from aml_framework.narratives import get_drafter, load_case_evidence_from_run_dir
+
+    run_dir = _resolve_run_dir(run_dir, artifacts)
+    spec = load_spec(spec_path)
+
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[red]No manifest.json in {run_dir}[/red]")
+        raise typer.Exit(code=1)
+    manifest = _json.loads(manifest_path.read_bytes())
+    as_of_dt = datetime.fromisoformat(manifest["as_of"])
+
+    data = resolve_source(
+        source_type=data_source, spec=spec, as_of=as_of_dt, seed=seed, data_dir=data_dir
+    )
+    evidence = load_case_evidence_from_run_dir(
+        run_dir,
+        case_id,
+        customers=data.get("customer", []),
+        transactions=data.get("txn", []),
+        jurisdiction=spec.program.jurisdiction,
+    )
+
+    drafter = get_drafter(backend)
+    drafted = drafter.draft(evidence)
+    payload = drafted.model_dump_json(indent=2)
+
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(payload, encoding="utf-8")
+        console.print(f"[green]drafted[/green] {out} (backend={drafter.name})")
+    else:
+        console.print(payload)
+
+
 @app.command(name="sanctions-sync")
 def sanctions_sync(
     source: str = typer.Argument(..., help="Feed source: ofac, eu, complyadvantage."),

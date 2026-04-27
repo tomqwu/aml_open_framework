@@ -102,6 +102,7 @@ aml export spec.yaml --out evidence.zip              # evidence bundle
 aml export-alerts spec.yaml --out alerts.csv         # alert CSV export
 aml export-goaml spec.yaml --out goaml.xml           # goAML 5.0.2 STR/SAR XML
 aml sanctions-sync ofac --from-file sdn_advanced.xml # refresh sanctions CSV from upstream
+aml draft-narrative spec.yaml CASE_ID --backend ollama  # structured STR/SAR draft
 aml diff spec_a.yaml spec_b.yaml                     # compare two specs
 aml replay spec.yaml run-dir/                         # verify determinism
 aml schedule spec.yaml --interval 1h                  # run on a schedule
