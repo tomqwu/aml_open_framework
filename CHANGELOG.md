@@ -66,6 +66,45 @@ that introduced them.
   field override, multi-source bulk-load, and end-to-end
   "filter to sanctioned counterparty" demonstration that mirrors
   the shape a `list_match` rule would take.
+- **Cyber-enabled fraud / pig-butchering example spec**
+  (`examples/cyber_enabled_fraud/aml.yaml`,
+  `data/lists/pig_butchering_nexus.csv`). Round-4 PR #3 of 4. New
+  typology-focused example spec demonstrating detection of
+  pig-butchering / authorised-push-payment fraud — the single
+  fastest-growing cyber-enabled fraud typology of 2025-2026 (UK
+  40% of all crime; Singapore +61% in two years; FBI IC3 reports
+  $5.8 B in US losses 2024). Composes existing primitives, no
+  engine changes:
+  - `pig_butchering_payout_fan` — `network_pattern` rule (PR #49)
+    detecting outbound cluster convergence on crypto on-ramps
+    (component_size ≥ 3 inside 2 hops). Catches the classic
+    victim → mule → exchange → cash-out shape even when the
+    customer doesn't realise it.
+  - `ramp_up_then_drain` — `aggregation_window` rule modelling
+    the FinCEN advisory pattern: ≥3 priming outbound transfers
+    (<$500) to a new beneficiary inside 14 days. Ships with a
+    `tuning_grid` so MLROs can sweep the count + sum_amount
+    thresholds (PR #50).
+  - `pig_butchering_nexus_screening` — `list_match` rule against
+    bundled `pig_butchering_nexus.csv` seeded with FinCEN
+    Section 311 designations (Huione Group + subsidiaries).
+  Citations: FATF Cyber-Enabled Fraud paper (Feb 2026), FinCEN
+  FIN-2023-Alert005 (SAR Advisory Key Term: PIG BUTCHERING),
+  FinCEN Section 311 Huione (May 2025), 31 CFR § 1020.320 (BSA
+  SAR), 31 CFR § 1010.658 (Section 311 special measures). The
+  spec composes naturally with PR #45 narrative drafter
+  (auto-cite FATF/FinCEN), PR #46 pKYC (new-beneficiary trigger),
+  PR #49 explainability (Mermaid subgraph in the STR), PR #43/48
+  goAML/AMLA exporters, PR #50 Tuning Lab. No other open-source
+  AML framework ships a pig-butchering rule pack today. 9 new
+  tests under `TestCyberEnabledFraudSpec` cover spec validation,
+  three-logic-type composition, severity routing, `tuning_grid`
+  declaration on `ramp_up_then_drain`, FATF + FinCEN
+  regulation-ref coverage, bundled-list existence with Huione
+  cite, `str_filing` workflow queue + `fincen_sar` form presence,
+  and end-to-end run on synthetic data (zero-positives by design
+  — synthetic generator doesn't plant pig-butchering shapes; the
+  spec must still execute cleanly against the example dataset).
 - **Effectiveness Evidence Pack** (`generators/effectiveness.py`,
   `cli.py:effectiveness-pack`, `Rule.aml_priority` spec field).
   Round-4 PR #1 of 2 (paired with the upcoming MRM bundle for

@@ -384,6 +384,115 @@ class TestCryptoVASPSpec:
 
 
 # ---------------------------------------------------------------------------
+# Cyber-enabled fraud / pig-butchering example (Round-4)
+# ---------------------------------------------------------------------------
+
+
+SPEC_CEF = Path(__file__).resolve().parents[1] / "examples" / "cyber_enabled_fraud" / "aml.yaml"
+
+
+class TestCyberEnabledFraudSpec:
+    """The cyber_enabled_fraud spec ships pig-butchering / APP-fraud
+    detection composing network_pattern, aggregation_window, and
+    list_match primitives. Round-4 PR shipped against FATF Feb 2026
+    plenary signal."""
+
+    def test_spec_validates(self):
+        spec = load_spec(SPEC_CEF)
+        assert spec.program.jurisdiction == "US"
+        assert spec.program.regulator == "FinCEN"
+        # Three distinct rules, three distinct logic types in v1.
+        assert len(spec.rules) == 3
+
+    def test_spec_uses_three_logic_types(self):
+        spec = load_spec(SPEC_CEF)
+        rule_types = {r.logic.type for r in spec.rules}
+        assert "network_pattern" in rule_types
+        assert "aggregation_window" in rule_types
+        assert "list_match" in rule_types
+
+    def test_pig_butchering_rules_present(self):
+        spec = load_spec(SPEC_CEF)
+        rule_ids = {r.id for r in spec.rules}
+        assert "pig_butchering_payout_fan" in rule_ids
+        assert "ramp_up_then_drain" in rule_ids
+        assert "pig_butchering_nexus_screening" in rule_ids
+
+    def test_payout_fan_is_critical_severity(self):
+        spec = load_spec(SPEC_CEF)
+        rule = next(r for r in spec.rules if r.id == "pig_butchering_payout_fan")
+        assert rule.severity == "critical"
+        # network_pattern with component_size threshold.
+        assert rule.logic.type == "network_pattern"
+        assert rule.logic.pattern == "component_size"
+        assert rule.logic.having["component_size"]["gte"] == 3
+
+    def test_ramp_up_then_drain_has_tuning_grid(self):
+        # PR #50 enabled tuning_grid on rules; this rule declares one so
+        # MLROs can sweep before promotion.
+        spec = load_spec(SPEC_CEF)
+        rule = next(r for r in spec.rules if r.id == "ramp_up_then_drain")
+        assert rule.tuning_grid is not None
+        # The grid sweeps the count + sum_amount thresholds.
+        assert "logic.having.count" in rule.tuning_grid
+        assert "logic.having.sum_amount" in rule.tuning_grid
+
+    def test_nexus_screening_references_bundled_list(self):
+        spec = load_spec(SPEC_CEF)
+        rule = next(r for r in spec.rules if r.id == "pig_butchering_nexus_screening")
+        assert rule.logic.list == "pig_butchering_nexus"
+        # And the list ships in the reference data.
+        from aml_framework.paths import REFERENCE_LISTS_DIR
+
+        path = REFERENCE_LISTS_DIR / "pig_butchering_nexus.csv"
+        assert path.exists(), f"pig_butchering_nexus.csv missing at {path}"
+        text = path.read_text()
+        assert "HUIONE" in text  # Section 311 designation cited in spec
+
+    def test_regulation_refs_cite_fatf_and_fincen(self):
+        spec = load_spec(SPEC_CEF)
+        all_citations = " ".join(ref.citation for r in spec.rules for ref in r.regulation_refs)
+        assert "FATF" in all_citations
+        assert "FinCEN" in all_citations
+        assert "FIN-2023-Alert005" in all_citations  # SAR Advisory Key Term
+
+    def test_workflow_includes_str_filing_queue(self):
+        spec = load_spec(SPEC_CEF)
+        queue_ids = {q.id for q in spec.workflow.queues}
+        assert "str_filing" in queue_ids
+        # And SAR form is wired up.
+        if spec.reporting and spec.reporting.forms:
+            assert "fincen_sar" in spec.reporting.forms
+
+    def test_spec_runs_end_to_end(self, tmp_path):
+        # Even though synthetic data doesn't plant pig-butchering positives,
+        # the spec must run cleanly to demo on the example dataset.
+        from datetime import datetime
+
+        from aml_framework.data import generate_dataset
+        from aml_framework.engine import run_spec
+
+        spec = load_spec(SPEC_CEF)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec,
+            spec_path=SPEC_CEF,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path,
+        )
+        # Manifest shape we can rely on later.
+        assert "spec_content_hash" in result.manifest
+        # All three rules executed (zero alerts is fine on synthetic data).
+        assert set(result.alerts.keys()) >= {
+            "pig_butchering_payout_fan",
+            "ramp_up_then_drain",
+            "pig_butchering_nexus_screening",
+        }
+
+
+# ---------------------------------------------------------------------------
 # From test_sprint_final.py: TestTypologyCatalogue, TestSpecEditor
 # ---------------------------------------------------------------------------
 

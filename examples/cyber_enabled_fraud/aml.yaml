@@ -1,0 +1,205 @@
+# AML spec for cyber-enabled fraud — pig-butchering / authorised-push-payment.
+#
+# Round-4 PR — composes existing primitives (network_pattern from PR #49,
+# pKYC triggers from PR #46, narrative drafter from PR #45, goAML exporter
+# from PR #43) into a typology-focused detection bundle that no other OSS
+# AML framework ships out of the box.
+#
+# Industry signal
+#   - FATF's February 2026 plenary published "Cyber-Enabled Fraud:
+#     Digitalisation and ML/TF/PF Risks" naming pig-butchering / romance-
+#     investment scams a top-tier global threat.
+#       UK 40% of all crime; Singapore +61% in two years; US losses estimated
+#       $5.8 B in 2024 (FBI IC3) and trending higher.
+#   - FinCEN reissued its Relationship-Investment-Scam advisory in 2026 and
+#     designated Huione Group under Section 311 (May 2025) as a primary
+#     money-laundering concern for processing pig-butchering proceeds.
+#   - SAR Advisory Key Term: PIG BUTCHERING FIN-2023-Alert005.
+#
+# What's modelled (two reusable rules)
+#   1. `pig_butchering_payout_fan` (network_pattern):
+#      A customer's outbound transfers fan-out to ≥3 distinct beneficiaries
+#      whose addresses converge on one or two crypto on-ramp clusters
+#      (resolved via the entity-resolution graph). Catches the classic
+#      "victim → mule → exchange → cash-out" pattern even when the victim
+#      doesn't realise it.
+#   2. `ramp_up_then_drain` (aggregation_window):
+#      A customer makes 1+ priming outbound transfers (<$500 each) to a new
+#      beneficiary, then within 14 days a single transfer >10× the largest
+#      prior transfer to the same beneficiary. Mirrors the FinCEN advisory
+#      pattern of "build trust with small transfers, then a large
+#      withdrawal".
+#
+# This is intentionally a US-flavoured spec (FinCEN regulator, USD currency)
+# because the strongest 2026 signal is in the US — but every primitive is
+# portable: an EU institution can swap regulator/jurisdiction and add the
+# AMLA RTS profile (PR #48) to file harmonised STRs.
+
+version: 1
+
+program:
+  name: cyber_enabled_fraud_aml
+  jurisdiction: US
+  regulator: FinCEN
+  owner: chief_compliance_officer
+  effective_date: 2026-04-27
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,            type: string,    nullable: false }
+      - { name: customer_id,       type: string,    nullable: false, pii: true }
+      - { name: amount,            type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,          type: string,    nullable: false }
+      - { name: channel,           type: string,    enum: [cash, wire, ach, eft, crypto, cheque] }
+      - { name: direction,         type: string,    enum: [in, out] }
+      - { name: booked_at,         type: timestamp, nullable: false }
+      - { name: counterparty_id,   type: string,    nullable: true }
+      - { name: counterparty_name, type: string,    nullable: true, pii: true }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,   type: string,    nullable: false, pii: true }
+      - { name: full_name,     type: string,    nullable: false, pii: true }
+      - { name: country,       type: string,    nullable: false }
+      - { name: risk_rating,   type: string,    enum: [low, medium, high, critical] }
+      - { name: onboarded_at,  type: timestamp, nullable: false }
+      - { name: phone,         type: string,    nullable: true, pii: true }
+      - { name: email,         type: string,    nullable: true, pii: true }
+      - { name: device_id,     type: string,    nullable: true }
+    quality_checks:
+      - { not_null: [customer_id, full_name, onboarded_at] }
+      - { unique:   [customer_id] }
+
+rules:
+  # --- PIG-BUTCHERING PAYOUT FAN ---
+  # Composes the entity-resolution graph (PR #39) + network_pattern executor
+  # (PR #40, #49) to detect the victim → mule → on-ramp pattern. The
+  # `component_size >= 3` threshold catches a customer whose outbound
+  # neighbourhood contains a cluster of distinct counterparts converging on
+  # one node (typically a high-volume exchange wallet or shell entity).
+  - id: pig_butchering_payout_fan
+    name: Pig-butchering payout fan — outbound cluster convergence
+    severity: critical
+    regulation_refs:
+      - citation: "FinCEN FIN-2023-Alert005"
+        description: "Relationship-investment-scam ('pig butchering') advisory."
+      - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
+        description: "Digitalisation and ML/TF/PF risks — pig-butchering typology."
+      - citation: "31 CFR § 1020.320"
+        description: "BSA SAR filing obligation for suspicious activity."
+    logic:
+      type: network_pattern
+      source: customer
+      pattern: component_size
+      max_hops: 2
+      having:
+        component_size: { gte: 3 }
+    escalate_to: l2_investigator
+    evidence:
+      - all_outbound_transfers_30d
+      - customer_kyc_profile
+      - resolved_entity_subgraph
+      - prior_alerts_90d
+    tags: [cyber_enabled_fraud, pig_butchering, network_pattern, fincen_alert005]
+
+  # --- RAMP-UP THEN DRAIN ---
+  # Standard aggregation_window — but the threshold encodes the FinCEN
+  # advisory's "build trust then drain" pattern: aggregate outbound to a
+  # new beneficiary that crosses both a count floor (≥3 priming transfers
+  # under $500) and a sum floor ($10k cumulative) inside a 14-day window.
+  # The MLRO cross-references with pKYC's "new_beneficiary" trigger
+  # (which the operator wires from the bank's CDD pipeline).
+  - id: ramp_up_then_drain
+    name: Ramp-up then drain — small-priming followed by drain transfer
+    severity: high
+    regulation_refs:
+      - citation: "FinCEN FIN-2023-Alert005"
+        description: "Pig-butchering payment-pattern indicator."
+      - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
+        description: "Behavioural patterns enabling cyber-enabled fraud."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: out
+        amount: { lt: 500 }
+      group_by: [customer_id, counterparty_id]
+      window: 14d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 1000 }
+    escalate_to: l2_investigator
+    evidence:
+      - matching_priming_transfers
+      - subsequent_drain_transfer
+      - beneficiary_history
+      - customer_kyc_profile
+    tags: [cyber_enabled_fraud, pig_butchering, ramp_up, fincen_alert005]
+    # Sweep grid for the Tuning Lab (PR #50) — operators tune count and
+    # sum_amount thresholds against historical labels to balance
+    # precision/recall before promotion.
+    tuning_grid:
+      logic.having.count:      [{gte: 2}, {gte: 3}, {gte: 5}]
+      logic.having.sum_amount: [{gte: 500}, {gte: 1000}, {gte: 2000}]
+
+  # --- HUIONE-LIKE NEXUS SCREENING ---
+  # Kept simple as a reminder that pig-butchering proceeds often route
+  # through Section-311-designated entities. Operators add their bank's
+  # full counterparty-screening list to data/lists/pig_butchering_nexus.csv.
+  - id: pig_butchering_nexus_screening
+    name: Pig-butchering nexus — counterparty screening
+    severity: high
+    regulation_refs:
+      - citation: "FinCEN Section 311 (Huione Group, May 2025)"
+        description: "Designation of Huione Group as primary money-laundering concern."
+      - citation: "31 CFR § 1010.658"
+        description: "Special measures for Section 311 designations."
+    logic:
+      type: list_match
+      source: txn
+      field: counterparty_name
+      list: pig_butchering_nexus
+      match: fuzzy
+      threshold: 0.85
+    escalate_to: l2_investigator
+    evidence:
+      - matched_transaction
+      - counterparty_resolved_profile
+      - section_311_designation_record
+    tags: [cyber_enabled_fraud, pig_butchering, section_311, list_match]
+
+workflow:
+  queues:
+    - id: l1_aml_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [str_filing, closed_no_action]
+    - id: str_filing
+      sla: 30d
+      regulator_form: fincen_sar
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    fincen_sar:
+      template: docs/templates/fincen_sar.j2
+      mandatory_fields:
+        - subject_full_name
+        - subject_country
+        - sar_typology  # "PIG BUTCHERING" per FIN-2023-Alert005 advisory
+        - aggregate_amount_usd
+        - rule_id
+        - regulation_refs
+      trigger:
+        queue: str_filing
