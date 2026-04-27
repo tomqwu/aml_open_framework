@@ -8,6 +8,64 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Counterparty-VASP attribution layer** (`vasp/` package,
+  `data/lists/sample_walletlabels.csv`). Round-4 PR #4 of 4 — the
+  **dark-horse winner** of the Round-4 research scan. Closes the
+  gap between "block this OFAC-listed wallet" (already covered by
+  `list_match` against `sanctioned_wallets.csv`) and "score the
+  counterparty of every crypto transfer based on its full
+  attribution profile" — the high-margin Chainalysis / TRM Labs
+  / ComplyAdvantage paid capability. **OFAC's January 2026
+  designation of UK-registered Zedcex/Zedxion** (tens of billions
+  in IRGC-linked flows) and the **Tornado Cash delisting
+  (March 2025)** moved the field from "block this address" to
+  "score this counterparty's attribution profile" — single-address
+  blocklists are no longer sufficient.
+  Three abstractions:
+  - **`VaspAttribution`** — frozen dataclass with `address`,
+    `cluster_name`, `tier` (tier_1/tier_2/tier_3/mixer/ransomware/
+    darknet/sanctioned/unknown), `jurisdiction`, `source`, `flags`
+    (free-form indicators like `iran_nexus`,
+    `pig_butchering_nexus`), and `confidence` (commercial feeds
+    can override).
+  - **`VaspAttributionStore`** — in-memory address → attribution
+    lookup with case-insensitive normalisation, by_tier filter,
+    addresses_in_cluster reverse index, last-write-wins on
+    duplicates. Production swaps in Redis/Postgres behind the
+    same interface.
+  - **`enrich_transactions(txns, store)`** — pure function that
+    annotates each txn with a `counterparty_vasp` block. Source
+    txns are NOT mutated (returns new dicts). Unattributed
+    counterparties get `counterparty_vasp: None` so downstream
+    rules can treat "unknown" as a distinct case.
+  Two adapters in v1 — same `name + load(path) → list[VaspAttribution]`
+  shape as the `sanctions/` adapters from PR #44:
+  - **`OFACCryptoAddressesSource`** — parses OFAC's text-format
+    crypto bundle (`XBT 1addr (Entity)`, `ETH 0xaddr (Entity)`,
+    etc) covering 10 supported chains.
+  - **`WalletLabelsSource`** — parses the de-facto-standard
+    `walletlabels.csv` schema (address, label, category,
+    jurisdiction, optional flags) used by Etherscan,
+    walletexplorer.com cluster exports, etc.
+  Bundled `sample_walletlabels.csv` ships with 6 placeholder
+  entries (Coinbase tier_1, Tornado Cash mixer, Zedcex sanctioned,
+  Huione sanctioned with `pig_butchering_nexus` flag composing
+  with PR #54, a P2P swap tier_3, and a LockBit ransomware
+  cluster) so operators can run the layer end-to-end without
+  external feeds. **Public-data only** by design — production
+  VASP de-risking layers commercial enrichment on top via the
+  same interface; the engine doesn't care which provider
+  populated the attribution.
+  27 new tests under `TestOFACCryptoParser`, `TestWalletLabelsParser`,
+  `TestVaspAttributionStore`, `TestEnrichTransactions`,
+  `TestLoadIntoStore`, and `TestEndToEndComposition` cover all
+  10 supported chains, entity-in-parens parsing, blank/comment
+  tolerance, category-to-tier mapping, jurisdiction normalisation,
+  flag splitting, case-insensitive address lookup, last-write-wins
+  semantics, by_tier filtering, source-txn immutability, address-
+  field override, multi-source bulk-load, and end-to-end
+  "filter to sanctioned counterparty" demonstration that mirrors
+  the shape a `list_match` rule would take.
 - **Effectiveness Evidence Pack** (`generators/effectiveness.py`,
   `cli.py:effectiveness-pack`, `Rule.aml_priority` spec field).
   Round-4 PR #1 of 2 (paired with the upcoming MRM bundle for
