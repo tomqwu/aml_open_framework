@@ -180,18 +180,53 @@ def _open_cases_for_alerts(
         )
 
 
+def _normalize_for_match(s: str) -> str:
+    """ASCII-fold + uppercase + collapse whitespace.
+
+    `Müller` → `MULLER`. Sanctions / PEP lists are typically transliterated
+    Latin even when source data is not, so folding accents catches the
+    common diacritic-vs-no-diacritic mismatch that the previous token-set
+    matcher missed.
+    """
+    import unicodedata
+
+    folded = unicodedata.normalize("NFKD", s)
+    ascii_only = "".join(c for c in folded if not unicodedata.combining(c))
+    return " ".join(ascii_only.upper().split())
+
+
 def _fuzzy_match(value: str, list_entries: list[str], threshold: float) -> tuple[str, float] | None:
-    """Return (matched_entry, score) if token-overlap score meets threshold."""
-    value_tokens = set(value.split())
+    """Return (best_entry, score) if any entry scores >= threshold.
+
+    Score is the max of:
+        - token-overlap (handles transposed tokens: "MARIA MUELLER" vs
+          "MUELLER MARIA" still match)
+        - SequenceMatcher ratio (handles edit-distance: "MUELLER" vs
+          "MUELLERS" or "VOLKOV" vs "VOLKOVA" no longer slip through)
+
+    Accents are folded to ASCII before scoring so "MÜLLER" matches "MUELLER"
+    and "MUELLER".
+    """
+    from difflib import SequenceMatcher
+
+    value_norm = _normalize_for_match(value)
+    if not value_norm:
+        return None
+    value_tokens = set(value_norm.split())
+
+    best: tuple[str, float] | None = None
     for entry in list_entries:
-        entry_tokens = set(entry.split())
-        if not entry_tokens:
+        entry_norm = _normalize_for_match(entry)
+        if not entry_norm:
             continue
+        entry_tokens = set(entry_norm.split())
         overlap = len(value_tokens & entry_tokens)
-        score = overlap / max(len(value_tokens), len(entry_tokens))
-        if score >= threshold:
-            return entry, round(score, 3)
-    return None
+        token_score = overlap / max(len(value_tokens), len(entry_tokens))
+        seq_score = SequenceMatcher(None, value_norm, entry_norm).ratio()
+        score = max(token_score, seq_score)
+        if score >= threshold and (best is None or score > best[1]):
+            best = (entry, round(score, 3))
+    return best
 
 
 def _load_reference_list(list_name: str) -> list[str] | None:

@@ -14,6 +14,18 @@ that introduced them.
   once instead of carrying two near-identical SQL bodies. ~50 LOC removed.
   No public API changes; existing Postgres mock tests pass unchanged.
 
+### Changed
+- **`list_match` fuzzy matcher upgrade** (`engine/runner.py`): the previous
+  token-overlap matcher missed common sanctions-screening edge cases —
+  diacritics (`Müller` vs `Mueller`), edit-distance differences (`VOLKOV`
+  vs `VOLKOVA`, `JON` vs `JOHN`), and substring suffixes. The new matcher
+  ASCII-folds accents via `unicodedata.NFKD`, scores each entry by
+  `max(token_overlap, SequenceMatcher.ratio)`, and returns the
+  highest-scoring match above threshold. No new dependency — pure stdlib.
+- 9 new tests under `TestFuzzyMatcher` cover accents, typos, suffixes,
+  transposed tokens, the genuinely-different-name negative case, and the
+  best-of-many tie-break.
+
 ### Refactor
 - **`metrics/engine._compute_sql_proxy` split** — the 110-line keyword-dispatch
   is now six named handler functions (`_proxy_repeat_alert`,

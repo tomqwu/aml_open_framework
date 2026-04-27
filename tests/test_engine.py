@@ -504,6 +504,72 @@ class TestSanctionsScreening:
         assert len(sanctions_cases) >= 1
 
 
+class TestFuzzyMatcher:
+    """Coverage gaps the quality review flagged in `_fuzzy_match`."""
+
+    def test_accents_fold_to_ascii(self):
+        from aml_framework.engine.runner import _fuzzy_match
+
+        # "MÜLLER" should match "MUELLER" / "MULLER".
+        result = _fuzzy_match("MÜLLER", ["MUELLER"], threshold=0.8)
+        assert result is not None
+        assert result[0] == "MUELLER"
+
+    def test_substring_suffix_caught_by_edit_distance(self):
+        """The old token-overlap matcher missed VOLKOV vs VOLKOVA / VOLKOVICH."""
+        from aml_framework.engine.runner import _fuzzy_match
+
+        result = _fuzzy_match("VOLKOV", ["VOLKOVA"], threshold=0.85)
+        assert result is not None and result[0] == "VOLKOVA"
+
+    def test_typo_caught_by_edit_distance(self):
+        """JON SMITH vs JOHN SMITH was a token-overlap miss; edit-distance catches it."""
+        from aml_framework.engine.runner import _fuzzy_match
+
+        result = _fuzzy_match("JON SMITH", ["JOHN SMITH"], threshold=0.85)
+        assert result is not None and result[0] == "JOHN SMITH"
+
+    def test_transposed_tokens_still_match(self):
+        """MARIA MUELLER / MUELLER MARIA — the token-overlap path still picks this up."""
+        from aml_framework.engine.runner import _fuzzy_match
+
+        result = _fuzzy_match("MARIA MUELLER", ["MUELLER MARIA"], threshold=0.95)
+        assert result is not None
+
+    def test_below_threshold_returns_none(self):
+        """Genuinely different names must not match."""
+        from aml_framework.engine.runner import _fuzzy_match
+
+        assert _fuzzy_match("ALICE WONDERLAND", ["BOB SMITH"], threshold=0.85) is None
+
+    def test_case_insensitive(self):
+        from aml_framework.engine.runner import _fuzzy_match
+
+        result = _fuzzy_match("smith", ["SMITH"], threshold=0.95)
+        assert result is not None
+
+    def test_empty_value_returns_none(self):
+        from aml_framework.engine.runner import _fuzzy_match
+
+        assert _fuzzy_match("", ["SMITH"], threshold=0.5) is None
+
+    def test_picks_best_match_not_first(self):
+        """When multiple entries beat threshold, the highest-scoring one wins."""
+        from aml_framework.engine.runner import _fuzzy_match
+
+        # SMITH matches both SMITH and SMITHE; SMITH should be preferred (higher ratio).
+        result = _fuzzy_match("SMITH", ["SMITHE", "SMITH"], threshold=0.8)
+        assert result is not None
+        assert result[0] == "SMITH"
+
+    def test_normalize_for_match_strips_combining(self):
+        from aml_framework.engine.runner import _normalize_for_match
+
+        assert _normalize_for_match("Müller") == "MULLER"
+        assert _normalize_for_match("Café") == "CAFE"
+        assert _normalize_for_match("  multi   spaces  ") == "MULTI SPACES"
+
+
 class TestListMatchUnit:
     def test_list_match_missing_csv(self, tmp_path):
         """list_match with a list file that doesn't exist returns empty alerts."""
