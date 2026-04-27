@@ -105,6 +105,7 @@ aml export-amla-str spec.yaml --out amla.json        # AMLA RTS draft (EU 2026-0
 aml sanctions-sync ofac --from-file sdn_advanced.xml # refresh sanctions CSV from upstream
 aml draft-narrative spec.yaml CASE_ID --backend ollama  # structured STR/SAR draft
 aml pkyc-scan spec.yaml --high-risk-countries RU,KP    # perpetual KYC trigger scan
+aml tune spec.yaml --rule RULE_ID --labels labels.csv  # threshold sweep + shadow diff
 aml diff spec_a.yaml spec_b.yaml                     # compare two specs
 aml replay spec.yaml run-dir/                         # verify determinism
 aml schedule spec.yaml --interval 1h                  # run on a schedule

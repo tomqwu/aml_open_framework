@@ -8,6 +8,46 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Tuning Lab — threshold sweep with shadow diff + precision/recall**
+  (`engine/tuning.py`, `cli.py:tune`, `Rule.tuning_grid` spec field).
+  Closes Round-3 plan (4 of 4 PRs shipped). Operators tune AML rule
+  thresholds today by guesswork plus quarterly reviews; the Tuning
+  Lab makes it cheap and defensible. Declare a `tuning_grid` on a
+  rule (additive, optional spec field — engine ignores it at runtime,
+  no breaking change), then `aml tune SPEC --rule RULE_ID` sweeps
+  every parameter combination over a fixed dataset and reports
+  per-scenario alert-count delta vs the production thresholds plus
+  added/removed customer-id sets (shadow diff). When the operator
+  passes `--labels labels.csv` (columns `customer_id,is_true_positive`)
+  every scenario also gets precision / recall / F1 scored against the
+  labels and the CLI surfaces the best-F1 scenario.
+  Same dataset + same seed across the grid → apples-to-apples — the
+  determinism contract that backs `test_run_is_reproducible` extends
+  to the sweep. The audit ledger gets a new `Event.TUNING_RUN` event
+  appended to the target run's `decisions.jsonl` (when
+  `--audit-run-dir` is passed) so any threshold change has a
+  documented decision trail. Internal mechanics: clones the rule
+  via Pydantic `model_copy(update=...)` with deep-copied dict patches
+  (no mutation of the source spec); reuses the engine's `_execute_*`
+  helpers so any new rule logic type added to the engine works in
+  the tuner without changes here. CLI:
+  ```
+  aml tune examples/canadian_schedule_i_bank/aml.yaml \
+    --rule structuring_cash_deposits \
+    --labels labels.csv --out tuning.json \
+    --audit-run-dir .artifacts/run-20260427T141428Z
+  ```
+  The Canadian Schedule I example spec now ships with a `tuning_grid`
+  on the `structuring_cash_deposits` rule (count × sum_amount sweep)
+  so `make demo` can show the feature without spec edits. 25 new
+  tests under `TestGridCombinations`, `TestSetByPath`, `TestMetrics`,
+  `TestSweepRule`, `TestAuditIntegration`, `TestTuningRun`, and
+  `TestSpecDeclaredGrid` cover Cartesian expansion, deep-path
+  patching against a frozen rule, original-spec immutability,
+  precision/recall/F1 edge cases (no predictions, no positives,
+  no labels), baseline alignment with `run_spec`, monotonic
+  alert-count vs threshold, audit-event emission, and end-to-end
+  spec-declared grid with synthetic data.
 - **Network-pattern alert explainability** (`engine/explain.py`,
   runner subgraph capture, queue page integration). Each
   `network_pattern` alert now carries the actual matched
