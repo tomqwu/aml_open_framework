@@ -10,6 +10,35 @@ from __future__ import annotations
 from typing import Any
 
 
+def _format_explainability(alert: dict[str, Any]) -> str:
+    """Render `feature_attribution` (and/or `explanation`) into a narrative
+    block. Empty string when neither is present so the section just collapses.
+
+    The convention: `python_ref` scorers can return an alert with
+    `feature_attribution: dict[str, float]` of feature → contribution to
+    score, and/or `explanation: str` for free-text reasoning. Both flow
+    through the audit ledger and end up here for analyst review.
+    """
+    parts: list[str] = []
+    explanation = alert.get("explanation")
+    if explanation:
+        parts.append(f"   Reasoning: {explanation}")
+
+    attribution = alert.get("feature_attribution") or {}
+    if isinstance(attribution, dict) and attribution:
+        # Sort by absolute contribution, top 5.
+        ranked = sorted(attribution.items(), key=lambda kv: -abs(float(kv[1])))[:5]
+        parts.append("   Top contributing features:")
+        for name, value in ranked:
+            try:
+                v = float(value)
+                parts.append(f"     - {name}: {v:+.3f}")
+            except (TypeError, ValueError):
+                parts.append(f"     - {name}: {value}")
+
+    return "\n" + "\n".join(parts) if parts else ""
+
+
 def generate_str_narrative(
     case: dict[str, Any],
     customer: dict[str, Any] | None,
@@ -88,6 +117,7 @@ Filing to: {regulator}
    The above activity was flagged by automated detection rule "{rule_name}"
    (severity: {severity}). The pattern is consistent with indicators described
    in {ref_text}.
+{_format_explainability(alert)}
 
 6. HOW (Method)
    The subject conducted {txn_count} transaction(s) totalling ${float(amount):,.2f}
