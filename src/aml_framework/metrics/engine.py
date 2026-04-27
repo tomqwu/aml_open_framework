@@ -176,6 +176,113 @@ def _cond_holds(value: float, cond: dict[str, Any]) -> bool:
     return True
 
 
+def _proxy_repeat_alert(ctx: "MetricContext") -> float:
+    """Fraction of closed-no-action customers who were later re-alerted."""
+    closed_customers = {
+        d.get("case_id", "").split("__")[1]
+        for d in ctx.decisions
+        if d.get("event") == "case_opened"
+        and any(
+            c.get("queue") == "closed_no_action"
+            for c in ctx.cases
+            if c.get("case_id") == d.get("case_id")
+        )
+    }
+    if not closed_customers:
+        return 0.0
+    all_alerted = [a.get("customer_id") for alerts in ctx.alerts.values() for a in alerts]
+    repeat_count = sum(1 for cid in closed_customers if all_alerted.count(cid) > 1)
+    return repeat_count / (len(closed_customers) or 1)
+
+
+def _proxy_filing_latency(ctx: "MetricContext") -> float:
+    """p95 STR/SAR filing latency in days (approximate)."""
+    filing_hours = sorted(
+        d.get("resolution_hours", 0)
+        for d in ctx.decisions
+        if d.get("disposition", "") in ("str_filing", "sar_filing")
+        and d.get("resolution_hours") is not None
+    )
+    if not filing_hours:
+        return 0.0
+    p95_idx = min(int(len(filing_hours) * 0.95), len(filing_hours) - 1)
+    return round(filing_hours[p95_idx] / 24, 2)  # hours → days
+
+
+def _proxy_lctr_completeness(ctx: "MetricContext") -> float:
+    """Cash-LCTR alert volume divided by reportable cash txn count.
+    Reference engine doesn't actually file; alerts stand in for "detected"."""
+    txns = ctx.data.get("txn", [])
+    reportable = sum(
+        1 for t in txns if t.get("channel") == "cash" and float(t.get("amount", 0)) >= 10000
+    )
+    if reportable == 0:
+        return 1.0
+    cash_alerts = len(ctx.alerts.get("large_cash_lctr", []) or ctx.alerts.get("large_cash_ctr", []))
+    return min(cash_alerts / reportable, 1.0)
+
+
+def _proxy_edd_review(ctx: "MetricContext") -> float:
+    """Fraction of high-risk customers whose EDD review is current (within 12 months)."""
+    from datetime import datetime as _dt
+
+    customers = ctx.data.get("customer", [])
+    high_risk = [c for c in customers if c.get("risk_rating") == "high"]
+    if not high_risk:
+        return 1.0
+    cutoff_days = 365
+    current = 0
+    for c in high_risk:
+        review = c.get("edd_last_review")
+        if review is None:
+            continue
+        if isinstance(review, _dt):
+            age_days = max(
+                (max(cust.get("onboarded_at", review) for cust in customers) - review).days,
+                0,
+            )
+            if age_days <= cutoff_days:
+                current += 1
+        else:
+            current += 1  # Non-datetime truthy value counts as reviewed.
+    return current / len(high_risk)
+
+
+def _proxy_sla_compliance(ctx: "MetricContext") -> float:
+    """Fraction of resolution decisions that met their SLA."""
+    resolutions = [
+        d for d in ctx.decisions if d.get("event") in ("escalated", "escalated_to_str", "closed")
+    ]
+    if not resolutions:
+        return 0.0
+    on_time = sum(1 for d in resolutions if d.get("within_sla", False))
+    return on_time / len(resolutions)
+
+
+def _proxy_avg_resolution(ctx: "MetricContext") -> float:
+    """Mean resolution_hours across closed/escalated decisions."""
+    hours = [
+        d.get("resolution_hours", 0)
+        for d in ctx.decisions
+        if d.get("resolution_hours") is not None
+        and d.get("event") in ("escalated", "escalated_to_str", "closed")
+    ]
+    return sum(hours) / len(hours) if hours else 0.0
+
+
+# Token → handler. Order matters: the first match wins, mirroring the
+# original cascading if-chain. Keep new tokens specific so they don't shadow
+# earlier handlers.
+_PROXY_DISPATCH: tuple[tuple[tuple[str, ...], Any], ...] = (
+    (("repeat", "closed_cases"), _proxy_repeat_alert),
+    (("filing", "percentile", "latency"), _proxy_filing_latency),
+    (("reportable", "lctr", "filed"), _proxy_lctr_completeness),
+    (("edd", "current_edd", "high_risk"), _proxy_edd_review),
+    (("sla", "on_time"), _proxy_sla_compliance),
+    (("resolution", "avg"), _proxy_avg_resolution),
+)
+
+
 def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
     """Best-effort computation for SQL-formula metrics from run context.
 
@@ -184,112 +291,10 @@ def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
     already in the context so these metrics show real numbers rather than 0.0.
     """
     sql_lower = formula.sql.lower()
-
-    # --- Repeat-alert / internal-alert-ignored proxy ---
-    # Count customers who were closed_no_action and then re-alerted.
-    if "repeat" in sql_lower or "closed_cases" in sql_lower:
-        closed_customers = {
-            d.get("case_id", "").split("__")[1]
-            for d in ctx.decisions
-            if d.get("event") == "case_opened"
-            and any(
-                c.get("queue") == "closed_no_action"
-                for c in ctx.cases
-                if c.get("case_id") == d.get("case_id")
-            )
-        }
-        if not closed_customers:
-            return 0.0
-        # Check if any closed customer has multiple alerts.
-        all_alerted = [a.get("customer_id") for alerts in ctx.alerts.values() for a in alerts]
-        repeat_count = sum(1 for cid in closed_customers if all_alerted.count(cid) > 1)
-        total_closed = len(closed_customers) or 1
-        return repeat_count / total_closed
-
-    # --- Filing latency proxy (p95 in days) ---
-    if "filing" in sql_lower or "percentile" in sql_lower or "latency" in sql_lower:
-        # Use resolution_hours from decisions where disposition includes "str" or "sar".
-        filing_hours = [
-            d.get("resolution_hours", 0)
-            for d in ctx.decisions
-            if d.get("disposition", "") in ("str_filing", "sar_filing")
-            and d.get("resolution_hours") is not None
-        ]
-        if not filing_hours:
-            return 0.0
-        # p95 approximation: sort and take 95th percentile.
-        filing_hours.sort()
-        p95_idx = int(len(filing_hours) * 0.95)
-        p95_hours = filing_hours[min(p95_idx, len(filing_hours) - 1)]
-        return round(p95_hours / 24, 2)  # Convert hours to days.
-
-    # --- LCTR/CTR completeness proxy ---
-    if "reportable" in sql_lower or "lctr" in sql_lower or "filed" in sql_lower:
-        # Count cash transactions >= 10000 as reportable.
-        txns = ctx.data.get("txn", [])
-        reportable = sum(
-            1 for t in txns if t.get("channel") == "cash" and float(t.get("amount", 0)) >= 10000
-        )
-        if reportable == 0:
-            return 1.0  # No reportable transactions = 100% compliant.
-        # In the reference engine, LCTRs aren't actually filed (no filing
-        # system). Count alerts from cash rules as a proxy for "detected".
-        cash_alerts = len(
-            ctx.alerts.get("large_cash_lctr", []) or ctx.alerts.get("large_cash_ctr", [])
-        )
-        return min(cash_alerts / reportable, 1.0)
-
-    # --- EDD review adherence proxy ---
-    if "edd" in sql_lower or "current_edd" in sql_lower or "high_risk" in sql_lower:
-        from datetime import datetime as _dt
-
-        customers = ctx.data.get("customer", [])
-        high_risk = [c for c in customers if c.get("risk_rating") == "high"]
-        if not high_risk:
-            return 1.0
-        # Check if edd_last_review is present and within 12 months.
-        cutoff = 365  # days
-        current = 0
-        for c in high_risk:
-            review = c.get("edd_last_review")
-            if review is None:
-                continue
-            if isinstance(review, _dt):
-                # Compare to the most recent customer onboarding as reference.
-                age_days = max(
-                    (max(cust.get("onboarded_at", review) for cust in customers) - review).days,
-                    0,
-                )
-                if age_days <= cutoff:
-                    current += 1
-            else:
-                current += 1  # Non-datetime truthy value counts as reviewed.
-        return current / len(high_risk)
-
-    # --- SLA compliance proxy ---
-    if "sla" in sql_lower or "on_time" in sql_lower:
-        resolution_decisions = [
-            d
-            for d in ctx.decisions
-            if d.get("event") in ("escalated", "escalated_to_str", "closed")
-        ]
-        if not resolution_decisions:
-            return 0.0
-        on_time = sum(1 for d in resolution_decisions if d.get("within_sla", False))
-        return on_time / len(resolution_decisions)
-
-    # --- Average resolution hours proxy ---
-    if "resolution" in sql_lower or "avg" in sql_lower:
-        hours = [
-            d.get("resolution_hours", 0)
-            for d in ctx.decisions
-            if d.get("resolution_hours") is not None
-            and d.get("event") in ("escalated", "escalated_to_str", "closed")
-        ]
-        return sum(hours) / len(hours) if hours else 0.0
-
-    # Fallback: unknown SQL formula, return 0.0.
-    return 0.0
+    for tokens, handler in _PROXY_DISPATCH:
+        if any(tok in sql_lower for tok in tokens):
+            return handler(ctx)
+    return 0.0  # Unknown SQL formula.
 
 
 @dataclass
