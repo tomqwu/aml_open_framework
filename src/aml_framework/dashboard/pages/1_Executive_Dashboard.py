@@ -197,3 +197,102 @@ with col_summary:
             "application/pdf",
             use_container_width=True,
         )
+
+# ---------------------------------------------------------------------------
+# Effectiveness Funnel (FinCEN April 2026 NPRM + AMLA RTS 2026-07-10)
+# ---------------------------------------------------------------------------
+# Both FinCEN's NPRM and AMLA's RTS treat alert→case→STR conversion as
+# the canonical effectiveness measure. The funnel computation lives in
+# `metrics/outcomes.py` (Round-7 PR #75); this section surfaces it for
+# SVP/CCO consumption and offers a one-click AMLA RTS JSON download.
+
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### Effectiveness Funnel")
+st.caption(
+    "Alert → case → STR conversion + per-rule precision (when labels supplied). "
+    "Same numbers FinCEN's April 2026 NPRM and AMLA's RTS (due 2026-07-10) treat "
+    "as the canonical effectiveness measure."
+)
+
+# Load cases + decisions from the audit ledger run dir.
+try:
+    import json as _json
+    from pathlib import Path as _Path
+
+    from aml_framework.metrics.outcomes import compute_outcomes, format_amla_rts_json
+
+    _run_dir = _Path(st.session_state.run_dir)
+    _cases: list[dict] = []
+    _cases_dir = _run_dir / "cases"
+    if _cases_dir.exists():
+        for _f in sorted(_cases_dir.glob("*.json")):
+            _cases.append(_json.loads(_f.read_text(encoding="utf-8")))
+    _decisions: list[dict] = []
+    _dec_path = _run_dir / "decisions.jsonl"
+    if _dec_path.exists():
+        for _line in _dec_path.read_text(encoding="utf-8").splitlines():
+            _line = _line.strip()
+            if _line:
+                _decisions.append(_json.loads(_line))
+
+    _report = compute_outcomes(_cases, _decisions, spec_program=spec.program.name)
+
+    fc1, fc2, fc3, fc4 = st.columns(4)
+    with fc1:
+        kpi_card("Alerts", _report.total_alerts, "#dc2626")
+    with fc2:
+        kpi_card("Cases", _report.total_cases, "#d97706")
+    with fc3:
+        kpi_card("STR filed", _report.total_str_filed, "#7c3aed")
+    with fc4:
+        kpi_card("Alert → STR", f"{_report.alert_to_str_pct}%", "#16a34a")
+
+    # Per-rule funnel breakdown.
+    if _report.rules:
+        import pandas as _pd
+
+        _rule_rows = [
+            {
+                "rule_id": r.rule_id,
+                "alerts": r.alerts,
+                "cases": r.cases_opened,
+                "str_filed": r.str_filed,
+                "closed": r.closed_no_action,
+                "pending": r.pending,
+                "sla_breach_%": r.sla_breach_rate_pct,
+                "precision": "—" if r.precision is None else f"{r.precision:.2f}",
+            }
+            for r in _report.rules
+        ]
+        st.dataframe(
+            _pd.DataFrame(_rule_rows),
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.caption("No rules fired yet — run the engine to populate the funnel.")
+
+    # AMLA RTS JSON download — uses minimal metadata; operators editing
+    # for real submission should use `aml outcomes-pack` CLI which
+    # accepts --lei / --home-state / --period-start / --period-end.
+    _amla_payload = format_amla_rts_json(
+        _report,
+        program_metadata={
+            "lei": "",
+            "obliged_entity_type": "credit_institution",
+            "home_member_state": spec.program.jurisdiction or "",
+            "reporting_period_start": "",
+            "reporting_period_end": "",
+        },
+    )
+    st.download_button(
+        "📥 AMLA RTS JSON (draft 2026-02)",
+        data=_amla_payload,
+        file_name=f"{spec.program.name.replace(' ', '_')}_amla_rts.json",
+        mime="application/json",
+        help="Same shape FinCEN narrative effectiveness pack uses. "
+        "For production submission, run `aml outcomes-pack` CLI to "
+        "set LEI + reporting period explicitly.",
+    )
+except Exception as _e:  # noqa: BLE001 — funnel must never crash the dashboard
+    st.caption(f"Funnel unavailable: {_e}")

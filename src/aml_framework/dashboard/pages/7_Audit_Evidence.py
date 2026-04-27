@@ -167,3 +167,83 @@ snapshot_path = run_dir / "spec_snapshot.yaml"
 if snapshot_path.exists():
     with st.expander("View spec snapshot (aml.yaml at execution time)"):
         st.code(snapshot_path.read_text(encoding="utf-8"), language="yaml")
+
+
+# ---------------------------------------------------------------------------
+# Regulation Drift (compliance/regwatch.py — Round-7 PR #74)
+# ---------------------------------------------------------------------------
+# FinCEN BOI was silently narrowed in March 2025 — the canonical
+# example of a regulator page changing without redirect, leaving
+# downstream specs citing stale language. The watcher surfaces drift
+# at the URL-content-hash level. This panel reads the baseline written
+# by `aml regwatch <spec> --update` and shows current state.
+spec = st.session_state.spec
+st.markdown("---")
+st.markdown("### Regulation Drift")
+st.caption(
+    "Hashes every cited regulation URL and compares against the saved "
+    "baseline. Run `aml regwatch <spec> --update` to refresh after "
+    "acknowledging drift. Closes the gap from FinCEN BOI Mar 2025 narrowing."
+)
+
+try:
+    from pathlib import Path as _Path
+
+    from aml_framework.compliance.regwatch import load_baseline, scan_spec
+
+    citations = scan_spec(spec)
+    # Default baseline path matches the CLI default.
+    _baseline_path = _Path(".regwatch.json")
+    _baseline = load_baseline(_baseline_path)
+    _baseline_by_key = {(e.citation, e.url): e for e in _baseline}
+
+    rows = []
+    resolved_count = 0
+    for citation, url in citations:
+        if url is None:
+            rows.append(
+                {
+                    "citation": citation,
+                    "url": "(no URL — add `url:` to regulation_refs)",
+                    "in_baseline": False,
+                    "baseline_age": "",
+                }
+            )
+            continue
+        resolved_count += 1
+        entry = _baseline_by_key.get((citation, url))
+        rows.append(
+            {
+                "citation": citation,
+                "url": url,
+                "in_baseline": entry is not None,
+                "baseline_age": entry.fetched_at[:10] if entry else "—",
+            }
+        )
+
+    rc1, rc2, rc3, rc4 = st.columns(4)
+    with rc1:
+        kpi_card("Citations", len(citations), "#2563eb")
+    with rc2:
+        kpi_card("Resolvable URLs", resolved_count, "#059669")
+    with rc3:
+        kpi_card("In baseline", len(_baseline), "#7c3aed")
+    with rc4:
+        kpi_card(
+            "Baseline at",
+            str(_baseline_path) if _baseline else "(none)",
+            "#d97706" if not _baseline else "#16a34a",
+        )
+
+    if not _baseline:
+        st.info(
+            "No baseline at `.regwatch.json`. Run "
+            f"`aml regwatch {st.session_state.spec_path} --update` to capture "
+            "current URL hashes; subsequent runs will detect drift."
+        )
+    else:
+        import pandas as _pd
+
+        st.dataframe(_pd.DataFrame(rows), use_container_width=True, hide_index=True)
+except Exception as _e:  # noqa: BLE001 — drift panel must never crash the page
+    st.caption(f"Regwatch unavailable: {_e}")
