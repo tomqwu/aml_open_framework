@@ -8,6 +8,21 @@ that introduced them.
 ## [Unreleased]
 
 ### Security
+- **Webhook SSRF blocked** (`api/main.py`): `_validate_webhook_url` resolves
+  every registered URL and rejects private (RFC 1918), loopback, link-local
+  (169.254/16, including the 169.254.169.254 cloud-metadata endpoint),
+  multicast, and reserved addresses. Re-validates at fire time so DNS
+  rebinding between registration and dispatch is contained. Bypass with
+  `WEBHOOK_ALLOW_PRIVATE=1` for local dev.
+- **DuckDB lockdown** (`engine/runner.py:_harden_duckdb`): every engine
+  connection sets `enable_external_access=false`,
+  `autoload_known_extensions=false`, `autoinstall_known_extensions=false`,
+  `allow_unsigned_extensions=false`. A malicious `custom_sql` rule can no
+  longer `INSTALL httpfs`, `ATTACH 'http://...'`, or `COPY TO '/tmp/exfil'`.
+- **`python_ref` module allow-list** (`engine/runner.py`): callables must live
+  under `aml_framework.models.` by default; `AML_PYTHON_REF_PREFIX` extends
+  the list (comma-separated) for institution-specific scorer packages. A
+  spec with `callable: os:getcwd` is now rejected before import.
 - **JWT_SECRET hardening** (`api/auth.py`): refuse to import when the env var is
   set but shorter than 32 bytes; when unset, log a warning and use a per-process
   random secret (tokens do not survive a restart). Removes the hardcoded

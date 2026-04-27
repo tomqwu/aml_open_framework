@@ -303,12 +303,57 @@ class WebhookConfig(BaseModel):
     name: str = "default"
 
 
+def _validate_webhook_url(url: str) -> None:
+    """Reject webhook URLs that target private/link-local/loopback hosts.
+
+    Set WEBHOOK_ALLOW_PRIVATE=1 to bypass for local dev. Resolved IPs are
+    re-checked at fire time so DNS-rebinding attacks against the registered
+    hostname don't get to issue requests against private addresses.
+    """
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
+    if os.environ.get("WEBHOOK_ALLOW_PRIVATE") == "1":
+        return
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Webhook URL must be http or https")
+    host = parsed.hostname
+    if not host:
+        raise HTTPException(status_code=400, detail="Webhook URL has no host")
+
+    try:
+        addrs = {a[4][0] for a in socket.getaddrinfo(host, None)}
+    except OSError as e:
+        raise HTTPException(status_code=400, detail=f"Cannot resolve webhook host: {e}") from e
+
+    for addr_str in addrs:
+        try:
+            addr = ipaddress.ip_address(addr_str)
+        except ValueError:
+            continue
+        if (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+            or addr.is_multicast
+            or addr.is_reserved
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Webhook host resolves to a non-routable address (private/loopback/link-local).",
+            )
+
+
 @app.post("/api/v1/webhooks")
 async def register_webhook(
     config: WebhookConfig,
     user: dict[str, Any] = Depends(require_role("admin")),
 ) -> dict[str, Any]:
     """Register a webhook URL for event notifications."""
+    _validate_webhook_url(config.url)
     _webhooks.append({"name": config.name, "url": config.url, "events": config.events})
     return {"status": "registered", "name": config.name, "event_count": len(config.events)}
 
@@ -368,6 +413,9 @@ def _fire_webhooks(event: str, payload: dict[str, Any]) -> None:
     for hook in _webhooks:
         if event in hook.get("events", []):
             try:
+                # Re-validate before firing — guards against DNS rebinding between
+                # registration and dispatch.
+                _validate_webhook_url(hook["url"])
                 import urllib.request
 
                 data = json.dumps({"event": event, **payload}).encode("utf-8")
