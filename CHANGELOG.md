@@ -8,6 +8,31 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Tuning Lab Streamlit page** (`dashboard/pages/23_Tuning_Lab.py` +
+  `dashboard/tuning_state.py`): UI surface for `aml tune` (PR #50). MLRO
+  picks a tunable rule, optionally uploads a labels CSV
+  (`customer_id,is_true_positive`) for precision/recall scoring, and
+  the page renders the per-scenario table + a precision/recall scatter
+  (Plotly bubble chart sized by alert count, coloured by F1) when
+  labels are present. Best-F1 scenario gets called out automatically.
+  The "promote a scenario" panel renders a YAML spec patch (rule
+  fragment with patched fields only) the operator can download and
+  merge into `aml.yaml` to promote the candidate threshold; a
+  `# Spec patch produced by the Tuning Lab` header reminds the user
+  to re-run `aml validate` after merging. The page also writes a
+  `tuning_run` event to the current session's run dir whenever a
+  sweep is executed (toggle in the sidebar) — every threshold
+  consideration is part of the audit trail. Page mapped into
+  `audience.py` for `vp`, `director`, `manager`, `pm` personas. Round-4
+  PR #1 — closes the "no UI for the new CLI" gap that PR #47 closed
+  for narratives + pkyc. 15 new tests under `TestParseLabelsCSV`,
+  `TestRulesWithTuningGrid`, `TestScenariosToTable`, `TestBestScenario`,
+  `TestRenderSpecPatch`, and `TestEndToEnd` cover label parsing
+  (truthy/falsy variants, missing column, empty rows), tunable-rule
+  filtering, table flattening with and without metric columns, best-by
+  metric ranking, YAML round-trip of the spec patch, and an
+  end-to-end sweep → table → patch composition against the bundled
+  Canadian Schedule I example. None of them import streamlit.
 - **Tuning Lab — threshold sweep with shadow diff + precision/recall**
   (`engine/tuning.py`, `cli.py:tune`, `Rule.tuning_grid` spec field).
   Closes Round-3 plan (4 of 4 PRs shipped). Operators tune AML rule
