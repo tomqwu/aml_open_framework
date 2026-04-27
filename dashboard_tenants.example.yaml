@@ -1,0 +1,37 @@
+# Multi-tenant dashboard configuration — Round-6 PR #2.
+#
+# Copy to `dashboard_tenants.yaml` (gitignored locally) or point
+# `$AML_TENANTS_CONFIG` at any path to enable multi-program surfacing
+# in the Streamlit dashboard. When no config file exists, the dashboard
+# falls back to a single "default" tenant pointing at
+# examples/community_bank/aml.yaml.
+#
+# Display-only — see `dashboard/tenants.py` module docstring for the
+# trust-model caveat. Per-user authorization lives in the REST API
+# (`api/auth.py`), not here.
+
+tenants:
+  - id: us_community_bank
+    display_name: "US Community Bank — FinCEN/BSA"
+    spec_path: examples/community_bank/aml.yaml
+    jurisdiction: US
+
+  - id: ca_schedule_i
+    display_name: "Canadian Schedule-I Bank — FINTRAC/OSFI"
+    spec_path: examples/canadian_schedule_i_bank/aml.yaml
+    jurisdiction: CA
+
+  - id: eu_bank
+    display_name: "EU Bank — EBA/AMLD6"
+    spec_path: examples/eu_bank/aml.yaml
+    jurisdiction: EU
+
+  - id: uk_bank
+    display_name: "UK Bank — FCA/POCA"
+    spec_path: examples/uk_bank/aml.yaml
+    jurisdiction: UK
+
+  - id: cyber_fraud
+    display_name: "Cyber-Enabled Fraud — FATF Feb 2026"
+    spec_path: examples/cyber_enabled_fraud/aml.yaml
+    jurisdiction: US

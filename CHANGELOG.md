@@ -66,6 +66,53 @@ that introduced them.
   investigation — no losses; Investigation TypedDict shape
   matches). Total test count 792 → 826.
 
+- **Multi-tenant dashboard surfacing** (`dashboard/tenants.py`,
+  `dashboard/app.py`, `dashboard/state.py`,
+  `dashboard_tenants.example.yaml`). Round-6 PR #2. The REST API
+  already had full tenant isolation (`api/auth.py:create_token`
+  carries a `tenant` claim; every `api/db.py` query filters by
+  `tenant_id`), but the Streamlit dashboard hardcoded a single
+  spec path. This PR brings the dashboard up to surface parity
+  with the API's tenant model — a single dashboard process can
+  now register multiple programs (e.g. EU bank + Canadian bank +
+  cyber-fraud spec) and let the operator switch between them via
+  a sidebar selector.
+  Trust model is **display-only multi-tenancy**: the dashboard
+  runs the engine locally per selected tenant; whoever can launch
+  the dashboard process sees every configured tenant. Real
+  per-user authorization remains in the REST API path. The plan
+  note for this PR was "API has it, dashboard doesn't" — surface
+  parity, not isolation.
+  New `load_tenants()` reads from `$AML_TENANTS_CONFIG` (env var
+  override) → `<project>/dashboard_tenants.yaml` (default). Each
+  tenant entry needs `id` + `spec_path`; optional `display_name`
+  (falls back to id) + `jurisdiction`. When no config exists,
+  loader returns a single `default` tenant pointing at the
+  community-bank spec — preserves the previous single-spec
+  behavior so existing launches keep working with no migration.
+  Companion `resolve_tenant(id)` raises `TenantConfigError` on
+  unknown ids and includes the available list in the error
+  message — silent fallback would mask deployment misconfiguration.
+  `state.py` keys its session cache on `(tenant_id, seed)` so
+  switching tenants triggers a re-run without losing other
+  tenants' previously-computed results during the session.
+  `app.py` shows the tenant selector only when (a) >1 tenant is
+  configured AND (b) the dashboard wasn't launched with an
+  explicit CLI spec path — single-tenant deployments and
+  `aml dashboard <spec.yaml>` invocations see no added UI noise.
+  Selector switch triggers `st.rerun()`.
+  `dashboard_tenants.example.yaml` ships 5 example tenants
+  spanning all 4 jurisdictions; tests verify every example spec
+  path resolves to a real file (no broken links on copy).
+  All config validation produces `TenantConfigError` with
+  actionable messages: empty list, missing `tenants:` key,
+  non-mapping top level, duplicate ids, missing `id` /
+  `spec_path` per entry, malformed YAML.
+  26 new tests under `TestDefaultFallback`, `TestLoadTenants`,
+  `TestErrorHandling`, `TestResolveTenant`, `TestEnvVarOverride`,
+  `TestTenantConfigDataclass`, `TestBundledExample`. Total test
+  count 826 → 852.
+
 - **pacs.004 payment-return ingestion + return-reason mining library**
   (`data/iso20022/parser.py:Pacs004Parser`,
   `data/iso20022/sample_pacs004.xml`,
