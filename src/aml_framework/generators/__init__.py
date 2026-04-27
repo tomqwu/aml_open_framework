@@ -7,6 +7,16 @@ from aml_framework.generators.goaml_xml import (
     ReportingEntity,
     ReportingPerson,
 )
+from aml_framework.generators.amla_str import (
+    AMLATypology,
+    DRAFT_VERSION as AMLA_DRAFT_VERSION,
+    ObligedEntity,
+    SubmittingPerson,
+    build_amla_str_json,
+    build_amla_str_payload,
+    export_amla_str_from_run_dir,
+    map_to_typology,
+)
 
 __all__ = [
     "compile_rule_sql",
@@ -16,4 +26,12 @@ __all__ = [
     "export_goaml_from_run_dir",
     "ReportingEntity",
     "ReportingPerson",
+    "AMLATypology",
+    "AMLA_DRAFT_VERSION",
+    "ObligedEntity",
+    "SubmittingPerson",
+    "build_amla_str_json",
+    "build_amla_str_payload",
+    "export_amla_str_from_run_dir",
+    "map_to_typology",
 ]

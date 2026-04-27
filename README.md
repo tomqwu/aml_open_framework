@@ -101,6 +101,7 @@ aml report spec.yaml --audience svp --stdout         # print role report
 aml export spec.yaml --out evidence.zip              # evidence bundle
 aml export-alerts spec.yaml --out alerts.csv         # alert CSV export
 aml export-goaml spec.yaml --out goaml.xml           # goAML 5.0.2 STR/SAR XML
+aml export-amla-str spec.yaml --out amla.json        # AMLA RTS draft (EU 2026-07-10)
 aml sanctions-sync ofac --from-file sdn_advanced.xml # refresh sanctions CSV from upstream
 aml draft-narrative spec.yaml CASE_ID --backend ollama  # structured STR/SAR draft
 aml pkyc-scan spec.yaml --high-risk-countries RU,KP    # perpetual KYC trigger scan
