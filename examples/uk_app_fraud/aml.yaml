@@ -1,0 +1,279 @@
+# UK Authorised Push Payment (APP) fraud reimbursement spec.
+#
+# The UK Payment Systems Regulator's (PSR) mandatory APP-fraud
+# reimbursement scheme took effect October 2024 and reaches full
+# scope April 2026. Sending PSPs are now liable for 50% of
+# reimbursable losses under the mandatory split (the receiving PSP
+# carries the other 50%). This made it materially valuable for
+# sending banks to mine return-reason patterns + flag suspicious
+# outbound payments before they leave.
+#
+# The scope expanded in 2025 from Faster Payments to CHAPS, and the
+# PSR's Q2 2026 joint review with the FCA is expected to fold in
+# on-us same-bank transfers. This spec demonstrates the framework's
+# python_ref + aggregation_window + custom_sql rule types in an
+# APP-fraud context.
+#
+# Round-7 PR #3. Composes with the Round-5 #5 pacs.004 return-reason
+# library (`spec/library/iso20022_return_reasons.yaml`) — operators
+# drop those snippets in alongside this spec's rules to get the
+# full APP-fraud detection surface.
+
+version: 1
+
+program:
+  name: uk_challenger_app_fraud
+  jurisdiction: UK
+  regulator: FCA
+  owner: app_fraud_lead
+  effective_date: 2026-04-01
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,             type: string,  nullable: false }
+      - { name: customer_id,        type: string,  nullable: false, pii: true }
+      - { name: amount,             type: decimal, nullable: false, constraints: [">0"] }
+      - { name: currency,           type: string,  nullable: false }
+      - { name: channel,            type: string,  enum: [faster_payments, chaps, sepa_inst, on_us] }
+      - { name: direction,          type: string,  enum: [in, out] }
+      - { name: booked_at,          type: timestamp, nullable: false }
+      - { name: purpose_code,       type: string,  nullable: true }
+      - { name: counterparty_account, type: string, nullable: true }
+      - { name: counterparty_name,  type: string,  nullable: true, pii: true }
+      - { name: counterparty_sort_code, type: string, nullable: true }
+      # APP-fraud specific signals.
+      - { name: payee_first_use,    type: boolean, nullable: true }  # first txn to this payee
+      - { name: customer_session_id, type: string, nullable: true }  # for behavioural correlation
+      - { name: confirmation_of_payee_status, type: string, nullable: true }  # match / close_match / no_match / not_checked
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique: [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,  type: string, nullable: false, pii: true }
+      - { name: full_name,    type: string, nullable: false, pii: true }
+      - { name: country,      type: string, nullable: false }
+      - { name: risk_rating,  type: string, enum: [low, medium, high] }
+      - { name: onboarded_at, type: timestamp, nullable: false }
+      - { name: vulnerable_customer_flag, type: boolean, nullable: true }
+      - { name: typical_payment_size_p95, type: decimal, nullable: true }
+
+rules:
+  # --- APP Typology #1: First-use payee, large amount (impersonation scam) ---
+  # PSR's #1 cited indicator. Fraudster impersonates HMRC/utility/
+  # bank, victim sends large payment to a new account they've never
+  # paid before.
+  - id: first_use_payee_large_amount
+    name: APP — first-use payee with payment > GBP 1,000
+    severity: high
+    regulation_refs:
+      - citation: "PSR Specific Direction SD20 (APP scams reimbursement)"
+        description: "PSR mandatory reimbursement scheme — sending PSP liable for 50%."
+      - citation: "FCA FG24/4 — APP fraud detection expectations"
+        description: "Issuers expected to interdict payments to first-use payees above threshold."
+      - citation: "POCA 2002 s.330"
+        description: "Failure to disclose suspicions in regulated sector."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: out
+        payee_first_use: true
+        amount: { gte: 1000 }
+      group_by: [customer_id]
+      window: 24h
+      having:
+        count: { gte: 1 }
+    escalate_to: l1_app_analyst
+    evidence:
+      - matching_first_use_payments
+      - confirmation_of_payee_status
+      - customer_kyc_with_typical_payment_size
+      - customer_session_log
+    tags: [app_fraud, first_use_payee, psr, fca]
+
+  # --- APP Typology #2: Confirmation-of-Payee mismatch ---
+  # CoP is the UK's payee-name verification service. A `no_match` or
+  # `close_match` outcome with the customer overriding the warning
+  # is a strong APP-fraud signal — vulnerable customers often
+  # proceed despite the warning under social-engineering pressure.
+  - id: cop_mismatch_override
+    name: APP — Confirmation of Payee mismatch with override
+    severity: critical
+    regulation_refs:
+      - citation: "PSR Specific Direction SD17 (Confirmation of Payee)"
+        description: "Mandatory CoP for Faster Payments + CHAPS."
+      - citation: "PSR Specific Direction SD20 (APP scams reimbursement)"
+        description: "CoP mismatch override is a sending-PSP liability accelerator."
+      - citation: "FCA FG24/4 — APP fraud detection expectations"
+        description: "Mismatch + override is a primary intervention trigger."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: out
+        confirmation_of_payee_status: { in: [no_match, close_match] }
+        amount: { gte: 100 }
+      group_by: [customer_id]
+      window: 7d
+      having:
+        count: { gte: 1 }
+    escalate_to: l2_investigator
+    evidence:
+      - matching_cop_mismatch_payments
+      - cop_response_log
+      - customer_intervention_history
+    tags: [app_fraud, cop_mismatch, psr]
+
+  # --- APP Typology #3: Vulnerable customer + atypical large payment ---
+  # PSR's CRS Annex 4 on consumer standard of caution exempts
+  # vulnerable customers from the gross-negligence test. This rule
+  # flags the at-risk pattern before it lands as a reimbursement.
+  - id: vulnerable_customer_atypical_payment
+    name: APP — vulnerable customer makes payment > 5x typical
+    severity: critical
+    regulation_refs:
+      - citation: "PSR CRS Annex 4 — consumer standard of caution"
+        description: "Vulnerable customer exemption from gross-negligence test."
+      - citation: "FCA Vulnerable Customer Guidance FG21/1"
+        description: "Enhanced protection requirements for vulnerable customers."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'vulnerable_customer_atypical_payment' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN customer c ON t.customer_id = c.customer_id
+        WHERE c.vulnerable_customer_flag = true
+          AND c.typical_payment_size_p95 IS NOT NULL
+          AND t.direction = 'out'
+          AND t.amount >= 5 * c.typical_payment_size_p95
+          AND t.amount >= 500
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING COUNT(*) >= 1
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - matching_atypical_payments
+      - customer_vulnerability_assessment
+      - customer_session_log
+      - call_centre_intervention_history
+    tags: [app_fraud, vulnerable_customer, psr, fca]
+
+  # --- APP Typology #4: Rapid pass-through within sending PSP ---
+  # Inbound from victim → outbound to mule within 1 hour. The bank
+  # carries the receiving-PSP liability under the 50/50 split.
+  # Detected by aggregation across direction within a tight window.
+  - id: rapid_pass_through_mule
+    name: APP — rapid pass-through (in then out within 1h)
+    severity: high
+    regulation_refs:
+      - citation: "PSR Specific Direction SD20 (APP scams reimbursement)"
+        description: "Receiving PSP liability — mule-account detection obligation."
+      - citation: "FCA FG24/4 — APP fraud detection expectations"
+        description: "Rapid pass-through is a primary mule signature."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH inbound AS (
+            SELECT customer_id, amount AS in_amount, booked_at AS in_at
+            FROM txn
+            WHERE direction = 'in'
+              AND amount >= 500
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        outbound AS (
+            SELECT customer_id, amount AS out_amount, booked_at AS out_at
+            FROM txn
+            WHERE direction = 'out'
+              AND amount >= 500
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        )
+        SELECT
+            'rapid_pass_through_mule' AS rule_id,
+            i.customer_id,
+            COUNT(*) AS count,
+            SUM(o.out_amount) AS sum_amount,
+            MIN(i.in_at) AS window_start,
+            MAX(o.out_at) AS window_end
+        FROM inbound i
+        JOIN outbound o ON i.customer_id = o.customer_id
+        WHERE o.out_at > i.in_at
+          AND o.out_at <= i.in_at + INTERVAL '1 hour'
+          AND o.out_amount >= 0.8 * i.in_amount  -- pass through ≥80%
+        GROUP BY i.customer_id
+        HAVING COUNT(*) >= 1
+        ORDER BY i.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - matching_pass_through_pairs
+      - customer_kyc_profile
+      - beneficiary_account_status
+    tags: [app_fraud, mule, pass_through, psr]
+
+workflow:
+  queues:
+    - id: l1_app_analyst
+      sla: 1h        # APP fraud requires fast intervention before settlement
+      next: [l2_investigator, closed_no_action, customer_intervention]
+    - id: customer_intervention
+      sla: 30m       # Call-centre outreach to confirm payment intent
+      next: [l2_investigator, closed_no_action, payment_held]
+    - id: payment_held
+      sla: 4h        # Payment frozen pending review
+      next: [l2_investigator, payment_released, closed_no_action]
+    - id: payment_released
+      sla: 24h
+    - id: l2_investigator
+      sla: 24h       # PSR reimbursement deadline is 5 business days; 24h
+                      # gives the L2 team headroom to investigate
+      next: [sar_filing, reimbursement_decision, closed_no_action]
+    - id: reimbursement_decision
+      sla: 96h
+      regulator_form: PSR_REIMBURSEMENT
+    - id: sar_filing
+      sla: 30d
+      regulator_form: NCA_SAR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    NCA_SAR:
+      template: nca_sar_poca_v1
+      mandatory_fields:
+        - subject_information
+        - reason_for_suspicion
+        - matching_transactions
+        - app_typology_indicators
+    PSR_REIMBURSEMENT:
+      template: psr_crs_reimbursement_v1
+      mandatory_fields:
+        - claim_reference
+        - claimant_loss_amount
+        - sending_psp_share
+        - receiving_psp_share
+        - vulnerable_customer_assessment
+        - psr_decision_rationale
+
+retention_policy:
+  evidence: 6y       # POCA 2002 standard
+  alerts: 6y
+  case_decisions: 6y
+  raw_transactions: 6y
+  cop_responses: 6y

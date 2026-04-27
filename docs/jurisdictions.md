@@ -13,6 +13,8 @@ The framework supports **geo-based default policies** — the same architecture 
 | `examples/uk_bank/aml.yaml` | UK | FCA | UK SAR (POCA 2002) |
 | `examples/cyber_enabled_fraud/aml.yaml` | US | FinCEN/FATF | SAR + investment-scam typology |
 | `examples/crypto_vasp/aml.yaml` | Cross-border | FATF R.16 / FinCEN / FINTRAC | VASP STR/SAR (network_pattern + Travel Rule) |
+| `examples/trade_based_ml/aml.yaml` | US | FinCEN + FATF/Egmont | SAR with TBML typology indicators (Round-7) |
+| `examples/uk_app_fraud/aml.yaml` | UK | FCA + PSR + NCA | UK SAR + PSR reimbursement decision (Round-7) |
 
 All five execute the same engine; the jurisdictional differences live in:
 - the `regulation_refs` citations on each rule
