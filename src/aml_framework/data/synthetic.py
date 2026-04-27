@@ -18,6 +18,33 @@ _CHANNELS = ["cash", "wire", "ach", "card"]
 _COUNTRIES = ["US", "CA", "GB", "DE", "MX"]
 
 
+def _make_txn(
+    tid: int,
+    customer_id: str,
+    amount,
+    booked_at: datetime,
+    *,
+    channel: str = "cash",
+    direction: str = "in",
+    currency: str = "USD",
+) -> dict[str, Any]:
+    """Build a single transaction dict with deterministic shape.
+
+    `amount` may be int / float / Decimal — quantized to 2 d.p. either way.
+    Output is byte-identical to the previous inline dict literals; the
+    determinism test (`test_run_is_reproducible`) verifies this.
+    """
+    return {
+        "txn_id": f"T{tid:08d}",
+        "customer_id": customer_id,
+        "amount": Decimal(amount).quantize(Decimal("0.01")),
+        "currency": currency,
+        "channel": channel,
+        "direction": direction,
+        "booked_at": booked_at,
+    }
+
+
 def _customer_row(
     fake: Faker,
     customer_id: str,
@@ -125,41 +152,31 @@ def generate_dataset(
             hours=random.randint(0, 23),
             minutes=random.randint(0, 59),
         )
-        amount = Decimal(random.choice([50, 120, 300, 750, 1200, 2500, 4800])).quantize(
-            Decimal("0.01")
-        )
+        amount = random.choice([50, 120, 300, 750, 1200, 2500, 4800])
         txns.append(
-            {
-                "txn_id": f"T{tid:08d}",
-                "customer_id": cid,
-                "amount": amount,
-                "currency": "USD",
-                "channel": random.choice(_CHANNELS),
-                "direction": random.choice(["in", "out"]),
-                "booked_at": booked_at,
-            }
+            _make_txn(
+                tid,
+                cid,
+                amount,
+                booked_at,
+                channel=random.choice(_CHANNELS),
+                direction=random.choice(["in", "out"]),
+            )
         )
         tid += 1
 
     # --- Planted positive: structuring by customer C0001. ---
     structurer = customer_ids[1]
-    for day_offset, amt in [
-        (2, 9800),
-        (5, 9500),
-        (9, 9900),
-        (14, 7500),
-        (21, 9200),
-    ]:
+    for day_offset, amt in [(2, 9800), (5, 9500), (9, 9900), (14, 7500), (21, 9200)]:
         txns.append(
-            {
-                "txn_id": f"T{tid:08d}",
-                "customer_id": structurer,
-                "amount": Decimal(amt).quantize(Decimal("0.01")),
-                "currency": "USD",
-                "channel": "cash",
-                "direction": "in",
-                "booked_at": as_of - timedelta(days=day_offset, hours=random.randint(9, 17)),
-            }
+            _make_txn(
+                tid,
+                structurer,
+                amt,
+                as_of - timedelta(days=day_offset, hours=random.randint(9, 17)),
+                channel="cash",
+                direction="in",
+            )
         )
         tid += 1
 
@@ -175,30 +192,23 @@ def generate_dataset(
         ]
     ):
         txns.append(
-            {
-                "txn_id": f"T{tid:08d}",
-                "customer_id": mover,
-                "amount": Decimal(amt).quantize(Decimal("0.01")),
-                "currency": "USD",
-                "channel": channel,
-                "direction": direction,
-                "booked_at": base + timedelta(hours=i * 6),
-            }
+            _make_txn(
+                tid, mover, amt, base + timedelta(hours=i * 6), channel=channel, direction=direction
+            )
         )
         tid += 1
 
     # --- Planted positive: high-risk jurisdiction by customer C0003 (RU). ---
     for day_offset, amt in [(5, 3500), (12, 4500), (18, 2800)]:
         txns.append(
-            {
-                "txn_id": f"T{tid:08d}",
-                "customer_id": "C0003",
-                "amount": Decimal(amt).quantize(Decimal("0.01")),
-                "currency": "USD",
-                "channel": "wire",
-                "direction": "in",
-                "booked_at": as_of - timedelta(days=day_offset, hours=10),
-            }
+            _make_txn(
+                tid,
+                "C0003",
+                amt,
+                as_of - timedelta(days=day_offset, hours=10),
+                channel="wire",
+                direction="in",
+            )
         )
         tid += 1
 
@@ -207,15 +217,14 @@ def generate_dataset(
     ctr_day = as_of - timedelta(hours=18)
     for hour_offset, amt in [(9, 6500), (14, 6000)]:
         txns.append(
-            {
-                "txn_id": f"T{tid:08d}",
-                "customer_id": "C0004",
-                "amount": Decimal(amt).quantize(Decimal("0.01")),
-                "currency": "USD",
-                "channel": "cash",
-                "direction": "in",
-                "booked_at": ctr_day + timedelta(hours=hour_offset),
-            }
+            _make_txn(
+                tid,
+                "C0004",
+                amt,
+                ctr_day + timedelta(hours=hour_offset),
+                channel="cash",
+                direction="in",
+            )
         )
         tid += 1
 
@@ -223,56 +232,52 @@ def generate_dataset(
     # Prior 30 days: small activity ($200/week). Last 7 days: sudden $15k surge.
     for week in range(4):
         txns.append(
-            {
-                "txn_id": f"T{tid:08d}",
-                "customer_id": "C0005",
-                "amount": Decimal("200.00"),
-                "currency": "USD",
-                "channel": "ach",
-                "direction": "out",
-                "booked_at": as_of - timedelta(days=35 - week * 7, hours=11),
-            }
+            _make_txn(
+                tid,
+                "C0005",
+                "200.00",
+                as_of - timedelta(days=35 - week * 7, hours=11),
+                channel="ach",
+                direction="out",
+            )
         )
         tid += 1
     # Spike in last 7 days.
     for day_offset, amt in [(1, 5000), (3, 4500), (5, 5500)]:
         txns.append(
-            {
-                "txn_id": f"T{tid:08d}",
-                "customer_id": "C0005",
-                "amount": Decimal(amt).quantize(Decimal("0.01")),
-                "currency": "USD",
-                "channel": "wire",
-                "direction": "out",
-                "booked_at": as_of - timedelta(days=day_offset, hours=15),
-            }
+            _make_txn(
+                tid,
+                "C0005",
+                amt,
+                as_of - timedelta(days=day_offset, hours=15),
+                channel="wire",
+                direction="out",
+            )
         )
         tid += 1
 
     # --- Planted positive: dormant account reactivation by customer C0006. ---
     # No activity for 50 days, then $15k deposit.
     txns.append(
-        {
-            "txn_id": f"T{tid:08d}",
-            "customer_id": "C0006",
-            "amount": Decimal("500.00"),
-            "currency": "USD",
-            "channel": "ach",
-            "direction": "out",
-            "booked_at": as_of - timedelta(days=55, hours=10),
-        }
+        _make_txn(
+            tid,
+            "C0006",
+            "500.00",
+            as_of - timedelta(days=55, hours=10),
+            channel="ach",
+            direction="out",
+        )
     )
     tid += 1
     txns.append(
-        {
-            "txn_id": f"T{tid:08d}",
-            "customer_id": "C0006",
-            "amount": Decimal("15000.00"),
-            "currency": "USD",
-            "channel": "wire",
-            "direction": "in",
-            "booked_at": as_of - timedelta(days=2, hours=14),
-        }
+        _make_txn(
+            tid,
+            "C0006",
+            "15000.00",
+            as_of - timedelta(days=2, hours=14),
+            channel="wire",
+            direction="in",
+        )
     )
     tid += 1
 
@@ -292,29 +297,29 @@ def generate_dataset(
         # Cash deposits
         for h, amt in [(9, 12000), (14, 10000)]:
             txns.append(
-                {
-                    "txn_id": f"T{tid:08d}",
-                    "customer_id": "C0007",
-                    "amount": Decimal(amt).quantize(Decimal("0.01")),
-                    "currency": "CAD",
-                    "channel": "cash",
-                    "direction": "in",
-                    "booked_at": pt_base + timedelta(hours=h),
-                }
+                _make_txn(
+                    tid,
+                    "C0007",
+                    amt,
+                    pt_base + timedelta(hours=h),
+                    channel="cash",
+                    direction="in",
+                    currency="CAD",
+                )
             )
             tid += 1
         # E-transfer out within 48h
         for h, amt in [(28, 8000), (36, 7000), (42, 6000)]:
             txns.append(
-                {
-                    "txn_id": f"T{tid:08d}",
-                    "customer_id": "C0007",
-                    "amount": Decimal(amt).quantize(Decimal("0.01")),
-                    "currency": "CAD",
-                    "channel": "e_transfer",
-                    "direction": "out",
-                    "booked_at": pt_base + timedelta(hours=h),
-                }
+                _make_txn(
+                    tid,
+                    "C0007",
+                    amt,
+                    pt_base + timedelta(hours=h),
+                    channel="e_transfer",
+                    direction="out",
+                    currency="CAD",
+                )
             )
             tid += 1
 
@@ -332,15 +337,15 @@ def generate_dataset(
         )
         for day_offset in range(0, 30, 3):
             txns.append(
-                {
-                    "txn_id": f"T{tid:08d}",
-                    "customer_id": "C0008",
-                    "amount": Decimal(random.randint(5000, 15000)).quantize(Decimal("0.01")),
-                    "currency": "CAD",
-                    "channel": "wire",
-                    "direction": "in",
-                    "booked_at": as_of - timedelta(days=day_offset, hours=11),
-                }
+                _make_txn(
+                    tid,
+                    "C0008",
+                    random.randint(5000, 15000),
+                    as_of - timedelta(days=day_offset, hours=11),
+                    channel="wire",
+                    direction="in",
+                    currency="CAD",
+                )
             )
             tid += 1
 
