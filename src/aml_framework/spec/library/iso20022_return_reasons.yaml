@@ -1,0 +1,171 @@
+# ISO 20022 payment-return typology library — Round-5 PR #5.
+#
+# pacs.004 (Payment Return / PmtRtr) is the canonical mule-network
+# detection signal: returned payments carry a structured
+# ExternalReturnReason1Code that distinguishes "payee account is
+# closed" (AC04) and "payee deceased" (MD07) from benign ops noise
+# like duplication-detected (AM05) or insufficient-funds (AM04).
+# Repeated high-risk return codes against the same originator inside
+# a short window is consistent with mule recruitment / account
+# probing — the originator is testing which beneficiary accounts are
+# still alive.
+#
+# Why this matters now: the UK Payment Systems Regulator's APP-fraud
+# reimbursement mandate took effect October 2024 and reaches full
+# scope April 2026. Every reimbursable claim that traced back to a
+# missed mule signal at the sending PSP costs that PSP 50% of the
+# reimbursement under the mandatory split. Mining return reasons is
+# no longer optional — it's a direct revenue line.
+#
+# This file is a **library of copy-pasteable rule snippets**, not a
+# spec the engine loads. Drop the snippet into your own aml.yaml's
+# `rules:` block, populate the `txn_return` data contract from the
+# pacs.004 ingestion adapter (see `data/iso20022/parser.py:
+# Pacs004Parser`), and tune thresholds for your portfolio.
+#
+# Reference data: see `data/lists/iso20022_return_reason_codes.csv`
+# for the full ExternalReturnReason1Code → risk_band classification
+# (the `mule_signal=true` subset is what these rules key on).
+
+# ---------------------------------------------------------------------------
+# Snippet 1: high-risk return-reason burst — money-mule probing
+# ---------------------------------------------------------------------------
+# Catches the repeated AC03/AC04/AM05/MD07/FRAD/BE05/BE06 pattern
+# from one originator inside a short window. Default threshold of
+# 3 mule-signal returns in 14 days is conservative — start there
+# and tune down to 2 after the first month of operation.
+- id: high_risk_return_burst_mule_probing
+  name: pacs.004 high-risk return burst — money-mule probing indicator
+  severity: high
+  regulation_refs:
+    - citation: "UK PSR APP-fraud reimbursement (CRS, Apr 2026 full effect)"
+      description: "Sending PSP liable for 50% of reimbursable APP-fraud loss; missed mule signals are direct cost."
+    - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
+      description: "Money-mule recruitment via probing return-reason patterns."
+    - citation: "FCA FG24/4 — APP fraud detection expectations"
+      description: "Issuers expected to mine return reasons for mule signatures."
+  logic:
+    type: custom_sql
+    sql: |
+      SELECT
+          'high_risk_return_burst_mule_probing' AS rule_id,
+          r.originator_name AS customer_id,
+          COUNT(*) AS count,
+          SUM(r.amount) AS sum_amount,
+          MIN(r.returned_at) AS window_start,
+          MAX(r.returned_at) AS window_end
+      FROM txn_return r
+      WHERE UPPER(r.reason_code) IN
+            ('AC03', 'AC04', 'AC06', 'AG01', 'AM05', 'BE05', 'BE06', 'FRAD', 'MD07', 'RR04')
+        AND r.returned_at >= TIMESTAMP '{window_start}'
+        AND r.returned_at <  TIMESTAMP '{as_of}'
+      GROUP BY r.originator_name
+      HAVING COUNT(*) >= 3
+      ORDER BY r.originator_name
+  escalate_to: l2_investigator
+  evidence:
+    - matching_return_events
+    - originator_kyc_profile
+    - beneficiary_lookup
+    - originating_credit_transfers
+  tags: [iso20022, pacs004, return_reasons, mule_probing, app_fraud]
+  tuning_grid:
+    # Tune the HAVING COUNT bound by editing the SQL — these notes are
+    # for spec-runner-aware operators; the engine itself doesn't apply
+    # tuning_grid against custom_sql rules in v1.
+    note: ["window 14d, threshold 3 returns. Tighten to 2 after baseline measurement."]
+
+# ---------------------------------------------------------------------------
+# Snippet 2: return-rate spike — corridor-level abuse
+# ---------------------------------------------------------------------------
+# Different angle: same originator + beneficiary-country corridor
+# with abnormal return rate (returns / total transfers in window).
+# Useful when a corporate originator has high outbound volume and
+# absolute return counts wouldn't trigger snippet 1, but the rate
+# itself is anomalous (e.g. > 10% returned in the corridor).
+- id: corridor_return_rate_spike
+  name: pacs.004 corridor return-rate spike — abnormal failure pattern
+  severity: medium
+  regulation_refs:
+    - citation: "Wolfsberg Group correspondent banking guidance (Feb 2026)"
+      description: "Return-rate monitoring per originator-corridor as core control."
+    - citation: "UK PSR APP-fraud reimbursement (CRS, Apr 2026 full effect)"
+      description: "Sustained high return-rate corridors materially increase reimbursement exposure."
+  logic:
+    type: custom_sql
+    sql: |
+      WITH outbound AS (
+          SELECT customer_id, counterparty_country, COUNT(*) AS n_sent
+          FROM txn
+          WHERE direction = 'out'
+            AND booked_at >= TIMESTAMP '{window_start}'
+            AND booked_at <  TIMESTAMP '{as_of}'
+          GROUP BY customer_id, counterparty_country
+      ),
+      returns AS (
+          SELECT originator_name, beneficiary_country, COUNT(*) AS n_returned,
+                 SUM(amount) AS sum_returned
+          FROM txn_return
+          WHERE returned_at >= TIMESTAMP '{window_start}'
+            AND returned_at <  TIMESTAMP '{as_of}'
+          GROUP BY originator_name, beneficiary_country
+      )
+      SELECT
+          'corridor_return_rate_spike' AS rule_id,
+          o.customer_id,
+          r.n_returned AS count,
+          r.sum_returned AS sum_amount,
+          TIMESTAMP '{window_start}' AS window_start,
+          TIMESTAMP '{as_of}' AS window_end
+      FROM outbound o
+      JOIN returns r
+        ON o.customer_id = r.originator_name
+       AND o.counterparty_country = r.beneficiary_country
+      WHERE o.n_sent >= 10
+        AND r.n_returned * 10 >= o.n_sent  -- >= 10% return rate
+      ORDER BY o.customer_id
+  escalate_to: l1_analyst
+  evidence:
+    - corridor_return_rate_calculation
+    - matching_return_events
+    - corridor_volume_baseline
+  tags: [iso20022, pacs004, return_rate, corridor, app_fraud]
+
+# ---------------------------------------------------------------------------
+# Snippet 3: deceased-payee returns (MD07) — fraud-investigation trigger
+# ---------------------------------------------------------------------------
+# A single MD07 return is by itself benign. Two or more from the same
+# originator in 90 days is a strong signal that the originator is
+# pulling beneficiary names from outdated sources (death-record
+# scraping is a known fraud-ring tradecraft). Trigger an EDD review.
+- id: deceased_payee_returns_md07
+  name: pacs.004 multiple MD07 returns — death-record-scraping indicator
+  severity: high
+  regulation_refs:
+    - citation: "FinCEN FIN-2023-Alert005"
+      description: "Identity-theft and impersonation fraud — death-record scraping tradecraft."
+    - citation: "UK PSR APP-fraud reimbursement (CRS, Apr 2026 full effect)"
+      description: "Reimbursement scope includes impersonation against deceased account-holders."
+  logic:
+    type: custom_sql
+    sql: |
+      SELECT
+          'deceased_payee_returns_md07' AS rule_id,
+          r.originator_name AS customer_id,
+          COUNT(*) AS count,
+          SUM(r.amount) AS sum_amount,
+          MIN(r.returned_at) AS window_start,
+          MAX(r.returned_at) AS window_end
+      FROM txn_return r
+      WHERE UPPER(r.reason_code) = 'MD07'
+        AND r.returned_at >= TIMESTAMP '{window_start}'
+        AND r.returned_at <  TIMESTAMP '{as_of}'
+      GROUP BY r.originator_name
+      HAVING COUNT(*) >= 2
+      ORDER BY r.originator_name
+  escalate_to: l2_investigator
+  evidence:
+    - matching_md07_returns
+    - originator_kyc_profile
+    - beneficiary_death_verification
+  tags: [iso20022, pacs004, md07, deceased_payee, identity_fraud]

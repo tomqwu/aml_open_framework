@@ -11,17 +11,21 @@ This module is the foundation for Round-5 features 2-5 (travel-rule
 validator, purpose-code typology library, corporate pain.001, return-
 reason mining) and downstream Round-7 TBML / Round-8 RTP-fraud work.
 
-Two adapters in v1:
+Adapters:
 - `Pacs008Parser` — customer credit transfer (the bulk of cross-border
   wire traffic).
 - `Pacs009Parser` — financial-institution credit transfer (cover
   payments, FI-to-FI settlements).
+- `Pain001Parser` — corporate credit transfer initiation (Round-5 #4).
+- `Pacs004Parser` — payment return (Round-5 #5). Rows go to a separate
+  `txn_return` contract for return-rate mining (UK PSR APP-fraud
+  reimbursement mandate; mule-network detection via repeated AC03/
+  AC04/AM05/MD07 reasons against the same originator).
 
-Both produce dicts conforming to the existing `txn` data contract so
-the engine + every downstream rule type works with no further change.
-Travel-rule fields (UETR, BIC originator/beneficiary, structured
-remittance, purpose code) are preserved as additional columns ready
-for the Round-5 #2 validator.
+The credit-transfer parsers produce dicts conforming to the `txn`
+data contract; pacs.004 produces dicts on `txn_return`. Both flows
+preserve travel-rule + audit fields (UETR, BIC originator/beneficiary,
+structured remittance, purpose code, return reason code).
 
 Design
 - Pure parsers — no IO. Tests pass payload bytes; live ingestion goes
@@ -34,17 +38,21 @@ Design
 """
 
 from aml_framework.data.iso20022.parser import (
+    Pacs004Parser,
     Pacs008Parser,
     Pacs009Parser,
     Pain001Parser,
     load_iso20022_dir,
+    load_iso20022_returns_dir,
     parse_iso20022_xml,
 )
 
 __all__ = [
+    "Pacs004Parser",
     "Pacs008Parser",
     "Pacs009Parser",
     "Pain001Parser",
     "parse_iso20022_xml",
     "load_iso20022_dir",
+    "load_iso20022_returns_dir",
 ]

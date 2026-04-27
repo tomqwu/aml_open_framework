@@ -403,6 +403,135 @@ class Pain001Parser:
 
 
 # ---------------------------------------------------------------------------
+# pacs.004 — Payment Return (return-reason mining)
+# ---------------------------------------------------------------------------
+#
+# Round-5 PR #5. Returns are the canonical money-mule signal:
+# beneficiary closed (AC04), beneficiary deceased (MD07), invalid
+# account (AC03), refused by beneficiary bank (AM05) — patterns
+# repeating against the same originator inside a short window are
+# consistent with mule-network probing. The UK PSR APP-fraud
+# reimbursement mandate (effective Oct 2024, full effect April 2026)
+# made return-reason mining material to issuer economics: every
+# reimbursable claim that originated from a missed mule signal is
+# 50/50 split with the receiving PSP, so banks now have direct revenue
+# incentive to surface return-rate spikes.
+#
+# pacs.004 (PmtRtr) structure:
+#   <Document>/<PmtRtr>
+#     <GrpHdr>                          (MsgId, CreDtTm, ...)
+#     <TxInf>                           (one per returned transaction)
+#       <RtrId>                         (this return's id)
+#       <OrgnlEndToEndId>               (pointer to original — for join)
+#       <OrgnlUETR>                     (preferred join key when present)
+#       <OrgnlTxId>
+#       <RtrdIntrBkSttlmAmt Ccy="EUR">  (returned amount)
+#       <IntrBkSttlmDt>                 (settlement date of the return)
+#       <RtrRsnInf>
+#         <Rsn>/<Cd>                    (e.g. AC03, AC04, AM05, MD07)
+#         <AddtlInf>                    (free-text)
+#       <OrgnlTxRef>/<Dbtr>/<Nm>        (original debtor — the originator
+#                                        we want to attribute the return to)
+#       <OrgnlTxRef>/<Cdtr>/<Nm>        (original creditor)
+#
+# We emit rows on a separate `txn_return` data contract so they don't
+# pollute the credit-transfer txn table. Downstream rules join back to
+# `txn` via uetr (preferred) or end_to_end_id.
+
+
+def _extract_return_reason(parent: ET.Element) -> tuple[str, str]:
+    """Return (code, additional_info) from `<RtrRsnInf>`."""
+    rsn_inf = _find_local(parent, "RtrRsnInf")
+    if rsn_inf is None:
+        return "", ""
+    rsn = _find_local(rsn_inf, "Rsn")
+    code = _text(_find_local(rsn, "Cd")) if rsn is not None else ""
+    addtl = _text(_find_local(rsn_inf, "AddtlInf"))
+    return code, addtl
+
+
+def _extract_returned_amount(parent: ET.Element) -> tuple[Decimal, str]:
+    """pacs.004 uses `<RtrdIntrBkSttlmAmt>` (falls back to `<IntrBkSttlmAmt>`)."""
+    for tag in ("RtrdIntrBkSttlmAmt", "IntrBkSttlmAmt"):
+        amt = _find_local(parent, tag)
+        if amt is not None:
+            return _decimal(amt.text), amt.attrib.get("Ccy", "")
+    return Decimal("0"), ""
+
+
+def _normalise_pacs004_tx(
+    tx: ET.Element,
+    *,
+    msg_id: str,
+    seq: int,
+) -> dict[str, Any]:
+    """Map one `<TxInf>` to a return-event dict on the txn_return contract."""
+    return_id = _text(_find_local(tx, "RtrId")) or f"{msg_id}-{seq}"
+    original_uetr = _text(_find_local(tx, "OrgnlUETR"))
+    original_end_to_end = _text(_find_local(tx, "OrgnlEndToEndId"))
+    original_tx_id = _text(_find_local(tx, "OrgnlTxId"))
+
+    amount, currency = _extract_returned_amount(tx)
+    settled_dt = _parse_iso_date(_text(_find_local(tx, "IntrBkSttlmDt")))
+    reason_code, reason_info = _extract_return_reason(tx)
+
+    # Original parties live under <OrgnlTxRef>; fall back to top level for
+    # bank-internal variants that flatten the structure.
+    orig_ref = _find_local(tx, "OrgnlTxRef") or tx
+    debtor = _extract_party(orig_ref, "Dbtr")
+    creditor = _extract_party(orig_ref, "Cdtr")
+
+    return {
+        "return_id": return_id,
+        "original_uetr": original_uetr,
+        "original_end_to_end_id": original_end_to_end,
+        "original_tx_id": original_tx_id,
+        "amount": amount,
+        "currency": currency,
+        "returned_at": settled_dt,
+        "reason_code": reason_code,
+        "reason_info": reason_info,
+        # Preserved for downstream join + analytics:
+        "originator_name": debtor["name"],
+        "originator_country": debtor["country"],
+        "beneficiary_name": creditor["name"],
+        "beneficiary_country": creditor["country"],
+        "msg_id": msg_id,
+        "msg_kind": "pacs.004",
+    }
+
+
+class Pacs004Parser:
+    """pacs.004 — Payment Return (PmtRtr).
+
+    Returns rows on the `txn_return` contract (distinct from `txn`).
+    Compose with the credit-transfer parsers via UETR or
+    OrgnlEndToEndId join to compute return-rate metrics per
+    originator / beneficiary corridor.
+    """
+
+    msg_kind = "pacs.004"
+
+    def parse(self, payload: bytes | str) -> list[dict[str, Any]]:
+        text = payload.decode("utf-8", "replace") if isinstance(payload, bytes) else payload
+        try:
+            root = ET.fromstring(text)
+        except ET.ParseError:
+            return []
+
+        grp_hdr = _find_local(root, "GrpHdr")
+        msg_id = _text(_find_local(grp_hdr, "MsgId")) if grp_hdr is not None else ""
+
+        out: list[dict[str, Any]] = []
+        for seq, tx in enumerate(_find_all_local(root, "TxInf"), start=1):
+            out.append(_normalise_pacs004_tx(tx, msg_id=msg_id, seq=seq))
+        return out
+
+    def load(self, path: str | Path) -> list[dict[str, Any]]:
+        return self.parse(Path(path).read_bytes())
+
+
+# ---------------------------------------------------------------------------
 # Auto-detect helper
 # ---------------------------------------------------------------------------
 
@@ -410,9 +539,14 @@ class Pain001Parser:
 def parse_iso20022_xml(payload: bytes | str) -> list[dict[str, Any]]:
     """Auto-detect message kind from the root element and dispatch.
 
-    Dispatch order: pain.001 → pacs.009 → pacs.008 fallback.
+    Dispatch order: pacs.004 → pain.001 → pacs.009 → pacs.008 fallback.
+    pacs.004 is checked first because its rows go to a different
+    contract (txn_return) and would silently produce empty txn rows
+    if it fell through to the pacs.008 path.
     """
     text = payload.decode("utf-8", "replace") if isinstance(payload, bytes) else payload
+    if "pacs.004" in text or "PmtRtr" in text:
+        return Pacs004Parser().parse(text)
     if "pain.001" in text or "CstmrCdtTrfInitn" in text:
         return Pain001Parser().parse(text)
     if "pacs.009" in text or "FICdtTrf" in text:
@@ -420,13 +554,38 @@ def parse_iso20022_xml(payload: bytes | str) -> list[dict[str, Any]]:
     return Pacs008Parser().parse(text)
 
 
+_CREDIT_TRANSFER_KINDS = {"pacs.008", "pacs.009", "pain.001"}
+
+
 def load_iso20022_dir(directory: str | Path) -> list[dict[str, Any]]:
-    """Load every `*.xml` file under `directory` and concatenate the rows.
+    """Load every `*.xml` file under `directory` and return credit-transfer rows.
+
+    Filters out pacs.004 payment-return rows — those go to a different
+    data contract (`txn_return`) and are loaded via
+    `load_iso20022_returns_dir`. Mixing them here would corrupt the
+    `txn` table since they share no schema.
 
     The `data/sources.py:resolve_source` integration calls this; tests
     can call it directly against a tmp_path.
     """
     out: list[dict[str, Any]] = []
     for xml_file in sorted(Path(directory).glob("**/*.xml")):
-        out.extend(parse_iso20022_xml(xml_file.read_bytes()))
+        for row in parse_iso20022_xml(xml_file.read_bytes()):
+            if row.get("msg_kind") in _CREDIT_TRANSFER_KINDS:
+                out.append(row)
+    return out
+
+
+def load_iso20022_returns_dir(directory: str | Path) -> list[dict[str, Any]]:
+    """Load every `*.xml` file under `directory` and return pacs.004 return rows.
+
+    Sibling helper to `load_iso20022_dir` for the `txn_return` contract.
+    Operators wiring pacs.004 should populate the `txn_return` DuckDB
+    table from this output before running the engine.
+    """
+    out: list[dict[str, Any]] = []
+    for xml_file in sorted(Path(directory).glob("**/*.xml")):
+        for row in parse_iso20022_xml(xml_file.read_bytes()):
+            if row.get("msg_kind") == "pacs.004":
+                out.append(row)
     return out
