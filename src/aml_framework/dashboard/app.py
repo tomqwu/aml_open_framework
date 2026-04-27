@@ -77,9 +77,26 @@ with st.sidebar:
 
     audience = st.selectbox(
         "Audience view",
-        options=["all", "svp", "vp", "director", "manager", "pm", "developer", "business"],
+        options=[
+            "all",
+            "svp",
+            "cto",
+            "cco",
+            "vp",
+            "director",
+            "manager",
+            "analyst",
+            "auditor",
+            "pm",
+            "developer",
+            "business",
+        ],
         index=0,
-        help="Filter metrics and reports by audience role.",
+        help=(
+            "Filter pages + scale fonts by audience role. "
+            "Executive personas (SVP/CTO/CCO/VP/Director) get a larger "
+            "font scale for meeting-room readability."
+        ),
     )
     st.session_state["selected_audience"] = audience if audience != "all" else None
 
@@ -146,6 +163,16 @@ ALL_PAGES = [
     ),
     st.Page("pages/20_Spec_Editor.py", title="Spec Editor", icon=":material/edit_note:"),
     st.Page("pages/21_My_Queue.py", title="My Queue", icon=":material/assignment_ind:"),
+    st.Page(
+        "pages/22_Analyst_Review_Queue.py",
+        title="Analyst Review Queue",
+        icon=":material/inbox:",
+    ),
+    st.Page(
+        "pages/23_Tuning_Lab.py",
+        title="Tuning Lab",
+        icon=":material/science:",
+    ),
     st.Page(
         "pages/24_Investigations.py",
         title="Investigations",

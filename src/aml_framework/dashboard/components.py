@@ -202,9 +202,54 @@ button[data-baseweb="tab"] {
 """
 
 
+# Executive font scale — applied for SVP / CTO / VP / Director / CCO
+# audiences. These users typically read from larger displays in meeting
+# contexts and want bigger numbers without leaning in. ~20-30% scale-up
+# on KPI values, headers, and metric labels; tables stay at base size to
+# avoid breaking layouts that already pack a lot of columns.
+EXECUTIVE_AUDIENCES = frozenset({"svp", "vp", "director", "cto", "cco"})
+
+EXECUTIVE_CSS = """
+<style>
+[data-testid="stMetricValue"] {
+    font-size: 2.4rem !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 1rem !important;
+}
+[data-testid="stMetricDelta"] {
+    font-size: 1.1rem !important;
+}
+.metric-card .value { font-size: 2.8rem !important; }
+.metric-card .label { font-size: 1rem !important; }
+.metric-card h4 { font-size: 1.3rem !important; }
+h1 { font-size: 2.4rem !important; }
+h2 { font-size: 1.9rem !important; }
+h3 { font-size: 1.5rem !important; }
+/* Body text up one notch — readable from across a conference table */
+.block-container [data-testid="stMarkdownContainer"] p {
+    font-size: 1.05rem !important;
+    line-height: 1.6 !important;
+}
+.block-container [data-testid="stCaptionContainer"] {
+    font-size: 0.95rem !important;
+}
+</style>
+"""
+
+
 def apply_theme() -> None:
-    """Inject custom CSS, including mobile-responsive overlay (issue #66)."""
+    """Inject custom CSS — base theme, mobile-responsive overlay (issue #66),
+    and the executive font scale when an exec-tier audience is selected.
+
+    The executive scale activates when `st.session_state["selected_audience"]`
+    is in `EXECUTIVE_AUDIENCES` (SVP / CTO / VP / Director / CCO). It's
+    additive — runs after the base CSS so its `!important` rules win.
+    """
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+    audience = st.session_state.get("selected_audience")
+    if audience in EXECUTIVE_AUDIENCES:
+        st.markdown(EXECUTIVE_CSS, unsafe_allow_html=True)
 
 
 def responsive_plotly_config() -> dict[str, Any]:

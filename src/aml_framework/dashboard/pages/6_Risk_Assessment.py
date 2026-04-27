@@ -25,6 +25,35 @@ if st.session_state.get("guided_demo"):
         "and channels. The heatmap highlights where volume concentrates."
     )
 
+# --- Filter controls ---
+all_countries = sorted(df_customers["country"].dropna().unique())
+all_risks = sorted(df_customers["risk_rating"].dropna().unique())
+fc1, fc2 = st.columns(2)
+with fc1:
+    selected_countries = st.multiselect(
+        "Filter countries",
+        options=all_countries,
+        default=all_countries,
+        help="Limit charts + table to customers in these countries.",
+    )
+with fc2:
+    selected_risks = st.multiselect(
+        "Filter risk ratings",
+        options=all_risks,
+        default=all_risks,
+        help="Limit charts + table to customers with these risk ratings.",
+    )
+
+# Apply filters across the page (downstream KPIs, charts, table all read
+# from the filtered frame so the view is consistent).
+df_customers = df_customers[
+    df_customers["country"].isin(selected_countries)
+    & df_customers["risk_rating"].isin(selected_risks)
+]
+if df_customers.empty:
+    st.warning("No customers match the selected filters.")
+    st.stop()
+
 # --- KPI row ---
 risk_counts = df_customers["risk_rating"].value_counts()
 c1, c2, c3, c4 = st.columns(4)
