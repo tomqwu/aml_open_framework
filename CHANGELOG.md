@@ -57,6 +57,51 @@ that introduced them.
   `TestLabelledPrecision`, `TestAMLARTSRenderer`,
   `TestEndToEndWithEngine`. Total tests 953 → 974.
 
+- **Regulatory-change diff watcher** (`compliance/regwatch.py`,
+  `compliance/__init__.py`, `cli.py:regwatch_cmd`,
+  `spec/models.py`, `schema/aml-spec.schema.json`,
+  `tests/test_compliance_regwatch.py`). Round-7 PR #1 — top-ranked
+  feature from the 2026-04 deep-research-agent positioning report
+  (impact/effort: HIGHEST). FinCEN BOI was silently narrowed in
+  March 2025 — the canonical example of regulator pages changing
+  without redirect, leaving every downstream spec citation stale.
+  No commercial vendor ships drift detection because they own
+  the rule library themselves; the framework needs it precisely
+  because it doesn't.
+  New `aml regwatch <spec>` CLI command with three modes:
+  - **default** — fetch every cited URL, hash content, compare to
+    `.regwatch.json` baseline, exit 1 on any drift/unreachable/new/
+    removed finding. Suitable for cron / weekly CI.
+  - **`--update`** — write current state as new baseline (after
+    operator acknowledges drift in a manual review).
+  - **`--offline`** — skip network, only verify baseline file's
+    internal consistency. Air-gapped envs + CI smoke tests.
+  Cosmetic-edit guard: hashes the *normalized* content (collapsed
+  whitespace, stripped script/style tags, stripped HTML comments,
+  lowercased text) so trivial template tweaks don't false-positive.
+  Built-in citation→URL resolver covers 28 common citations across
+  US (FinCEN, OFAC, eCFR), Canada (PCMLTFA, FINTRAC), EU (AMLD6,
+  EU regulations, transfer-of-funds), and FATF (R.16, R.19,
+  Cyber-Enabled Fraud). Operators with novel citations add a
+  `url:` field to the spec's `regulation_refs` entry — the new
+  optional field is added to both Pydantic model + JSON Schema.
+  Pure stdlib HTTP (urllib) so no new runtime deps; HEAD-then-GET
+  pattern + 15s timeout. Fetch failures swallowed silently and
+  reported as `unreachable` findings (not exceptions) since
+  network errors are ops signals, not bugs.
+  31 new tests under `TestCitationResolver`, `TestContentHash`
+  (cosmetic-edit tolerance + invalid UTF-8), `TestScanSpec` (real
+  US/EU specs + dedup + sorted output), `TestFetchCurrent` (with
+  injected fetch_fn — no network calls), `TestCheckDrift`
+  (no-drift + drift detected + unreachable separate from drift +
+  has_findings), `TestBaselinePersistence` (round-trip + missing
+  file + deterministic file bytes), `TestCitationMapCoverage`
+  (every regime represented + every URL HTTPS).
+  Bug fix: `engine/runner.py` now drops None-valued fields from
+  `regulation_refs` when writing cases so downstream narrative
+  consumers expecting `dict[str, str]` don't choke on the new
+  optional `url` field. Test count 953 → 984.
+
 - **Synthetic data enriched with ISO 20022 fields** (`data/synthetic.py`,
   `tests/test_iso20022_purpose_codes.py`). The default demo
   (`aml run --seed 42`) didn't exercise any Round 5/6 features

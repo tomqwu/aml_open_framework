@@ -74,6 +74,13 @@ class DataContract(_Base):
 class RegulationRef(_Base):
     citation: str
     description: str
+    # Optional canonical URL for the cited regulation. When present, the
+    # `aml regwatch` command can fetch + SHA-256 the page content to detect
+    # silent drift (FinCEN BOI March 2025 narrowing was the canonical
+    # example: page changed without notice; downstream specs went stale).
+    # When omitted, regwatch falls back to its built-in citation→URL
+    # resolver covering common US/CA/EU/UK/FATF/Wolfsberg sources.
+    url: str | None = None
 
 
 class AggregationWindowLogic(_Base):

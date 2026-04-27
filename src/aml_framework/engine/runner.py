@@ -150,7 +150,14 @@ def _build_case(
         "rule_id": rule.id,
         "rule_name": rule.name,
         "severity": rule.severity,
-        "regulation_refs": [r.model_dump() for r in rule.regulation_refs],
+        # Drop None-valued fields (e.g. unresolved `url`) so downstream
+        # consumers expecting dict[str, str] don't choke. Round-7 #1
+        # added the optional `url` field; pre-Round-7 narrative models
+        # don't tolerate None values.
+        "regulation_refs": [
+            {k: v for k, v in r.model_dump().items() if v is not None}
+            for r in rule.regulation_refs
+        ],
         "queue": rule.escalate_to,
         "alert": alert,
         "evidence_requested": rule.evidence,
