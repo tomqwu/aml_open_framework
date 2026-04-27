@@ -1,0 +1,7 @@
+address,label,category,jurisdiction,flags
+0xC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FF,Coinbase Hot Wallet,regulated_exchange,US,
+0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF,Tornado Cash Router 1.0,mixer,XX,
+0xZEDCEX00000000000000000000000000ZEDCEX00,Zedcex / Zedxion,sanctioned,GB,"ofac_jan_2026,iran_nexus"
+0xHUIONE0000000000000000000000000HUIONE000,Huione Pay (Section 311),sanctioned,KH,"fincen_311_may_2025,pig_butchering_nexus"
+TLOWFEE000000000000000000000000000TLOWFEE,Random P2P Swap,p2p_exchange,XX,
+0xRANSOMWARE000000000000000000000RANSOMWARE,LockBit Ransomware Wallet 7,ransomware,RU,"ransomware_payment_cluster"
