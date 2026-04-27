@@ -76,6 +76,81 @@ def validate_data(
         console.print("\n[green]All contracts valid.[/green]")
 
 
+@app.command(name="sanctions-sync")
+def sanctions_sync(
+    source: str = typer.Argument(..., help="Feed source: ofac, eu, complyadvantage."),
+    payload_file: Path | None = typer.Option(
+        None,
+        "--from-file",
+        help="Parse a local XML/JSON payload instead of fetching upstream.",
+    ),
+    url: str | None = typer.Option(None, help="Override default upstream URL."),
+    lists_dir: Path | None = typer.Option(
+        None, help="Lists directory; defaults to bundled aml_framework/data/lists/."
+    ),
+    list_name: str | None = typer.Option(
+        None, help="Filename to write under lists_dir (default: source name)."
+    ),
+    show_diff: bool = typer.Option(
+        True, help="Print added/removed entries vs the previous cached payload."
+    ),
+) -> None:
+    """Pull a sanctions list, hash-cache, and write the CSV used by `list_match`."""
+    from aml_framework.paths import REFERENCE_LISTS_DIR
+    from aml_framework.sanctions import (
+        ComplyAdvantageWebhookSource,
+        EUConsolidatedSource,
+        OFACAdvancedXMLSource,
+        sync_source,
+    )
+
+    sources_by_name = {
+        "ofac": OFACAdvancedXMLSource(),
+        "eu": EUConsolidatedSource(),
+        "complyadvantage": ComplyAdvantageWebhookSource(),
+    }
+    src = sources_by_name.get(source.lower())
+    if src is None:
+        console.print(
+            f"[red]Unknown source[/red] {source!r}. Choose one of: {', '.join(sources_by_name)}."
+        )
+        raise typer.Exit(code=1)
+
+    payload: bytes | None = None
+    if payload_file is not None:
+        payload = payload_file.read_bytes()
+
+    target_dir = lists_dir or REFERENCE_LISTS_DIR
+    result = sync_source(
+        src,
+        lists_dir=target_dir,
+        list_name=list_name,
+        url=url,
+        payload=payload,
+    )
+
+    if result.unchanged:
+        console.print(
+            f"[dim]unchanged[/dim] {result.list_name} "
+            f"({result.row_count} rows, sha256={result.sha256[:12]}…)"
+        )
+        return
+
+    console.print(
+        f"[green]synced[/green] {result.list_name} → {result.csv_path} "
+        f"({result.row_count} rows, +{len(result.added)} -{len(result.removed)})"
+    )
+    if show_diff:
+        for entry in result.added[:25]:
+            console.print(f"  [green]+[/green] {entry.name} ({entry.country})")
+        if len(result.added) > 25:
+            console.print(f"  [green]+[/green] … {len(result.added) - 25} more")
+        for entry in result.removed[:25]:
+            console.print(f"  [red]-[/red] {entry.name} ({entry.country})")
+        if len(result.removed) > 25:
+            console.print(f"  [red]-[/red] … {len(result.removed) - 25} more")
+
+
 @app.command()
 def generate(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

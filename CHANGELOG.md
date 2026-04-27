@@ -8,6 +8,34 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Sanctions feed adapters** (`sanctions/` package): pluggable
+  upstream-feed parsers + content cache that keep `data/lists/*.csv`
+  fresh without operator scripting. Three adapters ship in v1:
+  `OFACAdvancedXMLSource` (OFAC SDN Advanced XML),
+  `EUConsolidatedSource` (EU FSF consolidated XML), and
+  `ComplyAdvantageWebhookSource` (ComplyAdvantage Monitor webhook
+  payloads, with HMAC-SHA256 signature verification — no live API
+  call, since the webhook delivery model is push-based). Each adapter
+  splits cleanly into `fetch(url) → bytes` (only IO surface) and
+  `parse(payload) → list[SanctionEntry]` so unit tests run
+  network-free. `SanctionsCache` writes a canonical CSV
+  (rows sorted) and a sidecar `.cache/<name>.meta.json` with
+  SHA-256 + row count + fetched_at; re-syncing the same payload is a
+  no-op (`unchanged=True`). Otherwise `SyncResult` reports `added` /
+  `removed` deltas vs the previous on-disk content so operators can
+  preview before merging into production lists. CLI:
+  ```
+  aml sanctions-sync ofac --from-file sdn_advanced.xml
+  aml sanctions-sync eu  --from-file euConsol.xml
+  ```
+  Closes the loop with `list_match` rules — refreshed CSV is consumed
+  by the engine on next run with no spec change. 31 new tests under
+  `TestOFACParser`, `TestEUParser`, `TestComplyAdvantageParser`,
+  `TestSanctionsCache`, `TestSyncOrchestrator`,
+  `TestCSVCompatibleWithEngine` cover XML parsing, party-type
+  mapping, country precedence, alias collection, JSON parsing, HMAC
+  verify accept/reject paths, idempotent re-pull, delta-diff, and
+  engine-loader compatibility.
 - **goAML 5.0.2 XML exporter** (`generators/goaml_xml.py`,
   `cli.py:export-goaml`): emit UNODC-format STR/SAR XML from a finalised
   run directory. One `<report>` per case, batched under a `<reports>`
