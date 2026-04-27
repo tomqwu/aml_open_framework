@@ -8,6 +8,35 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Narrative drafter with pluggable LLM backends** (`narratives/`
+  package): structured STR/SAR drafting with three backends in v1 —
+  `TemplateBackend` (deterministic, dependency-free, default;
+  wraps the existing `generators/narrative.py` text), `OllamaBackend`
+  (local-first, calls a running Ollama server with `format=json` so
+  PII never leaves the host), and `OpenAIBackend` (opt-in, requires
+  `OPENAI_API_KEY`, refuses to instantiate without it). All backends
+  produce a `DraftedNarrative` Pydantic model with structured fields:
+  `narrative_text`, `key_findings`, `citations` (each tagged with
+  `rule_id` so analysts can verify the citation links back to a
+  regulation reference the rule actually declared — not text the
+  model invented), `recommended_action`
+  (`file_str|close_no_action|investigate_further`), and `confidence`
+  ∈ [0,1]. The Ollama prompt explicitly instructs the model to
+  cite **only** from the provided regulation_refs; hallucinated
+  citations are the worst failure mode for a regulator-facing
+  artifact. Backend HTTP IO is isolated to a single `_call_*`
+  function per backend so unit tests patch one symbol and run
+  network-free. Failures (server down, malformed JSON, schema
+  mismatch) raise `NarrativeError` so callers can decide between
+  fallback to template or surfacing to the analyst. CLI:
+  ```
+  aml draft-narrative SPEC CASE_ID --backend template|ollama|openai
+  ```
+  29 new tests cover model validation (`extra="forbid"`, frozen,
+  confidence range, action enum), template determinism + severity
+  routing, mocked Ollama happy-path / non-JSON / empty / schema
+  violations, OpenAI key gating + happy path, factory dispatch, and
+  run-dir round-trip with txn-window filtering.
 - **Sanctions feed adapters** (`sanctions/` package): pluggable
   upstream-feed parsers + content cache that keep `data/lists/*.csv`
   fresh without operator scripting. Three adapters ship in v1:
