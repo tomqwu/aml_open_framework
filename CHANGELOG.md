@@ -7,6 +7,14 @@ that introduced them.
 
 ## [Unreleased]
 
+### Tests
+- **`TestThresholdBoundaries`** in `test_engine.py` adds nine just-below-
+  threshold cases for the Canadian Schedule I spec: structuring (count<3,
+  sum<20k, amounts outside the [5k–9999] filter), large_cash_lctr
+  (sum<10k), and high_risk_jurisdiction (safe country, sum<5k). Three
+  positive controls confirm the rules still fire when thresholds are met.
+  False-positive containment is now exercised, not just coverage %.
+
 ### Security
 - **Webhook SSRF blocked** (`api/main.py`): `_validate_webhook_url` resolves
   every registered URL and rejects private (RFC 1918), loopback, link-local
