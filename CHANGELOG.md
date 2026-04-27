@@ -154,6 +154,26 @@ that introduced them.
   classifier thresholds, parser robustness, schema pinning, bulk
   loader. Tests 953 → 978.
 
+- **FINTRAC pre-examination audit pack**
+  (`generators/audit_pack.py`, `cli.py:audit_pack_cmd`,
+  `tests/test_audit_pack.py`). Round-7 PR #5 (final from the
+  positioning research). FINTRAC's January 2026 examination manual
+  update made the pre-exam evidence demand explicit. New
+  `aml audit-pack <spec> --jurisdiction CA-FINTRAC --out
+  audit-pack.zip` produces a deterministic ZIP containing 9 files:
+  program.md + inventory.json + alerts_summary.json +
+  cases_summary.json + audit_trail_verification.json +
+  sanctions_evidence.json + pcmltfa_section_map.md (every cited
+  PCMLTFA section + which rules cover it) + osfi_b8_pillars.md
+  (OSFI B-8 4-pillar coverage) + manifest.json (file-by-file
+  SHA-256). Same determinism guarantee as the Round-6 STR bundle.
+  Per-jurisdiction by design — `SUPPORTED_JURISDICTIONS` frozenset
+  gates `--jurisdiction`. CA-FINTRAC ships in v1; UK FCA / EU
+  AMLA / US FinCEN clone the same skeleton.
+  20 new tests covering structure, manifest contract, determinism,
+  per-section content, jurisdiction guard, end-to-end against a
+  real CA Schedule-I bank engine run.
+
 - **Synthetic data enriched with ISO 20022 fields** (`data/synthetic.py`,
   `tests/test_iso20022_purpose_codes.py`). The default demo
   (`aml run --seed 42`) didn't exercise any Round 5/6 features
