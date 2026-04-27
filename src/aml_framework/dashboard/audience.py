@@ -18,7 +18,14 @@ AUDIENCE_PAGES = {
         "Data Quality",
         "Audit & Evidence",
     ],
-    "manager": ["Alert Queue", "Case Investigation", "Risk Assessment", "Live Monitor", "My Queue"],
+    "manager": [
+        "Alert Queue",
+        "Case Investigation",
+        "Risk Assessment",
+        "Live Monitor",
+        "My Queue",
+        "Analyst Review Queue",
+    ],
     "analyst": [
         "Alert Queue",
         "Case Investigation",
@@ -26,6 +33,7 @@ AUDIENCE_PAGES = {
         "Sanctions Screening",
         "Customer 360",
         "My Queue",
+        "Analyst Review Queue",
     ],
     "pm": ["Rule Performance", "Program Maturity", "Transformation Roadmap", "Model Performance"],
     "developer": ["Rule Performance", "Model Performance", "Data Quality", "Run History"],
