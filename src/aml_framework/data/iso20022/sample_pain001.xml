@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sample pain.001.001.11 (CstmrCdtTrfInitn) message — corporate batch
+  payment file containing 2 PmtInf groups (different execution dates)
+  with 4 total credit transfers across 1 corporate debtor.
+  Used by tests + the demo path. PII is fictitious.
+-->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.11">
+  <CstmrCdtTrfInitn>
+    <GrpHdr>
+      <MsgId>CORP-PAIN001-2026-04-27-0001</MsgId>
+      <CreDtTm>2026-04-27T08:00:00+00:00</CreDtTm>
+      <NbOfTxs>4</NbOfTxs>
+      <CtrlSum>87500.00</CtrlSum>
+      <InitgPty>
+        <Nm>ACME GMBH TREASURY</Nm>
+      </InitgPty>
+    </GrpHdr>
+
+    <PmtInf>
+      <PmtInfId>PMTINF-2026-04-27-DAILY</PmtInfId>
+      <PmtMtd>TRF</PmtMtd>
+      <NbOfTxs>3</NbOfTxs>
+      <CtrlSum>62500.00</CtrlSum>
+      <ReqdExctnDt>2026-04-28</ReqdExctnDt>
+      <Dbtr>
+        <Nm>ACME GMBH</Nm>
+        <PstlAdr><Ctry>DE</Ctry></PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id><IBAN>DE89370400440532013000</IBAN></Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId><BICFI>DEUTDEFFXXX</BICFI></FinInstnId>
+      </DbtrAgt>
+      <ChrgBr>SHAR</ChrgBr>
+
+      <CdtTrfTxInf>
+        <PmtId>
+          <InstrId>INSTR-1001</InstrId>
+          <EndToEndId>SUPPLIER-PAY-2026-04-1001</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="EUR">15000.00</InstdAmt>
+        </Amt>
+        <CdtrAgt>
+          <FinInstnId><BICFI>BNPAFRPPXXX</BICFI></FinInstnId>
+        </CdtrAgt>
+        <Cdtr>
+          <Nm>FOURNISSEUR PARIS SARL</Nm>
+          <PstlAdr><Ctry>FR</Ctry></PstlAdr>
+        </Cdtr>
+        <CdtrAcct>
+          <Id><IBAN>FR1420041010050500013M02606</IBAN></Id>
+        </CdtrAcct>
+        <Purp>
+          <Cd>SUPP</Cd>
+        </Purp>
+        <RmtInf>
+          <Strd>
+            <RfrdDocInf>
+              <Tp><CdOrPrtry><Cd>CINV</Cd></CdOrPrtry></Tp>
+              <Nb>INV-2026-1001</Nb>
+            </RfrdDocInf>
+          </Strd>
+        </RmtInf>
+      </CdtTrfTxInf>
+
+      <CdtTrfTxInf>
+        <PmtId>
+          <InstrId>INSTR-1002</InstrId>
+          <EndToEndId>PAYROLL-MARCH-2026-1002</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="EUR">25000.00</InstdAmt>
+        </Amt>
+        <CdtrAgt>
+          <FinInstnId><BICFI>HBUKGB4BXXX</BICFI></FinInstnId>
+        </CdtrAgt>
+        <Cdtr>
+          <Nm>EMPLOYEE WAGES POOL</Nm>
+          <PstlAdr><Ctry>DE</Ctry></PstlAdr>
+        </Cdtr>
+        <CdtrAcct>
+          <Id><IBAN>DE12500105175432013888</IBAN></Id>
+        </CdtrAcct>
+        <Purp>
+          <Cd>SALA</Cd>
+        </Purp>
+      </CdtTrfTxInf>
+
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>OFFSHORE-INVS-2026-04-1003</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="EUR">22500.00</InstdAmt>
+        </Amt>
+        <CdtrAgt>
+          <FinInstnId><BICFI>UBSWCHZH80A</BICFI></FinInstnId>
+        </CdtrAgt>
+        <Cdtr>
+          <Nm>OFFSHORE INVESTMENT VEHICLE LTD</Nm>
+          <PstlAdr><Ctry>CH</Ctry></PstlAdr>
+        </Cdtr>
+        <CdtrAcct>
+          <Id><IBAN>CH9300762011623852957</IBAN></Id>
+        </CdtrAcct>
+        <Purp>
+          <Cd>INVS</Cd>
+        </Purp>
+      </CdtTrfTxInf>
+    </PmtInf>
+
+    <PmtInf>
+      <PmtInfId>PMTINF-2026-04-29-WEEKLY</PmtInfId>
+      <PmtMtd>TRF</PmtMtd>
+      <NbOfTxs>1</NbOfTxs>
+      <CtrlSum>25000.00</CtrlSum>
+      <ReqdExctnDt>2026-04-29</ReqdExctnDt>
+      <Dbtr>
+        <Nm>ACME GMBH</Nm>
+        <PstlAdr><Ctry>DE</Ctry></PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id><IBAN>DE89370400440532013000</IBAN></Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId><BICFI>DEUTDEFFXXX</BICFI></FinInstnId>
+      </DbtrAgt>
+      <ChrgBr>SHAR</ChrgBr>
+
+      <CdtTrfTxInf>
+        <PmtId>
+          <EndToEndId>OFFSHORE-INVS-2026-04-2001</EndToEndId>
+        </PmtId>
+        <Amt>
+          <InstdAmt Ccy="EUR">25000.00</InstdAmt>
+        </Amt>
+        <CdtrAgt>
+          <FinInstnId><BICFI>UBSWCHZH80A</BICFI></FinInstnId>
+        </CdtrAgt>
+        <Cdtr>
+          <Nm>OFFSHORE INVESTMENT VEHICLE LTD</Nm>
+          <PstlAdr><Ctry>CH</Ctry></PstlAdr>
+        </Cdtr>
+        <CdtrAcct>
+          <Id><IBAN>CH9300762011623852957</IBAN></Id>
+        </CdtrAcct>
+        <Purp>
+          <Cd>INVS</Cd>
+        </Purp>
+      </CdtTrfTxInf>
+    </PmtInf>
+
+  </CstmrCdtTrfInitn>
+</Document>
