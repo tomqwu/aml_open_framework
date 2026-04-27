@@ -250,9 +250,14 @@ class TestEndToEnd:
         )
         assert result.alerts.get("invs_velocity_investment_scam", []) == []
 
-    def test_synthetic_data_yields_no_invs_alerts(self, tmp_path):
-        """Synthetic data doesn't carry purpose_code; rule must degrade
-        gracefully (zero alerts, no crash)."""
+    def test_synthetic_data_fires_invs_planted_positive(self, tmp_path):
+        """Synthetic data now carries ISO 20022 enrichment (purpose_code,
+        UETR, BICs) and includes a planted INVS-velocity positive on
+        C0010 — three outbound INVS wires to CH within 14 days, sum
+        > 5000 EUR. This makes the rule visible in the default `aml
+        run` demo so operators see Round-5 features in action.
+        Composes with the synthetic-data enrichment landed in the
+        same PR as this test update."""
         from aml_framework.data import generate_dataset
         from aml_framework.engine import run_spec
 
@@ -266,9 +271,16 @@ class TestEndToEnd:
             as_of=as_of,
             artifacts_root=tmp_path,
         )
-        # Rule executes without raising; produces zero alerts since
-        # purpose_code is NULL on every synthetic row.
-        assert result.alerts.get("invs_velocity_investment_scam", []) == []
+        invs_alerts = result.alerts.get("invs_velocity_investment_scam", [])
+        # Exactly the planted positive — C0010 with 3 INVS wires summing
+        # to 8300 EUR. Operators tuning the rule should adjust their
+        # data, not this test.
+        assert len(invs_alerts) == 1, (
+            f"expected exactly 1 INVS-velocity alert (the planted positive "
+            f"on C0010); got {len(invs_alerts)}"
+        )
+        assert invs_alerts[0]["customer_id"] == "C0010"
+        assert invs_alerts[0]["count"] == 3
 
 
 @pytest.fixture(autouse=True)

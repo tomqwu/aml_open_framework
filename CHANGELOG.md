@@ -8,6 +8,28 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Synthetic data enriched with ISO 20022 fields** (`data/synthetic.py`,
+  `tests/test_iso20022_purpose_codes.py`). The default demo
+  (`aml run --seed 42`) didn't exercise any Round 5/6 features
+  because synthetic txns had no purpose_code, no UETR, no BICs,
+  hiding ~6 PRs of work from new users. Now `_make_txn()`
+  auto-populates 5 ISO 20022 fields for wire / sepa / e_transfer
+  channels (purpose_code from a benign-biased noise distribution,
+  deterministic UETR, BICs from per-country pools, counterparty
+  country). Cash / ACH / card stay empty.
+  Two new planted positives:
+  - **C0010 (Klara Becker, DE)** — 3 outbound INVS wires to CH
+    in 14 days summing to EUR 8300. Triggers EU spec's
+    `invs_velocity_investment_scam` rule (FATF Feb 2026
+    pig-butchering signature).
+  - **C0011 (ROAMR LTD, GB)** — 3 pacs.004 return events
+    (AC03/AC04/MD07) on a new `txn_return` output list. Composes
+    with Round-5 #5 return-reason mining library.
+  Determinism preserved (test_run_is_reproducible still passes).
+  `test_synthetic_data_yields_no_invs_alerts` inverted to
+  `test_synthetic_data_fires_invs_planted_positive` — now
+  asserts the exact planted positive on C0010 fires.
+
 - **Workflow audit + executive font scale + page interactivity**
   (`dashboard/components.py`, `dashboard/app.py`,
   `dashboard/audience.py`, `dashboard/pages/5_Rule_Performance.py`,
