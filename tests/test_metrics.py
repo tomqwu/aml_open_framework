@@ -383,6 +383,32 @@ def test_cond_holds_gt_lt_on_rag():
     assert _rag_band(15, m)[0] == "red"
 
 
+def test_unknown_sql_formula_returns_zero():
+    """The dispatch table covers known proxies; everything else falls through to 0.0."""
+    spec = load_spec(SPEC_CA)
+    ctx = MetricContext(spec=spec, alerts={}, cases=[], decisions=[], data={})
+    formula = SQLFormula(type="sql", sql="SELECT something_unrelated FROM nowhere")
+    assert _compute_sql_proxy(formula, ctx) == 0.0
+
+
+def test_proxy_dispatch_first_match_wins():
+    """When an SQL string contains multiple tokens, the first matching handler runs.
+    `closed_cases` and `filing` both appear, but `closed_cases` wins per dispatch order."""
+    from aml_framework.metrics.engine import _PROXY_DISPATCH, _proxy_repeat_alert
+
+    spec = load_spec(SPEC_CA)
+    ctx = MetricContext(spec=spec, alerts={}, cases=[], decisions=[], data={})
+    formula = SQLFormula(type="sql", sql="SELECT closed_cases.filing FROM x")
+    # repeat_alert returns 0.0 with empty context — same as filing_latency would —
+    # so we verify behavior by confirming the dispatch table has repeat_alert before
+    # filing in iteration order.
+    handlers = [h for _, h in _PROXY_DISPATCH]
+    assert handlers.index(_proxy_repeat_alert) < handlers.index(
+        next(h for tokens, h in _PROXY_DISPATCH if "filing" in tokens)
+    )
+    assert _compute_sql_proxy(formula, ctx) == 0.0
+
+
 def test_filing_latency_no_filings():
     spec = load_spec(SPEC_CA)
     ctx = MetricContext(spec=spec, alerts={}, cases=[], decisions=[], data={})

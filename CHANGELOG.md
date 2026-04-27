@@ -8,6 +8,13 @@ that introduced them.
 ## [Unreleased]
 
 ### Refactor
+- **`metrics/engine._compute_sql_proxy` split** — the 110-line keyword-dispatch
+  is now six named handler functions (`_proxy_repeat_alert`,
+  `_proxy_filing_latency`, `_proxy_lctr_completeness`, `_proxy_edd_review`,
+  `_proxy_sla_compliance`, `_proxy_avg_resolution`) routed by a small
+  `_PROXY_DISPATCH` table. Each handler is independently readable and
+  reviewable. The dispatch table preserves the original first-match-wins
+  ordering so behaviour is unchanged.
 - Extract `_resolve_run_dir` in `cli.py` — the "default to latest run-* under
   artifacts" block was duplicated in `report`, `export`, and `export-alerts`.
 - Dashboard `Rule_Tuning` page now calls `engine.runner._build_warehouse`
