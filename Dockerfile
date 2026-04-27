@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc && \
     rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md dashboard_tenants.example.yaml ./
+COPY pyproject.toml README.md dashboard_tenants.example.yaml CHANGELOG.md CONTRIBUTING.md ./
 COPY src/ src/
 COPY schema/ schema/
 COPY examples/ examples/

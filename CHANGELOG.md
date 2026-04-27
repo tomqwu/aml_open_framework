@@ -8,6 +8,37 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Documentation refactor + Getting Started guide** (`README.md`,
+  `docs/getting-started.md`, `docs/dashboard-tour.md`,
+  `docs/jurisdictions.md`, `tests/test_docs_links.py`). README
+  shrunk **582 → 123 lines (-79%)** by extracting the bulky
+  dashboard-page tour, multi-jurisdiction section, and persona
+  workflows into dedicated docs and converting the README into a
+  hub-style entry point with a single-glance documentation map.
+  Three new top-level docs:
+  - **`docs/getting-started.md`** — focused 15-minute path from
+    `git clone` to a running audit bundle. Seven numbered steps
+    (install → pick spec → run → dashboard → BYOD → first custom
+    rule → audit bundle), a "Common First-Time Issues" section,
+    and a "What Next?" routing table to every other doc.
+  - **`docs/dashboard-tour.md`** — every dashboard page (22 now
+    with #24 Investigations) organized into Operational /
+    Strategic / Engineering / Audit / Export sections.
+  - **`docs/jurisdictions.md`** — US (FinCEN/BSA), CA (FINTRAC +
+    OSFI), EU (EBA/AMLD6), UK (FCA/POCA) plus cyber-fraud +
+    crypto VASP specialty specs, with a 5-step "adapt to your
+    institution" checklist.
+  README now leads with hero image, 5-line "Why", 3-command
+  Quickstart, and a **Documentation Map** table organized as
+  Start Here / Reference / Operations — every other doc is one
+  hop away. Repository layout, key CLI commands, and testing
+  one-liners stay; everything else moves out.
+  19 new link-validation tests under `tests/test_docs_links.py`
+  parametrized over `README.md` + every `docs/*.md` +
+  `CHANGELOG.md` + `CONTRIBUTING.md` — every relative link must
+  resolve. Plus guard tests for the README ≤200-line size cap
+  and the documentation map's presence + key cross-links.
+
 - **Investigations dashboard page** (#24)
   (`dashboard/pages/24_Investigations.py`,
   `dashboard/audience.py`, `dashboard/app.py`). Round-6 PR #5 of 5
