@@ -8,6 +8,51 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **ISO 20022 payment-message ingestion** (`data/iso20022/`).
+  Round-5 PR #1 of 5. SWIFT completed its MX-only cutover on
+  **2025-11-22** (CBPR+ coexistence ended); FedNow/RTP/SEPA Instant
+  volumes crossed inflection in Q1 2026. Without pacs.008/pacs.009
+  ingestion the framework was unusable on real correspondent
+  traffic. New parsers `Pacs008Parser` (customer credit transfer)
+  and `Pacs009Parser` (FI credit transfer) consume XML messages
+  and produce dicts conforming to the existing `txn` data contract
+  — the engine + every downstream rule type works unchanged.
+  Per-transaction extraction:
+    * `txn_id` — UETR if present, else EndToEndId, else `MsgId-N`
+    * `customer_id` — Debtor name (best-effort; production setups
+      wire to a customer-id resolver)
+    * `amount` / `currency` — `IntrBkSttlmAmt` (Decimal-coerced)
+    * `channel` = "wire", `direction` = "out"
+    * `booked_at` — `IntrBkSttlmDt` parsed
+    * `counterparty_name` / `_country` / `_account` — Creditor block
+  Plus travel-rule + audit fields preserved for Round-5 #2's
+  validator: `uetr`, `purpose_code`, `debtor_iban`, `debtor_bic`,
+  `creditor_bic`, `instructing_agent`, `instructed_agent`,
+  `charge_bearer`, `structured_remittance`, `debtor_country`,
+  `msg_kind`, `msg_id`. Namespace-agnostic — the same parser
+  handles the official `urn:iso:std:iso:20022:tech:xsd:pacs.008.001.13`
+  schema or any bank-internal variant. New `iso20022` source type
+  in `data/sources.py:resolve_source` recursively walks an XML
+  directory; CLI: `aml run SPEC --data-source iso20022 --data-dir
+  ./pacs008-files/`. Bundled `sample_pacs008.xml` (3 transactions
+  across two debtor banks, mix of UETR/non-UETR + multiple purpose
+  codes incl. GDDS, CHAR, INVS) lets operators run the layer
+  end-to-end without external feeds. Foundation for Round-5 #2
+  (FATF R.16 travel-rule field validator), #3 (purpose-code
+  typology library), #4 (pain.001 corporate ingestion), #5
+  (pacs.004 return-reason mining), Round-7 TBML, Round-8 RTP/FedNow
+  fraud. Implementation note in module docstring: ET.Element
+  evaluates falsy when it has no children — bug-trap during
+  development; explicit `is None` checks throughout the BIC/IBAN
+  extractor path. 34 new tests under `TestPacs008Parser`,
+  `TestEdgeCases`, `TestPacs009Parser`, `TestAutoDetect`,
+  `TestLoadDirectory`, `TestResolveSource` cover bundled-sample
+  field extraction (UETR / IBAN / BIC / purpose / charge-bearer /
+  remittance / country), txn_id fallback chain (UETR → EndToEndId
+  → `MsgId-N`), namespace-agnostic parsing, malformed XML →
+  empty, missing optional fields default cleanly, pacs.009
+  shape, auto-detect dispatch, recursive directory walk
+  (skipping non-XML), and end-to-end through `resolve_source`.
 - **Counterparty-VASP attribution layer** (`vasp/` package,
   `data/lists/sample_walletlabels.csv`). Round-4 PR #4 of 4 — the
   **dark-horse winner** of the Round-4 research scan. Closes the

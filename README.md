@@ -115,7 +115,7 @@ aml dashboard spec.yaml                               # launch web UI
 aml api --port 8000                                   # launch REST API
 ```
 
-Data sources: `--data-source synthetic` (default), `csv`, `parquet`, `duckdb`, `s3`, `gcs`, `snowflake`, `bigquery`.
+Data sources: `--data-source synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
 
 ### REST API
 

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sample pacs.008.001.13 (FIToFICstmrCdtTrf) message bundling 3 customer
+  credit transfers across two debtor banks. Used by tests + the demo path
+  to exercise the iso20022 ingestion adapter end-to-end. PII is fictitious.
+-->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.13">
+  <FIToFICstmrCdtTrf>
+    <GrpHdr>
+      <MsgId>SAMPLE-MSG-2026-04-27-001</MsgId>
+      <CreDtTm>2026-04-27T09:15:00+00:00</CreDtTm>
+      <NbOfTxs>3</NbOfTxs>
+      <CtrlSum>15500.00</CtrlSum>
+      <SttlmInf>
+        <SttlmMtd>INDA</SttlmMtd>
+      </SttlmInf>
+    </GrpHdr>
+
+    <CdtTrfTxInf>
+      <PmtId>
+        <InstrId>INSTR-2026-04-27-001-1</InstrId>
+        <EndToEndId>E2E-INV-2026-04-27-1001</EndToEndId>
+        <UETR>11111111-2222-3333-4444-555555555555</UETR>
+      </PmtId>
+      <IntrBkSttlmAmt Ccy="EUR">5000.00</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2026-04-27</IntrBkSttlmDt>
+      <ChrgBr>SHAR</ChrgBr>
+      <InstgAgt>
+        <FinInstnId><BICFI>DEUTDEFFXXX</BICFI></FinInstnId>
+      </InstgAgt>
+      <InstdAgt>
+        <FinInstnId><BICFI>BNPAFRPPXXX</BICFI></FinInstnId>
+      </InstdAgt>
+      <Dbtr>
+        <Nm>OLENA KOWALSKI</Nm>
+        <PstlAdr><Ctry>DE</Ctry></PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id><IBAN>DE89370400440532013000</IBAN></Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId><BICFI>DEUTDEFFXXX</BICFI></FinInstnId>
+      </DbtrAgt>
+      <CdtrAgt>
+        <FinInstnId><BICFI>BNPAFRPPXXX</BICFI></FinInstnId>
+      </CdtrAgt>
+      <Cdtr>
+        <Nm>ACME TRADING SARL</Nm>
+        <PstlAdr><Ctry>FR</Ctry></PstlAdr>
+      </Cdtr>
+      <CdtrAcct>
+        <Id><IBAN>FR1420041010050500013M02606</IBAN></Id>
+      </CdtrAcct>
+      <Purp>
+        <Cd>GDDS</Cd>
+      </Purp>
+      <RmtInf>
+        <Strd>
+          <RfrdDocInf><Tp><CdOrPrtry><Cd>CINV</Cd></CdOrPrtry></Tp><Nb>INV-2026-1001</Nb></RfrdDocInf>
+          <AddtlRmtInf>Spring shipment 1 of 3</AddtlRmtInf>
+        </Strd>
+      </RmtInf>
+    </CdtTrfTxInf>
+
+    <CdtTrfTxInf>
+      <PmtId>
+        <EndToEndId>E2E-CHAR-2026-04-27-1002</EndToEndId>
+        <UETR>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</UETR>
+      </PmtId>
+      <IntrBkSttlmAmt Ccy="EUR">500.00</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2026-04-27</IntrBkSttlmDt>
+      <ChrgBr>DEBT</ChrgBr>
+      <Dbtr>
+        <Nm>OLENA KOWALSKI</Nm>
+        <PstlAdr><Ctry>DE</Ctry></PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id><IBAN>DE89370400440532013000</IBAN></Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId><BICFI>DEUTDEFFXXX</BICFI></FinInstnId>
+      </DbtrAgt>
+      <CdtrAgt>
+        <FinInstnId><BICFI>HBUKGB4BXXX</BICFI></FinInstnId>
+      </CdtrAgt>
+      <Cdtr>
+        <Nm>OXFAM CHARITY</Nm>
+        <PstlAdr><Ctry>GB</Ctry></PstlAdr>
+      </Cdtr>
+      <CdtrAcct>
+        <Id><IBAN>GB29HBUK60161331926819</IBAN></Id>
+      </CdtrAcct>
+      <Purp>
+        <Cd>CHAR</Cd>
+      </Purp>
+    </CdtTrfTxInf>
+
+    <CdtTrfTxInf>
+      <PmtId>
+        <EndToEndId>E2E-INVS-2026-04-27-1003</EndToEndId>
+      </PmtId>
+      <IntrBkSttlmAmt Ccy="EUR">10000.00</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2026-04-27</IntrBkSttlmDt>
+      <ChrgBr>CRED</ChrgBr>
+      <Dbtr>
+        <Nm>BORIS PETROV</Nm>
+        <PstlAdr><Ctry>RU</Ctry></PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id><IBAN>RU0204452560040702810412345678901</IBAN></Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId><BICFI>SABRRUMMXXX</BICFI></FinInstnId>
+      </DbtrAgt>
+      <CdtrAgt>
+        <FinInstnId><BICFI>UBSWCHZH80A</BICFI></FinInstnId>
+      </CdtrAgt>
+      <Cdtr>
+        <Nm>ACME TRADING SARL</Nm>
+        <PstlAdr><Ctry>CH</Ctry></PstlAdr>
+      </Cdtr>
+      <CdtrAcct>
+        <Id><IBAN>CH9300762011623852957</IBAN></Id>
+      </CdtrAcct>
+      <Purp>
+        <Cd>INVS</Cd>
+      </Purp>
+    </CdtTrfTxInf>
+
+  </FIToFICstmrCdtTrf>
+</Document>
