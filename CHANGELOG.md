@@ -8,6 +8,32 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Progress snapshot + competitive positioning research** (`docs/progress.md`,
+  `docs/research/2026-04-competitive-positioning.md`, `README.md`).
+  Two new docs:
+  - **`docs/progress.md`** — fact-based audit of what's shipped as of
+    2026-04-27: 19,642 lines of source, 991 tests across 34 files,
+    1,852 lines of documentation, 24 dashboard pages, 7 example
+    specs across 4+ jurisdictions, 61+ unique regulation citations.
+    Round-by-round delivery breakdown for Round 5 (payment rails)
+    and Round 6 (case management). Module surface, regulatory
+    coverage matrix, and a documented "what we won't ship"
+    section (generative-AI rule authoring, native graph DB,
+    in-tree alert-scoring ML).
+  - **`docs/research/2026-04-competitive-positioning.md`** —
+    deep-research-agent output positioning the framework against
+    the 2026 commercial + OSS landscape. Three sections:
+    competitive landscape (NICE Actimize, Hawk:AI, ComplyAdvantage,
+    Quantexa, Marble, Jube, FINOS OpenAML), where the framework
+    actually wins (deterministic rerun, ISO 20022 native, "every
+    line written by a human" moat under SR 26-2), and top 5
+    next features ranked by impact ÷ effort (regulatory-change
+    diff watcher, AMLA STR/RTS effectiveness pack, TBML+APP-fraud
+    spec pair, PSD3/VoP adapter, FINTRAC pre-exam audit pack)
+    with "why now" anchored to AMLA July 2026 + FinCEN NPRM
+    comment-period closing June 9 2026. ~30 cited sources.
+  Both documents linked from the README documentation map.
+
 - **Synthetic data enriched with ISO 20022 fields** (`data/synthetic.py`,
   `tests/test_iso20022_purpose_codes.py`). The default demo
   (`aml run --seed 42`) didn't exercise any Round 5/6 features
