@@ -76,6 +76,100 @@ def validate_data(
         console.print("\n[green]All contracts valid.[/green]")
 
 
+@app.command(name="tune")
+def tune_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    rule_id: str = typer.Option(..., "--rule", help="Rule id to sweep."),
+    seed: int = typer.Option(42, help="Synthetic data seed (matches `aml run`)."),
+    as_of: str | None = typer.Option(None, help="ISO timestamp used as the rule 'now'."),
+    data_source: str = typer.Option(
+        "synthetic", help="Data source: synthetic, csv, parquet, duckdb."
+    ),
+    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files."),
+    labels_file: Path | None = typer.Option(
+        None,
+        "--labels",
+        help="CSV with columns customer_id,is_true_positive (1/0). "
+        "Enables precision/recall scoring.",
+    ),
+    out: Path | None = typer.Option(None, help="Write JSON result; otherwise summary printed."),
+    audit_run_dir: Path | None = typer.Option(
+        None,
+        help="Append a `tuning_run` event to this run dir's decisions.jsonl.",
+    ),
+) -> None:
+    """Sweep a rule's `tuning_grid` over fixed data and report alert deltas."""
+    import csv as _csv
+    import json as _json
+
+    from aml_framework.data.sources import resolve_source
+    from aml_framework.engine.tuning import sweep_rule
+
+    spec = load_spec(spec_path)
+    as_of_dt = _parse_as_of(as_of)
+    data = resolve_source(
+        source_type=data_source, spec=spec, as_of=as_of_dt, seed=seed, data_dir=data_dir
+    )
+
+    labels: dict[str, bool] | None = None
+    if labels_file is not None:
+        labels = {}
+        with labels_file.open() as f:
+            for row in _csv.DictReader(f):
+                cid = row.get("customer_id", "").strip()
+                if not cid:
+                    continue
+                flag = str(row.get("is_true_positive", "")).strip().lower()
+                labels[cid] = flag in ("1", "true", "yes", "y", "t")
+
+    run = sweep_rule(
+        spec, rule_id, data, as_of=as_of_dt, labels=labels, audit_run_dir=audit_run_dir
+    )
+
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(_json.dumps(run.to_dict(), indent=2, default=str))
+        console.print(
+            f"[green]tuning[/green] {out} (rule={rule_id}, "
+            f"baseline={run.baseline.alert_count}, scenarios={run.grid_size})"
+        )
+        return
+
+    console.print(
+        f"[bold]Tuning sweep[/bold] for rule [cyan]{rule_id}[/cyan]: "
+        f"{run.grid_size} scenarios, baseline alerts = {run.baseline.alert_count}"
+    )
+    table = Table(title="Scenarios")
+    table.add_column("Parameters")
+    table.add_column("Alerts", justify="right")
+    table.add_column("+/- vs baseline")
+    if labels is not None:
+        table.add_column("Precision", justify="right")
+        table.add_column("Recall", justify="right")
+        table.add_column("F1", justify="right")
+    for s in run.scenarios:
+        delta = f"+{s.added_vs_baseline} / -{s.removed_vs_baseline}"
+        params_str = ", ".join(f"{k}={v}" for k, v in s.parameters.items())
+        row = [params_str, str(s.alert_count), delta]
+        if labels is not None:
+            row += [
+                f"{s.precision:.3f}" if s.precision is not None else "—",
+                f"{s.recall:.3f}" if s.recall is not None else "—",
+                f"{s.f1:.3f}" if s.f1 is not None else "—",
+            ]
+        table.add_row(*row)
+    console.print(table)
+
+    if labels is not None:
+        best = run.best_by("f1")
+        if best is not None:
+            params_str = ", ".join(f"{k}={v}" for k, v in best.parameters.items())
+            console.print(
+                f"[bold green]Best F1[/bold green]: {params_str} "
+                f"(precision={best.precision:.3f}, recall={best.recall:.3f}, f1={best.f1:.3f})"
+            )
+
+
 @app.command(name="export-amla-str")
 def export_amla_str_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

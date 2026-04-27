@@ -127,6 +127,13 @@ class Rule(_Base):
     escalate_to: str
     evidence: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+    # Optional sweep grid consumed by `aml tune`. Keys are dot-paths into
+    # the rule (e.g. `logic.having.count`); values are lists of candidate
+    # values to try. The tuner runs the engine once per Cartesian
+    # combination over a fixed dataset, then reports alert-count delta
+    # vs the production thresholds. Pure metadata; the runtime engine
+    # ignores this field, so it's a strictly additive change.
+    tuning_grid: dict[str, list[Any]] | None = None
 
 
 class Queue(_Base):
