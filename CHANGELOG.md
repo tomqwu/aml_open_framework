@@ -8,6 +8,40 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **pKYC trigger engine** (`pkyc/` package): Perpetual Know Your
+  Customer — events trigger re-review instead of the calendar.
+  Five built-in detectors: `SanctionsHitDetector` (consumes
+  `SyncResult.added` from PR #44 — only newly-added sanctions
+  entries fire, since pre-existing entries were already screened
+  at onboarding), `AdverseMediaDetector`, `CountryRiskDetector`
+  (FATF black/grey lists), `TransactionPatternDetector` (alert
+  count over lookback window crosses threshold), `StaleKYCDetector`
+  (calendar fallback with risk-rating-keyed thresholds: critical
+  180d, high 365d, medium 730d, low 1095d). Each detector is **pure**
+  — same `ScanContext` in → same triggers out — so callers can A/B
+  detector configurations without surprise. The `RiskRecalculator`
+  composes triggers into a new rating (one critical → critical;
+  ≥1 high → bump one rung capped at high; ≥2 mediums → bump one
+  rung) so every escalation has an auditable trigger trail. The
+  scan engine is side-effect free: it returns a `TriggerScan` with
+  `triggers` + `rating_changes`; the caller decides whether to
+  persist back to source. CLI:
+  ```
+  aml pkyc-scan SPEC --high-risk-countries RU,KP,IR \
+    --sanctions-added-file ofac-delta.json \
+    --alert-threshold 3
+  ```
+  Composes with PR #44 (sanctions feeds): when a daily
+  `sanctions-sync` produces a `SyncResult` with new entries, feed
+  it into `pkyc-scan` and any of your customers matching a brand-new
+  designation gets flagged for escalation **on the same business day**
+  — no waiting for the next calendar review. 37 new tests cover
+  trigger model validation, each detector's match logic +
+  case-insensitive matching + duplicate-name handling + severity
+  override, recalculator escalation ladder + rung-capping, scan
+  aggregation, JSON serialisation round-trip, custom-detector
+  selection, and end-to-end composition with the sanctions package
+  cache.
 - **Narrative drafter with pluggable LLM backends** (`narratives/`
   package): structured STR/SAR drafting with three backends in v1 —
   `TemplateBackend` (deterministic, dependency-free, default;
