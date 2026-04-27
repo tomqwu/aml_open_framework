@@ -32,9 +32,8 @@ from aml_framework.api.db import (
     store_spec_version,
 )
 from aml_framework.engine import run_spec
+from aml_framework.paths import PROJECT_ROOT as _PROJECT_ROOT
 from aml_framework.spec import load_spec
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _safe_spec_path(raw: str) -> Path:

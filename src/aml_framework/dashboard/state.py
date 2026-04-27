@@ -13,9 +13,9 @@ import streamlit as st
 
 from aml_framework.data import generate_dataset
 from aml_framework.engine import run_spec
+from aml_framework.paths import PROJECT_ROOT as _PROJECT_ROOT
 from aml_framework.spec import load_spec
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _DEFAULT_SPEC = _PROJECT_ROOT / "examples" / "community_bank" / "aml.yaml"
 
 
