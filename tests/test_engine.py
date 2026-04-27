@@ -141,6 +141,43 @@ class TestAuditLedgerDeterminism:
         assert "tamper" in msg.lower() or "computed" in msg.lower()
 
 
+class TestEngineConstants:
+    """Compliance audit logs are forever — these strings must not silently rename."""
+
+    def test_event_values_are_frozen(self):
+        from aml_framework.engine.constants import Event
+
+        # If you change any of these, bump a major version: existing decisions.jsonl
+        # files in regulator-bound evidence bundles depend on these literals.
+        assert Event.CASE_OPENED == "case_opened"
+        assert Event.ESCALATED == "escalated"
+        assert Event.ESCALATED_TO_STR == "escalated_to_str"
+        assert Event.CLOSED == "closed"
+        assert Event.RULE_FAILED == "rule_failed"
+        assert Event.MANUAL_REVIEW == "manual_review"
+
+    def test_queue_values_are_frozen(self):
+        from aml_framework.engine.constants import Queue
+
+        assert Queue.CLOSED_NO_ACTION == "closed_no_action"
+        assert Queue.STR_FILING == "str_filing"
+        assert Queue.SAR_FILING == "sar_filing"
+
+    def test_decisions_use_constants_not_literals(self, tmp_path):
+        """Spot-check that an end-to-end run emits the canonical event strings."""
+        from aml_framework.engine.constants import Event
+
+        _, _, result = _run(tmp_path)
+        run_dir = Path(result.manifest["run_dir"])
+        events = {
+            json.loads(line).get("event")
+            for line in (run_dir / "decisions.jsonl").read_text().splitlines()
+            if line.strip()
+        }
+        # case_opened always fires for any alert. Other events depend on data.
+        assert Event.CASE_OPENED in events
+
+
 class TestEngineHardening:
     def test_duckdb_external_access_disabled(self):
         """Hardened DuckDB connections must refuse to load HTTPFS / external URLs."""

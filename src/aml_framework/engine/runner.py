@@ -14,6 +14,7 @@ from typing import Any, TypedDict
 import duckdb
 
 from aml_framework.engine.audit import AuditLedger
+from aml_framework.engine.constants import Event, Queue
 from aml_framework.generators.sql import compile_rule_sql
 from aml_framework.metrics.engine import MetricResult, evaluate_metrics
 from aml_framework.metrics.reports import render_all_reports
@@ -172,7 +173,7 @@ def _open_cases_for_alerts(
         case_ids.append(case["case_id"])
         ledger.append_decision(
             {
-                "event": "case_opened",
+                "event": Event.CASE_OPENED,
                 "case_id": case["case_id"],
                 "rule_id": rule.id,
                 "queue": rule.escalate_to,
@@ -313,17 +314,17 @@ def _decide_disposition(severity: str, queue_next: list[str], idx: int) -> tuple
     if severity in ("high", "critical"):
         filing_queues = [q for q in queue_next if "str" in q or "sar" in q or "filing" in q]
         if filing_queues:
-            return "escalated_to_str", filing_queues[0]
+            return Event.ESCALATED_TO_STR, filing_queues[0]
         if queue_next:
-            return "escalated", queue_next[0]
-        return "closed", "closed_no_action"
+            return Event.ESCALATED, queue_next[0]
+        return Event.CLOSED, Queue.CLOSED_NO_ACTION
 
     # Medium/low — escalate every 3rd case, close the rest.
     if idx % 3 == 0:
         non_close = [q for q in queue_next if "closed" not in q]
         if non_close:
-            return "escalated", non_close[0]
-    return "closed", "closed_no_action"
+            return Event.ESCALATED, non_close[0]
+    return Event.CLOSED, Queue.CLOSED_NO_ACTION
 
 
 def _simulate_case_resolution(
@@ -457,7 +458,7 @@ def run_spec(
                 ledger.record_alerts(rule.id, alerts)
                 ledger.append_decision(
                     {
-                        "event": "rule_failed",
+                        "event": Event.RULE_FAILED,
                         "rule_id": rule.id,
                         "logic_type": "python_ref",
                         "error": f"{type(exc).__name__}: {exc}",
