@@ -140,12 +140,37 @@ if not cust_alerts.empty:
 else:
     st.success("No alerts for this customer.")
 
-# --- Cases ---
+# --- Cases (with live SLA) ---
 st.markdown("### Cases")
 if not cust_cases.empty:
+    from datetime import datetime, timezone
+
+    from aml_framework.cases.sla import compute_sla_status
+
     show_cols = ["case_id", "rule_id", "severity", "status"]
+    # Live SLA per case — same helpers My Queue uses; computed against
+    # the engine's as_of timestamp for determinism.
+    queue_map = {q.id: q for q in spec.workflow.queues}
+    as_of = st.session_state.get("as_of") or datetime.now(tz=timezone.utc).replace(tzinfo=None)
+
+    def _sla_state(row: dict) -> str:
+        queue_obj = queue_map.get(row.get("queue", ""))
+        if queue_obj is None:
+            return "—"
+        status = compute_sla_status(row, queue_obj, as_of=as_of)
+        return status["state"] if status is not None else "—"
+
+    cust_cases = cust_cases.copy()
+    cust_cases["sla_state"] = [_sla_state(r) for r in cust_cases.to_dict(orient="records")]
+    show_cols = show_cols + ["sla_state"]
+
     available = [c for c in show_cols if c in cust_cases.columns]
     st.dataframe(cust_cases[available], use_container_width=True, hide_index=True)
+    st.caption(
+        "Click a case_id to drill into the full investigation on the "
+        "[Case Investigation](./Case_Investigation) page (deep-link via "
+        "`?case_id=...` is in development)."
+    )
 else:
     st.caption("No cases for this customer.")
 

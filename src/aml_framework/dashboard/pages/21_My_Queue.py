@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import plotly.express as px
 import streamlit as st
 
-from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.cases.sla import compute_sla_status
+from aml_framework.dashboard.components import (
+    chart_layout,
+    empty_state,
+    kpi_card,
+    page_header,
+)
 
 page_header(
     "My Queue",
@@ -24,8 +32,12 @@ if st.session_state.get("guided_demo"):
     )
 
 if df_cases.empty:
-    st.warning("No cases in this run.")
-    st.stop()
+    empty_state(
+        "No cases in this run.",
+        icon="📭",
+        detail="Run the engine to generate cases for your queue.",
+        stop=True,
+    )
 
 # --- Queue selector ---
 queues = sorted(spec.workflow.queues, key=lambda q: q.id)
@@ -79,7 +91,7 @@ if queue_obj:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- Open cases table ---
+# --- Open cases table (with live SLA) ---
 st.markdown("### Open Cases")
 if not open_cases.empty:
     display_cols = ["case_id", "rule_id", "severity", "status"]
@@ -94,12 +106,46 @@ if not open_cases.empty:
         )
         display_cols = ["case_id", "customer", "rule_id", "severity", "amount", "status"]
 
+    # Live SLA state per case — compute_sla_status returns None when the
+    # case has no resolvable opened_at, so we fall back to "—" rather than
+    # silently misclassifying as "breached".
+    as_of = st.session_state.get("as_of") or datetime.now(tz=timezone.utc).replace(tzinfo=None)
+
+    def _sla_state(row: dict) -> str:
+        if queue_obj is None:
+            return "—"
+        status = compute_sla_status(row, queue_obj, as_of=as_of)
+        if status is None:
+            return "—"
+        return status["state"]
+
+    def _sla_remaining(row: dict) -> str:
+        if queue_obj is None:
+            return ""
+        status = compute_sla_status(row, queue_obj, as_of=as_of)
+        if status is None:
+            return ""
+        return f"{status['time_remaining_hours']:.1f}h"
+
+    # Pass each row as a dict so the helpers see the same shape they
+    # accept on the Investigations page.
+    case_records = open_cases.to_dict(orient="records")
+    open_cases["sla_state"] = [_sla_state(r) for r in case_records]
+    open_cases["sla_remaining"] = [_sla_remaining(r) for r in case_records]
+    display_cols = display_cols + ["sla_state", "sla_remaining"]
+
     available_cols = [c for c in display_cols if c in open_cases.columns]
     st.dataframe(
         open_cases[available_cols],
         use_container_width=True,
         hide_index=True,
         height=min(35 * len(open_cases) + 38, 400),
+    )
+    # Caption documents the column for the analyst — they'll learn it
+    # once and look for it on every queue.
+    st.caption(
+        "SLA bands: green > 50% remaining · amber 10-50% · red < 10% · breached ≤ 0%. "
+        "Computed live from `cases/sla.py`."
     )
 else:
     st.success("No open cases — queue is clear.")

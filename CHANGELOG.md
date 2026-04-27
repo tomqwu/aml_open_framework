@@ -8,6 +8,50 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **Live SLA + STR-bundle download on case-facing pages (Phase B-1)**
+  (`dashboard/pages/4_Case_Investigation.py`,
+  `dashboard/pages/21_My_Queue.py`,
+  `dashboard/pages/17_Customer_360.py`,
+  `tests/test_dashboard_sla_integration.py`). Phase B-1 of the
+  dashboard workflow plan — surfaces `cases/sla.py` and
+  `cases/str_bundle.py` (Round-6 modules) on the three pages
+  analysts spend most of their time on. Previously these modules
+  were only reachable via CLI or the Investigations page (#24).
+  **Page #4 Case Investigation** now shows three new affordances
+  in a row right after the case header:
+  - **SLA timer** — live `compute_sla_status(case, queue, as_of)`
+    with band color (green > 50% remaining, amber 10-50%, red
+    < 10%, breached ≤ 0%) + remaining hours + due timestamp.
+  - **Escalation recommendation** — when SLA has breached, calls
+    `apply_escalation(case, status, queue)` and surfaces the
+    suggested next queue + reason. Operator sees "→ l2_investigator
+    · sla breach" without leaving the page.
+  - **📥 STR submission ZIP** download button — wraps the single
+    case via `aggregate_investigations([case], strategy="per_case")`
+    then calls `bundle_investigation_to_str()`. Same deterministic
+    ZIP shape (narrative.txt + goAML XML + Mermaid network
+    diagrams + manifest.json with file-by-file SHA-256) the
+    Investigations page produces. Wrapped in try/except so a
+    bundle-gen failure shows a caption instead of crashing the page.
+  Page also gains deep-link support: `consume_param("case_id")`
+  pre-selects a case when arrived via `?case_id=...` from Alert
+  Queue / Customer 360 / Investigations (Phase C will add the
+  outbound links). Replaces inline `sev_colors` dict + ad-hoc
+  `st.warning + st.stop` with the Phase A `severity_color()` and
+  `empty_state()` helpers.
+  **Page #21 My Queue** now adds two columns (`sla_state`,
+  `sla_remaining`) to the open-cases table, computed live from
+  `compute_sla_status()` per row. Caption documents the band
+  thresholds so analysts learn them once.
+  **Page #17 Customer 360** cases table gains an `sla_state`
+  column with the same per-case computation + a caption pointing
+  toward the Phase C deep-link drill-down.
+  18 source-level tests under `TestCaseInvestigationSLA`,
+  `TestMyQueueSLA`, `TestCustomer360SLA`, `TestCrossPageConsistency`
+  guard against drift (helper imports, no inline band-classification
+  reimplementation, no inline severity dicts). Total tests
+  1089 → 1107.
+
 - **Dashboard cross-cutting helpers (Phase A)**
   (`dashboard/components.py`, `dashboard/query_params.py`,
   `tests/test_dashboard_components_helpers.py`). First PR of the

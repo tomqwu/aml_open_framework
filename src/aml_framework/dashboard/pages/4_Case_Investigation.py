@@ -2,11 +2,23 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from aml_framework.dashboard.components import chart_layout, page_header
+from aml_framework.cases.aggregator import aggregate_investigations
+from aml_framework.cases.sla import apply_escalation, compute_sla_status
+from aml_framework.cases.str_bundle import bundle_investigation_to_str
+from aml_framework.dashboard.components import (
+    chart_layout,
+    empty_state,
+    page_header,
+    severity_color,
+    sla_band_color,
+)
+from aml_framework.dashboard.query_params import consume_param
 from aml_framework.engine.constants import Event, Queue
 
 
@@ -80,18 +92,25 @@ if st.session_state.get("guided_demo"):
     )
 
 if df_cases.empty:
-    st.warning("No cases in this run.")
-    st.stop()
+    empty_state(
+        "No cases in this run.",
+        icon="📭",
+        detail="Run the engine via the Alert Queue page or `aml run` first.",
+        stop=True,
+    )
 
 # --- Case selector ---
+# Pre-select via deep link from Alert Queue / Customer 360 / Investigations.
+# `consume_param` clears the link state so a refresh doesn't keep re-triggering it.
 case_ids = sorted(df_cases["case_id"].tolist())
-selected_case = st.selectbox("Select case", case_ids)
+deep_link_case = consume_param("case_id")
+default_idx = case_ids.index(deep_link_case) if deep_link_case in case_ids else 0
+selected_case = st.selectbox("Select case", case_ids, index=default_idx)
 case = df_cases[df_cases["case_id"] == selected_case].iloc[0].to_dict()
 
 # --- Header banner ---
 sev = case.get("severity", "")
-sev_colors = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a", "critical": "#7c3aed"}
-sev_color = sev_colors.get(sev, "#6b7280")
+sev_color = severity_color(sev)
 st.markdown(
     f'<div style="background:linear-gradient(135deg, {sev_color}18, {sev_color}08); '
     f'border-left:4px solid {sev_color}; border-radius:8px; padding:1rem 1.5rem; margin-bottom:1rem;">'
@@ -104,6 +123,86 @@ st.markdown(
     f"</div>",
     unsafe_allow_html=True,
 )
+
+# --- SLA timer + STR bundle download row ---
+# The two operator-facing affordances analyst needs at a glance:
+#   1. Where this case sits against its queue's SLA (from cases/sla.py)
+#   2. One-click STR submission package (from cases/str_bundle.py)
+queue_map = {q.id: q for q in spec.workflow.queues}
+queue_obj = queue_map.get(case.get("queue", ""))
+as_of = st.session_state.get("as_of") or datetime.now(tz=timezone.utc).replace(tzinfo=None)
+sla_status = compute_sla_status(case, queue_obj, as_of=as_of) if queue_obj else None
+
+sla_col, escalate_col, bundle_col = st.columns([2, 2, 2])
+with sla_col:
+    if sla_status is not None:
+        band = sla_status["state"]
+        band_color = sla_band_color(band)
+        st.markdown(
+            f'<div style="background:{band_color}15; border-left:4px solid {band_color}; '
+            f'padding:0.6rem 1rem; border-radius:6px;">'
+            f'<div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; '
+            f'color:#64748b;">SLA</div>'
+            f'<div style="font-size:1.1rem; font-weight:700; color:{band_color};">'
+            f"{band.upper()} · {sla_status['time_remaining_hours']:.1f}h remaining"
+            f"</div>"
+            f'<div style="font-size:0.75rem; color:#64748b;">'
+            f"Due {sla_status['due_at'].strftime('%Y-%m-%d %H:%M')}"
+            f"</div></div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.caption("SLA: not computable (no opened_at on alert)")
+
+with escalate_col:
+    escalation = (
+        apply_escalation(case, sla_status, queue_obj)
+        if (sla_status is not None and queue_obj is not None)
+        else None
+    )
+    if escalation is not None:
+        st.markdown(
+            f'<div style="background:#fff7ed; border-left:4px solid #ea580c; '
+            f'padding:0.6rem 1rem; border-radius:6px;">'
+            f'<div style="font-size:0.7rem; text-transform:uppercase; '
+            f'letter-spacing:0.05em; color:#9a3412;">Escalation recommended</div>'
+            f'<div style="font-size:1rem; font-weight:600; color:#9a3412;">'
+            f"→ {escalation.to_queue}</div>"
+            f'<div style="font-size:0.75rem; color:#7c2d12;">'
+            f"Reason: {escalation.reason.replace('_', ' ')}</div></div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.caption("Escalation: none recommended")
+
+with bundle_col:
+    # One-click STR submission ZIP — bundles narrative + goAML XML +
+    # Mermaid network diagram + manifest.json (file-by-file SHA-256).
+    # `aggregate_investigations([case], strategy="per_case")` wraps the
+    # single case as a one-element investigation so the bundler signature
+    # matches its multi-case use cases on Investigations page #24.
+    try:
+        invs = aggregate_investigations([case], strategy="per_case")
+        if invs:
+            bundle_bytes = bundle_investigation_to_str(
+                invs[0],
+                cases=[case],
+                spec=spec,
+                customers=df_customers.to_dict(orient="records"),
+                transactions=df_txns.to_dict(orient="records"),
+            )
+            st.download_button(
+                "📥 STR submission ZIP",
+                data=bundle_bytes,
+                file_name=f"{case['case_id']}_str_bundle.zip",
+                mime="application/zip",
+                help="Self-contained ZIP: narrative.txt + goAML XML + "
+                "Mermaid network diagram + manifest.json with SHA-256 per file. "
+                "Same shape as Investigations page download.",
+                use_container_width=True,
+            )
+    except Exception as e:  # noqa: BLE001 — bundle gen must never crash the page
+        st.caption(f"STR bundle unavailable: {e}")
 
 # --- Entity Profile + Alert Details ---
 col_profile, col_alert = st.columns(2)
