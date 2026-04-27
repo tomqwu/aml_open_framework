@@ -45,6 +45,49 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+# Set of file basenames / dirs that must not change after `finalize()`. The
+# manifest plus the rule-output snapshot are the load-bearing audit artifacts;
+# `decisions.jsonl` is intentionally left writable so the dashboard can append
+# human-time decisions later.
+_FROZEN_SNAPSHOT_TARGETS = (
+    "manifest.json",
+    "input_manifest.json",
+    "spec_snapshot.yaml",
+    "alerts",
+    "rules",
+)
+
+
+def _freeze_snapshot_files(run_dir: Path) -> None:
+    """chmod the post-finalize snapshot to 0o444. No-op on Windows.
+
+    Operators with elevated permissions can still chmod files back; the goal
+    is to make accidental rewrites and most malicious processes (running as
+    the engine user) fail loudly. For real WORM guarantees, point
+    `artifacts_root` at a hardware-WORM mount or an immutable object store.
+    """
+    import os as _os
+
+    if _os.name == "nt":
+        return  # Windows uses ACLs; chmod doesn't enforce read-only the same way.
+    for target in _FROZEN_SNAPSHOT_TARGETS:
+        path = run_dir / target
+        if not path.exists():
+            continue
+        if path.is_dir():
+            for child in path.iterdir():
+                if child.is_file():
+                    try:
+                        _os.chmod(child, 0o444)
+                    except OSError:
+                        pass
+        else:
+            try:
+                _os.chmod(path, 0o444)
+            except OSError:
+                pass
+
+
 @dataclass
 class AuditLedger:
     run_dir: Path
@@ -156,6 +199,12 @@ class AuditLedger:
             json.dumps(self.input_manifest, indent=2, sort_keys=True).encode("utf-8")
         )
         return manifest
+
+    def freeze(self) -> None:
+        """Make snapshot files read-only. Call after the *last* write to the
+        run directory; the runner does this once metrics + reports are added
+        to the manifest."""
+        _freeze_snapshot_files(self.run_dir)
 
     def _compute_decisions_hash(self) -> str:
         """Hash chain over all decisions for tamper detection.

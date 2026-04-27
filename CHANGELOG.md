@@ -26,6 +26,17 @@ that introduced them.
 - 4 new tests under `TestWebhookSigning` cover registration response
   shape, the `_sign_webhook` helper matching stdlib `hmac`, and the
   signature header being set on outgoing requests.
+- **Audit-ledger snapshot is read-only after finalize** (`engine/audit.py`):
+  `manifest.json`, `input_manifest.json`, `spec_snapshot.yaml`,
+  `alerts/*.jsonl`, `alerts/*.hash`, and `rules/*.sql` are `chmod 0o444`-ed
+  once the runner finishes writing. Accidental rewrites and most malicious
+  processes (running as the engine user) now fail loudly. `decisions.jsonl`
+  is intentionally left writable so dashboard human decisions can append.
+  No-op on Windows (uses ACLs differently). Documented as advisory — for
+  real WORM, point `artifacts_root` at a hardware-WORM mount.
+- 4 new tests under `TestAuditLedgerFrozen` confirm the snapshot is
+  read-only, that direct writes raise `PermissionError`, and that
+  `decisions.jsonl` stays append-capable.
 
 ### Refactor
 - **`engine/constants.py` — single source of truth for event + queue names.**
