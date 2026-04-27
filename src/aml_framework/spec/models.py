@@ -81,8 +81,31 @@ class PythonRefLogic(_Base):
     model_version: str
 
 
+class NetworkPatternLogic(_Base):
+    """Detect patterns over the entity-resolution graph.
+
+    The engine maintains `resolved_entity_link` (pairs of customers sharing a
+    linking attribute). This rule type runs a recursive CTE up to `max_hops`
+    away from each customer and flags those whose subgraph satisfies a
+    `having` condition (typically minimum component size or shared-attribute
+    count).
+    """
+
+    type: Literal["network_pattern"]
+    source: str = "customer"  # source contract used as the seed entity table
+    pattern: Literal["component_size", "common_counterparty"] = "component_size"
+    max_hops: int = Field(default=2, ge=1, le=5)
+    having: dict[str, Any]  # e.g. {"component_size": {"gte": 3}}
+
+
 RuleLogic = Annotated[
-    Union[AggregationWindowLogic, ListMatchLogic, CustomSQLLogic, PythonRefLogic],
+    Union[
+        AggregationWindowLogic,
+        ListMatchLogic,
+        CustomSQLLogic,
+        PythonRefLogic,
+        NetworkPatternLogic,
+    ],
     Field(discriminator="type"),
 ]
 

@@ -20,6 +20,24 @@ that introduced them.
   real ER service (Senzing, Quantexa) by overriding `resolve_entities`.
 - 5 new tests under `TestEntityResolution` cover: empty-spec stub, shared
   phone, shared device_id, NULL-doesn't-link semantics, view shape.
+- **`network_pattern` rule type** (`engine/runner.py`, `spec/models.py`,
+  `schema/aml-spec.schema.json`): 5th rule logic type. Walks the
+  entity-resolution graph (`resolved_entity_link`) via DuckDB recursive
+  CTE up to `max_hops` away from each customer and flags those whose
+  ego-network satisfies a `having` clause. Two patterns supported in v1:
+  `component_size` (mule herd / nested-account ring) and
+  `counterparty_count` (hub-and-spoke / synthetic-identity rings).
+  Spec example:
+  ```yaml
+  logic:
+    type: network_pattern
+    pattern: component_size
+    max_hops: 2
+    having: { component_size: { gte: 3 } }
+  ```
+- 5 new tests under `TestNetworkPattern` cover three-customer ring,
+  isolated customer non-fire, two-customer pair, no-links, and
+  hub-and-spoke counterparty-count pattern.
 
 ### Security
 - **Cross-tenant API isolation** (`api/db.py`, `api/main.py`): every read
