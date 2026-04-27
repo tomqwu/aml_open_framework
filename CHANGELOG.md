@@ -18,6 +18,18 @@ that introduced them.
 - 3 new tests under `TestTenantIsolation` confirm `bank_a` can't list,
   get, or read alerts for `bank_b`'s runs.
 
+### Refactor
+- **`engine/constants.py` — single source of truth for event + queue names.**
+  String literals like `"case_opened"`, `"escalated_to_str"`,
+  `"closed_no_action"` were duplicated across `runner.py`, dashboard pages,
+  and metrics dispatch. They're now `Event.CASE_OPENED`, `Queue.STR_FILING`,
+  etc. Decisions written to the audit log are forever — a typo in one place
+  used to silently drift; importing the constant now catches the change at
+  type-check time.
+- 3 new tests under `TestEngineConstants` freeze the literal values (so
+  renames are explicit decisions, not silent breaks of past audit logs)
+  and confirm a real run emits the canonical strings.
+
 ### Refactor (later)
 - **`api/db.py` Postgres/SQLite dedup**: `_with_conn()` context manager
   yields a thin wrapper that translates `?` placeholders to `%s` for
