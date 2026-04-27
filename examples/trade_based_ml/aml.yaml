@@ -1,0 +1,303 @@
+# Trade-Based Money Laundering (TBML) example spec.
+#
+# TBML is the FATF/Egmont Group's continuing focus area — flagged
+# again in the FATF February 2026 plenary outcomes as a typology
+# where commercial AML platforms consistently underperform. The
+# pattern: criminals disguise illicit value movement as legitimate
+# international trade by mis-invoicing (over- or under-invoicing
+# goods), phantom shipping, multiple invoicing for one shipment,
+# or quality misrepresentation.
+#
+# This spec demonstrates the framework's `aggregation_window` +
+# `custom_sql` + `python_ref` rule types in a TBML context.
+# Citations target FATF 40 Recommendations + Egmont Group's 2024
+# TBML Indicators paper + the US 31 CFR Subpart B Trade Compliance.
+#
+# Round-7 PR #3. Composes with the framework's ISO 20022 ingestion
+# (pacs.008/009 carry purpose codes that include TRAD = trade
+# settlement) and the cyber-fraud spec's investigation-aggregator
+# pattern.
+
+version: 1
+
+program:
+  name: tbml_correspondent_bank
+  jurisdiction: US
+  regulator: FinCEN
+  owner: trade_finance_compliance_lead
+  effective_date: 2026-04-01
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 4h
+    columns:
+      - { name: txn_id,             type: string,  nullable: false }
+      - { name: customer_id,        type: string,  nullable: false, pii: true }
+      - { name: amount,             type: decimal, nullable: false, constraints: [">0"] }
+      - { name: currency,           type: string,  nullable: false }
+      - { name: channel,            type: string,  enum: [wire, ach, sepa, swift_mt103] }
+      - { name: direction,          type: string,  enum: [in, out] }
+      - { name: booked_at,          type: timestamp, nullable: false }
+      # ISO 20022 purpose codes — TRAD = trade settlement.
+      - { name: purpose_code,       type: string,  nullable: true }
+      - { name: counterparty_country, type: string, nullable: true }
+      # TBML-specific: invoice + shipping reference (when wired through
+      # the bank's trade-finance system; null on plain wires).
+      - { name: invoice_id,         type: string,  nullable: true }
+      - { name: invoice_amount,     type: decimal, nullable: true }
+      - { name: declared_unit_price, type: decimal, nullable: true }
+      - { name: declared_quantity,  type: integer, nullable: true }
+      - { name: hs_code,            type: string,  nullable: true }  # Harmonized System commodity code
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique: [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,  type: string,  nullable: false, pii: true }
+      - { name: full_name,    type: string,  nullable: false, pii: true }
+      - { name: country,      type: string,  nullable: false }
+      - { name: risk_rating,  type: string,  enum: [low, medium, high] }
+      - { name: onboarded_at, type: timestamp, nullable: false }
+      - { name: business_activity, type: string, nullable: true }
+      - { name: trade_lic_number,  type: string, nullable: true }  # commercial trade license
+
+  # HS-code reference table — operators populate from World Customs
+  # Organization data. Median + p95 unit prices used for over/under-
+  # invoicing detection.
+  - id: hs_code_baseline
+    source: raw.hs_codes
+    freshness_sla: 30d
+    columns:
+      - { name: hs_code,           type: string,  nullable: false }
+      - { name: median_unit_price, type: decimal, nullable: false }
+      - { name: p95_unit_price,    type: decimal, nullable: false }
+      - { name: p5_unit_price,     type: decimal, nullable: false }
+
+rules:
+  # --- TBML Typology #1: Over-invoicing (declared price > 3x baseline median) ---
+  # FATF/Egmont's most-cited TBML pattern. Importer pays inflated
+  # price for goods → exporter receives the value → criminal moves
+  # money across the border under cover of "legitimate trade". The
+  # 3x threshold is conservative; tighten to 2x after baseline
+  # measurement.
+  - id: over_invoicing_unit_price
+    name: TBML — declared unit price > 3x WCO baseline median
+    severity: high
+    regulation_refs:
+      - citation: "FATF Trade-Based Money Laundering (Sep 2025 update)"
+        description: "TBML typology — invoice manipulation via over-invoicing."
+      - citation: "Egmont Group TBML Indicators (Sep 2024)"
+        description: "Ref. Indicator T-04: declared unit price materially above market."
+      - citation: "31 CFR 1010.314"
+        description: "Anti-structuring; TBML often masks structuring across borders."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'over_invoicing_unit_price' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN hs_code_baseline b ON t.hs_code = b.hs_code
+        WHERE t.declared_unit_price IS NOT NULL
+          AND t.declared_unit_price >= 3 * b.median_unit_price
+          AND t.purpose_code = 'TRAD'
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 25000
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - matching_invoices
+      - hs_code_baseline_snapshot
+      - shipping_documents_request
+      - customer_kyc_with_trade_license
+    tags: [tbml, over_invoicing, fatf, egmont]
+
+  # --- TBML Typology #2: Under-invoicing (price < 0.5x baseline) ---
+  # Mirror of #1 — exporter under-declares to receive less reportable
+  # value, importer benefits from the difference offshore. Often
+  # paired with cash settlement on the receiving side.
+  - id: under_invoicing_unit_price
+    name: TBML — declared unit price < 0.5x WCO baseline median
+    severity: high
+    regulation_refs:
+      - citation: "FATF Trade-Based Money Laundering (Sep 2025 update)"
+        description: "TBML typology — under-invoicing for value transfer."
+      - citation: "Egmont Group TBML Indicators (Sep 2024)"
+        description: "Ref. Indicator T-05: declared unit price materially below market."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'under_invoicing_unit_price' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN hs_code_baseline b ON t.hs_code = b.hs_code
+        WHERE t.declared_unit_price IS NOT NULL
+            AND t.declared_unit_price <= 0.5 * b.median_unit_price
+            AND t.purpose_code = 'TRAD'
+            AND t.booked_at >= TIMESTAMP '{window_start}'
+            AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 25000
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - matching_invoices
+      - hs_code_baseline_snapshot
+      - shipping_documents_request
+    tags: [tbml, under_invoicing, fatf, egmont]
+
+  # --- TBML Typology #3: Phantom shipping (no shipping record for trade payment) ---
+  # Trade payment with TRAD purpose code but no corresponding entry
+  # in the bank's customs/shipping data feed. Indicator T-08 in the
+  # Egmont Sept 2024 paper.
+  - id: phantom_shipping
+    name: TBML — TRAD payment without shipping record
+    severity: high
+    regulation_refs:
+      - citation: "Egmont Group TBML Indicators (Sep 2024)"
+        description: "Ref. Indicator T-08: trade payment without shipping documentation."
+      - citation: "FATF Recommendation 16 — wire transfer information"
+        description: "Cross-border trade payments require traceable underlying activity."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        purpose_code: TRAD
+        invoice_id: { is_null: true }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count: { gte: 3 }
+        sum_amount: { gte: 50000 }
+    escalate_to: l2_investigator
+    evidence:
+      - matching_trad_payments
+      - missing_shipping_documents_list
+      - customer_trade_finance_history
+    tags: [tbml, phantom_shipping, fatf]
+
+  # --- TBML Typology #4: Multiple invoicing (same invoice paid multiple times) ---
+  # Same invoice_id appearing on > 1 outbound trade payment. Egmont
+  # T-07. Detected via aggregation by invoice_id with count > 1.
+  - id: multiple_invoicing
+    name: TBML — same invoice paid multiple times
+    severity: critical
+    regulation_refs:
+      - citation: "Egmont Group TBML Indicators (Sep 2024)"
+        description: "Ref. Indicator T-07: multiple invoicing — duplicate trade payment."
+      - citation: "FATF Trade-Based Money Laundering (Sep 2025 update)"
+        description: "Multiple-invoicing pattern — value moved without underlying trade."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'multiple_invoicing' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        WHERE t.invoice_id IS NOT NULL
+          AND t.purpose_code = 'TRAD'
+          AND t.direction = 'out'
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id, t.invoice_id
+        HAVING COUNT(*) >= 2
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - matching_duplicate_invoices
+      - invoice_pdf_archive_links
+      - customer_trade_history
+    tags: [tbml, multiple_invoicing, egmont]
+
+  # --- TBML Typology #5: TRAD payment to high-risk jurisdiction ---
+  # FATF black/grey-list country receiving trade-purpose payments
+  # warrants closer look. Common cover for value movement from
+  # sanctioned/high-risk regions.
+  - id: trad_to_high_risk_jurisdiction
+    name: TBML — TRAD payment to FATF high-risk jurisdiction
+    severity: high
+    regulation_refs:
+      - citation: "FATF High-Risk Jurisdictions Subject to Call for Action"
+        description: "FATF black-list / grey-list countries (updated quarterly)."
+      - citation: "31 CFR 1010.610"
+        description: "Special measures for primary money-laundering concerns."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'trad_to_high_risk_jurisdiction' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        WHERE t.purpose_code = 'TRAD'
+          AND UPPER(COALESCE(t.counterparty_country, '')) IN
+              ('IR', 'KP', 'MM', 'SY', 'AF', 'YE', 'RU')
+          AND t.amount >= 25000
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 50000
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - matching_trad_transactions
+      - shipping_documents
+      - hs_code_baseline_snapshot
+    tags: [tbml, high_risk_jurisdiction, fatf]
+
+workflow:
+  queues:
+    - id: l1_trade_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [str_filing, edd_review, closed_no_action]
+    - id: edd_review
+      sla: 96h
+      next: [l2_investigator, closed_no_action]
+    - id: str_filing
+      sla: 30d
+      regulator_form: FINCEN_SAR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    FINCEN_SAR:
+      template: fincen_sar_v1
+      mandatory_fields:
+        - subject_information
+        - suspicious_activity_information
+        - financial_institution_information
+        - filing_institution_contact_information
+        - tbml_typology_indicators
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 5y
+  hs_code_baselines: 7y  # longer because they're reference data

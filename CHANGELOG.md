@@ -102,6 +102,34 @@ that introduced them.
   consumers expecting `dict[str, str]` don't choke on the new
   optional `url` field. Test count 953 → 984.
 
+- **TBML + UK APP-fraud example specs** (`examples/trade_based_ml/`,
+  `examples/uk_app_fraud/`, `docs/jurisdictions.md`,
+  `tests/test_specs_tbml_app_fraud.py`). Round-7 PR #3 — third-
+  ranked feature from the 2026-04 positioning research. Both specs
+  answer the FRAML-convergence buyer question without building a
+  fraud engine — just demonstrating the framework can express the
+  typologies cleanly.
+  `examples/trade_based_ml/aml.yaml` ships 5 TBML rules
+  (over/under-invoicing vs WCO baseline, phantom_shipping,
+  multiple_invoicing, TRAD-to-high-risk-jurisdiction). New
+  `hs_code_baseline` data contract carries the WCO median/p5/p95
+  unit prices the over/under-invoicing rules join against. All 5
+  rules cite FATF Trade-Based Money Laundering (Sep 2025) +
+  Egmont TBML Indicators (Sep 2024).
+  `examples/uk_app_fraud/aml.yaml` ships 4 APP-fraud rules
+  (first-use-payee >GBP 1000, Confirmation-of-Payee mismatch
+  override, vulnerable-customer atypical payment, rapid
+  pass-through mule). Workflow includes `customer_intervention`
+  (30m SLA), `payment_held` (4h freeze), `reimbursement_decision`
+  (96h, PSR_REIMBURSEMENT form). L1 SLA is 1h — APP fraud requires
+  intervention before settlement. Cites PSR Specific Directions
+  (SD17 CoP, SD20 reimbursement) + FCA FG24/4 + POCA 2002.
+  Both specs documented in jurisdictions.md.
+  17 new tests for spec validity, rule shape, citation coverage,
+  workflow queue presence, severity classification, and the
+  no-python-ref guard (no callables shipped for these specs;
+  enforces first-run cleanliness). Tests 953 → 970.
+
 - **Synthetic data enriched with ISO 20022 fields** (`data/synthetic.py`,
   `tests/test_iso20022_purpose_codes.py`). The default demo
   (`aml run --seed 42`) didn't exercise any Round 5/6 features
