@@ -8,6 +8,53 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **FATF R.16 Travel Rule field validator**
+  (`models/travel_rule.py`, `examples/eu_bank/aml.yaml`). Round-5
+  PR #2 of 5 — composes directly with PR #56 ISO 20022 ingestion.
+  FATF Plenary February 2026 reiterated R.16 (revised June 2025)
+  as a top-tier deficiency in MERs; EU Regulation 2023/1113
+  ratified the implementation with full enforcement throughout
+  2026. Without runtime field-completeness scoring, ingested
+  pacs.008 traffic landed with no compliance verdict on whether
+  the originator + beneficiary fields were actually present.
+  This validator runs as a `python_ref` scorer
+  (`aml_framework.models.travel_rule:validate_travel_rule`)
+  reading the `txn` table's `debtor_*`, `counterparty_*`, `uetr`,
+  and `purpose_code` columns the ISO 20022 parser writes
+  (PR #56). For every wire it:
+  - Flags **cross-border** rows (debtor country ≠ counterparty
+    country; missing-country treated as cross-border per AML
+    conservative default).
+  - Filters to rows **above the per-currency de minimis**
+    threshold (FATF R.16 minimum is USD/EUR 1,000; built-in
+    table covers 8 majors with `JPY=100k`, `CNY=7k`, etc.;
+    operator override via `AML_TRAVEL_RULE_THRESHOLDS=USD=500,GBP=900`).
+  - Checks **originator completeness** (name + account/IBAN +
+    address-OR-national-id-OR-DOB-POB) and **beneficiary
+    completeness** (name + account). OR-logic across alternate
+    columns lets a customer-resolver populate any one of them.
+  - Emits one alert per offending row with a structured
+    `missing_fields` list, an `is_cross_border: true` flag, the
+    UETR + purpose code propagated for downstream traceability,
+    and a severity hint (`critical` if amount ≥ 10× the
+    threshold; `high` otherwise).
+  Schema-tolerant — runs against the older 7-column synthetic
+  `txn` schema and against the new ISO-20022-extended schema
+  alike (missing columns are coerced to NULL in the SELECT and
+  treated as absent during field-completeness checking).
+  Wired into `examples/eu_bank/aml.yaml` as the canonical
+  `travel_rule_completeness` rule (cites FATF R.16 + EU Reg
+  2023/1113 in `regulation_refs`); `aml validate` confirms the
+  6-rule shape; `aml run` against the bundled pacs.008 sample
+  produces zero alerts (the sample is fully compliant) but
+  flags any row where the operator removes a field. 29 new
+  tests under `TestThresholdHelpers` (defaults + env overrides
+  + NaN/zero filtering), `TestCrossBorder`, `TestMissingFields`,
+  `TestValidateTravelRule` (threshold gating, channel filter,
+  severity scaling, multiple-missing-fields, one-alert-per-row),
+  `TestSchemaTolerance` (minimal 7-col schema; missing txn
+  table → empty), and `TestPythonRefIntegration` (end-to-end
+  through `run_spec` with a built-in-line spec).
 - **ISO 20022 payment-message ingestion** (`data/iso20022/`).
   Round-5 PR #1 of 5. SWIFT completed its MX-only cutover on
   **2025-11-22** (CBPR+ coexistence ended); FedNow/RTP/SEPA Instant

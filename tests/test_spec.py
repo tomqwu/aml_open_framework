@@ -267,7 +267,9 @@ class TestEUSpec:
         spec = load_spec(SPEC_EU)
         assert spec.program.jurisdiction == "EU"
         assert spec.program.regulator == "EBA"
-        assert len(spec.rules) == 5
+        # Round-5 #2 added the FATF R.16 travel-rule python_ref rule.
+        assert len(spec.rules) == 6
+        assert any(r.id == "travel_rule_completeness" for r in spec.rules)
 
     def test_eu_spec_runs(self, tmp_path):
         spec = load_spec(SPEC_EU)

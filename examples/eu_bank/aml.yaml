@@ -173,6 +173,33 @@ rules:
       - sanctions_match_details
     tags: [sanctions, eu_sanctions]
 
+  # --- FATF R.16 TRAVEL-RULE COMPLETENESS ---
+  # Round-5 #2 — composes with the iso20022 ingestion adapter (PR #56).
+  # Wire transfers ≥ EUR/USD 1,000 crossing borders must carry full
+  # originator + beneficiary information (name + account + address-or-id).
+  # The python_ref scorer reads the txn table's debtor_*/creditor_*/uetr
+  # columns the pacs.008/009 parser writes and emits one alert per
+  # offending row with a structured `missing_fields` list.
+  - id: travel_rule_completeness
+    name: FATF R.16 — cross-border wire missing required fields
+    severity: high
+    regulation_refs:
+      - citation: "FATF R.16 (June 2025 revision)"
+        description: "Originator + beneficiary info required on cross-border wires ≥ USD/EUR 1,000."
+      - citation: "EU Regulation 2023/1113 (Transfer of Funds)"
+        description: "EU implementation of the Travel Rule for funds and crypto."
+    logic:
+      type: python_ref
+      callable: aml_framework.models.travel_rule:validate_travel_rule
+      model_id: travel_rule_completeness
+      model_version: "fatf_r16_2025-06"
+    escalate_to: l2_investigator
+    evidence:
+      - matching_transaction
+      - originator_kyc_record
+      - beneficiary_lookup
+    tags: [travel_rule, fatf_r16, cross_border]
+
 workflow:
   queues:
     - id: l1_analyst
