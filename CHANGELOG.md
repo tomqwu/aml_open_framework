@@ -7,6 +7,13 @@ that introduced them.
 
 ## [Unreleased]
 
+### Refactor (later)
+- **`api/db.py` Postgres/SQLite dedup**: `_with_conn()` context manager
+  yields a thin wrapper that translates `?` placeholders to `%s` for
+  psycopg2 on the fly. Each public CRUD function now writes its query
+  once instead of carrying two near-identical SQL bodies. ~50 LOC removed.
+  No public API changes; existing Postgres mock tests pass unchanged.
+
 ### Refactor
 - Extract `_resolve_run_dir` in `cli.py` — the "default to latest run-* under
   artifacts" block was duplicated in `report`, `export`, and `export-alerts`.
