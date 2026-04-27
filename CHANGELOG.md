@@ -8,14 +8,18 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
-- **`python_ref` explainability** (`models/scoring.py`, `generators/narrative.py`):
-  scorer alerts can carry `feature_attribution: dict[str, float]` and/or
-  `explanation: str`. The bundled heuristic risk scorer now emits both —
-  the dominant signal (velocity / amount_deviation / channel_mixing) plus
-  a per-feature contribution breakdown. The STR/SAR narrative template
-  renders a "Top contributing features" block when present, collapses
-  cleanly when absent. Closes the "why this alert?" gap that modern
-  competitors (Hawk AI, Unit21) lead with.
+- **Entity-resolution layer** (`engine/entity_resolution.py`): runtime
+  builds a `resolved_entity` view + `resolved_entity_link` table inside
+  the engine's DuckDB. Linking attributes (`phone`, `email`, `device_id`,
+  `address`, `tax_id`, `wallet_address`) are recognized when present on
+  the customer contract — pairs of customers sharing a non-null value
+  appear as edges with attribute + weight. v1 uses customer_id as the
+  resolved entity; the table is the substrate for the upcoming
+  `network_pattern` rule type. Wired into the runner so every spec gets it
+  for free; no spec changes required. Production deployments swap in a
+  real ER service (Senzing, Quantexa) by overriding `resolve_entities`.
+- 5 new tests under `TestEntityResolution` cover: empty-spec stub, shared
+  phone, shared device_id, NULL-doesn't-link semantics, view shape.
 
 ### Security
 - **Cross-tenant API isolation** (`api/db.py`, `api/main.py`): every read

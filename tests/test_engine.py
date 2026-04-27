@@ -374,6 +374,101 @@ class TestExplainability:
         assert "Top contributing features:" not in narrative
 
 
+class TestEntityResolution:
+    """Pairwise links between customers sharing non-null linking attributes
+    show up in `resolved_entity_link`. The `resolved_entity` view always
+    exists so downstream rules can JOIN unconditionally."""
+
+    def _con_with_customers(self, rows: list[dict]) -> duckdb.DuckDBPyConnection:
+        con = duckdb.connect(":memory:")
+        cols = sorted({k for r in rows for k in r.keys()})
+        col_ddl = ", ".join(f"{c} VARCHAR" for c in cols)
+        con.execute(f"CREATE TABLE customer ({col_ddl})")
+        placeholders = ", ".join(["?"] * len(cols))
+        con.executemany(
+            f"INSERT INTO customer ({', '.join(cols)}) VALUES ({placeholders})",
+            [tuple(r.get(c) for c in cols) for r in rows],
+        )
+        return con
+
+    def test_resolve_creates_view_even_when_no_customer_table(self):
+        from aml_framework.engine.entity_resolution import resolve_entities
+
+        spec = load_spec(SPEC_CA)
+        con = duckdb.connect(":memory:")
+        resolve_entities(con, spec)
+        link_count = con.execute("SELECT COUNT(*) FROM resolved_entity_link").fetchone()[0]
+        assert link_count == 0
+        con.close()
+
+    def test_shared_phone_creates_link(self):
+        from aml_framework.engine.entity_resolution import resolve_entities
+
+        spec = load_spec(SPEC_CA)
+        con = self._con_with_customers(
+            [
+                {"customer_id": "A", "phone": "+15551234567"},
+                {"customer_id": "B", "phone": "+15551234567"},
+                {"customer_id": "C", "phone": "+15559999999"},
+            ]
+        )
+        resolve_entities(con, spec)
+        rows = con.execute(
+            "SELECT left_customer_id, right_customer_id, attribute"
+            " FROM resolved_entity_link ORDER BY left_customer_id, right_customer_id"
+        ).fetchall()
+        assert ("A", "B", "phone") in rows
+        assert not any("C" in (left, right) for (left, right, _) in rows)
+        con.close()
+
+    def test_shared_device_id_creates_link(self):
+        from aml_framework.engine.entity_resolution import resolve_entities
+
+        spec = load_spec(SPEC_CA)
+        con = self._con_with_customers(
+            [
+                {"customer_id": "X", "device_id": "dev-1"},
+                {"customer_id": "Y", "device_id": "dev-1"},
+            ]
+        )
+        resolve_entities(con, spec)
+        attrs = {r[0] for r in con.execute("SELECT attribute FROM resolved_entity_link").fetchall()}
+        assert "device_id" in attrs
+        con.close()
+
+    def test_null_linking_value_does_not_create_link(self):
+        from aml_framework.engine.entity_resolution import resolve_entities
+
+        spec = load_spec(SPEC_CA)
+        con = self._con_with_customers(
+            [
+                {"customer_id": "A", "phone": None},
+                {"customer_id": "B", "phone": None},
+            ]
+        )
+        resolve_entities(con, spec)
+        count = con.execute("SELECT COUNT(*) FROM resolved_entity_link").fetchone()[0]
+        assert count == 0
+        con.close()
+
+    def test_resolved_entity_view_assigns_id_per_customer(self):
+        from aml_framework.engine.entity_resolution import resolve_entities
+
+        spec = load_spec(SPEC_CA)
+        con = self._con_with_customers(
+            [
+                {"customer_id": "A", "phone": "+1"},
+                {"customer_id": "B", "phone": "+2"},
+            ]
+        )
+        resolve_entities(con, spec)
+        rows = con.execute(
+            "SELECT customer_id, resolved_entity_id FROM resolved_entity ORDER BY customer_id"
+        ).fetchall()
+        assert rows == [("A", "A"), ("B", "B")]
+        con.close()
+
+
 class TestPythonRefErrorBoundary:
     """A scorer that raises must NOT abort the whole run."""
 
