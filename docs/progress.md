@@ -6,16 +6,16 @@ Snapshot of where the AML Open Framework is as of 2026-04-27. This document is a
 
 ## At a Glance
 
-| Metric | Value |
-|---|---|
-| Source code | 19,642 lines across 18 top-level modules |
-| Tests | 991 collected, 953 passing on the unit-test image (excluding e2e) |
-| Test files | 34 |
-| Documentation | 1,852 lines across 10 docs + 1,476-line CHANGELOG + 123-line README |
-| Example specs | 7 (US, CA, EU, UK, crypto VASP, cyber-fraud, plus a TD-case-study variant) |
-| Unique regulation citations | 61+ across all bundled specs and library snippets |
-| Dashboard pages | 24 |
-| Merged PRs in latest sprint (2026-04-27) | 17 (#46–#72) |
+| Metric | Value (post Round 6, snapshot 2026-04-27) | After Round 7 closes |
+|---|---|---|
+| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC (compliance/, metrics/outcomes, generators/audit_pack, data/psd3) |
+| Tests | 991 collected, 953 passing on minimal CI | + ~110 (regwatch 31 + outcomes 21 + tbml/app 17 + psd3 25 + audit-pack 20) |
+| Test files | 34 | 39 |
+| Documentation | 2,212 LOC across 11 docs + 1,476-line CHANGELOG + 125-line README | unchanged shape |
+| Example specs | 7 | 9 (+ trade_based_ml + uk_app_fraud) |
+| Unique regulation citations | 61+ | ~75+ |
+| Dashboard pages | 24 | 24 (integration deferred to follow-up PR) |
+| Merged PRs (2026-04-27) | 18 (#46–#73) | + Round 7 PRs #74–#78 (in CI) |
 
 ---
 
@@ -85,6 +85,25 @@ Goal: make investigation (not alert) the unit of analyst work, per FinCEN's 2024
 | #72 | Synthetic data enriched with ISO 20022 fields + planted INVS positive |
 
 **Result**: new-user onboarding path is 15 minutes. Mobile viewports work. Executive personas (SVP/CTO/CCO/VP/Director) get auto-scaled fonts. Default `aml run --seed 42` demo now exercises all Round 5/6 features.
+
+### Round 7 — Research-driven defensive layer (5 PRs, ~21 days)
+
+Goal: ship the top-5 features ranked by impact ÷ effort in the [2026-04 competitive positioning research](research/2026-04-competitive-positioning.md). All five anchored to a 2026 regulatory clock the research surfaced as load-bearing.
+
+| PR | Feature | Driving signal |
+|---|---|---|
+| #74 | Regulatory-change diff watcher (`compliance/regwatch.py`) | FinCEN BOI Mar 2025 narrowing + April 2026 NPRM 12-month tail |
+| #75 | AMLA STR/RTS effectiveness telemetry pack (`metrics/outcomes.py`) | AMLA RTS due 2026-07-10 + FinCEN NPRM enumerates same metrics |
+| #76 | TBML + UK APP-fraud example specs | FATF Feb 2026 plenary + PSR Apr 2026 full-effect reimbursement |
+| #77 | PSD3 / Verification-of-Payee adapter (DRAFT) | PSD3/PSR Council/Parliament agreement end-Q2 2026; VoP applies +24 months |
+| #78 | FINTRAC pre-examination audit pack (`generators/audit_pack.py`) | FINTRAC January 2026 examination manual update |
+
+**Result**: framework now has a defensive layer that sits *above* the spec — drift detection against silently-changing regulator pages, regulator-format effectiveness JSON, jurisdiction-templated examination evidence packs. This is the layer commercial vendors don't ship because they own the rule library themselves; the framework needs it precisely because it doesn't.
+
+**Cross-feature integration** (deferred to Round 7 polish):
+- Dashboard page surfacing the outcomes funnel (visualises `compute_outcomes()` output)
+- Dashboard panel for regwatch drift findings
+- One-click audit-pack download from the Investigations page
 
 ---
 
