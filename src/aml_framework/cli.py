@@ -441,6 +441,48 @@ def mrm_bundle_cmd(
         )
 
 
+@app.command(name="audit-pack")
+def audit_pack_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    jurisdiction: str = typer.Option(
+        "CA-FINTRAC",
+        "--jurisdiction",
+        help="Regulator-specific pack template. Currently: CA-FINTRAC.",
+    ),
+    out: Path = typer.Option(
+        Path("audit-pack.zip"),
+        "--out",
+        help="Output ZIP file path.",
+    ),
+    run_dir: Path | None = typer.Option(
+        None, "--run-dir", help="Run directory; defaults to newest under artifacts/."
+    ),
+    artifacts: Path = typer.Option(
+        Path("artifacts"), "--artifacts", help="Where engine runs are written."
+    ),
+) -> None:
+    """Build a regulator pre-examination audit pack.
+
+    Bundles the spec inventory + alerts summary + cases summary +
+    audit-trail integrity proof + sanctions evidence + jurisdiction-
+    specific section maps into one deterministic ZIP. Hand to
+    examiners on arrival.
+
+    Closes the gap from FINTRAC's January 2026 examination manual
+    update which made the pre-exam evidence demand explicit.
+    """
+    from aml_framework.generators.audit_pack import build_audit_pack_from_run_dir
+
+    spec = load_spec(spec_path)
+    run = _resolve_run_dir(run_dir, artifacts)
+    payload = build_audit_pack_from_run_dir(spec, run, jurisdiction=jurisdiction)
+    out.write_bytes(payload)
+    console.print(
+        f"[green]Audit pack written[/green] {out} "
+        f"({len(payload):,} bytes, jurisdiction={jurisdiction})"
+    )
+
+
 @app.command(name="export-amla-str")
 def export_amla_str_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
