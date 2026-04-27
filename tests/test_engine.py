@@ -298,6 +298,82 @@ class TestEngineHardening:
         assert "my_org.scorers." in prefixes
 
 
+class TestExplainability:
+    """python_ref scorers can emit feature_attribution / explanation; the
+    engine must preserve them through alerts → cases → STR narrative."""
+
+    def test_heuristic_scorer_emits_feature_attribution(self, tmp_path):
+        from aml_framework.engine.runner import _build_warehouse, _harden_duckdb
+        from aml_framework.models.scoring import heuristic_risk_scorer
+
+        spec = load_spec(SPEC_CA)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42, n_customers=25, n_noise_txns=600)
+        con = duckdb.connect(":memory:")
+        _harden_duckdb(con)
+        _build_warehouse(con, spec, data)
+        alerts = heuristic_risk_scorer(con, as_of)
+        con.close()
+        assert alerts, "expected at least one risk alert from heuristic scorer"
+        for a in alerts:
+            assert "feature_attribution" in a
+            attr = a["feature_attribution"]
+            assert set(attr.keys()) == {"velocity", "amount_deviation", "channel_mixing"}
+            assert "explanation" in a
+            assert "risk_score" in a["explanation"]
+
+    def test_explainability_flows_into_str_narrative(self):
+        """STR narrative renders feature_attribution + explanation when present."""
+        from aml_framework.generators.narrative import generate_str_narrative
+
+        case = {
+            "case_id": "test_case",
+            "rule_name": "ml_risk_scorer",
+            "severity": "high",
+            "queue": "l2_investigator",
+            "regulation_refs": [{"citation": "PCMLTFA s.7", "description": "ML detection"}],
+            "evidence_requested": ["features"],
+            "alert": {
+                "sum_amount": 25000,
+                "count": 5,
+                "window_start": "2026-04-01",
+                "window_end": "2026-04-23",
+                "risk_score": 0.82,
+                "feature_attribution": {
+                    "velocity": 0.32,
+                    "amount_deviation": 0.18,
+                    "channel_mixing": 0.32,
+                },
+                "explanation": "Behavioral score driven primarily by 'velocity'.",
+            },
+        }
+        customer = {
+            "full_name": "Test User",
+            "customer_id": "T0001",
+            "country": "CA",
+            "risk_rating": "high",
+        }
+        narrative = generate_str_narrative(case, customer, transactions=[], jurisdiction="CA")
+        assert "Top contributing features:" in narrative
+        assert "velocity:" in narrative
+        assert "Behavioral score driven primarily" in narrative
+
+    def test_narrative_no_explainability_collapses_cleanly(self):
+        """When alert lacks attribution, narrative omits the section."""
+        from aml_framework.generators.narrative import generate_str_narrative
+
+        case = {
+            "case_id": "test_case",
+            "rule_name": "structuring",
+            "severity": "high",
+            "queue": "l1_aml_analyst",
+            "regulation_refs": [{"citation": "PCMLTFA", "description": "structuring"}],
+            "alert": {"sum_amount": 25000, "count": 5},
+        }
+        narrative = generate_str_narrative(case, None, [], jurisdiction="CA")
+        assert "Top contributing features:" not in narrative
+
+
 class TestPythonRefErrorBoundary:
     """A scorer that raises must NOT abort the whole run."""
 

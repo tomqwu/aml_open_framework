@@ -7,6 +7,16 @@ that introduced them.
 
 ## [Unreleased]
 
+### Added
+- **`python_ref` explainability** (`models/scoring.py`, `generators/narrative.py`):
+  scorer alerts can carry `feature_attribution: dict[str, float]` and/or
+  `explanation: str`. The bundled heuristic risk scorer now emits both —
+  the dominant signal (velocity / amount_deviation / channel_mixing) plus
+  a per-feature contribution breakdown. The STR/SAR narrative template
+  renders a "Top contributing features" block when present, collapses
+  cleanly when absent. Closes the "why this alert?" gap that modern
+  competitors (Hawk AI, Unit21) lead with.
+
 ### Security
 - **Cross-tenant API isolation** (`api/db.py`, `api/main.py`): every read
   endpoint now scopes by the JWT's `tenant` claim. `list_runs`, `get_run`,
