@@ -144,6 +144,11 @@ ALL_PAGES = [
     ),
     st.Page("pages/20_Spec_Editor.py", title="Spec Editor", icon=":material/edit_note:"),
     st.Page("pages/21_My_Queue.py", title="My Queue", icon=":material/assignment_ind:"),
+    st.Page(
+        "pages/24_Investigations.py",
+        title="Investigations",
+        icon=":material/group_work:",
+    ),
 ]
 
 # Filter pages by audience if one is selected.
