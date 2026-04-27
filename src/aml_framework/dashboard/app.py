@@ -12,7 +12,9 @@ st.set_page_config(
     page_title="AML Open Framework",
     page_icon=":shield:",
     layout="wide",
-    initial_sidebar_state="expanded",
+    # "auto" collapses the sidebar by default on narrow viewports
+    # (issue #66); desktop users still see it expanded.
+    initial_sidebar_state="auto",
 )
 
 apply_theme()

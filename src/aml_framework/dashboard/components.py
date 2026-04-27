@@ -119,13 +119,107 @@ button[data-baseweb="tab"] {
     border-radius: 50%;
     margin-right: 6px;
 }
+
+/* ---- Mobile responsiveness (issue #66) ----
+ * Streamlit defaults assume wide desktop viewports; without these
+ * overrides the dashboard horizontal-scrolls on phones and the
+ * sidebar takes ~90% of the screen when expanded.
+ *
+ * Breakpoints chosen to match common device widths:
+ *   <768px  → tablets / large phones
+ *   <480px  → phones
+ */
+
+/* Tighten container padding on tablets and below */
+@media (max-width: 768px) {
+    .block-container {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+        padding-top: 1rem !important;
+        max-width: 100vw !important;
+    }
+    /* Stack columns vertically — Streamlit's CSS grid keeps them
+       horizontal until ~640px, which is too aggressive for our
+       4-column KPI rows. Force stacking earlier. */
+    [data-testid="stHorizontalBlock"] {
+        flex-direction: column !important;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+    /* Smaller KPI value font so 4-up KPI cards don't truncate when stacked */
+    [data-testid="stMetricValue"] {
+        font-size: 1.4rem !important;
+    }
+    /* Compress headers */
+    h1 { font-size: 1.5rem !important; }
+    h2 { font-size: 1.25rem !important; }
+    h3 { font-size: 1.1rem !important; }
+    /* Make tables horizontally scroll inside their container,
+       not blow out the page width */
+    [data-testid="stDataFrame"] {
+        overflow-x: auto !important;
+    }
+    /* Plotly chart heights — desktop defaults overflow vertically
+       on small screens; cap at 60vh so charts fit + leave room for
+       the legend */
+    [data-testid="stPlotlyChart"] > div {
+        height: auto !important;
+        max-height: 60vh;
+    }
+}
+
+/* Phone-specific: tighten further + auto-hide sidebar handle width */
+@media (max-width: 480px) {
+    .block-container {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    /* Sidebar width when expanded — reduce so users can still see
+       page content underneath when the sidebar is opened */
+    section[data-testid="stSidebar"] {
+        width: 85vw !important;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 1.2rem !important;
+    }
+}
+
+/* Touch-target sizing — Apple HIG + Material Design both call for
+ * a 44x44pt minimum tap target. Streamlit defaults are too small
+ * for fingers on phones. */
+@media (max-width: 768px) {
+    button, [role="button"], a {
+        min-height: 44px;
+    }
+    /* Selectbox / multiselect inputs */
+    [data-baseweb="select"] {
+        min-height: 44px;
+    }
+}
 </style>
 """
 
 
 def apply_theme() -> None:
-    """Inject custom CSS."""
+    """Inject custom CSS, including mobile-responsive overlay (issue #66)."""
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+
+def responsive_plotly_config() -> dict[str, Any]:
+    """Return a Plotly config dict that enables responsive resizing.
+
+    Pass to `st.plotly_chart(fig, config=responsive_plotly_config())`.
+    Plotly's `responsive: True` makes the chart re-layout when its
+    container resizes — without it, charts render at their initial
+    width and overflow on mobile when the user rotates or the
+    sidebar collapses.
+    """
+    return {
+        "responsive": True,
+        "displayModeBar": False,  # Cleaner mobile view; users can toggle if needed
+    }
 
 
 # ---------------------------------------------------------------------------

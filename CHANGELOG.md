@@ -30,6 +30,45 @@ that introduced them.
   command. Drift item from the 30-day docs sweep (issue #68).
 
 ### Added
+- **Mobile-responsive dashboard overlay** (`dashboard/components.py`,
+  `dashboard/app.py`, `tests/test_dashboard_mobile_css.py`,
+  `tests/test_e2e_dashboard_mobile.py`, `.github/workflows/ci.yml`).
+  Closes [issue #66](https://github.com/tomqwu/aml_open_framework/issues/66).
+  Lightweight overlay path from the issue's two options — no
+  separate JS client, just CSS + a Streamlit page-config tweak.
+  CSS additions to `CUSTOM_CSS` in `components.py`:
+  - `@media (max-width: 768px)` block — tightens container padding,
+    forces `[data-testid="stHorizontalBlock"]` to
+    `flex-direction: column` so 4-up KPI rows stack on tablets and
+    phones, compresses headers, caps Plotly chart height at 60vh,
+    enables horizontal-scroll on dataframes (so wide tables don't
+    blow out the page width)
+  - `@media (max-width: 480px)` block — phone-specific further
+    tightening + sidebar capped at 85vw so users can see page
+    content beneath when sidebar is opened
+  - 44px `min-height` on buttons / `[role="button"]` / inputs at
+    ≤768px (Apple HIG + Material Design touch-target standard)
+  `app.py` change: `initial_sidebar_state="expanded"` →
+  `"auto"` — Streamlit's auto mode collapses the sidebar by
+  default on narrow viewports while keeping desktop UX unchanged.
+  New `responsive_plotly_config()` helper exports
+  `{"responsive": True, "displayModeBar": False}` for pages to
+  pass via `st.plotly_chart(fig, config=responsive_plotly_config())`
+  — makes Plotly charts re-layout on viewport changes (rotation,
+  sidebar collapse).
+  10 unit tests under `test_dashboard_mobile_css.py` — source-
+  level CSS-presence checks. Runs on the minimal unit-test CI
+  image (no streamlit dep).
+  9 e2e tests under `test_e2e_dashboard_mobile.py` parametrized
+  over 3 viewports (375x667 iPhone SE, 414x896 iPhone XR,
+  768x1024 iPad portrait): no horizontal scroll on landing,
+  sidebar collapsed at phone size, mobile CSS in DOM, no error
+  banners. Separate port (8600) so the two suites can run in
+  parallel.
+  CI config updated: unit-tests + docker-build jobs ignore the
+  new mobile e2e file; e2e-dashboard runs both suites, timeout
+  bumped from 5 to 8 minutes.
+
 - **Documentation refactor + Getting Started guide** (`README.md`,
   `docs/getting-started.md`, `docs/dashboard-tour.md`,
   `docs/jurisdictions.md`, `tests/test_docs_links.py`). README
