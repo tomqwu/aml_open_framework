@@ -11,9 +11,16 @@ Why a snippet library (not an include mechanism):
     appear in the running spec on a library bump — which would erode
     that story. Copy-paste is the right ergonomic.
 
-In v1 the library ships just one file (`iso20022_purpose_codes.yaml`,
-Round-5 PR #3). Future rounds will add more (TBML in Round-7, RTP
-push fraud in Round-8).
+Files shipped:
+- `iso20022_purpose_codes.yaml` — Round-5 #3 purpose-code typology
+  rules (INVS pig-butchering, CHAR/GIFT shell-charity, DERI mandate
+  mismatch, TRAD-to-high-risk TBML).
+- `iso20022_return_reasons.yaml` — Round-5 #5 pacs.004 return-reason
+  mining (mule-probing burst, corridor return-rate spike, MD07
+  deceased-payee scraping). Reads from `txn_return` data contract.
+
+Future rounds will add more (TBML in Round-7, RTP push fraud in
+Round-8).
 """
 
 from pathlib import Path

@@ -8,6 +8,95 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **pacs.004 payment-return ingestion + return-reason mining library**
+  (`data/iso20022/parser.py:Pacs004Parser`,
+  `data/iso20022/sample_pacs004.xml`,
+  `spec/library/iso20022_return_reasons.yaml`,
+  `data/lists/iso20022_return_reason_codes.csv`). Round-5 PR #5 of 5
+  — **closes the Round-5 ISO-20022 arc**. The **UK Payment Systems
+  Regulator's APP-fraud reimbursement mandate** (effective Oct 2024,
+  full effect Apr 2026) made return-reason mining material to
+  issuer economics: every reimbursable claim that traces back to a
+  missed mule signal at the sending PSP costs that PSP 50% of the
+  reimbursement under the mandatory split. Mining return reasons
+  per-originator stopped being optional. New `Pacs004Parser`
+  consumes `<PmtRtr>` payloads (ISO 20022 PaymentReturn, pacs.004)
+  and emits dicts on a **separate `txn_return` data contract** —
+  rows do NOT mix into `txn` because the schemas don't overlap.
+  Each row preserves: `return_id`, `original_uetr` (preferred join
+  key back to credit transfers), `original_end_to_end_id`,
+  `original_tx_id`, `amount`, `currency`, `returned_at`,
+  `reason_code` (ExternalReturnReason1Code: AC03, AC04, AM05, MD07,
+  FRAD, BE05, …), `reason_info` (free text), `originator_name` /
+  `originator_country` and `beneficiary_name` /
+  `beneficiary_country` extracted from `<OrgnlTxRef>`. Auto-detect
+  dispatch now: pacs.004 → pain.001 → pacs.009 → pacs.008 fallback;
+  pacs.004 must be checked first or it would silently fall through
+  to the credit-transfer path and produce empty txn rows.
+  New companion helpers split the mixed-directory case cleanly:
+  - `load_iso20022_dir(dir)` — credit transfers only (pacs.008/009 +
+    pain.001), filters out pacs.004. **Existing behavior preserved**
+    (the `iso20022` source-type integration is unaffected).
+  - `load_iso20022_returns_dir(dir)` — pacs.004 only. Operators
+    point this at the same XML directory and get a clean
+    `txn_return`-shaped row list, ready to load into a sibling
+    DuckDB table.
+  Bundled `sample_pacs004.xml` covers ROAMR LTD (a corporate
+  originator) hitting **four returns in one week** with the
+  canonical money-mule-probing reason mix (AC03 invalid-account,
+  AC04 closed-account, MD07 deceased-payee, AM05 duplication) — all
+  to CH beneficiaries. This is the textbook "originator is testing
+  which mule accounts are still alive" pattern that snippet 1
+  catches.
+  New **`spec/library/iso20022_return_reasons.yaml`** ships **3
+  reusable rule snippets** (sibling to PR #58's
+  `iso20022_purpose_codes.yaml`, same copy-paste-not-include
+  pattern that preserves the "every line written by a human"
+  defensibility moat):
+  - **`high_risk_return_burst_mule_probing`** (severity high, custom_sql
+    on `txn_return`) — fires when a single originator hits ≥3 returns
+    in 14 days with codes from the curated mule-signal set
+    (AC03/AC04/AC06/AG01/AM05/BE05/BE06/FRAD/MD07/RR04). Cites UK PSR
+    APP-fraud CRS, FATF Cyber-Enabled Fraud Feb 2026, FCA FG24/4.
+  - **`corridor_return_rate_spike`** (severity medium, custom_sql
+    joining `txn` + `txn_return`) — corridor-level abuse detection
+    for originators with high outbound volume where absolute return
+    counts wouldn't trigger snippet 1 but the rate (≥10% returned in
+    the originator/beneficiary-country corridor with ≥10 sent) is
+    anomalous. Cites Wolfsberg Feb 2026 correspondent-banking
+    guidance + UK PSR CRS.
+  - **`deceased_payee_returns_md07`** (severity high, custom_sql on
+    `txn_return`) — multiple MD07 returns from one originator in
+    90d is the **death-record-scraping fraud-ring tradecraft** signal.
+    Cites FinCEN FIN-2023-Alert005 (identity-theft impersonation) and
+    UK PSR CRS (reimbursement covers impersonation against deceased
+    account-holders).
+  New **`data/lists/iso20022_return_reason_codes.csv`** — 44
+  ExternalReturnReason1Code rows with `description`, `risk_band`
+  (low/medium/high), and `mule_signal` boolean classification. The
+  `mule_signal=true` subset is the curated list that snippet 1 keys
+  on; tests enforce the contract that every code cited in the
+  snippet is flagged `mule_signal=true` in the CSV (no drift).
+  36 new tests under `TestPacs004Parser` (4-row extraction +
+  return_id / original_uetr / original_end_to_end_id / amount /
+  currency / returned_at / reason_code / reason_info / originator
+  pulled from `<OrgnlTxRef>` / beneficiary / msg_id propagation),
+  `TestPacs004Robustness` (empty payload / malformed XML / missing
+  reason / fallback to msg_id when no RtrId / fallback to
+  IntrBkSttlmAmt when no RtrdIntrBkSttlmAmt / namespace-agnostic
+  parsing across XSD versions), `TestAutoDetectDispatch` (pacs.004
+  / pacs.008 / pain.001 routing through `parse_iso20022_xml`),
+  `TestDirLoaders` (`load_iso20022_dir` filters out pacs.004 +
+  `load_iso20022_returns_dir` returns only pacs.004 + the two
+  loaders are disjoint over the same mixed directory),
+  `TestLibraryYAML` (file exists / loads as list / every snippet
+  validates as Pydantic Rule / pacs004 tag on every snippet / known
+  snippet IDs present), `TestReturnReasonCSV` (file exists /
+  required columns / cited codes classified / valid risk_band
+  values / boolean-string `mule_signal` values / mule_signal codes
+  align with snippet 1's hardcoded list / no duplicate codes).
+  Total test count 740 → 792.
+
 - **pain.001 corporate-batch ingestion**
   (`data/iso20022/parser.py:Pain001Parser`,
   `data/iso20022/sample_pain001.xml`). Round-5 PR #4 of 5 — extends
