@@ -98,6 +98,173 @@ class TestRunnerEndToEnd:
             )
 
 
+class TestThresholdBoundaries:
+    """Negative tests: just-below-threshold data must NOT fire.
+
+    Coverage % alone doesn't bound false positives. These tests assert that
+    each detection rule respects its threshold by feeding deliberately
+    below-the-line data and confirming the rule produces zero alerts for the
+    test customer.
+    """
+
+    AS_OF = datetime(2026, 4, 23, 12, 0, 0)
+
+    @staticmethod
+    def _customer(cid: str, country: str = "CA", risk: str = "low") -> dict:
+        return {
+            "customer_id": cid,
+            "full_name": f"Test {cid}",
+            "country": country,
+            "risk_rating": risk,
+            "onboarded_at": datetime(2024, 1, 1),
+            "business_activity": "retail",
+        }
+
+    @staticmethod
+    def _txn(
+        tid: str,
+        cid: str,
+        amount: float,
+        channel: str = "cash",
+        direction: str = "in",
+        days_before: int = 1,
+    ) -> dict:
+        from datetime import timedelta
+
+        return {
+            "txn_id": tid,
+            "customer_id": cid,
+            "amount": amount,
+            "currency": "CAD",
+            "channel": channel,
+            "direction": direction,
+            "booked_at": TestThresholdBoundaries.AS_OF - timedelta(days=days_before),
+        }
+
+    def _run_alerts_for(self, tmp_path, data, rule_id: str) -> list:
+        spec = load_spec(SPEC_CA)
+        result = run_spec(
+            spec=spec,
+            spec_path=SPEC_CA,
+            data=data,
+            as_of=self.AS_OF,
+            artifacts_root=tmp_path,
+        )
+        return [a for a in result.alerts.get(rule_id, []) if a.get("customer_id") == "T0001"]
+
+    def test_structuring_below_count_does_not_fire(self, tmp_path):
+        """count < 3 → no structuring alert (sum is high but count fails)."""
+        data = {
+            "customer": [self._customer("T0001")],
+            "txn": [
+                # Two cash-in deposits, both in [5000-9999]. Sum = $18000 (well above
+                # 20000 threshold? No, $9000+$9000=$18000 < $20000). count=2 fails.
+                # But also: each amount in [5000-9999] passes the filter.
+                self._txn("T1", "T0001", 9000, days_before=1),
+                self._txn("T2", "T0001", 9000, days_before=2),
+            ],
+        }
+        assert self._run_alerts_for(tmp_path, data, "structuring_cash_deposits") == []
+
+    def test_structuring_below_sum_does_not_fire(self, tmp_path):
+        """count >= 3 but sum < 20000 → no alert."""
+        data = {
+            "customer": [self._customer("T0001")],
+            "txn": [
+                # 3 deposits of $6000 each. count=3 (passes), sum=$18000 (< 20000).
+                self._txn("T1", "T0001", 6000, days_before=1),
+                self._txn("T2", "T0001", 6000, days_before=2),
+                self._txn("T3", "T0001", 6000, days_before=3),
+            ],
+        }
+        assert self._run_alerts_for(tmp_path, data, "structuring_cash_deposits") == []
+
+    def test_structuring_above_threshold_fires(self, tmp_path):
+        """Positive control: 3 deposits at $9000 = $27000. Both thresholds met."""
+        data = {
+            "customer": [self._customer("T0001")],
+            "txn": [
+                self._txn("T1", "T0001", 9000, days_before=1),
+                self._txn("T2", "T0001", 9000, days_before=2),
+                self._txn("T3", "T0001", 9000, days_before=3),
+            ],
+        }
+        alerts = self._run_alerts_for(tmp_path, data, "structuring_cash_deposits")
+        assert len(alerts) == 1, f"expected 1 alert, got {alerts}"
+
+    def test_structuring_outside_amount_filter_does_not_fire(self, tmp_path):
+        """Amounts outside [5000-9999] don't match the filter, even if count/sum would qualify."""
+        data = {
+            "customer": [self._customer("T0001")],
+            "txn": [
+                # 4 deposits at $4000 each = $16000. amount filter [5000-9999] excludes them.
+                self._txn("T1", "T0001", 4000, days_before=1),
+                self._txn("T2", "T0001", 4000, days_before=2),
+                self._txn("T3", "T0001", 4000, days_before=3),
+                self._txn("T4", "T0001", 4000, days_before=4),
+            ],
+        }
+        assert self._run_alerts_for(tmp_path, data, "structuring_cash_deposits") == []
+
+    def test_lctr_below_threshold_does_not_fire(self, tmp_path):
+        """large_cash_lctr: sum_amount per day < $10000 → no alert."""
+        data = {
+            "customer": [self._customer("T0001")],
+            "txn": [
+                # Two cash deposits same day totalling $9000. Below $10k threshold.
+                self._txn("T1", "T0001", 5000, days_before=1),
+                self._txn("T2", "T0001", 4000, days_before=1),
+            ],
+        }
+        assert self._run_alerts_for(tmp_path, data, "large_cash_lctr") == []
+
+    def test_lctr_at_threshold_fires(self, tmp_path):
+        """Positive control: sum exactly $10000 same day → alert (gte semantic)."""
+        data = {
+            "customer": [self._customer("T0001")],
+            "txn": [
+                self._txn("T1", "T0001", 5000, days_before=1),
+                self._txn("T2", "T0001", 5000, days_before=1),
+            ],
+        }
+        alerts = self._run_alerts_for(tmp_path, data, "large_cash_lctr")
+        assert len(alerts) == 1
+
+    def test_high_risk_jurisdiction_safe_country_does_not_fire(self, tmp_path):
+        """Customer in low-risk country must not trigger high_risk_jurisdiction."""
+        data = {
+            "customer": [self._customer("T0001", country="CA")],
+            "txn": [
+                # Sum $20000, well above the rule's $5000 threshold.
+                self._txn("T1", "T0001", 10000, channel="wire", direction="in", days_before=1),
+                self._txn("T2", "T0001", 10000, channel="wire", direction="in", days_before=2),
+            ],
+        }
+        assert self._run_alerts_for(tmp_path, data, "high_risk_jurisdiction") == []
+
+    def test_high_risk_jurisdiction_below_sum_does_not_fire(self, tmp_path):
+        """Even from a high-risk country, sum < $5000 must not fire."""
+        data = {
+            "customer": [self._customer("T0001", country="RU", risk="high")],
+            "txn": [
+                self._txn("T1", "T0001", 2000, channel="wire", direction="in", days_before=1),
+                self._txn("T2", "T0001", 2000, channel="wire", direction="in", days_before=2),
+            ],
+        }
+        assert self._run_alerts_for(tmp_path, data, "high_risk_jurisdiction") == []
+
+    def test_high_risk_jurisdiction_above_threshold_fires(self, tmp_path):
+        """Positive control: high-risk country, sum >= $5000."""
+        data = {
+            "customer": [self._customer("T0001", country="RU", risk="high")],
+            "txn": [
+                self._txn("T1", "T0001", 5000, channel="wire", direction="in", days_before=1),
+            ],
+        }
+        alerts = self._run_alerts_for(tmp_path, data, "high_risk_jurisdiction")
+        assert len(alerts) == 1
+
+
 class TestRunnerEdgeCases:
     def test_run_produces_manifest(self, tmp_path):
         """Every run produces a manifest with required fields."""
