@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS runs (
     spec_path TEXT NOT NULL,
     seed INTEGER NOT NULL,
     manifest JSONB NOT NULL,
+    tenant_id TEXT DEFAULT 'default',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE TABLE IF NOT EXISTS run_alerts (
@@ -189,13 +190,14 @@ def store_run(
     manifest: dict[str, Any],
     alerts: dict[str, list[dict]],
     metrics: list[dict],
+    tenant_id: str = "default",
 ) -> None:
     now = datetime.now(tz=timezone.utc).isoformat()
     with _with_conn() as cur:
         cur.execute(
-            "INSERT INTO runs (run_id, spec_path, seed, manifest, created_at)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (run_id, spec_path, seed, json.dumps(manifest), now),
+            "INSERT INTO runs (run_id, spec_path, seed, manifest, tenant_id, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (run_id, spec_path, seed, json.dumps(manifest), tenant_id, now),
         )
         for rule_id, rule_alerts in alerts.items():
             cur.execute(
@@ -208,11 +210,20 @@ def store_run(
         )
 
 
-def list_runs() -> list[dict[str, Any]]:
+def list_runs(tenant_id: str | None = None) -> list[dict[str, Any]]:
+    """List recent runs. When `tenant_id` is given, only that tenant's runs."""
     with _with_conn() as cur:
-        cur.execute(
-            "SELECT run_id, spec_path, seed, created_at FROM runs ORDER BY created_at DESC LIMIT 50"
-        )
+        if tenant_id is None:
+            cur.execute(
+                "SELECT run_id, spec_path, seed, created_at FROM runs"
+                " ORDER BY created_at DESC LIMIT 50"
+            )
+        else:
+            cur.execute(
+                "SELECT run_id, spec_path, seed, created_at FROM runs"
+                " WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 50",
+                (tenant_id,),
+            )
         return [
             {
                 "run_id": r[0],
@@ -224,22 +235,46 @@ def list_runs() -> list[dict[str, Any]]:
         ]
 
 
-def get_run(run_id: str) -> dict[str, Any] | None:
+def get_run(run_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
+    """Fetch a run's manifest. When `tenant_id` is given, returns None if the
+    run belongs to a different tenant — prevents cross-tenant reads."""
     with _with_conn() as cur:
-        cur.execute("SELECT manifest FROM runs WHERE run_id = ?", (run_id,))
+        if tenant_id is None:
+            cur.execute("SELECT manifest FROM runs WHERE run_id = ?", (run_id,))
+        else:
+            cur.execute(
+                "SELECT manifest FROM runs WHERE run_id = ? AND tenant_id = ?",
+                (run_id, tenant_id),
+            )
         row = cur.fetchone()
         return json.loads(row[0]) if row else None
 
 
-def get_run_alerts(run_id: str) -> list[dict[str, Any]]:
+def get_run_alerts(run_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
     with _with_conn() as cur:
-        cur.execute("SELECT rule_id, alerts FROM run_alerts WHERE run_id = ?", (run_id,))
+        if tenant_id is None:
+            cur.execute("SELECT rule_id, alerts FROM run_alerts WHERE run_id = ?", (run_id,))
+        else:
+            cur.execute(
+                "SELECT ra.rule_id, ra.alerts FROM run_alerts ra"
+                " JOIN runs r ON r.run_id = ra.run_id"
+                " WHERE ra.run_id = ? AND r.tenant_id = ?",
+                (run_id, tenant_id),
+            )
         return [{"rule_id": r[0], "alerts": json.loads(r[1])} for r in cur.fetchall()]
 
 
-def get_run_metrics(run_id: str) -> list[dict[str, Any]]:
+def get_run_metrics(run_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
     with _with_conn() as cur:
-        cur.execute("SELECT metrics FROM run_metrics WHERE run_id = ?", (run_id,))
+        if tenant_id is None:
+            cur.execute("SELECT metrics FROM run_metrics WHERE run_id = ?", (run_id,))
+        else:
+            cur.execute(
+                "SELECT rm.metrics FROM run_metrics rm"
+                " JOIN runs r ON r.run_id = rm.run_id"
+                " WHERE rm.run_id = ? AND r.tenant_id = ?",
+                (run_id, tenant_id),
+            )
         row = cur.fetchone()
         return json.loads(row[0]) if row else []
 

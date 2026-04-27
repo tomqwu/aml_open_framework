@@ -7,6 +7,17 @@ that introduced them.
 
 ## [Unreleased]
 
+### Security
+- **Cross-tenant API isolation** (`api/db.py`, `api/main.py`): every read
+  endpoint now scopes by the JWT's `tenant` claim. `list_runs`, `get_run`,
+  `get_run_alerts`, `get_run_metrics`, `get_reports`, `get_alerts_cef`
+  accept an optional `tenant_id` and filter (or JOIN through `runs`) on
+  it. `store_run` persists the tenant. The Postgres schema gains a
+  `tenant_id TEXT` column to match SQLite. Tokens were tenant-aware at
+  issuance but not enforcement; this closes that gap.
+- 3 new tests under `TestTenantIsolation` confirm `bank_a` can't list,
+  get, or read alerts for `bank_b`'s runs.
+
 ### Refactor (later)
 - **`api/db.py` Postgres/SQLite dedup**: `_with_conn()` context manager
   yields a thin wrapper that translates `?` placeholders to `%s` for

@@ -212,6 +212,7 @@ async def create_run(
         manifest=manifest,
         alerts=alerts_dict,
         metrics=[m.to_dict() for m in result.metrics],
+        tenant_id=user.get("tenant", "default"),
     )
 
     # Store spec version for tracking.
@@ -250,7 +251,7 @@ async def get_runs(
     offset: int = 0,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    runs = list_runs()
+    runs = list_runs(tenant_id=user.get("tenant", "default"))
     return {
         "items": runs[offset : offset + limit],
         "total": len(runs),
@@ -264,7 +265,7 @@ async def get_run_detail(
     run_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    manifest = get_run(run_id)
+    manifest = get_run(run_id, tenant_id=user.get("tenant", "default"))
     if not manifest:
         raise HTTPException(status_code=404, detail="Run not found")
     return manifest
@@ -275,7 +276,7 @@ async def get_alerts(
     run_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
-    return get_run_alerts(run_id)
+    return get_run_alerts(run_id, tenant_id=user.get("tenant", "default"))
 
 
 @app.get("/api/v1/runs/{run_id}/metrics")
@@ -283,7 +284,7 @@ async def get_metrics(
     run_id: str,
     user: dict[str, Any] = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
-    return get_run_metrics(run_id)
+    return get_run_metrics(run_id, tenant_id=user.get("tenant", "default"))
 
 
 @app.post("/api/v1/validate")
@@ -316,7 +317,7 @@ async def get_reports(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, str]:
     """Get report list for a run (reports are not persisted — returns IDs only)."""
-    manifest = get_run(run_id)
+    manifest = get_run(run_id, tenant_id=user.get("tenant", "default"))
     if not manifest:
         raise HTTPException(status_code=404, detail="Run not found")
     return {"reports": manifest.get("reports", [])}
@@ -426,7 +427,7 @@ async def get_alerts_cef(
     """Export alerts in CEF format for SIEM ingestion."""
     from aml_framework.integrations.siem import export_cef
 
-    alerts_data = get_run_alerts(run_id)
+    alerts_data = get_run_alerts(run_id, tenant_id=user.get("tenant", "default"))
     if not alerts_data:
         raise HTTPException(status_code=404, detail="Run not found or no alerts")
     alerts_dict = {a["rule_id"]: a["alerts"] for a in alerts_data}
