@@ -3,11 +3,22 @@
 Injects known-positive scenarios so the demo produces alerts for multiple
 typologies without depending on randomness. The remaining volume is noise that
 should NOT trigger the reference rules.
+
+ISO 20022 enrichment (Round 5/6 surface)
+- Wire / SEPA / e_transfer txns get optional `purpose_code`, `uetr`,
+  `debtor_bic`, `creditor_bic`, `counterparty_country` fields populated
+  so the dashboard exercises Round-5 rules (FATF R.16 travel-rule
+  validator, INVS purpose-code velocity, etc.) on default `aml run`
+  invocations. Cash / ACH / card stay unchanged.
+- A separate `txn_return` list is also emitted, carrying pacs.004
+  return events that compose with the Round-5 #5 return-reason mining
+  library. Operators using only the base `txn` contract ignore it.
 """
 
 from __future__ import annotations
 
 import random
+import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -16,6 +27,71 @@ from faker import Faker
 
 _CHANNELS = ["cash", "wire", "ach", "card"]
 _COUNTRIES = ["US", "CA", "GB", "DE", "MX"]
+
+# Channels that carry ISO 20022 metadata in real banking flows.
+_ISO20022_CHANNELS = frozenset({"wire", "sepa", "e_transfer"})
+
+# ExternalPurpose1Code distribution for noise wires — biased toward
+# benign codes so planted INVS positives are clearly anomalous.
+_PURPOSE_CODE_NOISE = ["GDDS", "SUPP", "SALA", "GDDS", "GDDS", "SUPP", "INTC", "TAXS"]
+
+# BIC codes for synthetic counterparties — real-format strings (8 or 11
+# chars) keyed to bank/country so the Travel Rule validator sees them
+# as well-formed.
+_BICS = {
+    "US": ["CHASUS33XXX", "BOFAUS3NXXX", "CITIUS33XXX"],
+    "CA": ["ROYCCAT2XXX", "BOFMCAM2XXX", "TDOMCATTXXX"],
+    "GB": ["HBUKGB4BXXX", "BARCGB22XXX", "NWBKGB2LXXX"],
+    "DE": ["DEUTDEFFXXX", "COBADEFFXXX"],
+    "FR": ["BNPAFRPPXXX", "CRLYFRPPXXX"],
+    "CH": ["UBSWCHZH80A", "CRESCHZZ80A"],
+    "RU": ["SABRRUMMXXX"],
+    "MX": ["BNMXMXMMXXX"],
+}
+
+
+def _bic_for(country: str) -> str:
+    pool = _BICS.get(country, ["UNKNOWNXXX"])
+    return random.choice(pool)
+
+
+def _iso20022_enrichment(
+    *,
+    channel: str,
+    direction: str,
+    debtor_country: str,
+    counterparty_country: str | None = None,
+    purpose_code: str | None = None,
+) -> dict[str, Any]:
+    """Generate ISO 20022 fields appropriate for a given channel.
+
+    Wire / SEPA / e_transfer get a UETR + originator/beneficiary BICs +
+    purpose code. Other channels get empty strings (the EU spec's
+    `purpose_code` column is nullable; rules degrade gracefully).
+    """
+    if channel not in _ISO20022_CHANNELS:
+        return {
+            "purpose_code": "",
+            "uetr": "",
+            "debtor_bic": "",
+            "creditor_bic": "",
+            "counterparty_country": counterparty_country or "",
+        }
+    cp_country = counterparty_country or random.choice(["US", "CA", "GB", "DE", "FR"])
+    debtor_bic, creditor_bic = (
+        (_bic_for(debtor_country), _bic_for(cp_country))
+        if direction == "out"
+        else (_bic_for(cp_country), _bic_for(debtor_country))
+    )
+    return {
+        "purpose_code": purpose_code or random.choice(_PURPOSE_CODE_NOISE),
+        # Deterministic UETR (uuid5 from a stable namespace + counter is
+        # reproducible across runs since random.seed governs the caller).
+        "uetr": str(uuid.UUID(int=random.getrandbits(128), version=4)),
+        "debtor_bic": debtor_bic,
+        "creditor_bic": creditor_bic,
+        "counterparty_country": cp_country,
+    }
 
 
 def _make_txn(
@@ -27,13 +103,26 @@ def _make_txn(
     channel: str = "cash",
     direction: str = "in",
     currency: str = "USD",
+    purpose_code: str | None = None,
+    counterparty_country: str | None = None,
+    debtor_country: str = "US",
 ) -> dict[str, Any]:
     """Build a single transaction dict with deterministic shape.
 
-    `amount` may be int / float / Decimal — quantized to 2 d.p. either way.
-    Output is byte-identical to the previous inline dict literals; the
-    determinism test (`test_run_is_reproducible`) verifies this.
+    Wire / SEPA / e_transfer channels get auto-populated ISO 20022 fields
+    (purpose_code, uetr, debtor_bic, creditor_bic, counterparty_country)
+    so the dashboard exercises Round-5/6 rules on default invocations.
+    Other channels get empty strings for those fields — preserves
+    schema shape (the EU spec's `txn` contract declares `purpose_code`
+    as nullable).
     """
+    iso = _iso20022_enrichment(
+        channel=channel,
+        direction=direction,
+        debtor_country=debtor_country,
+        counterparty_country=counterparty_country,
+        purpose_code=purpose_code,
+    )
     return {
         "txn_id": f"T{tid:08d}",
         "customer_id": customer_id,
@@ -42,6 +131,7 @@ def _make_txn(
         "channel": channel,
         "direction": direction,
         "booked_at": booked_at,
+        **iso,
     }
 
 
@@ -349,4 +439,79 @@ def generate_dataset(
             )
             tid += 1
 
-    return {"customer": customers, "txn": txns}
+    # --- Planted positive: INVS-velocity (pig-butchering) by C0010. ---
+    # 3 outbound wires with purpose_code=INVS to a CH offshore vehicle
+    # within 14 days, sum > $5k — triggers eu_bank's
+    # `invs_velocity_investment_scam` rule. Compose with FATF's Feb 2026
+    # Cyber-Enabled Fraud paper which calls out INVS misuse as the
+    # canonical pig-butchering payout marker.
+    if n_customers > 10:
+        customers[10] = _customer_row(
+            fake,
+            "C0010",
+            as_of - timedelta(days=180),
+            country="DE",
+            risk_rating="medium",
+            full_name="Klara Becker",
+        )
+        for day_offset, amt in [(2, 2500), (5, 3000), (10, 2800)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0010",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=14),
+                    channel="wire",
+                    direction="out",
+                    currency="EUR",
+                    purpose_code="INVS",
+                    counterparty_country="CH",
+                    debtor_country="DE",
+                )
+            )
+            tid += 1
+
+    # --- pacs.004 return events (Round-5 #5) ---
+    # Mule-probing pattern: 3 returns from one originator (C0011) within
+    # one week with high-risk reason codes (AC03/AC04/MD07). Triggers
+    # the `high_risk_return_burst_mule_probing` snippet from
+    # spec/library/iso20022_return_reasons.yaml when an operator drops
+    # that snippet into their spec + populates the txn_return contract.
+    txn_returns: list[dict[str, Any]] = []
+    if n_customers > 11:
+        customers[11] = _customer_row(
+            fake,
+            "C0011",
+            as_of - timedelta(days=400),
+            country="GB",
+            risk_rating="medium",
+            full_name="ROAMR LTD",
+        )
+        return_id = 0
+        for day_offset, code, amt, info in [
+            (2, "AC03", 12000, "Invalid creditor account number"),
+            (4, "AC04", 9500, "Closed creditor account"),
+            (5, "MD07", 7800, "End-customer deceased"),
+        ]:
+            return_id += 1
+            txn_returns.append(
+                {
+                    "return_id": f"RTR-{return_id:03d}",
+                    "original_uetr": str(uuid.UUID(int=random.getrandbits(128), version=4)),
+                    "original_end_to_end_id": f"ROAMR-2026-04-{20 + day_offset}-A",
+                    "original_tx_id": f"ORIG-{return_id}",
+                    "amount": Decimal(amt).quantize(Decimal("0.01")),
+                    "currency": "EUR",
+                    "returned_at": as_of - timedelta(days=day_offset, hours=10),
+                    "reason_code": code,
+                    "reason_info": info,
+                    "originator_name": "ROAMR LTD",
+                    "originator_country": "GB",
+                    "beneficiary_name": f"SHELL VEHICLE {return_id}",
+                    "beneficiary_country": "CH",
+                    "msg_id": "RTR-2026-04-20-001",
+                    "msg_kind": "pacs.004",
+                }
+            )
+
+    return {"customer": customers, "txn": txns, "txn_return": txn_returns}
