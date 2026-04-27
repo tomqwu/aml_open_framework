@@ -2,6 +2,11 @@
 
 When DATABASE_URL is set, uses psycopg2. Otherwise falls back to SQLite
 at ~/.aml_framework/runs.db so the API works without Docker.
+
+Internal layout: every public CRUD function calls `_with_conn()` and writes
+its query once with `?` placeholders. The wrapper translates `?` to `%s`
+on the Postgres path so we don't carry two near-identical SQL bodies per
+function.
 """
 
 from __future__ import annotations
@@ -9,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -93,8 +99,72 @@ CREATE TABLE IF NOT EXISTS run_metrics (
 """
 
 
+class _PgCursor:
+    """Translates `?` placeholders to `%s` for psycopg2."""
+
+    def __init__(self, cur):
+        self._cur = cur
+
+    def execute(self, query: str, params: tuple = ()):
+        self._cur.execute(query.replace("?", "%s"), params)
+        return self
+
+    def fetchone(self):
+        return self._cur.fetchone()
+
+    def fetchall(self):
+        return self._cur.fetchall()
+
+
+class _SqliteWrapper:
+    """Thin wrapper around sqlite3.Connection so callers can use the same API."""
+
+    def __init__(self, conn):
+        self._conn = conn
+        self._last = None
+
+    def execute(self, query: str, params: tuple = ()):
+        self._last = self._conn.execute(query, params)
+        return self
+
+    def fetchone(self):
+        return self._last.fetchone() if self._last else None
+
+    def fetchall(self):
+        return self._last.fetchall() if self._last else []
+
+
+@contextmanager
+def _with_conn():
+    """Open a connection, yield a cursor-like wrapper, commit on exit."""
+    if _use_postgres():
+        conn = _get_pg_conn()
+        try:
+            with conn.cursor() as cur:
+                yield _PgCursor(cur)
+            conn.commit()
+        finally:
+            conn.close()
+    else:
+        conn = _get_sqlite_conn()
+        try:
+            yield _SqliteWrapper(conn)
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def _coerce_ts(value: Any) -> str:
+    """Both backends return timestamps; PG gives datetime, SQLite gives str."""
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value) if value is not None else ""
+
+
 def init_db() -> None:
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist. Multi-statement scripts need
+    backend-specific entry points (executescript on SQLite, single execute
+    on psycopg2)."""
     if _use_postgres():
         conn = _get_pg_conn()
         try:
@@ -105,8 +175,11 @@ def init_db() -> None:
             conn.close()
     else:
         conn = _get_sqlite_conn()
-        conn.executescript(_SQLITE_SCHEMA)
-        conn.close()
+        try:
+            conn.executescript(_SQLITE_SCHEMA)
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def store_run(
@@ -118,124 +191,56 @@ def store_run(
     metrics: list[dict],
 ) -> None:
     now = datetime.now(tz=timezone.utc).isoformat()
-
-    if _use_postgres():
-        conn = _get_pg_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO runs (run_id, spec_path, seed, manifest) VALUES (%s, %s, %s, %s)",
-                    (run_id, spec_path, seed, json.dumps(manifest)),
-                )
-                for rule_id, rule_alerts in alerts.items():
-                    cur.execute(
-                        "INSERT INTO run_alerts (run_id, rule_id, alerts) VALUES (%s, %s, %s)",
-                        (run_id, rule_id, json.dumps(rule_alerts)),
-                    )
-                cur.execute(
-                    "INSERT INTO run_metrics (run_id, metrics) VALUES (%s, %s)",
-                    (run_id, json.dumps(metrics)),
-                )
-            conn.commit()
-        finally:
-            conn.close()
-    else:
-        conn = _get_sqlite_conn()
-        conn.execute(
+    with _with_conn() as cur:
+        cur.execute(
             "INSERT INTO runs (run_id, spec_path, seed, manifest, created_at)"
             " VALUES (?, ?, ?, ?, ?)",
             (run_id, spec_path, seed, json.dumps(manifest), now),
         )
         for rule_id, rule_alerts in alerts.items():
-            conn.execute(
+            cur.execute(
                 "INSERT INTO run_alerts (run_id, rule_id, alerts) VALUES (?, ?, ?)",
                 (run_id, rule_id, json.dumps(rule_alerts)),
             )
-        conn.execute(
+        cur.execute(
             "INSERT INTO run_metrics (run_id, metrics) VALUES (?, ?)",
             (run_id, json.dumps(metrics)),
         )
-        conn.commit()
-        conn.close()
 
 
 def list_runs() -> list[dict[str, Any]]:
-    if _use_postgres():
-        conn = _get_pg_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT run_id, spec_path, seed, created_at FROM runs ORDER BY created_at DESC LIMIT 50"
-                )
-                return [
-                    {
-                        "run_id": r[0],
-                        "spec_path": r[1],
-                        "seed": r[2],
-                        "created_at": r[3].isoformat(),
-                    }
-                    for r in cur.fetchall()
-                ]
-        finally:
-            conn.close()
-    else:
-        conn = _get_sqlite_conn()
-        rows = conn.execute(
+    with _with_conn() as cur:
+        cur.execute(
             "SELECT run_id, spec_path, seed, created_at FROM runs ORDER BY created_at DESC LIMIT 50"
-        ).fetchall()
-        conn.close()
-        return [{"run_id": r[0], "spec_path": r[1], "seed": r[2], "created_at": r[3]} for r in rows]
+        )
+        return [
+            {
+                "run_id": r[0],
+                "spec_path": r[1],
+                "seed": r[2],
+                "created_at": _coerce_ts(r[3]),
+            }
+            for r in cur.fetchall()
+        ]
 
 
 def get_run(run_id: str) -> dict[str, Any] | None:
-    if _use_postgres():
-        conn = _get_pg_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT manifest FROM runs WHERE run_id = %s", (run_id,))
-                row = cur.fetchone()
-                return json.loads(row[0]) if row else None
-        finally:
-            conn.close()
-    else:
-        conn = _get_sqlite_conn()
-        row = conn.execute("SELECT manifest FROM runs WHERE run_id = ?", (run_id,)).fetchone()
-        conn.close()
+    with _with_conn() as cur:
+        cur.execute("SELECT manifest FROM runs WHERE run_id = ?", (run_id,))
+        row = cur.fetchone()
         return json.loads(row[0]) if row else None
 
 
 def get_run_alerts(run_id: str) -> list[dict[str, Any]]:
-    if _use_postgres():
-        conn = _get_pg_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT rule_id, alerts FROM run_alerts WHERE run_id = %s", (run_id,))
-                return [{"rule_id": r[0], "alerts": json.loads(r[1])} for r in cur.fetchall()]
-        finally:
-            conn.close()
-    else:
-        conn = _get_sqlite_conn()
-        rows = conn.execute(
-            "SELECT rule_id, alerts FROM run_alerts WHERE run_id = ?", (run_id,)
-        ).fetchall()
-        conn.close()
-        return [{"rule_id": r[0], "alerts": json.loads(r[1])} for r in rows]
+    with _with_conn() as cur:
+        cur.execute("SELECT rule_id, alerts FROM run_alerts WHERE run_id = ?", (run_id,))
+        return [{"rule_id": r[0], "alerts": json.loads(r[1])} for r in cur.fetchall()]
 
 
 def get_run_metrics(run_id: str) -> list[dict[str, Any]]:
-    if _use_postgres():
-        conn = _get_pg_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT metrics FROM run_metrics WHERE run_id = %s", (run_id,))
-                row = cur.fetchone()
-                return json.loads(row[0]) if row else []
-        finally:
-            conn.close()
-    else:
-        conn = _get_sqlite_conn()
-        row = conn.execute("SELECT metrics FROM run_metrics WHERE run_id = ?", (run_id,)).fetchone()
-        conn.close()
+    with _with_conn() as cur:
+        cur.execute("SELECT metrics FROM run_metrics WHERE run_id = ?", (run_id,))
+        row = cur.fetchone()
         return json.loads(row[0]) if row else []
 
 
@@ -245,27 +250,34 @@ def store_spec_version(
     program_name: str,
     tenant_id: str = "default",
 ) -> None:
-    """Store a spec version for tracking."""
+    """Store a spec version for tracking. SQLite-only — Postgres parity is
+    tracked but not implemented in the reference DB schema."""
+    if _use_postgres():
+        return
     now = datetime.now(tz=timezone.utc).isoformat()
-    if not _use_postgres():
-        conn = _get_sqlite_conn()
+    conn = _get_sqlite_conn()
+    try:
         existing = conn.execute(
             "SELECT id FROM spec_versions WHERE spec_hash = ?", (spec_hash,)
         ).fetchone()
         if not existing:
             conn.execute(
-                "INSERT INTO spec_versions (spec_hash, spec_content, program_name, tenant_id, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO spec_versions"
+                " (spec_hash, spec_content, program_name, tenant_id, created_at)"
+                " VALUES (?, ?, ?, ?, ?)",
                 (spec_hash, spec_content, program_name, tenant_id, now),
             )
             conn.commit()
+    finally:
         conn.close()
 
 
 def list_spec_versions(tenant_id: str | None = None) -> list[dict[str, Any]]:
-    """List stored spec versions."""
-    if not _use_postgres():
-        conn = _get_sqlite_conn()
+    """List stored spec versions. SQLite-only (see store_spec_version)."""
+    if _use_postgres():
+        return []
+    conn = _get_sqlite_conn()
+    try:
         query = "SELECT spec_hash, program_name, tenant_id, created_at FROM spec_versions"
         params: tuple = ()
         if tenant_id:
@@ -273,9 +285,9 @@ def list_spec_versions(tenant_id: str | None = None) -> list[dict[str, Any]]:
             params = (tenant_id,)
         query += " ORDER BY created_at DESC LIMIT 50"
         rows = conn.execute(query, params).fetchall()
-        conn.close()
         return [
             {"spec_hash": r[0], "program_name": r[1], "tenant_id": r[2], "created_at": r[3]}
             for r in rows
         ]
-    return []
+    finally:
+        conn.close()
