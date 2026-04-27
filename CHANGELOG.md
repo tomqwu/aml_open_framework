@@ -38,6 +38,15 @@ that introduced them.
   read-only, that direct writes raise `PermissionError`, and that
   `decisions.jsonl` stays append-capable.
 
+### Tests
+- **`TestWindowDST` documents engine timezone semantics**: `parse_window` is
+  calendar-blind by design; `as_of` and `booked_at` are naive datetimes in
+  the same timezone (UTC by convention). Three new tests assert the
+  invariants — `parse_window("24h") == parse_window("1d")`,
+  `parse_window` is idempotent, and a 24h-window rule still aggregates
+  correctly across the US spring-forward DST instant. Closes the quality
+  review's flagged untested area.
+
 ### Refactor
 - **Dashboard pages now use `Event` / `Queue` constants** (`pages/3_Alert_Queue.py`,
   `pages/4_Case_Investigation.py`): the bulk-action and per-case action

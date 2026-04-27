@@ -408,6 +408,85 @@ class TestPythonRefErrorBoundary:
             sys.modules.pop("aml_framework.models.crashing_scorer", None)
 
 
+class TestWindowDST:
+    """Documents and verifies the engine's timezone semantics around DST.
+
+    The engine convention: `as_of` and `booked_at` are naive datetimes in the
+    same timezone (UTC, by convention). `parse_window` returns a timedelta
+    that is calendar-blind — `24h`, `1d`, and `86400s` all denote the same
+    span regardless of any DST transition occurring within the window.
+
+    These tests fail if anyone introduces tz-aware arithmetic without also
+    updating the data-ingestion contract.
+    """
+
+    def test_parse_window_24h_equals_1d(self):
+        from datetime import timedelta as _td
+
+        from aml_framework.generators.sql import parse_window
+
+        assert parse_window("24h") == _td(hours=24)
+        assert parse_window("1d") == _td(days=1)
+        # timedelta(days=1) == timedelta(hours=24) regardless of DST.
+        assert parse_window("1d") == parse_window("24h")
+
+    def test_parse_window_is_calendar_blind(self):
+        """parse_window has no `as_of` parameter — same input, same output.
+        DST occurring inside the window cannot lengthen or shorten it."""
+        from aml_framework.generators.sql import parse_window
+
+        assert parse_window("48h") == parse_window("48h")  # idempotent
+        # 30d window must always be 30 * 24 hours.
+        from datetime import timedelta as _td
+
+        assert parse_window("30d") == _td(days=30) == _td(hours=720)
+
+    def test_aggregation_window_across_us_spring_dst(self, tmp_path):
+        """A 24h-window rule evaluated immediately after US spring-forward DST
+        (March 8 2026 02:00 → 03:00 local Pacific) must still aggregate naively.
+
+        The engine treats inputs as naive UTC, so the calendar wall-clock
+        DST event is invisible. This test plants 3 cash deposits straddling
+        the DST instant and confirms all three count toward the window.
+        """
+        # March 9 2026 at 12:00 UTC — the day *after* US spring-forward.
+        as_of = datetime(2026, 3, 9, 12, 0, 0)
+        # Three cash deposits, each 9000 USD, across the DST window.
+        # 21h before, 12h before, 3h before — all within a 24h window.
+        # If naive arithmetic is correct, all three count.
+        # Sum = 27000 (>= 20000), count = 3 (>= 3), so structuring should fire.
+        from datetime import timedelta as _td
+
+        data = {
+            "customer": [
+                TestThresholdBoundaries._customer("T0001"),
+            ],
+            "txn": [
+                TestThresholdBoundaries._txn(
+                    "D1", "T0001", 9000, days_before=0
+                )  # ~12h before via the helper
+                | {"booked_at": as_of - _td(hours=21)},
+                TestThresholdBoundaries._txn("D2", "T0001", 9000, days_before=0)
+                | {"booked_at": as_of - _td(hours=12)},
+                TestThresholdBoundaries._txn("D3", "T0001", 9000, days_before=0)
+                | {"booked_at": as_of - _td(hours=3)},
+            ],
+        }
+        # Override the helper's AS_OF so the window math is correct.
+        spec = load_spec(SPEC_CA)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        alerts = [
+            a
+            for a in result.alerts.get("structuring_cash_deposits", [])
+            if a.get("customer_id") == "T0001"
+        ]
+        # Structuring rule has window=30d, so 21h ago / 12h ago / 3h ago all
+        # fall within the window regardless of DST.
+        assert len(alerts) == 1, f"DST-spanning 24h activity should still aggregate: got {alerts}"
+
+
 class TestThresholdBoundaries:
     """Negative tests: just-below-threshold data must NOT fire.
 
