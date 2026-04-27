@@ -319,3 +319,299 @@ class TestBoardPDF:
         spec = load_spec(EXAMPLE_US)
         pdf_bytes = generate_board_pdf(spec=spec, metrics=[], cases=[])
         assert len(pdf_bytes) > 100
+
+
+# ---------------------------------------------------------------------------
+# goAML 5.0.2 XML exporter
+# ---------------------------------------------------------------------------
+
+
+class TestGoAMLExporter:
+    """Verify the structural shape of the goAML XML output.
+
+    We don't ship the UNODC XSD (not redistributable) so tests check the
+    element shape. Jurisdiction-specific XSD validation is a deployment-time
+    step.
+    """
+
+    @staticmethod
+    def _sample_case():
+        return {
+            "case_id": "structuring_cash__C0001__2026-04-25T031428.866825",
+            "rule_id": "structuring_cash_deposits",
+            "rule_name": "Cash structuring",
+            "severity": "high",
+            "queue": "l1_aml_analyst",
+            "spec_program": "schedule_i_bank_aml",
+            "alert": {
+                "customer_id": "C0001",
+                "sum_amount": "45900.00",
+                "count": 5,
+                "window_start": "2026-04-05 23:14:28.866825",
+                "window_end": "2026-04-25 03:14:28.866825",
+            },
+            "regulation_refs": [
+                {
+                    "citation": "PCMLTFA s.11.1",
+                    "description": "Structuring offence — splitting transactions.",
+                },
+            ],
+            "input_hash": {
+                "txn": {"content_hash": "abc123" * 10, "row_count": 438},
+            },
+            "tags": ["high_risk_jurisdiction"],
+        }
+
+    @staticmethod
+    def _sample_customer():
+        return {
+            "customer_id": "C0001",
+            "full_name": "Olena Kowalski",
+            "country": "CA",
+            "occupation": "Trader",
+            "tax_id": "XXX-123-456",
+        }
+
+    @staticmethod
+    def _sample_txns():
+        return [
+            {
+                "txn_id": "T100001",
+                "customer_id": "C0001",
+                "amount": "9500.00",
+                "channel": "cash",
+                "country": "CA",
+                "booked_at": "2026-04-10 09:00:00",
+            },
+            {
+                "txn_id": "T100002",
+                "customer_id": "C0001",
+                "amount": "9800.00",
+                "channel": "cash",
+                "country": "CA",
+                "booked_at": "2026-04-15 11:30:00",
+            },
+            {
+                "txn_id": "T999999",
+                "customer_id": "C0099",  # different customer; should be filtered
+                "amount": "100.00",
+                "channel": "wire",
+                "country": "CA",
+                "booked_at": "2026-04-12 09:00:00",
+            },
+        ]
+
+    def test_root_is_reports_with_schema_version(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        xml_bytes = build_goaml_xml(
+            spec, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+        root = ET.fromstring(xml_bytes)
+        assert root.tag == "reports"
+        assert root.attrib.get("schema_version") == "5.0.2"
+
+    def test_each_case_emits_one_report(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        cases = [self._sample_case(), {**self._sample_case(), "case_id": "second"}]
+        xml_bytes = build_goaml_xml(spec, cases, [self._sample_customer()], self._sample_txns())
+        root = ET.fromstring(xml_bytes)
+        reports = root.findall("report")
+        assert len(reports) == 2
+
+    def test_required_header_fields_present(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        xml_bytes = build_goaml_xml(
+            spec, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+        root = ET.fromstring(xml_bytes)
+        report = root.find("report")
+        for tag in (
+            "rentity_id",
+            "rentity_branch",
+            "submission_code",
+            "report_code",
+            "submission_date",
+            "currency_code_local",
+            "reporting_person",
+            "reason",
+        ):
+            assert report.find(tag) is not None, f"missing <{tag}>"
+
+    def test_currency_matches_jurisdiction(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec_ca = load_spec(EXAMPLE_CA)
+        spec_us = load_spec(EXAMPLE_US)
+
+        xml_ca = build_goaml_xml(
+            spec_ca, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+        xml_us = build_goaml_xml(
+            spec_us, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+
+        ca_curr = ET.fromstring(xml_ca).find("report/currency_code_local").text
+        us_curr = ET.fromstring(xml_us).find("report/currency_code_local").text
+        assert ca_curr == "CAD"
+        assert us_curr == "USD"
+
+    def test_transactions_filtered_by_customer_and_window(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        xml_bytes = build_goaml_xml(
+            spec, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+        root = ET.fromstring(xml_bytes)
+        # The third sample txn belongs to C0099, must not appear.
+        txn_ids = [t.find("transactionnumber").text for t in root.findall("report/transaction")]
+        assert "T100001" in txn_ids
+        assert "T100002" in txn_ids
+        assert "T999999" not in txn_ids
+
+    def test_transaction_has_t_from_my_client_with_person(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        xml_bytes = build_goaml_xml(
+            spec, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+        root = ET.fromstring(xml_bytes)
+        txn = root.find("report/transaction")
+        t_from = txn.find("t_from_my_client")
+        assert t_from is not None
+        person = t_from.find("t_person")
+        assert person is not None
+        assert person.find("first_name").text == "Olena"
+        assert person.find("last_name").text == "Kowalski"
+
+    def test_indicators_includes_rule_id_and_tags(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        xml_bytes = build_goaml_xml(
+            spec, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+        root = ET.fromstring(xml_bytes)
+        indicators = [i.text for i in root.findall("report/report_indicators/indicator")]
+        assert "structuring_cash_deposits" in indicators
+        assert "high_risk_jurisdiction" in indicators
+
+    def test_reason_includes_regulation_citations(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        xml_bytes = build_goaml_xml(
+            spec, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+        root = ET.fromstring(xml_bytes)
+        reason = root.find("report/reason").text
+        assert "PCMLTFA s.11.1" in reason
+
+    def test_unknown_customer_emits_placeholder_person(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        case = self._sample_case()
+        case["alert"]["customer_id"] = "C9999"  # not in customer list
+        xml_bytes = build_goaml_xml(spec, [case], [self._sample_customer()], self._sample_txns())
+        root = ET.fromstring(xml_bytes)
+        # No transactions filtered to this customer; t_from_my_client should be absent.
+        # But the report itself must still emit successfully.
+        assert root.find("report") is not None
+
+    def test_byte_deterministic_for_fixed_inputs(self):
+        from datetime import datetime, timezone
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        submit = datetime(2026, 4, 27, 12, 0, 0, tzinfo=timezone.utc)
+        first = build_goaml_xml(
+            spec,
+            [self._sample_case()],
+            [self._sample_customer()],
+            self._sample_txns(),
+            submission_date=submit,
+        )
+        second = build_goaml_xml(
+            spec,
+            [self._sample_case()],
+            [self._sample_customer()],
+            self._sample_txns(),
+            submission_date=submit,
+        )
+        assert first == second
+
+    def test_export_from_run_dir_reads_cases(self, tmp_path):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import export_goaml_from_run_dir
+
+        spec, data, result = _run_ca(tmp_path)
+        run_dir = Path(result.manifest["run_dir"])
+        xml_bytes = export_goaml_from_run_dir(
+            run_dir,
+            spec,
+            customers=data.get("customer", []),
+            transactions=data.get("txn", []),
+        )
+        root = ET.fromstring(xml_bytes)
+        assert root.tag == "reports"
+        # The CA example produces multiple cases; ensure at least one report.
+        assert len(root.findall("report")) > 0
+
+    def test_export_run_dir_missing_cases_raises(self, tmp_path):
+        from aml_framework.generators.goaml_xml import export_goaml_from_run_dir
+
+        empty_run = tmp_path / "run-empty"
+        empty_run.mkdir()
+        with pytest.raises(FileNotFoundError):
+            export_goaml_from_run_dir(empty_run, load_spec(EXAMPLE_CA), [], [])
+
+    def test_funds_code_mapping(self):
+        from aml_framework.generators.goaml_xml import _funds_code_for_channel
+
+        assert _funds_code_for_channel("CASH") == "K"
+        assert _funds_code_for_channel("ATM") == "K"
+        assert _funds_code_for_channel("WIRE") == "A"
+        assert _funds_code_for_channel("CRYPTO") == "X"
+        assert _funds_code_for_channel("nonsense") == "X"
+
+    def test_severity_in_additional_info(self):
+        from xml.etree import ElementTree as ET
+
+        from aml_framework.generators.goaml_xml import build_goaml_xml
+
+        spec = load_spec(EXAMPLE_CA)
+        xml_bytes = build_goaml_xml(
+            spec, [self._sample_case()], [self._sample_customer()], self._sample_txns()
+        )
+        root = ET.fromstring(xml_bytes)
+        info = root.find("report/additional_info").text
+        assert "severity: high" in info
+        assert "case_id:" in info

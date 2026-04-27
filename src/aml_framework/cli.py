@@ -221,6 +221,84 @@ def export(
     console.print(f"[green]Bundle[/green] {out_path} (from {run_dir})")
 
 
+@app.command(name="export-goaml")
+def export_goaml_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path | None = typer.Option(None, help="Run dir; defaults to latest."),
+    out: Path = typer.Option(Path(".artifacts/goaml.xml"), help="Output XML path."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+    seed: int = typer.Option(42, help="Synthetic data seed (matches `aml run`)."),
+    data_source: str = typer.Option(
+        "synthetic", help="Data source: synthetic, csv, parquet, duckdb."
+    ),
+    data_dir: str | None = typer.Option(None, help="Directory with CSV/Parquet files."),
+    rentity_id: str = typer.Option("0", help="FIU-assigned reporting entity ID."),
+    rentity_branch: str = typer.Option("HEAD_OFFICE", help="Reporting branch code."),
+    submission_date: str | None = typer.Option(
+        None, help="ISO 8601 submission date; defaults to now (UTC)."
+    ),
+    report_code: str = typer.Option("STR", help="goAML report code: STR, SAR, ATR…"),
+) -> None:
+    """Export finalised cases as goAML 5.0.2 XML for FIU submission.
+
+    The exporter reads cases from a finalised run directory, re-resolves
+    customer + transaction data from the spec's data sources (so PII never
+    needs to be persisted in the audit ledger), and produces a single XML
+    document with one <report> element per case.
+    """
+    from aml_framework.data.sources import resolve_source
+    from aml_framework.generators.goaml_xml import (
+        ReportingEntity,
+        export_goaml_from_run_dir,
+    )
+
+    run_dir = _resolve_run_dir(run_dir, artifacts)
+    spec = load_spec(spec_path)
+
+    # Use the run's as_of for source resolution so synthetic data lines up
+    # with the cases we're exporting.
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[red]No manifest.json in {run_dir}[/red]")
+        raise typer.Exit(code=1)
+    import json as _json
+
+    manifest = _json.loads(manifest_path.read_bytes())
+    as_of_dt = datetime.fromisoformat(manifest["as_of"])
+
+    data = resolve_source(
+        source_type=data_source,
+        spec=spec,
+        as_of=as_of_dt,
+        seed=seed,
+        data_dir=data_dir,
+    )
+
+    submit_dt = (
+        datetime.fromisoformat(submission_date)
+        if submission_date
+        else datetime.now(tz=timezone.utc)
+    )
+
+    xml_bytes = export_goaml_from_run_dir(
+        run_dir,
+        spec,
+        customers=data.get("customer", []),
+        transactions=data.get("txn", []),
+        entity=ReportingEntity(
+            rentity_id=rentity_id,
+            rentity_branch=rentity_branch,
+            name=spec.program.name,
+        ),
+        submission_date=submit_dt,
+        report_code=report_code,
+    )
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(xml_bytes)
+    console.print(f"[green]goAML[/green] {out} ({len(xml_bytes):,} bytes from {run_dir})")
+
+
 @app.command()
 def dashboard(
     spec_path: Path = typer.Argument(

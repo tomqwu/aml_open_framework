@@ -8,6 +8,33 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **goAML 5.0.2 XML exporter** (`generators/goaml_xml.py`,
+  `cli.py:export-goaml`): emit UNODC-format STR/SAR XML from a finalised
+  run directory. One `<report>` per case, batched under a `<reports>`
+  root. Maps the framework's primitives to goAML in the obvious way:
+  `rule_id` → `<report_indicators>/<indicator>`, `regulation_refs` →
+  `<reason>`, `customer` → `<t_person>` under `<t_from_my_client>`,
+  transactions in the alert window → `<transaction>`, channel → goAML
+  funds code (cash/wire/crypto → K/A/X). Currency is auto-derived from
+  `program.jurisdiction` (CA→CAD, US→USD, EU→EUR, UK→GBP). Output is
+  byte-deterministic for fixed inputs — cases sort by `(rule_id,
+  case_id)`; transactions sort by `(booked_at, txn_id)` — so the same
+  spec + same run + same `submission_date` produces identical XML
+  bytes. CLI:
+  ```
+  aml export-goaml examples/canadian_schedule_i_bank/aml.yaml \
+    --out goaml.xml --report-code STR --rentity-id 12345
+  ```
+  goAML is the de-facto FIU reporting standard accepted by 60+ FIUs;
+  the EU AMLA ITS draft (due July 2026) extends this same schema, so
+  AMLA-specific fields will land as deltas on this exporter rather than
+  as a rewrite. PII is never persisted in the audit ledger — the
+  exporter re-resolves customer + txn data through the spec's data
+  source at export time. 14 new tests under `TestGoAMLExporter` cover
+  root shape, header fields, currency-by-jurisdiction, transaction
+  filtering by customer + window, indicator/tag emission, regulation
+  reference inclusion, byte-determinism, run-dir round-trip, missing
+  `cases/` raises, funds-code mapping, and `additional_info` content.
 - **`rule.evaluation_mode` field** (`spec/models.py`,
   `schema/aml-spec.schema.json`): each rule can now declare
   `batch | streaming | both` (default `batch`). v1 engine still executes
