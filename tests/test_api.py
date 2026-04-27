@@ -166,6 +166,121 @@ class TestOIDCStub:
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestSecretValidation:
+    def test_short_secret_rejected(self, monkeypatch):
+        import importlib
+
+        monkeypatch.setenv("JWT_SECRET", "short")
+        with pytest.raises(RuntimeError, match="JWT_SECRET"):
+            import aml_framework.api.auth as auth_mod
+
+            importlib.reload(auth_mod)
+
+    def test_unset_secret_uses_random(self, monkeypatch):
+        import importlib
+
+        monkeypatch.delenv("JWT_SECRET", raising=False)
+        import aml_framework.api.auth as auth_mod
+
+        importlib.reload(auth_mod)
+        assert len(auth_mod._SECRET) >= 32
+        # Reload once more so subsequent tests see the same module identity.
+        importlib.reload(auth_mod)
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestPathTraversal:
+    def test_run_rejects_relative_traversal(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_path": "../../../etc/passwd", "seed": 42},
+        )
+        assert resp.status_code == 400
+
+    def test_run_rejects_absolute_path(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_path": "/etc/passwd", "seed": 42},
+        )
+        assert resp.status_code == 400
+
+    def test_validate_rejects_traversal(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/validate",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_path": "../../etc/passwd"},
+        )
+        assert resp.status_code == 400
+
+    def test_validate_does_not_leak_error_text(self):
+        token = _token()
+        # Pass a real-but-invalid YAML location. Our error message should be generic.
+        resp = client.post(
+            "/api/v1/validate",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_path": "README.md"},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["valid"] is False
+        assert "server logs" in body["error"].lower()
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestRoleEnforcement:
+    def test_auditor_cannot_create_run(self):
+        token = _token("auditor")
+        resp = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_path": "examples/canadian_schedule_i_bank/aml.yaml", "seed": 42},
+        )
+        assert resp.status_code == 403
+
+    def test_analyst_can_create_run(self):
+        token = _token("analyst")
+        resp = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"spec_path": "examples/canadian_schedule_i_bank/aml.yaml", "seed": 42},
+        )
+        assert resp.status_code == 200
+
+    def test_auditor_cannot_register_webhook(self):
+        token = _token("auditor")
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": "x", "url": "https://example.com", "events": ["alert_created"]},
+        )
+        assert resp.status_code == 403
+
+    def test_analyst_cannot_register_webhook(self):
+        token = _token("analyst")
+        resp = client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"name": "x", "url": "https://example.com", "events": ["alert_created"]},
+        )
+        assert resp.status_code == 403
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestOIDCDisablesLogin:
+    def test_login_returns_404_when_oidc_enabled(self, monkeypatch):
+        import aml_framework.api.auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "_OIDC_ISSUER", "https://example.com")
+        resp = client.post("/api/v1/login", json={"username": "admin", "password": "admin"})
+        assert resp.status_code == 404
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestRoleBasedVisibility:
     def test_audience_pages_defined(self):
         from aml_framework.dashboard.audience import AUDIENCE_PAGES

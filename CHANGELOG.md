@@ -7,6 +7,25 @@ that introduced them.
 
 ## [Unreleased]
 
+### Security
+- **JWT_SECRET hardening** (`api/auth.py`): refuse to import when the env var is
+  set but shorter than 32 bytes; when unset, log a warning and use a per-process
+  random secret (tokens do not survive a restart). Removes the hardcoded
+  `aml-framework-dev-secret` fallback that previously let anyone with repo
+  access forge tokens against a misconfigured deployment.
+- **Path traversal** (`api/main.py`): `_safe_spec_path` resolves and verifies
+  every API-supplied `spec_path` is inside the project root. `POST /runs`,
+  `POST /validate`, and any future spec-loading endpoint reject `..`, absolute
+  paths, and out-of-tree resolutions with `400`.
+- **Validate endpoint info leak** (`api/main.py`): `POST /validate` no longer
+  echoes the raw parser exception. Server logs the detail; the response is a
+  generic message.
+- **Role enforcement** (`api/main.py`): `POST /runs` and `POST /upload` now
+  require `admin`/`manager`/`analyst`. `POST /webhooks` requires `admin`.
+  Auditors are confirmed read-only by tests.
+- **OIDC mode disables `/login`** (`api/main.py`): when `OIDC_ISSUER_URL` is
+  set, the local-login endpoint returns 404 so demo credentials cannot be used.
+
 ### Documentation
 - Refresh README test counts to match the 288-test suite across 9 files.
 - Sync `docs/spec-reference.md` with the schema (rule `status` and `tags`,
