@@ -1,5 +1,8 @@
 # AML Open Framework
 
+> **🎬 [View the live 20-slide pitch deck →](https://tomqwu.github.io/aml_open_framework_demo/)**
+> Architecture, dashboard tour, animated workflows, real screenshots — runs in the browser.
+
 Spec-driven, audit-ready Anti-Money Laundering automation for banks and other regulated financial institutions. One versioned `aml.yaml` spec is the single source of truth for data contracts, detection rules, case workflow, and regulator reporting — every artifact (SQL, pipelines, dashboards, audit logs, SAR exports) is generated from it and traceable back to a regulation citation.
 
 ![Framework Overview](docs/pitch/03-framework-overview.png)
@@ -33,6 +36,7 @@ aml dashboard examples/community_bank/aml.yaml
 
 | Doc | Use when |
 |---|---|
+| 🎬 [Live Pitch Deck](https://tomqwu.github.io/aml_open_framework_demo/) | 20 slides · architecture, dashboard tour, animated workflows · runs in browser |
 | 📖 [Getting Started](docs/getting-started.md) | First-time install through your first audit bundle (15 min) |
 | 🏛 [Architecture](docs/architecture.md) | End-to-end data flow + design rationale |
 | 👥 [Personas & Workflows](docs/personas.md) | Map your role (CCO / Manager / Analyst / Auditor / Developer) to the framework |
