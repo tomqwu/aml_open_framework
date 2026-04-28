@@ -17,7 +17,7 @@ from aml_framework.dashboard.components import (
 
 page_header(
     "Executive Dashboard",
-    "Program-level KPIs, alert summary, and compliance health at a glance.",
+    "The headline picture: how the program is doing, what needs your attention.",
 )
 
 spec = st.session_state.spec

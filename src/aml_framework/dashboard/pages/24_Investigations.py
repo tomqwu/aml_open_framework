@@ -36,9 +36,8 @@ from aml_framework.dashboard.components import page_header
 page_header(
     title="Investigations",
     description=(
-        "Aggregated investigations across alerts, with live SLA tracking. "
-        "Replaces the per-alert case view for the FinCEN effectiveness-rule "
-        "and FCA SAR-backlog metrics."
+        "Active investigations across teams, ranked by SLA urgency. "
+        "One row per subject — the unit of analyst work — with live time-in-queue."
     ),
 )
 

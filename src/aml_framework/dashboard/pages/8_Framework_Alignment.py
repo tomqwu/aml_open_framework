@@ -14,7 +14,7 @@ regulator = spec.program.regulator
 
 page_header(
     "Framework Alignment",
-    f"Mapping spec primitives to regulatory standards for {jurisdiction} ({regulator}).",
+    f"How this program maps to {regulator}'s expectations — section by section.",
 )
 
 st.caption(

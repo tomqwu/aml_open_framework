@@ -32,8 +32,7 @@ PAGE_TITLE = "Tuning Lab"
 
 page_header(
     PAGE_TITLE,
-    "Sweep rule thresholds, preview alert deltas + precision/recall, "
-    "download a YAML spec patch to promote a candidate scenario.",
+    "Test a threshold change before it goes live. See exactly which alerts you'd add or remove.",
 )
 show_audience_context(PAGE_TITLE)
 
