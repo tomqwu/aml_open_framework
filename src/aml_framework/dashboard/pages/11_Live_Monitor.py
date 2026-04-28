@@ -15,7 +15,7 @@ from typing import Any
 import plotly.graph_objects as go
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header
+from aml_framework.dashboard.components import empty_state, page_header
 
 page_header(
     "Live Monitor",
@@ -24,6 +24,20 @@ page_header(
 
 spec = st.session_state.spec
 df_txns = st.session_state.df_txns
+
+# Phase E empty-state guard — degenerate specs (zero txns / zero rules)
+# previously crashed downstream pandas + plotly calls. Bail out cleanly.
+if df_txns is None or df_txns.empty:
+    empty_state(
+        "No transaction data loaded for live monitoring.",
+        icon="📭",
+        detail=(
+            "The Live Monitor replays a transaction stream — when the run "
+            "produced zero transactions there is nothing to play back. "
+            "Load a spec with sample data or wire `data_sources` in the spec."
+        ),
+        stop=True,
+    )
 
 
 def _build_screening_rules(spec_obj: Any) -> list[dict[str, Any]]:

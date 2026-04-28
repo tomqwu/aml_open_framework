@@ -40,6 +40,40 @@ that introduced them.
   Audience Filtering table in `docs/dashboard-tour.md` to match.
 
 ### Added
+- **Empty-state defenses on engine-side pages + design consistency
+  guards (Phase E)**
+  (`dashboard/pages/5_Rule_Performance.py`,
+  `dashboard/pages/10_Network_Explorer.py`,
+  `dashboard/pages/11_Live_Monitor.py`,
+  `tests/test_dashboard_design_consistency.py`). Phase E of the
+  dashboard workflow plan — converts the three pages the workflow
+  audit flagged as crash-prone on degenerate specs (zero rules /
+  zero txns) into pages that render an `empty_state` block with
+  operator guidance instead.
+  - **Page #5 Rule Performance** now bails out with `empty_state`
+    when `spec.rules` is empty, replacing the silent crash from
+    `df.style.map(_sev_style, subset=["Severity"])` on an empty
+    DataFrame. Suggests the Typology Catalogue page for templates.
+  - **Page #10 Network Explorer** now bails out when `df_txns` is
+    empty, before the agraph build. Previously the groupby and
+    Node construction would raise on a zero-txn fixture.
+  - **Page #11 Live Monitor** now bails out when `df_txns` is
+    empty, before the live-replay loop. Previously
+    `df_txns.sort_values('booked_at')` would still try to run.
+  Adds `tests/test_dashboard_design_consistency.py` with three
+  test classes:
+  - `TestEveryPageHasHeader` — every page calls `page_header`.
+  - `TestEmptyStateDefenses` — the three flagged pages import
+    `empty_state` and the guard runs BEFORE the crash-prone
+    operation it protects (`agraph` / `sort_values` / styled-df
+    rendering). Guards future drift toward removing the defense.
+  - `TestColorSystemConsistency` — flags new pages that introduce
+    inline severity-color dicts. Existing pages with risk_rating
+    color dicts are tracked in an explicit `ALLOWED` set so the
+    test serves as a no-regression guard while incremental
+    migration to a `severity_color` / `risk_color` resolver
+    continues. Tests 1123 → 1126 (+3, plus the existing tests).
+
 - **Cross-page drill-downs / deep links (Phase C)**
   (`dashboard/pages/3_Alert_Queue.py`,
   `dashboard/pages/10_Network_Explorer.py`,

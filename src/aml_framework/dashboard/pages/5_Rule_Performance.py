@@ -6,7 +6,13 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from aml_framework.dashboard.components import SEVERITY_COLORS, chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import (
+    SEVERITY_COLORS,
+    chart_layout,
+    empty_state,
+    kpi_card,
+    page_header,
+)
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -18,6 +24,23 @@ show_audience_context("Rule Performance")
 spec = st.session_state.spec
 result = st.session_state.result
 df_alerts = st.session_state.df_alerts
+
+# Phase E empty-state guard — degenerate specs with zero rules
+# previously crashed the styled DataFrame call below
+# (`.style.map(_sev_style, subset=["Severity"])` raises when "Severity"
+# isn't a column in an empty DataFrame).
+if not spec.rules:
+    empty_state(
+        "This spec declares zero rules — nothing to analyse.",
+        icon="📭",
+        detail=(
+            "Add rules to your spec under the `rules:` section. See the "
+            "Typology Catalogue page for 20+ ready-to-customize templates "
+            "across structuring, layering, sanctions, behavioral, and "
+            "geographic risk."
+        ),
+        stop=True,
+    )
 
 if st.session_state.get("guided_demo"):
     st.info(
