@@ -247,3 +247,71 @@ try:
         st.dataframe(_pd.DataFrame(rows), use_container_width=True, hide_index=True)
 except Exception as _e:  # noqa: BLE001 — drift panel must never crash the page
     st.caption(f"Regwatch unavailable: {_e}")
+
+
+# ---------------------------------------------------------------------------
+# Pre-examination Audit Pack (generators/audit_pack.py — Round-7 PR #78)
+# ---------------------------------------------------------------------------
+# FINTRAC's January 2026 examination manual update made the pre-exam
+# evidence demand explicit. Examiners now expect institutions to arrive
+# with a pre-built bundle covering rule inventory + alert volumes +
+# case dispositions + audit-trail integrity + sanctions evidence +
+# section coverage. The CLI `aml audit-pack` does this; the dashboard
+# button serves the same shape for analysts who never leave the UI.
+spec_for_pack = st.session_state.spec
+st.markdown("---")
+st.markdown("### Pre-Examination Audit Pack")
+st.caption(
+    "Deterministic ZIP for regulator submission: rule inventory, alert "
+    "volumes, case dispositions, audit-trail integrity proof, sanctions "
+    "evidence + jurisdiction-specific section maps. CLI equivalent: "
+    "`aml audit-pack <spec> --jurisdiction <regulator>`."
+)
+
+if spec_for_pack.program.jurisdiction == "CA":
+    try:
+        import json as _json2
+        from pathlib import Path as _Path2
+
+        from aml_framework.generators.audit_pack import build_audit_pack
+
+        # Load cases + decisions same way the funnel block does.
+        _ap_run_dir = _Path2(st.session_state.run_dir)
+        _ap_cases: list[dict] = []
+        _ap_cases_dir = _ap_run_dir / "cases"
+        if _ap_cases_dir.exists():
+            for _f in sorted(_ap_cases_dir.glob("*.json")):
+                _ap_cases.append(_json2.loads(_f.read_text(encoding="utf-8")))
+        _ap_decisions: list[dict] = []
+        _ap_dec_path = _ap_run_dir / "decisions.jsonl"
+        if _ap_dec_path.exists():
+            for _line in _ap_dec_path.read_text(encoding="utf-8").splitlines():
+                _line = _line.strip()
+                if _line:
+                    _ap_decisions.append(_json2.loads(_line))
+
+        _audit_pack_bytes = build_audit_pack(
+            spec_for_pack,
+            _ap_cases,
+            _ap_decisions,
+            jurisdiction="CA-FINTRAC",
+        )
+        st.download_button(
+            "📥 FINTRAC Audit Pack (ZIP)",
+            data=_audit_pack_bytes,
+            file_name=f"{spec_for_pack.program.name.replace(' ', '_')}_fintrac_audit_pack.zip",
+            mime="application/zip",
+            help="9 files: program.md + inventory.json + alerts_summary.json + "
+            "cases_summary.json + audit_trail_verification.json + "
+            "sanctions_evidence.json + pcmltfa_section_map.md + "
+            "osfi_b8_pillars.md + manifest.json (file-by-file SHA-256).",
+        )
+    except Exception as _ape:  # noqa: BLE001
+        st.caption(f"Audit pack unavailable: {_ape}")
+else:
+    st.info(
+        f"Pre-exam audit pack only ships for `CA-FINTRAC` in v1. "
+        f"This spec's jurisdiction is `{spec_for_pack.program.jurisdiction}`. "
+        "Future rounds will add UK FCA / EU AMLA / US FinCEN templates "
+        "using the same generator skeleton."
+    )

@@ -8,6 +8,50 @@ that introduced them.
 ## [Unreleased]
 
 ### Added
+- **FINTRAC audit-pack download + VoP outcomes panel (Phase B-3)**
+  (`dashboard/pages/7_Audit_Evidence.py`,
+  `dashboard/pages/12_Sanctions_Screening.py`,
+  `tests/test_dashboard_audit_pack_button.py`). Phase B-3 of the
+  dashboard workflow plan — surfaces `generators/audit_pack.py`
+  (Round-7 PR #78) and the PSD3 VoP vocabulary from
+  `data/psd3/parser.py` (Round-7 PR #77) on the relevant
+  pages. These were the last two Round-7 modules unreachable
+  from the GUI; with this PR every shipped module has at least
+  one dashboard entry point.
+  **Page #7 Audit & Evidence** now ends with a **Pre-Examination
+  Audit Pack** section. When the spec's jurisdiction is `CA`,
+  loads cases + decisions from the run_dir then renders a
+  **📥 FINTRAC Audit Pack (ZIP)** download button that calls
+  `build_audit_pack(spec, cases, decisions, jurisdiction="CA-FINTRAC")`.
+  Same 9-file deterministic ZIP the CLI `aml audit-pack` ships
+  (program.md + inventory.json + alerts_summary.json +
+  cases_summary.json + audit_trail_verification.json +
+  sanctions_evidence.json + pcmltfa_section_map.md +
+  osfi_b8_pillars.md + manifest.json). For non-CA jurisdictions
+  shows an informative caption explaining the planned UK FCA /
+  EU AMLA / US FinCEN templates rather than a non-functional
+  button. Wrapped in try/except.
+  **Page #12 Sanctions Screening** now ends with a **Verification
+  of Payee outcomes (PSD3 / UK CoP)** section. When the txn frame
+  carries a `confirmation_of_payee_status` column (populated by
+  `data/psd3` ingestion or the UK CoP scheme), renders 5 KPI
+  cards for the canonical PSD3 outcomes
+  (`match` / `close_match` / `no_match` / `not_checked` /
+  `outside_scope`) plus a fallback table that captures
+  non-canonical buckets (`not_set` for unscreened txns,
+  institution-specific extensions). Same vocabulary covers
+  EU PSD3 VoP and UK Confirmation of Payee — one txn column,
+  two regulators. When the column is missing, shows guidance
+  on how to populate it (via `data/psd3` adapter or by extending
+  the txn data contract) instead of an empty table.
+  11 source-level tests under `TestAuditPackButton` +
+  `TestVoPOutcomes` guard against drift (import presence,
+  jurisdiction gating, 5-outcome KPI rendering, missing-column
+  + empty-frame defenses, try/except wrapping). Tests
+  1102 → 1113 (+11). With this PR, **every Round-6/7 module
+  is reachable from the dashboard** — the original goal of
+  Phase B is met.
+
 - **Live SLA + STR-bundle download on case-facing pages (Phase B-1)**
   (`dashboard/pages/4_Case_Investigation.py`,
   `dashboard/pages/21_My_Queue.py`,
