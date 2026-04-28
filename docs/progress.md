@@ -239,8 +239,14 @@ See `memory/project_round5to9_plan.md` (private) for the full "three new traps" 
 
 ## Open Items
 
-- Issue #66 — closed (PR #70 mobile-responsive)
-- Issue #68 — effectively closed (PR #69 docs sweep)
+- Issue #66 — closed 2026-04-27 (PR #70 mobile-responsive)
+- Issue #68 — **still open**, due 2026-05-27. Tracking issue for a docs
+  freshness sweep + the (now moot) mobile #66 status check. The mobile
+  half is satisfied (`#66` closed); the docs-sweep half (walking
+  `getting-started.md` from a clean checkout, reconciling
+  `jurisdictions.md` against `examples/`, opening per-drift PRs) is
+  pending — `dashboard-tour.md` was partially updated in PR #85 (audience
+  filtering table only).
 - No other tracked issues open as of this snapshot
 
 ## Round 8 / 9 — Remaining Planned Work
