@@ -29,7 +29,7 @@ from aml_framework.cases import (
     linkage_summary,
     summarise_backlog,
 )
-from aml_framework.dashboard.components import page_header
+from aml_framework.dashboard.components import glossary_legend, page_header
 
 # ---------------------------------------------------------------------------
 # Page setup
@@ -268,3 +268,10 @@ else:
         "`aml_priority` as `fraud` in the spec, or run against the UK APP-fraud or "
         "Cyber-enabled fraud example specs."
     )
+
+# Acronyms used on this page — keeps SLA / STR / SAR / MLRO visible for
+# audit-trail reasons but expanded so a leader doesn't need to ask.
+st.markdown(
+    glossary_legend(["SLA", "STR", "SAR", "MLRO", "1LoD", "2LoD"]),
+    unsafe_allow_html=True,
+)
