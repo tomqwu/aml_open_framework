@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rule Logic Types · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .rules-grid {
+    position: absolute;
+    top: 420px;
+    left: 96px; right: 96px;
+    bottom: 110px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 20px;
+  }
+  .rule {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px 22px 16px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.6s ease-out forwards;
+    overflow: hidden;
+  }
+  .rule.r1 { animation-delay: 0.4s; }
+  .rule.r2 { animation-delay: 0.55s; }
+  .rule.r3 { animation-delay: 0.7s; }
+  .rule.r4 { animation-delay: 0.85s; }
+
+  .rule-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--rule);
+    margin-bottom: 10px;
+  }
+  .rule-type {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .rule-eg {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .rule h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+    margin-bottom: 10px;
+  }
+
+  .rule pre {
+    flex: 1;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--ink);
+    white-space: pre;
+    overflow: hidden;
+  }
+  .rule pre .k  { color: var(--accent); }
+  .rule pre .s  { color: #f5d0a9; }
+  .rule pre .n  { color: #fbb6ce; }
+  .rule pre .c  { color: var(--ink-faint); font-style: italic; }
+
+  .rule .when {
+    margin-top: 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--ink-dim);
+  }
+  .rule .when b { color: var(--ink); font-weight: 500; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.0s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">06 / 18 · RULE LOGIC</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Discriminated union · type-driven dispatch</div>
+  <h1>Four ways to express a <em>detection</em>.</h1>
+</div>
+
+<div class="rules-grid">
+  <div class="rule r1">
+    <div class="rule-head">
+      <div class="rule-type">aggregation_window</div>
+      <div class="rule-eg">CASH STRUCTURING</div>
+    </div>
+    <h3>Threshold-based aggregations over a sliding window.</h3>
+<pre><span class="c"># Sum of cash deposits per customer</span>
+<span class="c"># over 7 days, alert if &gt; $9,000.</span>
+<span class="k">type</span>: <span class="s">aggregation_window</span>
+<span class="k">window</span>: <span class="s">7d</span>
+<span class="k">filters</span>:
+  <span class="k">channel</span>: <span class="s">cash</span>
+<span class="k">aggregate</span>:
+  <span class="k">field</span>: <span class="s">amount</span>
+  <span class="k">op</span>: <span class="s">sum</span>
+<span class="k">having</span>: <span class="s">"&gt; 9000"</span></pre>
+    <div class="when"><b>Use when</b> a regulator gave you a number and a window — the cleanest, most spec-readable form.</div>
+  </div>
+
+  <div class="rule r2">
+    <div class="rule-head">
+      <div class="rule-type">custom_sql</div>
+      <div class="rule-eg">RAPID PASS-THROUGH</div>
+    </div>
+    <h3>Bespoke DuckDB SQL with placeholders.</h3>
+<pre><span class="c"># Cash-in &gt; $50k followed by</span>
+<span class="c"># e-transfer-out within 48h.</span>
+<span class="k">type</span>: <span class="s">custom_sql</span>
+<span class="k">sql</span>: <span class="s">|</span>
+<span class="s">  SELECT customer_id, SUM(amount) ...</span>
+<span class="s">  WHERE booked_at &gt; '{recent_start}'</span>
+<span class="s">    AND channel IN ('cash','eft')</span>
+<span class="s">  GROUP BY customer_id</span>
+<span class="s">  HAVING SUM(amount) &gt; 100000</span></pre>
+    <div class="when"><b>Use when</b> the pattern needs joins or self-references the spec language can't express.</div>
+  </div>
+
+  <div class="rule r3">
+    <div class="rule-head">
+      <div class="rule-type">python_ref</div>
+      <div class="rule-eg">ML RISK SCORER</div>
+    </div>
+    <h3>Callable Python ref — ML, network analysis, anything.</h3>
+<pre><span class="c"># Resolves to a callable in</span>
+<span class="c"># aml_framework.models.scoring</span>
+<span class="k">type</span>: <span class="s">python_ref</span>
+<span class="k">callable</span>: <span class="s">aml_framework.models</span>
+<span class="s">  .scoring.ml_risk_score</span>
+<span class="k">params</span>:
+  <span class="k">threshold</span>: <span class="n">0.85</span>
+  <span class="k">model_version</span>: <span class="s">"v3.2.1"</span></pre>
+    <div class="when"><b>Use when</b> ML or graph-walk logic is needed; spec still references a versioned, hash-stamped callable.</div>
+  </div>
+
+  <div class="rule r4">
+    <div class="rule-head">
+      <div class="rule-type">list_match</div>
+      <div class="rule-eg">SANCTIONS / PEP / ADVERSE MEDIA</div>
+    </div>
+    <h3>Reference-list screening with exact or fuzzy match.</h3>
+<pre><span class="c"># Match customer.full_name against</span>
+<span class="c"># OFAC SDN — fuzzy, threshold 0.8.</span>
+<span class="k">type</span>: <span class="s">list_match</span>
+<span class="k">list</span>: <span class="s">OFAC_SDN</span>
+<span class="k">field</span>: <span class="s">full_name</span>
+<span class="k">match</span>: <span class="s">fuzzy</span>
+<span class="k">threshold</span>: <span class="n">0.8</span>
+<span class="k">severity</span>: <span class="s">critical</span></pre>
+    <div class="when"><b>Use when</b> screening against published lists (sanctions, PEP, adverse media, sanctioned wallets).</div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">All four execute in the reference engine. <b>One discriminator field, one dispatch table, no new code per rule.</b></div>
+  <div class="repo"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</div>
+</div>
+
+</body>
+</html>

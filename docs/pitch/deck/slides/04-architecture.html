@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Architecture · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block {
+    position: absolute;
+    top: 200px;
+    left: 96px; right: 96px;
+  }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  /* Pipeline diagram */
+  .pipeline {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 24px 20px 20px;
+    position: relative;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: box-shadow 0.4s ease;
+    animation: stageIn 0.5s ease-out forwards;
+  }
+  @keyframes stageIn {
+    0%   { opacity: 0; transform: translateY(16px); border-color: var(--panel-border); }
+    60%  { opacity: 1; transform: translateY(0);    border-color: var(--accent); box-shadow: 0 0 24px rgba(103,232,249,0.4); }
+    100% { opacity: 1; transform: translateY(0);    border-color: var(--panel-border); box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
+  }
+  .stage.s1 { animation-delay: 0.5s; }
+  .stage.s2 { animation-delay: 0.9s; }
+  .stage.s3 { animation-delay: 1.3s; }
+  .stage.s4 { animation-delay: 1.7s; }
+  .stage.s5 { animation-delay: 2.1s; }
+
+  .stage .num {
+    position: absolute;
+    top: 18px; right: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+  }
+  .stage h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  .stage h3 em {
+    font-style: normal;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    display: block;
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+  .stage p {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    margin-top: 16px;
+    text-wrap: pretty;
+  }
+  .stage ul {
+    list-style: none;
+    margin-top: 14px;
+  }
+  .stage ul li {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    padding: 2px 0 2px 14px;
+    position: relative;
+  }
+  .stage ul li::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Connector arrows between stages */
+  .arrow {
+    position: absolute;
+    top: 50%;
+    right: -16px;
+    width: 16px;
+    height: 2px;
+    transform: translateY(-50%);
+    z-index: 2;
+  }
+  .arrow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    transform-origin: left;
+    transform: scaleX(0);
+    animation: scaleArrow 0.4s ease-out forwards;
+  }
+  .arrow::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: 50%;
+    width: 0; height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid var(--accent);
+    transform: translateY(-50%);
+    opacity: 0;
+    animation: fadeIn 0.2s 0.4s ease forwards;
+  }
+  @keyframes scaleArrow { to { transform: scaleX(1); } }
+  @keyframes fadeIn { to { opacity: 1; } }
+  .stage.s1 .arrow::before { animation-delay: 0.85s; }
+  .stage.s2 .arrow::before { animation-delay: 1.25s; }
+  .stage.s3 .arrow::before { animation-delay: 1.65s; }
+  .stage.s4 .arrow::before { animation-delay: 2.05s; }
+  .stage.s1 .arrow::after  { animation-delay: 1.25s; }
+  .stage.s2 .arrow::after  { animation-delay: 1.65s; }
+  .stage.s3 .arrow::after  { animation-delay: 2.05s; }
+  .stage.s4 .arrow::after  { animation-delay: 2.45s; }
+
+  /* Bottom caption */
+  .caption-row {
+    position: absolute;
+    top: 870px;
+    left: 96px; right: 96px;
+    text-align: center;
+    opacity: 0;
+    animation: fadeUp 0.6s 2.6s ease-out forwards;
+  }
+  .caption-row .lead {
+    font-size: 20px;
+    color: var(--ink-dim);
+    font-style: italic;
+  }
+  .caption-row .lead b { color: var(--accent); font-style: normal; font-weight: 600; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 2.8s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">04 / 18 · ARCHITECTURE</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">From spec to signed evidence</div>
+  <h1>Five stages. <em>Deterministic</em>. <em>Reproducible</em>. <em>Auditable</em>.</h1>
+</div>
+
+<div class="pipeline">
+  <div class="stage s1">
+    <div class="num">01</div>
+    <h3>Spec<em>spec/loader.py</em></h3>
+    <p>Two-layer validation: JSON Schema (structure) → Pydantic (cross-references).</p>
+    <ul>
+      <li>aml-spec.schema.json</li>
+      <li>extra="forbid"</li>
+      <li>frozen=True</li>
+    </ul>
+    <div class="arrow"></div>
+  </div>
+  <div class="stage s2">
+    <div class="num">02</div>
+    <h3>Generate<em>generators/</em></h3>
+    <p>SQL, Airflow DAG stubs, control matrix, STR narratives — emitted from spec.</p>
+    <ul>
+      <li>sql.py</li>
+      <li>dag.py</li>
+      <li>control_matrix.py</li>
+      <li>str_narrative.py</li>
+    </ul>
+    <div class="arrow"></div>
+  </div>
+  <div class="stage s3">
+    <div class="num">03</div>
+    <h3>Run<em>engine/runner.py</em></h3>
+    <p>Rules execute on in-memory DuckDB. Same seed = identical output.</p>
+    <ul>
+      <li>aggregation_window</li>
+      <li>custom_sql</li>
+      <li>python_ref</li>
+      <li>list_match</li>
+    </ul>
+    <div class="arrow"></div>
+  </div>
+  <div class="stage s4">
+    <div class="num">04</div>
+    <h3>Measure<em>metrics/ + audit/</em></h3>
+    <p>Metrics computed → RAG bands. Decisions appended to immutable hash chain.</p>
+    <ul>
+      <li>SHA-256 chain</li>
+      <li>RAG green/amber/red</li>
+      <li>verify_decisions()</li>
+    </ul>
+    <div class="arrow"></div>
+  </div>
+  <div class="stage s5">
+    <div class="num">05</div>
+    <h3>Surface<em>export.py + dashboard/</em></h3>
+    <p>Regulator ZIP, FastAPI REST, 24-page Streamlit, AMLA RTS JSON.</p>
+    <ul>
+      <li>FINTRAC audit pack</li>
+      <li>FastAPI + JWT</li>
+      <li>21 / Today / 24 pages</li>
+    </ul>
+  </div>
+</div>
+
+<div class="caption-row">
+  <div class="lead">Same spec + same data + same engine = <b>identical output hash</b>. Tested by <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);">test_run_is_reproducible</code>.</div>
+</div>
+
+<div class="footer">
+  <div class="tag"><b>Determinism</b> is the difference between an audit defence and an audit finding.</div>
+  <div class="repo"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</div>
+</div>
+
+</body>
+</html>

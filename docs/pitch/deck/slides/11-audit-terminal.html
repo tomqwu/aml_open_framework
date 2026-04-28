@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AML Open Framework — Audit & Evidence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #0a0e1a;
+    --bg-grid:      rgba(103, 232, 249, 0.04);
+    --panel:        #0f172a;
+    --panel-border: #1e293b;
+    --ink:          #f1f5f9;
+    --ink-dim:      #94a3b8;
+    --ink-faint:    #475569;
+    --accent:       #67e8f9;
+    --accent-glow:  rgba(103, 232, 249, 0.4);
+    --rag-green:    #86efac;
+    --rag-amber:    #fde68a;
+    --rag-red:      #fca5a5;
+    --rule:         rgba(148, 163, 184, 0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px;
+    height: 1080px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+    background-size: 80px 80px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse at 70% 50%, black 30%, transparent 80%);
+  }
+
+  /* Wordmark */
+  .wordmark {
+    position: absolute;
+    top: 64px; left: 96px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .wordmark::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+
+  /* Slide chrome */
+  .slide-num {
+    position: absolute;
+    top: 64px; right: 96px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--ink-faint);
+    letter-spacing: 0.1em;
+  }
+  .header-rule {
+    position: absolute;
+    top: 144px;
+    left: 96px; right: 96px;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  /* Title */
+  .title-block {
+    position: absolute;
+    top: 200px;
+    left: 96px; right: 96px;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.1s ease-out forwards;
+  }
+  .eyebrow::after {
+    content: '';
+    display: inline-block;
+    width: 32px;
+    height: 1px;
+    background: var(--accent);
+    margin-left: 16px;
+    vertical-align: middle;
+  }
+  h1 {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 1200px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.2s ease-out forwards;
+  }
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  /* Main content grid */
+  .content {
+    position: absolute;
+    top: 420px;
+    left: 96px; right: 96px;
+    bottom: 160px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+  }
+
+  /* Terminal blocks */
+  .term-block {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    line-height: 1.85;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.7s ease-out forwards;
+  }
+  .term-block.identity { animation-delay: 0.5s; }
+  .term-block.chain    { animation-delay: 0.9s; }
+  .term-block.hashes   { animation-delay: 1.3s; grid-column: span 2; padding: 28px 36px; }
+
+  .term-title {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--rule);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .term-title .pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--rag-green);
+    box-shadow: 0 0 6px rgba(134, 239, 172, 0.7);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 0.5; transform: scale(0.85); }
+    50%     { opacity: 1; transform: scale(1.1); }
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 24px;
+    align-items: baseline;
+    padding: 4px 0;
+  }
+  .key {
+    color: var(--ink-faint);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .val { color: var(--ink); font-size: 15px; }
+  .val.hash {
+    color: var(--accent);
+    word-break: break-all;
+    line-height: 1.5;
+    font-size: 13px;
+  }
+  .val.ok {
+    color: var(--rag-green);
+    font-weight: 500;
+  }
+  .val.ok::before {
+    content: '✓ ';
+    font-weight: 600;
+    margin-right: 2px;
+  }
+
+  /* Hashes table — typewriter sequence */
+  .hashes-list {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 16px 28px;
+    align-items: baseline;
+    margin-top: 4px;
+  }
+  .rule-id {
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .rule-hash {
+    color: var(--accent);
+    font-size: 13px;
+    word-break: break-all;
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    animation: typing 0.7s steps(64, end) forwards;
+  }
+  .rule-hash.h1 { animation-delay: 1.5s; }
+  .rule-hash.h2 { animation-delay: 1.7s; }
+  .rule-hash.h3 { animation-delay: 1.9s; }
+  .rule-hash.h4 { animation-delay: 2.1s; }
+  .rule-hash.h5 { animation-delay: 2.3s; }
+  .rule-hash.h6 { animation-delay: 2.5s; }
+  .rule-hash.h7 { animation-delay: 2.7s; }
+  .rule-hash.h8 { animation-delay: 2.9s; }
+  .rule-hash.h9 { animation-delay: 3.1s; }
+  @keyframes typing { to { width: 100%; } }
+
+  /* Caption + verify button */
+  .footer-row {
+    position: absolute;
+    bottom: 64px;
+    left: 96px; right: 96px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    opacity: 0;
+    animation: fadeUp 0.6s 3.4s ease-out forwards;
+  }
+  .caption {
+    font-size: 18px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    max-width: 900px;
+  }
+  .caption b { color: var(--ink); font-weight: 600; }
+
+  .verify-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    background: rgba(103, 232, 249, 0.08);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .verify-btn::before {
+    content: '🔒';
+    font-size: 14px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">11 / 18 · AUDIT & EVIDENCE</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Tamper-evident by construction</div>
+  <h1>Every alert has a <em>hash receipt</em>.<br>Every decision is a <em>signed line</em>.</h1>
+</div>
+
+<div class="content">
+  <div class="term-block identity">
+    <div class="term-title">Run identity <span class="pulse"></span></div>
+    <div class="row"><span class="key">Spec hash</span><span class="val hash">0d3a88e836d8a1b7f2c4e9d6b5a8f3e1c7d2b4a6</span></div>
+    <div class="row"><span class="key">Output hash</span><span class="val hash">8bcc816da76d44947e29714573522442988eb4fa</span></div>
+    <div class="row"><span class="key">Engine</span><span class="val">v0.7.0</span></div>
+    <div class="row"><span class="key">Run at</span><span class="val">2026-04-28T14:23:17Z</span></div>
+  </div>
+
+  <div class="term-block chain">
+    <div class="term-title">Chain integrity <span class="pulse"></span></div>
+    <div class="row"><span class="key">Status</span><span class="val ok">chain verified</span></div>
+    <div class="row"><span class="key">Decisions</span><span class="val">28 logged</span></div>
+    <div class="row"><span class="key">Detail</span><span class="val" style="font-size:13px; color:var(--ink-dim);">SHA-256 hash chain matches stored manifest</span></div>
+    <div class="row"><span class="key">Verified at</span><span class="val">2026-04-28T14:24:02Z</span></div>
+  </div>
+
+  <div class="term-block hashes">
+    <div class="term-title">Per-rule output hashes · 9 rules <span class="pulse"></span></div>
+    <div class="hashes-list">
+      <span class="rule-id">structuring_cash_deposits</span><span class="rule-hash h1">6ea678e43e64cf1b371711a12209004da57b4b0c3a1aaf2985d1d572610f4831</span>
+      <span class="rule-id">rapid_pass_through</span><span class="rule-hash h2">a4be592a0344f195232bbeec1943682a9fd223edb0bedb0a400dd3f949873338</span>
+      <span class="rule-id">shell_company_indicators</span><span class="rule-hash h3">bab57748a3b082beb528943e1d9c0345ab662d13897e9ea89396aa2fdbd04f1a</span>
+      <span class="rule-id">high_risk_jurisdiction</span><span class="rule-hash h4">d03624932ca2535b203882461a22655a4f6914dbaa881944b985a753fb282e55</span>
+      <span class="rule-id">large_cash_lctr</span><span class="rule-hash h5">30bcab0a3e57c284dc245266b0ab94b4c8fe17f6cb2094686546b6965e9971e6</span>
+      <span class="rule-id">unusual_volume_spike</span><span class="rule-hash h6">50ebd7961825d5be3831931b8f2852a39b884c976d0d264a7b49131062f53a4c</span>
+      <span class="rule-id">dormant_account_activity</span><span class="rule-hash h7">f7a9ad618ccea8625f97a17df535e759df7ee415218c9e541fefd24dd6fd4070</span>
+      <span class="rule-id">sanctions_screening</span><span class="rule-hash h8">867fed7331eda6ecee26320f541a5fa01b6b0701c1ed9ba8c119911931e936ed</span>
+      <span class="rule-id">ml_risk_scorer</span><span class="rule-hash h9">8bcc816da76d44947e29714573522442988eb4fa54a951e2c17fe12913c15569</span>
+    </div>
+  </div>
+</div>
+
+<div class="footer-row">
+  <div class="caption">
+    Same spec + same data + same engine = <b>identical output hashes</b>. A mismatch is
+    a reportable control failure — not a debate. Auditors verify via CLI or the
+    in-page button; the chain replays in seconds.
+  </div>
+  <div class="verify-btn">Re-verify chain</div>
+</div>
+
+</body>
+</html>

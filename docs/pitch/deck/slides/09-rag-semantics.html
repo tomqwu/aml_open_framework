@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RAG Semantics · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .compare {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  .col-head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--rule);
+    display: flex;
+    justify-content: space-between;
+  }
+  .col-head .when { color: var(--ink-faint); }
+
+  .before .col-head { color: var(--rag-red); }
+  .after  .col-head { color: var(--rag-green); }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    border-left: 3px solid var(--ink-faint);
+  }
+  /* Pre-PR-2 rainbow */
+  .before .kpi.r1 { border-left-color: #dc2626; }
+  .before .kpi.r2 { border-left-color: #d97706; }
+  .before .kpi.r3 { border-left-color: #2563eb; }
+  .before .kpi.r4 { border-left-color: #059669; }
+  .before .kpi.r5 { border-left-color: #7c3aed; }
+  .before .kpi.r6 { border-left-color: #0891b2; }
+
+  /* Post-PR-2 RAG-bound */
+  .after .kpi.bound-green { border-left-color: var(--rag-green); }
+  .after .kpi.bound-amber { border-left-color: var(--rag-amber); }
+  .after .kpi.bound-red   { border-left-color: var(--rag-red); }
+
+  .kpi .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  .kpi .v {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .col p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-dim);
+    margin-top: 12px;
+  }
+  .col p b { color: var(--ink); }
+
+  .arrow-mid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding-top: 70px;
+  }
+  .arrow-mid svg { width: 64px; height: 32px; }
+
+  /* Bottom rationale */
+  .rationale {
+    position: absolute;
+    top: 880px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    opacity: 0;
+    animation: fadeUp 0.7s 1.1s ease-out forwards;
+  }
+  .reason {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--ink-dim);
+    padding-left: 14px;
+    border-left: 1px solid var(--rule);
+  }
+  .reason b { color: var(--accent); font-weight: 600; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.5s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">09 / 18 · COLOR DISCIPLINE</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">PR 2 · color = state, not slot</div>
+  <h1>From <em>rainbow decoration</em> to <em>RAG-bound semantics</em>.</h1>
+</div>
+
+<div class="compare">
+  <div class="col before">
+    <div class="col-head"><span>BEFORE</span><span class="when">PRE-PR-2</span></div>
+    <div class="kpi-row">
+      <div class="kpi r1"><div class="lbl">Total Alerts</div><div class="v">14</div></div>
+      <div class="kpi r2"><div class="lbl">Open Cases</div><div class="v">14</div></div>
+      <div class="kpi r3"><div class="lbl">Active Rules</div><div class="v">10</div></div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi r4"><div class="lbl">Typology</div><div class="v">86%</div></div>
+      <div class="kpi r5"><div class="lbl">Customers</div><div class="v">7</div></div>
+      <div class="kpi r6"><div class="lbl">Volume</div><div class="v">$843K</div></div>
+    </div>
+    <p>Six different border colors chosen for visual variety, not state. <b>Red border on Total Alerts</b> meant nothing — alerts feel red. Conflicted with severity + RAG color systems.</p>
+  </div>
+
+  <div class="arrow-mid">
+    <svg viewBox="0 0 64 32" stroke="var(--accent)" stroke-width="1.5" fill="none">
+      <line x1="0" y1="16" x2="50" y2="16"/>
+      <polyline points="42,10 52,16 42,22"/>
+    </svg>
+  </div>
+
+  <div class="col after">
+    <div class="col-head"><span>AFTER</span><span class="when">PR 2</span></div>
+    <div class="kpi-row">
+      <div class="kpi"><div class="lbl">Total Alerts</div><div class="v">14</div></div>
+      <div class="kpi"><div class="lbl">Open Cases</div><div class="v">14</div></div>
+      <div class="kpi"><div class="lbl">Active Rules</div><div class="v">10</div></div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi bound-green"><div class="lbl">Typology · GREEN</div><div class="v">86%</div></div>
+      <div class="kpi"><div class="lbl">Customers</div><div class="v">7</div></div>
+      <div class="kpi"><div class="lbl">Volume</div><div class="v">$843K</div></div>
+    </div>
+    <p>Border color now binds to the metric's RAG band. Counts of facts are <b>neutral slate</b>; the only colored card is the one that actually carries an assessment.</p>
+  </div>
+</div>
+
+<div class="rationale">
+  <div class="reason"><b>RULE</b><br>Color signals state. Counts of facts → neutral. Only metrics with declared thresholds get an RAG border.</div>
+  <div class="reason"><b>HELPER</b><br><code style="color:var(--accent);">kpi_card_rag(label, value, rag=None)</code> sources from central RAG_COLORS dict. Palette change propagates.</div>
+  <div class="reason"><b>ENFORCED</b><br>Source-level test fails CI if any decorative-rainbow hex appears in a kpi_card call on a migrated page.</div>
+</div>
+
+<div class="footer">
+  <div class="tag">When everything is colorful, <b>nothing is colorful</b>. Reserve color for the cards that need to interrupt you.</div>
+  <div class="repo"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</div>
+</div>
+
+</body>
+</html>

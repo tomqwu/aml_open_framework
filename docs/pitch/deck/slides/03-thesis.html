@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Thesis · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block {
+    position: absolute;
+    top: 200px;
+    left: 96px; right: 96px;
+  }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .body {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    bottom: 160px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) auto minmax(0, 1fr);
+    gap: 64px;
+    align-items: start;
+  }
+
+  .yaml {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    line-height: 1.65;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    animation: fadeUp 0.7s 0.5s ease-out forwards;
+    overflow: hidden;
+  }
+  .yaml-title {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .yaml-title .filename {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .yaml-line { color: var(--ink); white-space: pre; }
+  .yaml-line .k  { color: var(--accent); }
+  .yaml-line .s  { color: #f5d0a9; }    /* string */
+  .yaml-line .n  { color: #fbb6ce; }    /* number */
+  .yaml-line .c  { color: var(--ink-faint); font-style: italic; }
+  .yaml-line .pp { color: var(--ink-faint); }
+
+  /* Arrows */
+  .arrow-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    padding-top: 60px;
+    opacity: 0;
+    animation: fadeUp 0.6s 1.0s ease-out forwards;
+  }
+  .arrow-col svg { width: 80px; height: 60px; }
+
+  .derived {
+    opacity: 0;
+    animation: fadeUp 0.7s 1.1s ease-out forwards;
+  }
+  .derived-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .derived ul { list-style: none; }
+  .derived li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--rule);
+    font-size: 17px;
+  }
+  .derived li:last-child { border-bottom: 0; }
+  .derived .name { color: var(--ink); font-weight: 500; }
+  .derived .file {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.5s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">03 / 18 · THE THESIS</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">One file, one truth</div>
+  <h1>The <em>aml.yaml</em> spec drives <em>everything</em>.</h1>
+</div>
+
+<div class="body">
+  <div class="yaml">
+    <div class="yaml-title"><span>SOURCE OF TRUTH</span><span class="filename">aml.yaml</span></div>
+<div class="yaml-line"><span class="k">program</span>:</div>
+<div class="yaml-line">  <span class="k">name</span>: <span class="s">canadian_schedule_i</span></div>
+<div class="yaml-line">  <span class="k">jurisdiction</span>: <span class="s">CA</span></div>
+<div class="yaml-line">  <span class="k">regulator</span>: <span class="s">FINTRAC</span></div>
+<div class="yaml-line"></div>
+<div class="yaml-line"><span class="k">data_contracts</span>: <span class="c"># schemas, SLAs, PII</span></div>
+<div class="yaml-line">  - <span class="k">id</span>: <span class="s">customer</span></div>
+<div class="yaml-line">    <span class="k">fields</span>: [...]</div>
+<div class="yaml-line"></div>
+<div class="yaml-line"><span class="k">rules</span>: <span class="c"># 9 detection rules</span></div>
+<div class="yaml-line">  - <span class="k">id</span>: <span class="s">structuring_cash_deposits</span></div>
+<div class="yaml-line">    <span class="k">severity</span>: <span class="s">high</span></div>
+<div class="yaml-line">    <span class="k">logic</span>:</div>
+<div class="yaml-line">      <span class="k">type</span>: <span class="s">aggregation_window</span></div>
+<div class="yaml-line">      <span class="k">window</span>: <span class="s">7d</span></div>
+<div class="yaml-line">      <span class="k">threshold</span>: <span class="n">9000</span></div>
+<div class="yaml-line">    <span class="k">regulation_refs</span>:</div>
+<div class="yaml-line">      - <span class="s">PCMLTFR s.7 (STR)</span></div>
+<div class="yaml-line">      - <span class="s">FATF R.20</span></div>
+<div class="yaml-line"></div>
+<div class="yaml-line"><span class="k">workflow</span>:    <span class="c"># queues, SLAs, escalation</span></div>
+<div class="yaml-line"><span class="k">metrics</span>:     <span class="c"># RAG bands, targets</span></div>
+<div class="yaml-line"><span class="k">reports</span>:     <span class="c"># SVP / CCO / Director / VP</span></div>
+<div class="yaml-line"><span class="pp">...</span></div>
+  </div>
+
+  <div class="arrow-col">
+    <svg viewBox="0 0 80 60" stroke="var(--accent)" stroke-width="1.5" fill="none">
+      <line x1="0" y1="30" x2="65" y2="30" />
+      <polyline points="55,22 65,30 55,38" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <div class="derived">
+    <div class="derived-title">DERIVED ARTIFACTS · AUTO-GENERATED</div>
+    <ul>
+      <li><span class="name">SQL queries</span><span class="file">generators/sql.py</span></li>
+      <li><span class="name">Airflow DAG stubs</span><span class="file">generators/dag.py</span></li>
+      <li><span class="name">Control matrix (regulator-mapped)</span><span class="file">generators/control_matrix.py</span></li>
+      <li><span class="name">STR / SAR narratives</span><span class="file">generators/str_narrative.py</span></li>
+      <li><span class="name">Detection engine input</span><span class="file">engine/runner.py</span></li>
+      <li><span class="name">Audit ledger (SHA-256 chain)</span><span class="file">engine/audit.py</span></li>
+      <li><span class="name">24-page Streamlit dashboard</span><span class="file">dashboard/</span></li>
+      <li><span class="name">FastAPI REST endpoints</span><span class="file">api/</span></li>
+      <li><span class="name">Pre-exam audit pack (FINTRAC)</span><span class="file">generators/audit_pack.py</span></li>
+    </ul>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Edit the spec → every artifact regenerates. <b>One source of truth, by construction.</b></div>
+  <div class="repo"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</div>
+</div>
+
+</body>
+</html>

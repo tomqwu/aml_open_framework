@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Call to Action · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
+
+  /* Big repo URL */
+  .repo-hero {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    line-height: 1.05;
+    text-align: center;
+    opacity: 0;
+    animation: fadeUp 0.9s 0.3s ease-out forwards;
+  }
+  .repo-hero .arrow { color: var(--accent); margin-right: 24px; }
+  .repo-hero .path  { color: var(--accent); }
+
+  .eyebrow-c {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 28px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.1s ease-out forwards;
+  }
+  .eyebrow-c::after {
+    content: '';
+    display: inline-block;
+    width: 32px;
+    height: 1px;
+    background: var(--accent);
+    margin-left: 16px;
+    vertical-align: middle;
+  }
+
+  /* 3 ways */
+  .ways {
+    margin-top: 80px;
+    display: grid;
+    grid-template-columns: repeat(3, 320px);
+    gap: 32px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.6s ease-out forwards;
+  }
+  .way {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    text-align: left;
+  }
+  .way .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    margin-bottom: 14px;
+  }
+  .way h3 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+  .way p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-dim);
+    margin-bottom: 16px;
+  }
+  .way code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    background: rgba(103, 232, 249, 0.06);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 6px 10px;
+    display: inline-block;
+  }
+
+  /* Closing receipt — mirrors cover */
+  .receipt-closer {
+    position: absolute;
+    bottom: 200px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 18px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    opacity: 0;
+    animation: fadeUp 0.7s 1.2s ease-out forwards;
+  }
+  .receipt-closer .pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--rag-green);
+    box-shadow: 0 0 6px rgba(134, 239, 172, 0.7);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .receipt-closer .ok {
+    color: var(--rag-green);
+  }
+  .receipt-closer .hash {
+    color: var(--accent);
+    font-size: 12px;
+  }
+  .receipt-closer .sep {
+    color: var(--ink-faint);
+  }
+
+  .footer-cta {
+    position: absolute;
+    bottom: 64px;
+    left: 96px; right: 96px;
+    text-align: center;
+    font-size: 18px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+    opacity: 0;
+    animation: fadeUp 0.6s 1.4s ease-out forwards;
+  }
+  .footer-cta b { color: var(--ink); font-weight: 600; }
+
+  .wordmark { z-index: 10; }
+  .slide-num { z-index: 10; }
+  .header-rule { z-index: 5; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">18 / 18 · ENGAGE</div>
+<div class="header-rule"></div>
+
+<div class="stage">
+  <div class="eyebrow-c">Apache 2.0 · 2026-04-28</div>
+  <div class="repo-hero">
+    <span class="arrow">→</span>github.com/tomqwu/<span class="path">aml_open_framework</span>
+  </div>
+
+  <div class="ways">
+    <div class="way">
+      <div class="num">01 · TRY</div>
+      <h3>Run the canonical example</h3>
+      <p>Spin up the Streamlit dashboard against the Canadian Schedule I bank spec — every rule, every metric, every hash already wired.</p>
+      <code>aml dashboard examples/canadian_schedule_i_bank/aml.yaml</code>
+    </div>
+    <div class="way">
+      <div class="num">02 · READ</div>
+      <h3>Fork your jurisdiction</h3>
+      <p>Five example specs across CA / US / UK / EU. Edit one, refit thresholds, point at your warehouse. The control matrix updates with you.</p>
+      <code>cp examples/community_bank/aml.yaml my_bank.yaml</code>
+    </div>
+    <div class="way">
+      <div class="num">03 · CONTRIBUTE</div>
+      <h3>Open a typology PR</h3>
+      <p>Add a new detection pattern, a new regulator's mapping, a new ingestion adapter. CI runs 5 jobs; if it passes, it merges.</p>
+      <code>github.com/tomqwu/aml_open_framework/issues</code>
+    </div>
+  </div>
+
+  <div class="receipt-closer">
+    <span class="pulse"></span>
+    <span class="ok">✓ chain verified</span>
+    <span class="sep">·</span>
+    <span class="hash">8bcc816da76d…15569</span>
+    <span class="sep">·</span>
+    <span>v0.7.0</span>
+    <span class="sep">·</span>
+    <span>2026-04-28T14:23:17Z</span>
+  </div>
+</div>
+
+<div class="footer-cta">
+  Move AML from <b>detective</b> to <b>preventive</b> — enforced as code.<br>
+  <span style="color:var(--ink-faint); font-size:14px;">Compliance you can <i>verify</i>, not just <i>read</i>.</span>
+</div>
+
+</body>
+</html>

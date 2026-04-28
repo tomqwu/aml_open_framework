@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Today Landing · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .views {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+  }
+  .view {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.7s ease-out forwards;
+  }
+  .view.v1 { animation-delay: 0.4s; }
+  .view.v2 { animation-delay: 0.6s; }
+  .view.v3 { animation-delay: 0.8s; }
+
+  .view-head {
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .view-head .role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .view-head .name {
+    font-size: 16px;
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    border-left: 4px solid var(--ink-faint);  /* default neutral */
+    transition: transform 0.2s ease;
+  }
+  .card.rag-red    { border-left-color: var(--rag-red); }
+  .card.rag-amber  { border-left-color: var(--rag-amber); }
+  .card.rag-green  { border-left-color: var(--rag-green); }
+
+  .card .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 8px;
+  }
+  .card .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card .hint {
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+  .card .cta {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.2s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">08 / 18 · TODAY LANDING</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">PR 3 · per-persona priorities, day one</div>
+  <h1>Three personas. <em>Same data.</em><br>Three <em>different</em> first screens.</h1>
+</div>
+
+<div class="views">
+  <div class="view v1">
+    <div class="view-head">
+      <div class="role">ANALYST · L1</div>
+      <div class="name">Today</div>
+    </div>
+    <div class="card">
+      <div class="lbl">Cases open</div>
+      <div class="val">9</div>
+      <div class="hint">across analyst queues</div>
+      <div class="cta">→ My Queue</div>
+    </div>
+    <div class="card rag-red">
+      <div class="lbl">SLA breaches</div>
+      <div class="val">2</div>
+      <div class="hint">urgent — escalate or close</div>
+      <div class="cta">→ Investigations</div>
+    </div>
+    <div class="card rag-red">
+      <div class="lbl">Sanctions matches</div>
+      <div class="val">2</div>
+      <div class="hint">list-screening hits this run</div>
+      <div class="cta">→ Sanctions Screening</div>
+    </div>
+  </div>
+
+  <div class="view v2">
+    <div class="view-head">
+      <div class="role">MANAGER · L1 SUPERVISOR</div>
+      <div class="name">Today</div>
+    </div>
+    <div class="card rag-amber">
+      <div class="lbl">Queue backlog</div>
+      <div class="val">28</div>
+      <div class="hint">open cases across all queues</div>
+      <div class="cta">→ Investigations</div>
+    </div>
+    <div class="card rag-red">
+      <div class="lbl">SLA breaches</div>
+      <div class="val">2</div>
+      <div class="hint">cases past their deadline</div>
+      <div class="cta">→ My Queue</div>
+    </div>
+    <div class="card rag-red">
+      <div class="lbl">High / critical alerts</div>
+      <div class="val">7</div>
+      <div class="hint">needing fast triage</div>
+      <div class="cta">→ Alert Queue</div>
+    </div>
+  </div>
+
+  <div class="view v3">
+    <div class="view-head">
+      <div class="role">CCO · CHIEF COMPLIANCE</div>
+      <div class="name">Today</div>
+    </div>
+    <div class="card rag-green">
+      <div class="lbl">Program RAG</div>
+      <div class="val">5G · 1A · 0R</div>
+      <div class="hint">metrics across all bands</div>
+      <div class="cta">→ Executive Dashboard</div>
+    </div>
+    <div class="card rag-green">
+      <div class="lbl">Typology Coverage</div>
+      <div class="val">86%</div>
+      <div class="hint">target 80%</div>
+      <div class="cta">→ Framework Alignment</div>
+    </div>
+    <div class="card rag-green">
+      <div class="lbl">Open findings</div>
+      <div class="val">0</div>
+      <div class="hint">auditor remediation items</div>
+      <div class="cta">→ Audit &amp; Evidence</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Replaced "drop everyone on Executive Dashboard." <b>3 cards each, every card a routable signal.</b></div>
+  <div class="repo"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Effectiveness Funnel · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .body {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    bottom: 160px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 80px;
+    align-items: center;
+  }
+
+  .funnel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .level {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 24px 32px;
+    display: grid;
+    grid-template-columns: 60px 1fr 240px 100px;
+    gap: 28px;
+    align-items: center;
+    position: relative;
+    opacity: 0;
+    animation: fadeUp 0.6s ease-out forwards;
+  }
+  .level.l1 { animation-delay: 0.5s; max-width: 100%; }
+  .level.l2 { animation-delay: 0.9s; max-width: 86%; }
+  .level.l3 { animation-delay: 1.3s; max-width: 68%; }
+  .level.l4 { animation-delay: 1.7s; max-width: 48%; }
+
+  .level::after {
+    content: '↓';
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--ink-faint);
+    font-size: 16px;
+  }
+  .level.l4::after { display: none; }
+
+  .l-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.18em;
+  }
+  .l-stage {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+  .l-stage .sub {
+    display: block;
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+    font-weight: 400;
+  }
+
+  .l-bar {
+    position: relative;
+    height: 8px;
+    background: rgba(148, 163, 184, 0.12);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .l-bar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    transform-origin: left;
+    transform: scaleX(0);
+    animation: barFill 0.8s ease-out forwards;
+  }
+  .level.l1 .l-bar::after { animation-delay: 0.7s; --w: 1.0; }
+  .level.l2 .l-bar::after { animation-delay: 1.1s; --w: 0.30; }
+  .level.l3 .l-bar::after { animation-delay: 1.5s; --w: 0.10; }
+  .level.l4 .l-bar::after { animation-delay: 1.9s; --w: 0.04; }
+  @keyframes barFill {
+    to { transform: scaleX(var(--w, 1)); }
+  }
+
+  .l-num-out {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* RAG bands aside */
+  .bands {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 32px 36px;
+    opacity: 0;
+    animation: fadeUp 0.7s 2.2s ease-out forwards;
+  }
+  .bands-head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .band {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .band:last-child { border-bottom: 0; }
+  .band-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .band-label.green { color: var(--rag-green); }
+  .band-label.amber { color: var(--rag-amber); }
+  .band-label.red   { color: var(--rag-red); }
+  .band-desc {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+
+  .source {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-size: 12px;
+    color: var(--ink-faint);
+    line-height: 1.6;
+  }
+  .source b { color: var(--accent); font-weight: 600; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 2.6s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">12 / 18 · EFFECTIVENESS</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">FinCEN April 2026 NPRM · AMLA RTS due 2026-07-10</div>
+  <h1>The number every regulator now reads. <em>Alert → Case → STR.</em></h1>
+</div>
+
+<div class="body">
+  <div class="funnel">
+    <div class="level l1">
+      <div class="l-num">01</div>
+      <div class="l-stage">Alerts produced<span class="sub">detection engine output</span></div>
+      <div class="l-bar"></div>
+      <div class="l-num-out">100</div>
+    </div>
+    <div class="level l2">
+      <div class="l-num">02</div>
+      <div class="l-stage">Cases opened<span class="sub">routed to L1 / L2</span></div>
+      <div class="l-bar"></div>
+      <div class="l-num-out">30</div>
+    </div>
+    <div class="level l3">
+      <div class="l-num">03</div>
+      <div class="l-stage">STRs filed<span class="sub">goAML / FinCEN BSA</span></div>
+      <div class="l-bar"></div>
+      <div class="l-num-out">10</div>
+    </div>
+    <div class="level l4">
+      <div class="l-num">04</div>
+      <div class="l-stage">Actioned by FIU<span class="sub">downstream feedback</span></div>
+      <div class="l-bar"></div>
+      <div class="l-num-out">4</div>
+    </div>
+  </div>
+
+  <div class="bands">
+    <div class="bands-head">Alert → STR conversion · RAG band</div>
+    <div class="band">
+      <div class="band-label green">≥ 10%</div>
+      <div class="band-desc">Healthy precision. Detection rules fire on patterns reviewers find worth filing.</div>
+    </div>
+    <div class="band">
+      <div class="band-label amber">5 – 10%</div>
+      <div class="band-desc">Borderline. Worth a tuning review before the next regulator examination.</div>
+    </div>
+    <div class="band">
+      <div class="band-label red">&lt; 5%</div>
+      <div class="band-desc">Weak signal. The detection logic is producing noise; tighten thresholds.</div>
+    </div>
+    <div class="source">
+      Bands match <b>FinCEN NPRM</b> typical-conversion-rate commentary. The same JSON payload feeds <b>AMLA RTS</b> (due 2026-07-10) — one button on the dashboard, one CLI command.
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Same numbers FinCEN's NPRM and AMLA's RTS treat as canonical. <b>Computed per-rule, downloadable as RTS JSON.</b></div>
+  <div class="repo"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</div>
+</div>
+
+</body>
+</html>

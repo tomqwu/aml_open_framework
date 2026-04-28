@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Open-source Proof · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .num-grid {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    bottom: 160px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 18px;
+  }
+
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.6s ease-out forwards;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+  }
+  .stat.s1 { padding: 32px 36px; }
+  .stat.s1 { animation-delay: 0.4s; grid-column: span 2; grid-row: span 3; }
+  .stat.s2 { animation-delay: 0.55s; }
+  .stat.s3 { animation-delay: 0.7s; }
+  .stat.s4 { animation-delay: 0.85s; }
+  .stat.s5 { animation-delay: 1.0s; }
+  .stat.s6 { animation-delay: 1.15s; }
+  .stat.s7 { animation-delay: 1.3s; }
+
+  .stat .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 12px;
+  }
+  .stat .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 0.9;
+    font-variant-numeric: tabular-nums;
+    font-size: 48px;
+  }
+  .stat.s1 .num { font-size: 128px; color: var(--accent); }
+  .stat .desc {
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+  }
+  .stat .desc b { color: var(--ink); font-weight: 500; }
+  .stat.s1 .desc { font-size: 16px; margin-top: 16px; }
+  .stat .extra {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.6s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">17 / 18 · OPEN SOURCE</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">v0.7 · Round 7 · 2026-04-28 snapshot</div>
+  <h1>Public. <em>Auditable.</em> Free to fork.</h1>
+</div>
+
+<div class="num-grid">
+  <div class="stat s1">
+    <div>
+      <div class="lbl">Tests passing on minimal CI</div>
+      <div class="num">1,263</div>
+    </div>
+    <div class="desc">Source-level tests, unit, API, e2e Playwright — all green. <b>Determinism is enforced</b> by <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);">test_run_is_reproducible</code>: same spec + same data + same engine = identical output hashes.</div>
+    <div class="extra">CI · 5 jobs · lint + unit + api + e2e + docker</div>
+  </div>
+
+  <div class="stat s2">
+    <div class="lbl">Dashboard pages</div>
+    <div class="num">24</div>
+    <div class="desc">Streamlit web app, persona-filtered to ≤ 8 pages each.</div>
+  </div>
+
+  <div class="stat s3">
+    <div class="lbl">Example specs</div>
+    <div class="num">9</div>
+    <div class="desc">CA · US · UK · EU · cross-border. Real institutions.</div>
+  </div>
+
+  <div class="stat s4">
+    <div class="lbl">Modules</div>
+    <div class="num">18</div>
+    <div class="desc">api · cases · dashboard · engine · generators · metrics · …</div>
+  </div>
+
+  <div class="stat s5">
+    <div class="lbl">Citation refs</div>
+    <div class="num">75+</div>
+    <div class="desc">Spec citations to FATF / FinCEN / FINTRAC / AMLD6 / FCA.</div>
+  </div>
+
+  <div class="stat s6">
+    <div class="lbl">Personas</div>
+    <div class="num">11</div>
+    <div class="desc">Strategic / operational / specialist tiers.</div>
+  </div>
+
+  <div class="stat s7">
+    <div class="lbl">Merged PRs</div>
+    <div class="num">93</div>
+    <div class="desc">Through 2026-04-28. Active iteration.</div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Apache 2.0. <b>Inspect every rule, every hash, every line. Fork, extend, run inside your bank's perimeter.</b></div>
+  <div class="repo"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</div>
+</div>
+
+</body>
+</html>
