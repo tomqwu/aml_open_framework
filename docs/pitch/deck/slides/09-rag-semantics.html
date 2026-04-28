@@ -51,18 +51,30 @@
     padding: 14px 16px;
     border-left: 3px solid var(--ink-faint);
   }
-  /* Pre-PR-2 rainbow */
-  .before .kpi.r1 { border-left-color: #dc2626; }
-  .before .kpi.r2 { border-left-color: #d97706; }
-  .before .kpi.r3 { border-left-color: #2563eb; }
-  .before .kpi.r4 { border-left-color: #059669; }
-  .before .kpi.r5 { border-left-color: #7c3aed; }
-  .before .kpi.r6 { border-left-color: #0891b2; }
+  /* Pre-PR-2 rainbow — animated to fade to neutral mid-slide so the
+     migration story plays in time, not just sits there. */
+  .before .kpi.r1 { border-left-color: #dc2626; animation: fadeBorder 0.8s 1.8s ease-out forwards; }
+  .before .kpi.r2 { border-left-color: #d97706; animation: fadeBorder 0.8s 1.9s ease-out forwards; }
+  .before .kpi.r3 { border-left-color: #2563eb; animation: fadeBorder 0.8s 2.0s ease-out forwards; }
+  .before .kpi.r4 { border-left-color: #059669; animation: fadeBorder 0.8s 2.1s ease-out forwards; }
+  .before .kpi.r5 { border-left-color: #7c3aed; animation: fadeBorder 0.8s 2.2s ease-out forwards; }
+  .before .kpi.r6 { border-left-color: #0891b2; animation: fadeBorder 0.8s 2.3s ease-out forwards; }
+  @keyframes fadeBorder { to { border-left-color: var(--ink-faint); } }
 
-  /* Post-PR-2 RAG-bound */
-  .after .kpi.bound-green { border-left-color: var(--rag-green); }
-  .after .kpi.bound-amber { border-left-color: var(--rag-amber); }
-  .after .kpi.bound-red   { border-left-color: var(--rag-red); }
+  /* Post-PR-2 RAG-bound — green binding lights up after the rainbow fades. */
+  .after .kpi { border-left-color: var(--ink-faint); }
+  .after .kpi.bound-green {
+    animation: ragGreen 0.8s 2.6s ease-out forwards;
+  }
+  .after .kpi.bound-amber { animation: ragAmber 0.6s 2.6s ease-out forwards; }
+  .after .kpi.bound-red   { animation: ragRed 0.6s 2.6s ease-out forwards; }
+  @keyframes ragGreen {
+    0%   { border-left-color: var(--ink-faint); box-shadow: none; }
+    50%  { border-left-color: var(--rag-green); box-shadow: 0 0 24px rgba(134, 239, 172, 0.6); }
+    100% { border-left-color: var(--rag-green); box-shadow: 0 0 8px rgba(134, 239, 172, 0.25); }
+  }
+  @keyframes ragAmber { to { border-left-color: var(--rag-amber); } }
+  @keyframes ragRed   { to { border-left-color: var(--rag-red); } }
 
   .kpi .lbl {
     font-family: 'JetBrains Mono', monospace;
@@ -125,7 +137,7 @@
 <body>
 
 <div class="wordmark">AML OPEN FRAMEWORK</div>
-<div class="slide-num">09 / 19 · COLOR DISCIPLINE</div>
+<div class="slide-num">11 / 20 · COLOR DISCIPLINE</div>
 <div class="header-rule"></div>
 
 <div class="title-block">

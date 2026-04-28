@@ -99,6 +99,24 @@
     line-height: 1.6;
     color: var(--rag-red);
     margin-top: 8px;
+    overflow: hidden;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    animation: errReveal 0.6s ease-out forwards;
+  }
+  .layer.l1 .err-block { animation-delay: 1.4s; }
+  .layer.l2 .err-block { animation-delay: 1.7s; }
+  @keyframes errReveal {
+    to {
+      max-height: 200px;
+      padding-top: 16px;
+      padding-bottom: 16px;
+      border-top-width: 1px;
+      border-bottom-width: 1px;
+    }
   }
   .err-block .label {
     display: inline-block;
@@ -116,7 +134,7 @@
 <body>
 
 <div class="wordmark">AML OPEN FRAMEWORK</div>
-<div class="slide-num">05 / 19 · VALIDATION</div>
+<div class="slide-num">13 / 20 · VALIDATION</div>
 <div class="header-rule"></div>
 
 <div class="title-block">

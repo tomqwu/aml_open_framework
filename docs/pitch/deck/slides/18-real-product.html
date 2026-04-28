@@ -12,120 +12,131 @@
   .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
   h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
 
-  .grid {
+  .gallery {
     position: absolute;
     top: 460px;
     left: 96px; right: 96px;
-    bottom: 140px;
+    bottom: 100px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 36px;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: 28px;
   }
 
-  .shot {
+  .tile {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
     background: var(--panel);
     border: 1px solid var(--panel-border);
-    border-radius: 12px;
-    padding: 18px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
     opacity: 0;
-    transform: translateY(16px);
-    animation: fadeUp 0.7s ease-out forwards;
+    transform-origin: center;
+    animation: tileIn 0.8s ease-out forwards, breathe 6s ease-in-out infinite alternate;
   }
-  .shot.s1 { animation-delay: 0.4s; }
-  .shot.s2 { animation-delay: 0.65s; }
-
-  .shot-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 0 6px 14px;
-    border-bottom: 1px dashed var(--rule);
-    margin-bottom: 14px;
+  @keyframes tileIn {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
   }
-  .shot-meta .name {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
-    color: var(--accent);
-    font-weight: 600;
-    letter-spacing: 0.04em;
-  }
-  .shot-meta .ref {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--ink-faint);
+  @keyframes breathe {
+    from { transform: scale(1) translateY(0); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+    to   { transform: scale(1.012) translateY(-3px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(103, 232, 249, 0.08); }
   }
 
-  .shot-img-wrap {
-    flex: 1;
-    border-radius: 6px;
-    overflow: hidden;
-    background: #f8fafc;
-    border: 1px solid var(--rule);
-    position: relative;
+  /* Stagger entrance + offset breathing so they don't all pulse together */
+  .tile.t1 { animation-delay: 0.4s, 1.5s; }
+  .tile.t2 { animation-delay: 0.55s, 2.1s; }
+  .tile.t3 { animation-delay: 0.7s, 2.7s; }
+  .tile.t4 { animation-delay: 0.85s, 3.3s; }
+  .tile.t5 { animation-delay: 1.0s, 1.8s; }
+  .tile.t6 { animation-delay: 1.15s, 2.4s; }
+
+  /* Slight tilt on alternate tiles for visual variety */
+  .tile.tilt-l { animation-name: tileIn, breatheLeft; }
+  .tile.tilt-r { animation-name: tileIn, breatheRight; }
+  @keyframes breatheLeft {
+    from { transform: rotate(-0.4deg) scale(1); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+    to   { transform: rotate(-0.6deg) scale(1.015); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(103, 232, 249, 0.08); }
   }
-  .shot-img-wrap img {
+  @keyframes breatheRight {
+    from { transform: rotate(0.4deg) scale(1); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+    to   { transform: rotate(0.6deg) scale(1.015); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(103, 232, 249, 0.08); }
+  }
+
+  .tile img {
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    object-position: center top;
+    object-fit: cover;
+    object-position: top center;
     display: block;
-    /* contain shows the whole dashboard scaled into the card,
-       letterboxing if the aspect ratios differ. */
   }
 
-  .shot-cap {
-    margin-top: 14px;
-    padding: 0 6px;
-    font-size: 13px;
-    line-height: 1.55;
-    color: var(--ink-dim);
+  /* Top-fade label overlay so the screenshot tiles still read at a glance */
+  .tile-label {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 14px 18px;
+    background: linear-gradient(to bottom, rgba(10, 14, 26, 0.92), rgba(10, 14, 26, 0));
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    z-index: 2;
+    pointer-events: none;
   }
-  .shot-cap b { color: var(--ink); }
+  .tile-label .ref {
+    display: block;
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.1em;
+    text-transform: none;
+  }
 
-  .footer { opacity: 0; animation: fadeUp 0.6s 1.0s ease-out forwards; }
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.4s ease-out forwards; }
 </style>
 </head>
 <body>
 
 <div class="wordmark">AML OPEN FRAMEWORK</div>
-<div class="slide-num">18 / 19 · REAL PRODUCT</div>
+<div class="slide-num">03 / 20 · SIX SURFACES</div>
 <div class="header-rule"></div>
 
 <div class="title-block">
-  <div class="eyebrow">Same surfaces, in actual Streamlit</div>
-  <h1>What the deck-native pages <em>actually look like</em> when you run them.</h1>
+  <div class="eyebrow">24 dashboard pages · six picked at random</div>
+  <h1>Same engine. <em>Same color discipline.</em><br>Twenty-four <em>different surfaces</em>.</h1>
 </div>
 
-<div class="grid">
-  <div class="shot s1">
-    <div class="shot-meta">
-      <span class="name">Today</span>
-      <span class="ref">pages/0_Today.py · PR 3</span>
-    </div>
-    <div class="shot-img-wrap">
-      <img src="../assets/screenshots/00_today.png" alt="Today landing — analyst view"/>
-    </div>
-    <div class="shot-cap">Three priority cards scoped to the active audience. <b>Every card a routable signal</b> to the destination page where the user can act.</div>
+<div class="gallery">
+  <div class="tile t1 tilt-l">
+    <div class="tile-label">Today<span class="ref">pages/0_Today.py · PR 3</span></div>
+    <img src="../assets/screenshots/00_today.png" alt="Today landing"/>
   </div>
-
-  <div class="shot s2">
-    <div class="shot-meta">
-      <span class="name">Audit &amp; Evidence</span>
-      <span class="ref">pages/7_Audit_Evidence.py · PR 4</span>
-    </div>
-    <div class="shot-img-wrap">
-      <img src="../assets/screenshots/07_audit_evidence.png" alt="Audit and Evidence — terminal aesthetic"/>
-    </div>
-    <div class="shot-cap">Mono cyan SHA-256 hashes, ✓ chain verified, "Re-verify" button. <b>The page auditors look at first, executed at 120%.</b></div>
+  <div class="tile t2">
+    <div class="tile-label">Executive Dashboard<span class="ref">pages/1_Executive_Dashboard.py · PR 2</span></div>
+    <img src="../assets/screenshots/01_executive_dashboard.png" alt="Executive Dashboard"/>
+  </div>
+  <div class="tile t3 tilt-r">
+    <div class="tile-label">Audit &amp; Evidence<span class="ref">pages/7_Audit_Evidence.py · PR 4</span></div>
+    <img src="../assets/screenshots/07_audit_evidence.png" alt="Audit and Evidence"/>
+  </div>
+  <div class="tile t4 tilt-r">
+    <div class="tile-label">Network Explorer<span class="ref">pages/10_Network_Explorer.py · PR 5</span></div>
+    <img src="../assets/screenshots/10_network_explorer.png" alt="Network Explorer"/>
+  </div>
+  <div class="tile t5">
+    <div class="tile-label">Risk Assessment<span class="ref">pages/6_Risk_Assessment.py · PR 5</span></div>
+    <img src="../assets/screenshots/06_risk_assessment.png" alt="Risk Assessment"/>
+  </div>
+  <div class="tile t6 tilt-l">
+    <div class="tile-label">Framework Alignment<span class="ref">pages/8_Framework_Alignment.py · PR 1</span></div>
+    <img src="../assets/screenshots/08_framework_alignment.png" alt="Framework Alignment"/>
   </div>
 </div>
 
 <div class="footer">
-  <div class="tag">Run <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);">aml dashboard examples/canadian_schedule_i_bank/aml.yaml</code> to land here. Other 22 pages: same engine, same color discipline.</div>
+  <div class="tag">Eighteen more pages live behind the audience selector. <b>Persona-filtered to ≤ 8 pages each.</b></div>
   <div class="repo"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</div>
 </div>
 

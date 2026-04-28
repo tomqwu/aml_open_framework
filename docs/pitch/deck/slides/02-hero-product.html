@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Product · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  /* Big hero screenshot occupies most of the canvas. Slow drift +
+     subtle scale to feel alive without being distracting. */
+  .hero-frame {
+    position: absolute;
+    top: 200px;
+    left: 50%;
+    width: 1400px;
+    height: 760px;
+    transform: translateX(-50%);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+    box-shadow:
+      0 24px 80px rgba(0, 0, 0, 0.5),
+      0 0 120px rgba(103, 232, 249, 0.15);
+    opacity: 0;
+    animation: heroIn 1.2s 0.3s ease-out forwards;
+  }
+  @keyframes heroIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(40px) scale(0.96); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+
+  .hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+    animation: drift 18s ease-in-out 1.5s infinite alternate;
+  }
+  @keyframes drift {
+    from { transform: scale(1.02) translate(-0.5%, -0.5%); }
+    to   { transform: scale(1.05) translate(0.5%, 0.5%); }
+  }
+
+  /* Vignette over the screenshot for legibility */
+  .vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(to bottom, rgba(10, 14, 26, 0) 30%, rgba(10, 14, 26, 0.85) 100%),
+      radial-gradient(ellipse at 30% 80%, rgba(10, 14, 26, 0.7) 0%, transparent 60%);
+  }
+
+  /* Cyan glow accent that pulses subtly behind the hero */
+  .glow {
+    position: absolute;
+    top: 400px;
+    left: 50%;
+    width: 1600px;
+    height: 600px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, rgba(103, 232, 249, 0.15) 0%, transparent 60%);
+    pointer-events: none;
+    animation: glowPulse 4s ease-in-out infinite alternate;
+    z-index: 0;
+  }
+  @keyframes glowPulse {
+    from { opacity: 0.5; transform: translateX(-50%) scale(0.95); }
+    to   { opacity: 1; transform: translateX(-50%) scale(1.05); }
+  }
+
+  /* Headline overlay near the bottom — sits OUTSIDE the hero-frame so
+     overflow:hidden on the frame doesn't clip the text. */
+  .hero-headline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    width: calc(1920px - 192px);
+    z-index: 5;
+    opacity: 0;
+    animation: fadeUp 1s 1.5s ease-out forwards;
+  }
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 18px;
+  }
+  .hero-eyebrow::after {
+    content: '';
+    display: inline-block;
+    width: 32px;
+    height: 1px;
+    background: var(--accent);
+    margin-left: 16px;
+    vertical-align: middle;
+  }
+  .hero-h1 {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    text-wrap: balance;
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6);
+    max-width: 1100px;
+  }
+  .hero-h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  /* Caption strip under the headline — animated typewriter */
+  .hero-caption {
+    margin-top: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    color: var(--ink-dim);
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    border-right: 2px solid var(--accent);
+    animation:
+      typing 2.5s 2.4s steps(80, end) forwards,
+      caret 0.7s 2.4s 6 step-end,
+      noCaret 0s 6.6s forwards;
+    max-width: max-content;
+  }
+  @keyframes typing { to { width: 100%; } }
+  @keyframes caret { 50% { border-right-color: transparent; } }
+  @keyframes noCaret { to { border-right: 0; } }
+  .hero-caption b { color: var(--accent); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">02 / 20 · THE PRODUCT</div>
+<div class="header-rule"></div>
+
+<div class="stage">
+  <div class="glow"></div>
+  <div class="hero-frame">
+    <img class="hero-img" src="../assets/screenshots/07_audit_evidence.png" alt="Audit & Evidence dashboard"/>
+    <div class="vignette"></div>
+  </div>
+  <div class="hero-headline">
+    <div class="hero-eyebrow">Live in Streamlit · 24 pages · 11 personas</div>
+    <div class="hero-h1">Compliance,<br><em>enforced as code.</em></div>
+    <div class="hero-caption">$ aml dashboard examples/canadian_schedule_i_bank/aml.yaml</div>
+  </div>
+</div>
+
+</body>
+</html>

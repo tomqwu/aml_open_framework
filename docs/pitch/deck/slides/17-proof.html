@@ -63,6 +63,11 @@
     font-size: 48px;
   }
   .stat.s1 .num { font-size: 128px; color: var(--accent); }
+
+  /* Counter-up animation. Each .num element gets data-target=int,
+     a JS tick function counts from 0 to target over 1.6s with ease-out.
+     Pure CSS @property would also work but JS gives us the
+     thousand-separator + suffix support. */
   .stat .desc {
     margin-top: 12px;
     font-size: 12px;
@@ -87,7 +92,7 @@
 <body>
 
 <div class="wordmark">AML OPEN FRAMEWORK</div>
-<div class="slide-num">17 / 19 · OPEN SOURCE</div>
+<div class="slide-num">19 / 20 · OPEN SOURCE</div>
 <div class="header-rule"></div>
 
 <div class="title-block">
@@ -99,7 +104,7 @@
   <div class="stat s1">
     <div>
       <div class="lbl">Tests passing on minimal CI</div>
-      <div class="num">1,263</div>
+      <div class="num" data-target="1263" data-format="comma">0</div>
     </div>
     <div class="desc">Source-level tests, unit, API, e2e Playwright — all green. <b>Determinism is enforced</b> by <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);">test_run_is_reproducible</code>: same spec + same data + same engine = identical output hashes.</div>
     <div class="extra">CI · 5 jobs · lint + unit + api + e2e + docker</div>
@@ -107,40 +112,71 @@
 
   <div class="stat s2">
     <div class="lbl">Dashboard pages</div>
-    <div class="num">24</div>
+    <div class="num" data-target="24">0</div>
     <div class="desc">Streamlit web app, persona-filtered to ≤ 8 pages each.</div>
   </div>
 
   <div class="stat s3">
     <div class="lbl">Example specs</div>
-    <div class="num">9</div>
+    <div class="num" data-target="9">0</div>
     <div class="desc">CA · US · UK · EU · cross-border. Real institutions.</div>
   </div>
 
   <div class="stat s4">
     <div class="lbl">Modules</div>
-    <div class="num">18</div>
+    <div class="num" data-target="18">0</div>
     <div class="desc">api · cases · dashboard · engine · generators · metrics · …</div>
   </div>
 
   <div class="stat s5">
     <div class="lbl">Citation refs</div>
-    <div class="num">75+</div>
+    <div class="num" data-target="75" data-suffix="+">0</div>
     <div class="desc">Spec citations to FATF / FinCEN / FINTRAC / AMLD6 / FCA.</div>
   </div>
 
   <div class="stat s6">
     <div class="lbl">Personas</div>
-    <div class="num">11</div>
+    <div class="num" data-target="11">0</div>
     <div class="desc">Strategic / operational / specialist tiers.</div>
   </div>
 
   <div class="stat s7">
     <div class="lbl">Merged PRs</div>
-    <div class="num">93</div>
+    <div class="num" data-target="93">0</div>
     <div class="desc">Through 2026-04-28. Active iteration.</div>
   </div>
 </div>
+
+<script>
+// Counter-up: when the slide loads, animate each .num from 0 to its
+// data-target over ~1.6s with ease-out. Honors comma-format and suffix.
+function animateCounter(el, target, format, suffix, duration) {
+  const start = performance.now();
+  const fmt = (n) => {
+    let s = format === 'comma' ? n.toLocaleString('en-US') : String(n);
+    return s + (suffix || '');
+  };
+  function tick(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
+    const value = Math.round(target * eased);
+    el.textContent = fmt(value);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+window.addEventListener('load', () => {
+  const nums = document.querySelectorAll('.num[data-target]');
+  nums.forEach((el, i) => {
+    const target = parseInt(el.dataset.target, 10);
+    const format = el.dataset.format || '';
+    const suffix = el.dataset.suffix || '';
+    // Stagger by stat index so the eye follows the numbers in
+    setTimeout(() => animateCounter(el, target, format, suffix, 1600), 700 + i * 120);
+  });
+});
+</script>
 
 <div class="footer">
   <div class="tag">Apache 2.0. <b>Inspect every rule, every hash, every line. Fork, extend, run inside your bank's perimeter.</b></div>
