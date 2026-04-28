@@ -100,8 +100,64 @@ with st.sidebar:
     )
     st.session_state["selected_audience"] = audience if audience != "all" else None
 
-    guided = st.toggle("Guided demo", value=False, help="Show narrative walkthrough.")
-    st.session_state["guided_demo"] = guided
+    # Guided mode — the legacy "Guided demo" toggle was a thin per-page
+    # info banner. Now offers a real onboarding tour (one persona arc
+    # built so far; others ship in follow-up PRs) plus the legacy
+    # tooltip mode for users who just want context strings.
+    from aml_framework.dashboard import tour as tour_mod
+
+    mode_options = ["Off", "Tooltip mode"] + [
+        f"Tour · {tour_mod.TOUR_LABELS[k]}" for k in ("analyst", "manager", "cco", "auditor")
+    ]
+    current_mode = st.session_state.get("guided_mode_label", "Off")
+    if current_mode not in mode_options:
+        current_mode = "Off"
+    selected_mode = st.selectbox(
+        "Guided mode",
+        options=mode_options,
+        index=mode_options.index(current_mode),
+        help=(
+            "Off: no overlays. "
+            "Tooltip mode: legacy info-strip per page. "
+            "Tour: end-to-end onboarding through a persona arc."
+        ),
+    )
+    st.session_state["guided_mode_label"] = selected_mode
+
+    # Map the dropdown selection to internal state. "Tour · Analyst — …"
+    # → arc_id "analyst", etc.
+    if selected_mode == "Off":
+        st.session_state["guided_mode"] = "off"
+        st.session_state["guided_demo"] = False  # legacy compat
+        if tour_mod.is_active(st.session_state) and not tour_mod.is_complete(st.session_state):
+            tour_mod.end(st.session_state)
+    elif selected_mode == "Tooltip mode":
+        st.session_state["guided_mode"] = "tooltip"
+        st.session_state["guided_demo"] = True  # legacy compat — shows existing banners
+        if tour_mod.is_active(st.session_state):
+            tour_mod.end(st.session_state)
+    else:
+        # Tour mode — find the arc id from the label.
+        st.session_state["guided_mode"] = "tour"
+        st.session_state["guided_demo"] = False
+        for arc_id, label in tour_mod.TOUR_LABELS.items():
+            if selected_mode.endswith(label):
+                arc = tour_mod.TOUR_ARCS.get(arc_id, ())
+                if not arc:
+                    st.warning(
+                        f"The {arc_id} tour ships in a follow-up PR. Try the Analyst tour for now."
+                    )
+                    break
+                # Start the tour if it isn't already running with this arc.
+                if (
+                    not tour_mod.is_active(st.session_state)
+                    or st.session_state.get("tour_arc") != arc_id
+                ):
+                    tour_mod.start(st.session_state, arc_id)
+                    first = tour_mod.current_step(st.session_state)
+                    if first:
+                        st.switch_page(first.page_path)
+                break
 
     st.divider()
 
