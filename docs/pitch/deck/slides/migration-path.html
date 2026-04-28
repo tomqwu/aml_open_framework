@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Migration Path · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 180px; left: 96px; right: 96px; }
+  .eyebrow, h1, .sub-h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+  .sub-h1 {
+    margin-top: 12px;
+    font-size: 17px;
+    color: var(--ink-dim);
+    max-width: 1200px;
+    line-height: 1.5;
+    animation: fadeUp 0.8s 0.35s ease-out forwards;
+  }
+
+  .stages {
+    position: absolute;
+    top: 410px;
+    left: 96px; right: 96px;
+    bottom: 220px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 22px;
+  }
+
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.65s ease-out forwards;
+    position: relative;
+  }
+  .stage.s1 { animation-delay: 0.5s; }
+  .stage.s2 { animation-delay: 0.65s; }
+  .stage.s3 { animation-delay: 0.8s; }
+  .stage.s4 { animation-delay: 0.95s; }
+
+  /* connector arrow between stages */
+  .stage:not(:last-child)::after {
+    content: '→';
+    position: absolute;
+    right: -18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    color: var(--accent);
+    z-index: 2;
+    opacity: 0.6;
+  }
+
+  .stage-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .stage-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .stage-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+  }
+
+  .stage h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+    margin-bottom: 6px;
+    text-wrap: balance;
+  }
+  .stage h3 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .stage .tag {
+    font-size: 12px;
+    color: var(--ink-dim);
+    font-style: italic;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--rule);
+  }
+
+  .actions {
+    list-style: none;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .actions li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  .actions li::before {
+    content: '▸';
+    color: var(--accent);
+    font-size: 11px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .actions li b { color: var(--accent); font-weight: 500; }
+
+  .gate {
+    margin-top: auto;
+    padding: 10px 12px;
+    background: rgba(15, 23, 42, 0.6);
+    border-left: 3px solid var(--rag-amber);
+    border-radius: 4px;
+  }
+  .gate .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--rag-amber);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .gate .crit {
+    font-size: 11px;
+    color: var(--ink-dim);
+    line-height: 1.45;
+  }
+  .gate .crit b { color: var(--ink); font-weight: 500; }
+
+  /* Bottom: incumbent system row */
+  .incumbent {
+    position: absolute;
+    bottom: 110px;
+    left: 96px; right: 96px;
+    height: 96px;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px dashed var(--rule);
+    border-radius: 10px;
+    padding: 14px 24px;
+    opacity: 0;
+    animation: fadeUp 0.7s 1.15s ease-out forwards;
+  }
+  .incumbent .head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .inc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 22px;
+    align-items: center;
+  }
+  .inc-cell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+  .inc-cell b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .inc-cell .role-tag {
+    display: inline-block;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 2px;
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.3s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">10 / 27 · MIGRATION PATH</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">No CTO will rip out their AML stack on a Tuesday.</div>
+  <h1>You don't replace the engine. You <em>wrap it</em>, then <em>graduate</em>.</h1>
+  <div class="sub-h1">Four stages, ~12 months. Each stage is independently valuable — stop at any gate and you've still gained audit-grade evidence and a 2LoD-readable spec. The incumbent vendor stays online until <b>you</b> decide it doesn't need to.</div>
+</div>
+
+<div class="stages">
+
+  <div class="stage s1">
+    <div class="stage-head">
+      <span class="stage-num">Stage 1</span>
+      <span class="stage-time">Wk 0–8</span>
+    </div>
+    <h3><em>Shadow</em> — read-only mirror.</h3>
+    <div class="tag">No production change. Auditor-grade evidence on day 30.</div>
+    <ul class="actions">
+      <li>Point framework at <b>same warehouse</b> the incumbent reads</li>
+      <li>Translate top-20 incumbent rules into <b>spec YAML</b></li>
+      <li>Run engine nightly; emit <b>audit ledger</b></li>
+      <li>Compare alert sets vs incumbent — diff report weekly</li>
+    </ul>
+    <div class="gate">
+      <div class="lbl">Exit Gate</div>
+      <div class="crit"><b>≥ 95% alert overlap</b> on 90-day window. 2LoD signs off on top-20 spec.</div>
+    </div>
+  </div>
+
+  <div class="stage s2">
+    <div class="stage-head">
+      <span class="stage-num">Stage 2</span>
+      <span class="stage-time">Wk 8–20</span>
+    </div>
+    <h3><em>Dual</em> — both engines fire alerts.</h3>
+    <div class="tag">Alerts merged into one queue. Disagreements become learning.</div>
+    <ul class="actions">
+      <li>Both engines write to <b>shared alert queue</b></li>
+      <li>Analyst sees <b>provenance flag</b> on each alert</li>
+      <li>Discrepancies drive <b>spec tuning</b> (Tuning Lab)</li>
+      <li>Framework runs <b>net-new typologies</b> incumbent can't</li>
+    </ul>
+    <div class="gate">
+      <div class="lbl">Exit Gate</div>
+      <div class="crit">Override rate parity. <b>MRM bundle approved</b> by 2LoD for in-scope rules.</div>
+    </div>
+  </div>
+
+  <div class="stage s3">
+    <div class="stage-head">
+      <span class="stage-num">Stage 3</span>
+      <span class="stage-time">Wk 20–40</span>
+    </div>
+    <h3><em>Primary</em> — framework leads.</h3>
+    <div class="tag">Incumbent demoted to fallback. First exam runs on framework evidence.</div>
+    <ul class="actions">
+      <li>Framework is <b>system-of-record</b> for in-scope typologies</li>
+      <li>Incumbent retained as <b>fallback</b> + edge cases</li>
+      <li>FINTRAC / OSFI examination ZIP <b>generated, not assembled</b></li>
+      <li>Vendor licence renegotiated downward</li>
+    </ul>
+    <div class="gate">
+      <div class="lbl">Exit Gate</div>
+      <div class="crit"><b>One full exam cycle</b> with no incumbent dependency. Effectiveness pack delivered.</div>
+    </div>
+  </div>
+
+  <div class="stage s4">
+    <div class="stage-head">
+      <span class="stage-num">Stage 4</span>
+      <span class="stage-time">Wk 40+</span>
+    </div>
+    <h3><em>Sole</em> — vendor optional.</h3>
+    <div class="tag">Incumbent kept only where business case demands. Most banks: gone.</div>
+    <ul class="actions">
+      <li>All in-scope rules on framework</li>
+      <li>Vendor retained only for <b>specialty modules</b> (sanctions UI, etc.)</li>
+      <li>Net-new jurisdictions onboard in <b>weeks, not quarters</b></li>
+      <li>Reinvest savings in detection R&amp;D, not licence fees</li>
+    </ul>
+    <div class="gate">
+      <div class="lbl">Exit Gate</div>
+      <div class="crit">Annual TCO target met. <b>$18–28M / yr</b> mid-point reduction realized.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="incumbent">
+  <div class="head">▼ INCUMBENT VENDOR (TLM / ACTIMIZE / SAS / MANTAS) — STATE BY STAGE</div>
+  <div class="inc-grid">
+    <div class="inc-cell"><span class="role-tag">STAGE 1</span><br><b>Untouched.</b> Sole production engine.</div>
+    <div class="inc-cell"><span class="role-tag">STAGE 2</span><br><b>Equal partner.</b> Both fire alerts.</div>
+    <div class="inc-cell"><span class="role-tag">STAGE 3</span><br><b>Fallback.</b> Edge cases + DR.</div>
+    <div class="inc-cell"><span class="role-tag">STAGE 4</span><br><b>Optional.</b> Specialty modules only.</div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Lowest-risk migration in AML — because the incumbent <b>never goes dark</b> until you've already replaced it.</div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

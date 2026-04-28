@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Three Lines of Defence · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 180px; left: 96px; right: 96px; }
+  .eyebrow, h1, .sub-h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+  .sub-h1 {
+    margin-top: 12px;
+    font-size: 17px;
+    color: var(--ink-dim);
+    max-width: 1200px;
+    line-height: 1.5;
+    animation: fadeUp 0.8s 0.35s ease-out forwards;
+  }
+
+  .body {
+    position: absolute;
+    top: 410px;
+    left: 96px; right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 28px;
+  }
+
+  .line {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.7s ease-out forwards;
+    position: relative;
+    overflow: hidden;
+  }
+  .line::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    opacity: 0.85;
+  }
+  .line.l1 { animation-delay: 0.5s; }
+  .line.l2 { animation-delay: 0.65s; }
+  .line.l3 { animation-delay: 0.8s; }
+  .line.l1::before { background: var(--rag-amber); }
+  .line.l2::before { background: var(--accent); }
+  .line.l3::before { background: var(--rag-green); }
+
+  .line-tag {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .line-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .line-num .ord {
+    font-size: 14px;
+    color: var(--ink-faint);
+    font-weight: 500;
+    margin-left: 2px;
+  }
+  .line-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .line h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+    margin-bottom: 14px;
+    text-wrap: balance;
+  }
+  .line h3 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .who {
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--rule);
+  }
+
+  .duties {
+    list-style: none;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .duties li {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .duties .verb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform: uppercase;
+    text-align: right;
+  }
+  .duties .what {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .duties .what b { color: var(--accent); font-weight: 500; }
+
+  .artifact {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+  }
+  .artifact .lbl {
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+    margin-bottom: 4px;
+    font-size: 9px;
+  }
+
+  /* Handoff arrows between lines */
+  .handoffs {
+    position: absolute;
+    bottom: 110px;
+    left: 96px; right: 96px;
+    height: 70px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    opacity: 0;
+    animation: fadeUp 0.7s 1.0s ease-out forwards;
+  }
+  .arrow-row {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .arrow-row .arr {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .arrow-row .txt {
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+  .arrow-row .txt b { color: var(--ink); font-weight: 500; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.2s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">09 / 27 · THREE LINES OF DEFENCE</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Same org chart. Sharper handoffs.</div>
+  <h1>One artifact, <em>three roles</em>, no overlap.</h1>
+  <div class="sub-h1">The framework doesn't redraw lines of defence — it gives each line the same source-of-truth (the spec, the run, the audit ledger) and lets each operate at the level OSFI's E-23 actually expects: 1LoD owns, 2LoD challenges, 3LoD assures.</div>
+</div>
+
+<div class="body">
+
+  <div class="line l1">
+    <div class="line-tag">
+      <div class="line-num">1<span class="ord">st</span></div>
+      <div class="line-name">First Line · Owns the Risk</div>
+    </div>
+    <h3>Build, run, <em>defend</em> the rules.</h3>
+    <div class="who">FCC Operations · Detection Engineers · L1/L2 Analysts</div>
+    <ul class="duties">
+      <li><span class="verb">Owns</span><span class="what">The <b>spec YAML</b> — every detection rule, threshold, regulation citation</span></li>
+      <li><span class="verb">Operates</span><span class="what">The <b>engine run</b> — daily/intraday on production data</span></li>
+      <li><span class="verb">Investigates</span><span class="what">Alerts; files STRs with auto-attached evidence</span></li>
+      <li><span class="verb">Maintains</span><span class="what">Tuning Lab calibration evidence per rule</span></li>
+    </ul>
+    <div class="artifact">
+      <div class="lbl">FRAMEWORK SURFACES</div>
+      spec/rules/*.yaml · Alert Queue · Tuning Lab · Today landing
+    </div>
+  </div>
+
+  <div class="line l2">
+    <div class="line-tag">
+      <div class="line-num">2<span class="ord">nd</span></div>
+      <div class="line-name">Second Line · Challenges</div>
+    </div>
+    <h3>Read it, <em>question it</em>, sign it off.</h3>
+    <div class="who">Compliance · MLRO · Model Risk Mgmt · 2LoD QA</div>
+    <ul class="duties">
+      <li><span class="verb">Reviews</span><span class="what">Spec PRs — same artifact 1LoD ships; <b>plain English</b></span></li>
+      <li><span class="verb">Validates</span><span class="what">Per-rule <b>MRM dossier</b> (SR 26-2 / Interagency)</span></li>
+      <li><span class="verb">Approves</span><span class="what">STRs, threshold changes, model promotions</span></li>
+      <li><span class="verb">Reports</span><span class="what">Effectiveness pack to board, regulator, auditor</span></li>
+    </ul>
+    <div class="artifact">
+      <div class="lbl">FRAMEWORK SURFACES</div>
+      git PR review · Effectiveness page · MRM bundle · STR review queue
+    </div>
+  </div>
+
+  <div class="line l3">
+    <div class="line-tag">
+      <div class="line-num">3<span class="ord">rd</span></div>
+      <div class="line-name">Third Line · Assures</div>
+    </div>
+    <h3>Replay it, <em>verify it</em>, attest.</h3>
+    <div class="who">Internal Audit · External Audit · OSFI / FINTRAC examiners</div>
+    <ul class="duties">
+      <li><span class="verb">Pulls</span><span class="what">Hash-chained <b>audit ledger</b> for any historical period</span></li>
+      <li><span class="verb">Verifies</span><span class="what"><code style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:12px;">verify_decisions()</code> — tampering = control failure</span></li>
+      <li><span class="verb">Replays</span><span class="what">Any run at its spec hash; bytes match</span></li>
+      <li><span class="verb">Exports</span><span class="what"><b>Examination ZIP</b> — section-mapped to FINTRAC / OSFI</span></li>
+    </ul>
+    <div class="artifact">
+      <div class="lbl">FRAMEWORK SURFACES</div>
+      decisions.jsonl · Audit &amp; Evidence page · aml audit-pack CLI
+    </div>
+  </div>
+
+</div>
+
+<div class="handoffs">
+  <div class="arrow-row">
+    <span class="arr">1LoD → 2LoD</span>
+    <span class="txt">Handoff is a <b>git PR</b>, not a meeting deck. 2LoD reads the same YAML 1LoD ships. <b>Diff-able. Reviewable. Signed.</b></span>
+  </div>
+  <div class="arrow-row">
+    <span class="arr">2LoD → 3LoD</span>
+    <span class="txt">Handoff is a <b>hash + ledger pointer</b>, not a binder. 3LoD replays the run; bytes match the attestation. <b>Tamper-evident.</b></span>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">No more "compliance said one thing, IT did another." There is <b>one artifact</b> all three lines reference.</div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>
