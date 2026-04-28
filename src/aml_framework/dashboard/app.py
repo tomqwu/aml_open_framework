@@ -124,6 +124,10 @@ with st.sidebar:
 # Navigation — role-based page visibility
 # ---------------------------------------------------------------------------
 ALL_PAGES = [
+    # "Today" is the first entry so it becomes the default landing for
+    # every persona — replaces the pre-PR-3 default of dropping all
+    # users on Executive Dashboard regardless of role.
+    st.Page("pages/0_Today.py", title="Today", icon=":material/today:"),
     st.Page(
         "pages/1_Executive_Dashboard.py", title="Executive Dashboard", icon=":material/dashboard:"
     ),
@@ -184,7 +188,10 @@ ALL_PAGES = [
 selected_audience = st.session_state.get("selected_audience")
 if selected_audience:
     relevant_titles = set(AUDIENCE_PAGES.get(selected_audience, []))
-    # Always show Executive Dashboard.
+    # "Today" + Executive Dashboard are universal — every persona sees
+    # them (Today is the personalised landing; Executive Dashboard is
+    # the strategic-view fallback when no persona is selected).
+    relevant_titles.add("Today")
     relevant_titles.add("Executive Dashboard")
     visible_pages = [p for p in ALL_PAGES if p.title in relevant_titles]
 else:

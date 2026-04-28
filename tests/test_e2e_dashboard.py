@@ -20,8 +20,10 @@ SPEC = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_i_b
 APP = Path(__file__).resolve().parents[1] / "src" / "aml_framework" / "dashboard" / "app.py"
 PORT = 8599  # Use a non-standard port to avoid conflicts.
 
-# All 11 page titles as they appear in the sidebar navigation.
+# All page titles as they appear in the sidebar navigation. "Today" is
+# the post-PR-3 default landing — every persona sees it first.
 PAGES = [
+    "Today",
     "Executive Dashboard",
     "Program Maturity",
     "Alert Queue",
