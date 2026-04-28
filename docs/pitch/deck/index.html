@@ -90,10 +90,43 @@
     display: block;
     background: #fff;
   }
-  .counter {
+  /* Bottom-right control cluster: prev arrow / counter / next arrow.
+   * Counter is clickable — opens the slide picker overlay. */
+  .controls {
     position: fixed;
     bottom: 20px;
     right: 20px;
+    z-index: 100;
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    user-select: none;
+  }
+  .ctl-btn {
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    border: 0;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 14px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    font-family: inherit;
+  }
+  .ctl-btn:hover {
+    opacity: 1;
+    background: rgba(0,0,0,0.85);
+  }
+  .ctl-btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+  }
+  .counter {
     background: rgba(0,0,0,0.65);
     color: #fff;
     padding: 6px 14px;
@@ -101,13 +134,111 @@
     font-size: 13px;
     letter-spacing: 0.05em;
     font-variant-numeric: tabular-nums;
-    z-index: 100;
-    user-select: none;
+    cursor: pointer;
     opacity: 0.7;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
-  .counter:hover { opacity: 1; }
-  .counter .label { color: rgba(255,255,255,0.7); margin-left: 8px; }
+  .counter:hover {
+    opacity: 1;
+    background: rgba(0,0,0,0.85);
+  }
+  .counter .label { color: rgba(255,255,255,0.7); }
+  .counter .menu-icon {
+    color: rgba(255,255,255,0.5);
+    font-size: 11px;
+    margin-left: 4px;
+  }
+
+  /* Slide picker overlay — toggled by clicking the counter. */
+  .picker-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .picker-backdrop.open {
+    display: flex;
+    opacity: 1;
+  }
+  .picker {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 600px;
+    max-height: 80vh;
+    width: 90vw;
+    overflow-y: auto;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+    color: #f1f5f9;
+    font-family: -apple-system, "PingFang SC", sans-serif;
+  }
+  .picker h2 {
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin: 0 0 16px;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .picker h2 .total { color: #67e8f9; }
+  .picker h2 .hint  { font-size: 10px; letter-spacing: 0.12em; color: #475569; }
+  .picker ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .picker-item {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border: 1px solid transparent;
+  }
+  .picker-item:hover {
+    background: rgba(103, 232, 249, 0.08);
+  }
+  .picker-item.current {
+    background: rgba(103, 232, 249, 0.12);
+    border-color: #67e8f9;
+  }
+  .picker-item .num {
+    font-family: "JetBrains Mono", "SF Mono", monospace;
+    font-size: 12px;
+    color: #67e8f9;
+    min-width: 32px;
+    letter-spacing: 0.05em;
+    font-variant-numeric: tabular-nums;
+  }
+  .picker-item .title {
+    font-size: 15px;
+    color: #f1f5f9;
+    font-weight: 500;
+  }
+  .picker-item.current .title { color: #67e8f9; }
+  .picker-item .check {
+    margin-left: auto;
+    color: #67e8f9;
+    font-size: 14px;
+    opacity: 0;
+  }
+  .picker-item.current .check { opacity: 1; }
   .nav-zone {
     position: fixed;
     top: 0; bottom: 0;
@@ -140,7 +271,7 @@
     @page { size: 1920px 1080px; margin: 0; }
     html, body { background: #fff; overflow: visible; height: auto; }
     #stage { position: static; transform: none !important; box-shadow: none; }
-    .counter, .nav-zone { display: none !important; }
+    .controls, .nav-zone, .picker-backdrop { display: none !important; }
     /* In print mode we render all slides sequentially — see JS */
     .print-stack { display: block; }
     .print-stack iframe {
@@ -160,7 +291,25 @@
 
 <div class="nav-zone left"  id="navL"><div class="nav-hint">‹</div></div>
 <div class="nav-zone right" id="navR"><div class="nav-hint">›</div></div>
-<div class="counter" id="counter">1 / 1</div>
+
+<!-- Bottom-right control cluster: prev / counter (clickable for picker) / next -->
+<div class="controls">
+  <button class="ctl-btn" id="btnPrev" aria-label="Previous slide">‹</button>
+  <div class="counter" id="counter" aria-label="Open slide picker"
+       title="Click to jump to a specific slide">1 / 1<span class="menu-icon">⌘</span></div>
+  <button class="ctl-btn" id="btnNext" aria-label="Next slide">›</button>
+</div>
+
+<!-- Slide picker overlay -->
+<div class="picker-backdrop" id="pickerBackdrop">
+  <div class="picker" id="picker">
+    <h2>
+      <span>JUMP TO SLIDE · <span class="total" id="pickerTotal">0</span></span>
+      <span class="hint">ESC TO CLOSE</span>
+    </h2>
+    <ul id="pickerList"></ul>
+  </div>
+</div>
 
 <!-- Print-only stack: populated on beforeprint, stripped on afterprint -->
 <div class="print-stack" id="printStack" style="display:none;"></div>
@@ -189,29 +338,78 @@
     stage.style.left = '0';
   }
 
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const pickerBackdrop = document.getElementById('pickerBackdrop');
+  const pickerList = document.getElementById('pickerList');
+  const pickerTotal = document.getElementById('pickerTotal');
+
   function show(idx) {
     if (idx < 0 || idx >= deck.length) return;
     current = idx;
     frame.src = deck[idx].file;
-    counter.innerHTML = `${idx + 1} / ${deck.length} <span class="label">${deck[idx].label || ''}</span>`;
+    counter.innerHTML =
+      `${idx + 1} / ${deck.length} <span class="label">${deck[idx].label || ''}</span>` +
+      '<span class="menu-icon">⌘</span>';
     try { localStorage.setItem(storageKey, String(idx)); } catch (_) {}
     if (location.hash !== '#' + (idx + 1)) {
       history.replaceState(null, '', '#' + (idx + 1));
     }
+    // Update prev/next button enabled state.
+    btnPrev.disabled = idx === 0;
+    btnNext.disabled = idx === deck.length - 1;
+    // Update picker current highlight if open.
+    pickerList.querySelectorAll('.picker-item').forEach((el, i) => {
+      el.classList.toggle('current', i === idx);
+    });
   }
 
   function next() { show(Math.min(current + 1, deck.length - 1)); }
   function prev() { show(Math.max(current - 1, 0)); }
 
+  // Slide picker — populate once on init.
+  function buildPicker() {
+    pickerTotal.textContent = deck.length;
+    pickerList.innerHTML = deck.map((item, i) => `
+      <li class="picker-item${i === current ? ' current' : ''}" data-idx="${i}">
+        <span class="num">${String(i + 1).padStart(2, '0')}</span>
+        <span class="title">${item.label || item.file}</span>
+        <span class="check">✓</span>
+      </li>
+    `).join('');
+    pickerList.querySelectorAll('.picker-item').forEach(el => {
+      el.addEventListener('click', () => {
+        show(parseInt(el.dataset.idx, 10));
+        closePicker();
+      });
+    });
+  }
+  function openPicker() { pickerBackdrop.classList.add('open'); }
+  function closePicker() { pickerBackdrop.classList.remove('open'); }
+  function togglePicker() {
+    if (pickerBackdrop.classList.contains('open')) closePicker();
+    else openPicker();
+  }
+
   // Keyboard
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    // ESC closes the picker if open, otherwise no-op.
+    if (e.key === 'Escape') {
+      if (pickerBackdrop.classList.contains('open')) {
+        closePicker();
+        e.preventDefault();
+        return;
+      }
+    }
     switch (e.key) {
       case 'ArrowRight': case ' ': case 'PageDown': e.preventDefault(); next(); break;
       case 'ArrowLeft':  case 'PageUp':              e.preventDefault(); prev(); break;
       case 'Home':                                    e.preventDefault(); show(0); break;
       case 'End':                                     e.preventDefault(); show(deck.length - 1); break;
       case 'p': case 'P':                             window.print(); break;
+      // 'M' / 'O' open the slide picker (menu / overview).
+      case 'm': case 'M': case 'o': case 'O':         e.preventDefault(); togglePicker(); break;
       default:
         if (e.key >= '1' && e.key <= '9') {
           const i = parseInt(e.key, 10) - 1;
@@ -222,6 +420,13 @@
 
   document.getElementById('navL').addEventListener('click', prev);
   document.getElementById('navR').addEventListener('click', next);
+  btnPrev.addEventListener('click', (e) => { e.stopPropagation(); prev(); });
+  btnNext.addEventListener('click', (e) => { e.stopPropagation(); next(); });
+  counter.addEventListener('click', (e) => { e.stopPropagation(); togglePicker(); });
+  pickerBackdrop.addEventListener('click', (e) => {
+    // Click on backdrop (not the picker itself) closes the picker.
+    if (e.target === pickerBackdrop) closePicker();
+  });
   window.addEventListener('resize', fit);
   window.addEventListener('hashchange', () => {
     const m = location.hash.match(/^#(\d+)$/);
@@ -236,6 +441,7 @@
     if (!isNaN(v) && v >= 0 && v < deck.length) current = v;
   } catch (_) {}
   fit();
+  buildPicker();
   show(current);
 
   // Print: build a stack of all iframes so browser prints every slide
