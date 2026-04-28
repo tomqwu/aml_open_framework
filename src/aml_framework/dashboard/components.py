@@ -60,6 +60,15 @@ CUSTOM_CSS = """
 /* ---- Global ---- */
 .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
 
+/* ---- Hide Streamlit Cloud chrome ----
+ * Compliance dashboards are shipped through tenants' own infrastructure;
+ * the public "Deploy" button + 3-dot menu look unprofessional in that
+ * context and confuse non-technical users (e.g. CCOs reviewing on tablets).
+ */
+.stDeployButton,
+[data-testid="stToolbar"],
+[data-testid="stStatusWidget"] { display: none !important; }
+
 /* ---- Sidebar ---- */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
@@ -77,9 +86,14 @@ section[data-testid="stSidebar"] hr {
 
 /* ---- KPI metric cards ---- */
 [data-testid="stMetricValue"] {
-    font-size: 1.8rem !important;
+    font-size: clamp(1.2rem, 2.2vw, 1.8rem) !important;
     font-weight: 700 !important;
     color: #1e293b !important;
+    /* Prevent mid-number wraps like "$843,3<br>88" when the card column
+       narrows but the value is still single-line-renderable. */
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 [data-testid="stMetricLabel"] {
     font-size: 0.8rem !important;
@@ -124,10 +138,13 @@ button[data-baseweb="tab"] {
 }
 .metric-card h4 { margin: 0 0 0.3rem 0; color: #0f172a; }
 .metric-card .value {
-    font-size: 2rem;
+    font-size: clamp(1.4rem, 2.4vw, 2rem);
     font-weight: 700;
     color: #0f172a;
     margin: 0.2rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .metric-card .label {
     font-size: 0.78rem;
