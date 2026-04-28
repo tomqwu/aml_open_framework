@@ -1,6 +1,18 @@
 /* Shared design tokens for AML Open Framework deck.
  * Each slide @imports or <link>s this so colors / typography / chrome
- * stay in sync. Slide-specific styles go in the slide HTML's <style>. */
+ * stay in sync. Slide-specific styles go in the slide HTML's <style>.
+ *
+ * Layout budget (1920×1080 canvas):
+ *   - Wordmark + slide-num + hairline:  top 64–144 px
+ *   - Title block (eyebrow + h1):        top 200–420 px (≈220 px)
+ *   - Body (cards / charts / panels):    top 460 px → bottom 160 px
+ *   - Footer (tagline + repo URL):       bottom 64 px
+ *
+ * Dense content (slide 06 rule cards / slide 17 stat grid) needs
+ * top: 420 / bottom: 110 instead — 60-80 px tighter. If a body grid
+ * has >4 dense panels in a row OR multi-row card content with code
+ * samples, prefer the dense budget.
+ */
 
 :root {
   --bg:           #0a0e1a;
