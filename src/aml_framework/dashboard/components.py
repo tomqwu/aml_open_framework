@@ -40,6 +40,17 @@ SLA_BAND_COLORS = {
     "unknown": "#6b7280",
 }
 
+# Customer risk-rating colors — semantically distinct from severity
+# (severity ranks an *alert*; risk_rating ranks a *customer*) but uses
+# the same hex-code spectrum. Centralising here lets pages call
+# risk_color() instead of redeclaring `{"high": "#dc2626", ...}` inline.
+RISK_RATING_COLORS = {
+    "high": "#dc2626",
+    "medium": "#d97706",
+    "low": "#16a34a",
+    "unknown": "#6b7280",
+}
+
 
 # ---------------------------------------------------------------------------
 # CSS Theme
@@ -336,6 +347,13 @@ def sla_band_color(state: str) -> str:
     """Resolve a `cases/sla.py` SLA band ('green'/'amber'/'red'/'breached')
     to its hex color. Used by the SLA timer ring + backlog tables."""
     return SLA_BAND_COLORS.get((state or "").lower(), SLA_BAND_COLORS["unknown"])
+
+
+def risk_color(rating: str) -> str:
+    """Resolve a customer risk-rating ('high'/'medium'/'low') to its
+    hex color. Replaces inline `risk_colors = {...}` dicts in pages
+    #6, #10, #17, #18 (workflow audit catch — Phase E follow-up)."""
+    return RISK_RATING_COLORS.get((rating or "").lower(), RISK_RATING_COLORS["unknown"])
 
 
 # ---------------------------------------------------------------------------

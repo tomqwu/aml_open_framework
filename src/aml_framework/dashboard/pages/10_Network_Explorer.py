@@ -12,7 +12,13 @@ from __future__ import annotations
 import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
-from aml_framework.dashboard.components import empty_state, kpi_card, link_to_page, page_header
+from aml_framework.dashboard.components import (
+    empty_state,
+    kpi_card,
+    link_to_page,
+    page_header,
+    risk_color,
+)
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -52,7 +58,6 @@ if st.session_state.get("guided_demo"):
     )
 
 # --- Build graph data ---
-risk_colors = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}
 alerted_ids = set()
 if not df_alerts.empty and "customer_id" in df_alerts.columns:
     alerted_ids = set(df_alerts["customer_id"].dropna().unique())
@@ -78,7 +83,7 @@ for _, row in cust_stats.iterrows():
     name = info["full_name"] if info is not None else cid
     vol = float(row["total_volume"])
     size = max(15, min(50, int(vol / 5000)))
-    color = risk_colors.get(risk, "#6b7280")
+    color = risk_color(risk)
     border = "#dc2626" if cid in alerted_ids else "#e2e8f0"
     border_width = 3 if cid in alerted_ids else 1
 

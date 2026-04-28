@@ -5,7 +5,13 @@ from __future__ import annotations
 import plotly.express as px
 import streamlit as st
 
-from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import (
+    RISK_RATING_COLORS,
+    chart_layout,
+    kpi_card,
+    page_header,
+    risk_color,
+)
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -75,13 +81,12 @@ with col_left:
     st.markdown("### Customer Risk Distribution")
     rc = risk_counts.reset_index()
     rc.columns = ["Risk Rating", "Count"]
-    color_map = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}
     fig = px.pie(
         rc,
         names="Risk Rating",
         values="Count",
         color="Risk Rating",
-        color_discrete_map=color_map,
+        color_discrete_map=RISK_RATING_COLORS,
         hole=0.45,
     )
     fig.update_traces(textposition="inside", textinfo="percent+label")
@@ -162,8 +167,8 @@ if not df_alerts.empty and "customer_id" in df_alerts.columns:
     alerted = df_customers[df_customers["customer_id"].isin(alerted_ids)].copy()
 
     def _risk_style(val: str) -> str:
-        c = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}.get(val, "")
-        return f"color: {c}; font-weight: 700;" if c else ""
+        c = risk_color(val)
+        return f"color: {c}; font-weight: 700;" if val in RISK_RATING_COLORS else ""
 
     styled = alerted[["customer_id", "full_name", "country", "risk_rating"]].style.map(
         _risk_style, subset=["risk_rating"]

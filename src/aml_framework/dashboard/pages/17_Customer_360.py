@@ -6,7 +6,13 @@ import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import chart_layout, kpi_card, link_to_page, page_header
+from aml_framework.dashboard.components import (
+    chart_layout,
+    kpi_card,
+    link_to_page,
+    page_header,
+    risk_color,
+)
 from aml_framework.dashboard.query_params import read_param
 
 page_header(
@@ -41,15 +47,13 @@ selected_cid = st.selectbox("Select customer", customer_ids, index=default_cid_i
 cust = df_customers[df_customers["customer_id"] == selected_cid].iloc[0]
 
 # --- Profile card ---
-risk_color = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}.get(
-    cust["risk_rating"], "#6b7280"
-)
+profile_color = risk_color(cust["risk_rating"])
 st.markdown(
-    f'<div class="metric-card" style="border-left: 4px solid {risk_color};">'
+    f'<div class="metric-card" style="border-left: 4px solid {profile_color};">'
     f'<div style="font-size:1.3rem; font-weight:700;">{cust["full_name"]}</div>'
     f'<div style="color:#64748b; margin:0.3rem 0;">'
     f"{cust['customer_id']} &middot; {cust['country']} &middot; "
-    f'<span style="color:{risk_color}; font-weight:700;">{cust["risk_rating"].upper()}</span>'
+    f'<span style="color:{profile_color}; font-weight:700;">{cust["risk_rating"].upper()}</span>'
     f"</div>"
     f'<div style="font-size:0.85rem; color:#64748b;">'
     f"Onboarded: {str(cust['onboarded_at'])[:10]}"

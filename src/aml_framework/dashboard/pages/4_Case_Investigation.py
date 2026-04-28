@@ -15,6 +15,7 @@ from aml_framework.dashboard.components import (
     chart_layout,
     empty_state,
     page_header,
+    risk_color,
     severity_color,
     sla_band_color,
 )
@@ -214,16 +215,14 @@ with col_profile:
     st.markdown("### Entity Profile")
     if not customer_row.empty:
         c = customer_row.iloc[0]
-        risk_color = {"high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}.get(
-            c["risk_rating"], "#6b7280"
-        )
+        cust_risk_color = risk_color(c["risk_rating"])
         st.markdown(
             f'<div class="metric-card">'
             f'<div style="font-size:1.1rem; font-weight:600;">{c["full_name"]}</div>'
             f'<div style="font-size:0.85rem; color:#64748b; margin:0.3rem 0 0.8rem;">'
             f"{c['customer_id']} &middot; {c['country']}</div>"
             f'<div><span style="font-size:0.78rem; color:#64748b;">Risk Rating</span><br>'
-            f'<span style="color:{risk_color}; font-weight:700;">{c["risk_rating"].upper()}</span>'
+            f'<span style="color:{cust_risk_color}; font-weight:700;">{c["risk_rating"].upper()}</span>'
             f"</div>"
             f'<div style="margin-top:0.5rem;"><span style="font-size:0.78rem; color:#64748b;">'
             f"Onboarded</span><br>{str(c['onboarded_at'])[:10]}</div>"
