@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.components import kpi_card, page_header, severity_color
 
 page_header(
     "Typology Catalogue",
@@ -205,13 +205,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 for cat in TYPOLOGIES:
     with st.expander(f"**{cat['category']}** ({len(cat['rules'])} rules)"):
         for rule in cat["rules"]:
-            sev_colors = {
-                "critical": "#7c3aed",
-                "high": "#dc2626",
-                "medium": "#d97706",
-                "low": "#16a34a",
-            }
-            color = sev_colors.get(rule["severity"], "#6b7280")
+            color = severity_color(rule["severity"])
             st.markdown(
                 f'<div class="metric-card" style="border-left:4px solid {color}; margin-bottom:0.5rem;">'
                 f'<div style="font-weight:600;">{rule["name"]}</div>'

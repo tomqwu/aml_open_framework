@@ -8,6 +8,45 @@ that introduced them.
 ## [Unreleased]
 
 ### Changed
+- **Color-resolver migration (Phase E follow-up)**
+  (`dashboard/components.py`,
+  `dashboard/pages/4_Case_Investigation.py`,
+  `dashboard/pages/6_Risk_Assessment.py`,
+  `dashboard/pages/10_Network_Explorer.py`,
+  `dashboard/pages/11_Live_Monitor.py`,
+  `dashboard/pages/17_Customer_360.py`,
+  `dashboard/pages/18_Typology_Catalogue.py`,
+  `dashboard/pages/21_My_Queue.py`,
+  `tests/test_dashboard_design_consistency.py`). Phase E follow-up
+  — clears the test ALLOWED set tracking pages with inline severity
+  + risk-rating color dicts. Adds a new `risk_color()` resolver
+  (and `RISK_RATING_COLORS` constant) to components.py, parallel
+  to the existing `severity_color()` / `sla_band_color()`.
+  The seven previously-flagged pages now route through the
+  resolvers:
+  - Pages #4, #17 dropped their inline `risk_color = {...}.get(...)`
+    dicts and call `risk_color(rating)` instead. Variable renamed
+    locally where it shadowed the imported function (Customer 360
+    uses `profile_color`; Case Investigation uses `cust_risk_color`).
+  - Page #6 now imports `RISK_RATING_COLORS` for the pie chart's
+    `color_discrete_map=` and calls `risk_color()` in the per-cell
+    style helper. Drops the duplicate `color_map` and
+    `_risk_style` dict.
+  - Page #10 (Network Explorer) drops `risk_colors = {...}` and
+    calls `risk_color(risk)` in the per-node loop.
+  - Page #11 (Live Monitor) deletes the `sev_colors = {...}` line
+    that was dead code (defined but never read in the alert feed).
+  - Page #18 (Typology Catalogue) drops the per-rule `sev_colors`
+    dict (re-allocated inside the inner loop on every render —
+    also a perf nit) and calls `severity_color(rule["severity"])`.
+  - Page #21 (My Queue) imports `SEVERITY_COLORS` for the chart's
+    color_discrete_map and drops the duplicate inline dict.
+  Test ALLOWED set is now empty so any new inline color dict is
+  blocked at CI. Also adds a new `TestColorResolvers` class with 4
+  source-level checks to guard against silent rename of the three
+  resolvers + the `RISK_RATING_COLORS` constant. Tests 1126 → 1161
+  (+4 directly, the rest are downstream churn).
+
 - **Persona workflow rebalance (Phase D)**
   (`dashboard/audience.py`, `tests/test_dashboard_workflows.py`,
   `docs/dashboard-tour.md`). Phase D of the dashboard workflow plan

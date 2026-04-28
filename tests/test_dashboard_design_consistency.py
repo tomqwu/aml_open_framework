@@ -106,26 +106,41 @@ class TestColorSystemConsistency:
             body = f.read_text(encoding="utf-8")
             if sev_dict_re.search(body):
                 offenders.append(f.name)
-        # Allow current known-good pages while we incrementally clean
-        # them up; new violations are blocked. This list will shrink
-        # to empty as Phase E follow-ups land.
-        ALLOWED = {
-            # Pages known to still carry inline severity dicts; the
-            # Phase E plan calls these out for migration. Some of these
-            # are technically `risk_rating` dicts (semantically different
-            # from severity but using overlapping hex codes) — those
-            # need a separate `risk_color()` resolver in components.py
-            # before they can be migrated. Tracking as Phase E follow-up.
-            "4_Case_Investigation.py",
-            "6_Risk_Assessment.py",
-            "10_Network_Explorer.py",
-            "11_Live_Monitor.py",
-            "17_Customer_360.py",
-            "18_Typology_Catalogue.py",
-            "21_My_Queue.py",
-        }
+        # Phase E follow-up shipped (2026-04-28) — the ALLOWED set is
+        # now empty. All 7 previously-flagged pages migrated to the
+        # severity_color() / risk_color() resolvers in components.py.
+        # Empty set means any new inline color dict will fail this test.
+        ALLOWED: set[str] = set()
         new_offenders = sorted(set(offenders) - ALLOWED)
         assert not new_offenders, (
-            "These pages reintroduced inline severity color dicts — "
-            "use severity_color() from components.py:\n  " + "\n  ".join(new_offenders)
+            "These pages reintroduced inline severity/risk color dicts — "
+            "use severity_color() or risk_color() from components.py:\n  "
+            + "\n  ".join(new_offenders)
         )
+
+
+class TestColorResolvers:
+    """The severity_color / sla_band_color / risk_color resolvers in
+    components.py are now the single source of truth. These tests
+    catch silent renames or accidental removals."""
+
+    COMPONENTS = PROJECT_ROOT / "src" / "aml_framework" / "dashboard" / "components.py"
+
+    def test_severity_color_defined(self):
+        body = self.COMPONENTS.read_text(encoding="utf-8")
+        assert "def severity_color(" in body
+
+    def test_sla_band_color_defined(self):
+        body = self.COMPONENTS.read_text(encoding="utf-8")
+        assert "def sla_band_color(" in body
+
+    def test_risk_color_defined(self):
+        body = self.COMPONENTS.read_text(encoding="utf-8")
+        assert "def risk_color(" in body
+
+    def test_risk_rating_colors_constant_present(self):
+        body = self.COMPONENTS.read_text(encoding="utf-8")
+        assert "RISK_RATING_COLORS" in body
+        # Cover the three known levels + the unknown sentinel.
+        for key in ("high", "medium", "low", "unknown"):
+            assert f'"{key}"' in body

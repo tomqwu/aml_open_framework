@@ -9,6 +9,7 @@ import streamlit as st
 
 from aml_framework.cases.sla import compute_sla_status
 from aml_framework.dashboard.components import (
+    SEVERITY_COLORS,
     chart_layout,
     empty_state,
     kpi_card,
@@ -160,18 +161,12 @@ with col_left:
     if not my_cases.empty and "severity" in my_cases.columns:
         sev_counts = my_cases["severity"].value_counts().reset_index()
         sev_counts.columns = ["severity", "count"]
-        sev_colors = {
-            "critical": "#7c3aed",
-            "high": "#dc2626",
-            "medium": "#d97706",
-            "low": "#16a34a",
-        }
         fig = px.bar(
             sev_counts,
             x="severity",
             y="count",
             color="severity",
-            color_discrete_map=sev_colors,
+            color_discrete_map=SEVERITY_COLORS,
         )
         fig.update_layout(showlegend=False, xaxis_title="", yaxis_title="Cases")
         st.plotly_chart(chart_layout(fig, 280), use_container_width=True)

@@ -217,7 +217,6 @@ if start:
     volume_history: list[float] = []
     recent_alerts: list[dict] = []
     feed_rows: list[dict] = []
-    sev_colors = {"critical": "#7c3aed", "high": "#dc2626", "medium": "#d97706", "low": "#16a34a"}
 
     for i, txn in enumerate(sorted_txns):
         if not st.session_state.get("monitoring_active", False):
