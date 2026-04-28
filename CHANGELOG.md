@@ -7,6 +7,38 @@ that introduced them.
 
 ## [Unreleased]
 
+### Changed
+- **Persona workflow rebalance (Phase D)**
+  (`dashboard/audience.py`, `tests/test_dashboard_workflows.py`,
+  `docs/dashboard-tour.md`). Phase D of the dashboard workflow plan
+  — fixes the muddled persona arcs the workflow audit flagged. Each
+  persona now has a coherent task flow and no persona exceeds 8
+  pages (the cognitive-load cap from the audit).
+  - **Manager**: dropped Case Investigation (overlaps Investigations).
+    Reordered to match daily arc: triage (Alert Queue) → investigate
+    (Investigations / My Queue / Analyst Review Queue) → assess (Risk
+    + Live Monitor) → tune (Tuning Lab). 8 → 7 pages.
+  - **Developer**: added Spec Editor, Rule Tuning, Tuning Lab,
+    Analyst Review Queue. Spec authoring + model performance + tuning
+    is the actual dev workflow. 4 → 8 pages.
+  - **PM**: added Risk Assessment + Case Investigation. PM needs both
+    scope (Risk) + impact (specific case) when planning roadmap. 5 → 7.
+  - **Director**: added Investigations (drill-down when KPIs spike).
+    Tuning Lab dropped — Director consumes tuning *outcomes* via
+    Comparative Analytics, doesn't tune themselves. 6 → 7.
+  - **VP**: Tuning Lab dropped (same reasoning as Director). Added
+    Comparative Analytics. 5 → 5.
+  - **Auditor**: added Investigations + Case Investigation. Auditor
+    reviews specific cases, not just aggregate evidence. 4 → 6.
+  Also exposes a new `MAX_PAGES_PER_PERSONA = 8` constant + 3 new
+  source-level tests in TestAudienceMapCoverage that pin the new
+  assignments so future drift surfaces in CI:
+  `test_no_persona_exceeds_page_cap`,
+  `test_phase_d_persona_assignments`,
+  `test_tuning_lab_only_for_tuners`. Tests 1107 → 1123 (+16 — Phase
+  C contributed 17, Phase D contributed 3, one moved). Updated the
+  Audience Filtering table in `docs/dashboard-tour.md` to match.
+
 ### Added
 - **FINTRAC audit-pack download + VoP outcomes panel (Phase B-3)**
   (`dashboard/pages/7_Audit_Evidence.py`,
