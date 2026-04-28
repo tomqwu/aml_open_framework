@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **22 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **24 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -187,15 +187,19 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The same 22 pages serve 6 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow:
+The same 24 pages serve 10 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 8 pages):
 
 | Persona | Primary pages |
 |---|---|
-| **CCO / SVP** | Executive Dashboard → Program Maturity → Framework Alignment → Transformation Roadmap |
-| **VP / Director** | Executive Dashboard → Rule Performance → Risk Assessment → Audit & Evidence |
-| **Operations Manager** | Alert Queue → Investigations → Risk Assessment → My Queue → Tuning Lab |
-| **L1 Analyst** | Alert Queue → Case Investigation → Investigations → Network Explorer → Customer 360 → My Queue |
-| **Auditor** | Audit & Evidence → Data Quality → Framework Alignment → Run History |
-| **Developer** | Rule Performance → Model Performance → Data Quality → Run History |
+| **SVP** | Executive Dashboard → Program Maturity → Framework Alignment → Transformation Roadmap |
+| **CCO** | Executive Dashboard → Program Maturity → Framework Alignment → Risk Assessment → Audit & Evidence → Investigations → Transformation Roadmap |
+| **CTO** | Executive Dashboard → Program Maturity → Framework Alignment → Model Performance → Run History → Transformation Roadmap |
+| **VP** | Executive Dashboard → Rule Performance → Framework Alignment → Sanctions Screening → Comparative Analytics |
+| **Director** | Executive Dashboard → Alert Queue → Investigations → Risk Assessment → Data Quality → Audit & Evidence → Comparative Analytics |
+| **Operations Manager** | Alert Queue → Investigations → My Queue → Analyst Review Queue → Risk Assessment → Live Monitor → Tuning Lab |
+| **L1 Analyst** | Alert Queue → Case Investigation → Investigations → Network Explorer → Sanctions Screening → Customer 360 → My Queue → Analyst Review Queue |
+| **Product Manager** | Rule Performance → Program Maturity → Transformation Roadmap → Model Performance → Risk Assessment → Case Investigation → Tuning Lab |
+| **Developer** | Spec Editor → Rule Performance → Rule Tuning → Tuning Lab → Model Performance → Data Quality → Analyst Review Queue → Run History |
+| **Auditor** | Audit & Evidence → Investigations → Case Investigation → Data Quality → Framework Alignment → Run History |
 
 See [`personas.md`](personas.md) for the full role-based workflows.

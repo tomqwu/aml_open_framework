@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from aml_framework.dashboard.audience import AUDIENCE_PAGES
+from aml_framework.dashboard.audience import AUDIENCE_PAGES, MAX_PAGES_PER_PERSONA
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PAGES_DIR = PROJECT_ROOT / "src" / "aml_framework" / "dashboard" / "pages"
@@ -72,6 +72,43 @@ class TestAudienceMapCoverage:
     def test_every_persona_has_at_least_one_page(self):
         for persona, pages in AUDIENCE_PAGES.items():
             assert pages, f"persona {persona!r} has no pages mapped"
+
+    def test_no_persona_exceeds_page_cap(self):
+        # The workflow audit (Phase D) cap — anything past 8 pages
+        # becomes hard to navigate from the sidebar without scrolling.
+        violations = [
+            (p, len(pages))
+            for p, pages in AUDIENCE_PAGES.items()
+            if len(pages) > MAX_PAGES_PER_PERSONA
+        ]
+        assert not violations, (
+            f"Personas exceed MAX_PAGES_PER_PERSONA={MAX_PAGES_PER_PERSONA}: " + repr(violations)
+        )
+
+    def test_phase_d_persona_assignments(self):
+        # Pin the Phase D rebalance so future drift surfaces in CI.
+        # Manager: dropped Case Investigation, Investigations is the
+        # single drill point.
+        assert "Case Investigation" not in AUDIENCE_PAGES["manager"]
+        assert "Investigations" in AUDIENCE_PAGES["manager"]
+        # Developer: gains spec authoring + tuning surface.
+        for page in ("Spec Editor", "Rule Tuning", "Tuning Lab", "Analyst Review Queue"):
+            assert page in AUDIENCE_PAGES["developer"], f"developer missing {page!r}"
+        # PM: gains exposure (Risk) + impact (Case Investigation).
+        for page in ("Risk Assessment", "Case Investigation"):
+            assert page in AUDIENCE_PAGES["pm"], f"pm missing {page!r}"
+        # Director: gains Investigations drill-down.
+        assert "Investigations" in AUDIENCE_PAGES["director"]
+        # Auditor: gains case-level review.
+        for page in ("Investigations", "Case Investigation"):
+            assert page in AUDIENCE_PAGES["auditor"], f"auditor missing {page!r}"
+
+    def test_tuning_lab_only_for_tuners(self):
+        # Phase D: Tuning Lab kept only for personas who actually tune
+        # rules (Manager, Developer, PM). Director + VP consume tuning
+        # outcomes via Comparative Analytics, don't tune themselves.
+        tuners = {p for p, pages in AUDIENCE_PAGES.items() if "Tuning Lab" in pages}
+        assert tuners == {"manager", "developer", "pm"}, f"Tuning Lab assignment drifted: {tuners}"
 
     def test_every_mapped_page_exists_on_disk(self):
         on_disk = _page_titles_on_disk()
