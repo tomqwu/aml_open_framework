@@ -12,7 +12,7 @@ from __future__ import annotations
 import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
-from aml_framework.dashboard.components import kpi_card, link_to_page, page_header
+from aml_framework.dashboard.components import empty_state, kpi_card, link_to_page, page_header
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -24,6 +24,22 @@ show_audience_context("Network Explorer")
 df_txns = st.session_state.df_txns
 df_customers = st.session_state.df_customers
 df_alerts = st.session_state.df_alerts
+
+# Phase E empty-state guard — the network graph needs at least 2
+# customers with txns to draw any edges. On degenerate specs (zero
+# txns or single-customer fixture) the agraph block + groupby would
+# raise; bail out cleanly with operator guidance instead.
+if df_txns is None or df_txns.empty:
+    empty_state(
+        "No transaction data — network graph needs txns to compute edges.",
+        icon="🕸️",
+        detail=(
+            "The Network Explorer derives edges from temporal correlations "
+            "between customer txns. Without txns there is nothing to draw. "
+            "Load a spec with sample data or wire `data_sources`."
+        ),
+        stop=True,
+    )
 
 if st.session_state.get("guided_demo"):
     st.info(
