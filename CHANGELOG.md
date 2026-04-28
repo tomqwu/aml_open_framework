@@ -40,6 +40,53 @@ that introduced them.
   Audience Filtering table in `docs/dashboard-tour.md` to match.
 
 ### Added
+- **Cross-page drill-downs / deep links (Phase C)**
+  (`dashboard/pages/3_Alert_Queue.py`,
+  `dashboard/pages/10_Network_Explorer.py`,
+  `dashboard/pages/17_Customer_360.py`,
+  `dashboard/pages/1_Executive_Dashboard.py`,
+  `tests/test_dashboard_drill_downs.py`). Phase C of the
+  dashboard workflow plan — kills the worst dead-ends from
+  the workflow audit. Previously analysts on Alert Queue had
+  to copy a `customer_id` and re-navigate to Customer 360
+  via the sidebar; same friction on every cross-entity
+  drill-down. Estimated friction killed: ~20-30s per drill ×
+  dozens per shift.
+  All drill-downs flow through the Phase A `link_to_page`
+  helper, which writes the destination's `selected_<key>`
+  session-state mirror so Streamlit's `st.page_link`
+  navigation pre-selects on arrival.
+  **Page #3 Alert Queue** gains two drill-down rows: one
+  below the alert table (selectbox of customer_ids in the
+  filtered view → `→ Open <cid> in Customer 360`) and one
+  below the case queue table (selectbox of case_ids → `→
+  Open <case> in Case Investigation`). Selectboxes reflect
+  the filtered view so analysts drill into what they're
+  looking at, not the full universe.
+  **Page #10 Network Explorer** gains a node-drill below
+  the agraph render. streamlit-agraph node-click events
+  don't reliably bubble through the component bridge, so
+  the pragmatic shape is a selectbox of node ids defaulting
+  to the first alerted node when alerts exist.
+  **Page #17 Customer 360** now reads `customer_id` from
+  query params via `read_param` (sticky across reruns so a
+  selectbox change still works) and uses it as the selectbox
+  default index. The cases table gains a per-case drill-down
+  row. Removes the old TODO caption that said "deep-link via
+  `?case_id=...` is in development".
+  **Page #1 Executive Dashboard** gains two clickable
+  page-link affordances under the KPI row: `→ Triage alerts`
+  and `→ Open investigations`. KPI metric cards aren't
+  natively clickable in Streamlit, so the link row sits
+  immediately beneath the cards aligned to the same column
+  grid.
+  17 source-level tests across 6 classes
+  (TestAlertQueueDrillDowns, TestNetworkExplorerDrillDown,
+  TestExecutiveDashboardKpiDrillDowns,
+  TestCustomer360ReceivesDeepLink,
+  TestCaseInvestigationReceivesDeepLink,
+  TestDrillDownInvariants). Tests 1107 → 1124 (+17).
+
 - **FINTRAC audit-pack download + VoP outcomes panel (Phase B-3)**
   (`dashboard/pages/7_Audit_Evidence.py`,
   `dashboard/pages/12_Sanctions_Screening.py`,

@@ -12,7 +12,7 @@ from __future__ import annotations
 import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
-from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.components import kpi_card, link_to_page, page_header
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -150,6 +150,35 @@ config = Config(
 )
 
 agraph(nodes=nodes, edges=edges, config=config)
+
+# --- Drill-down to Customer 360 ---
+# streamlit-agraph node-click events don't reliably bubble up through
+# Streamlit's component bridge in the version we depend on, so the
+# pragmatic deep-link is a selectbox below the graph: pick any node + jump
+# to that customer's 360 view. Defaults to the first alerted node when
+# present so the most-investigation-relevant node is one click away.
+node_options = [n.id for n in nodes]
+if node_options:
+    default_node = (
+        next((n for n in node_options if n in alerted_ids), node_options[0])
+        if alerted_ids
+        else node_options[0]
+    )
+    drill_n1, drill_n2 = st.columns([3, 2])
+    with drill_n1:
+        drill_node = st.selectbox(
+            "Drill into node",
+            node_options,
+            index=node_options.index(default_node),
+            key="network_node_drill",
+        )
+    with drill_n2:
+        st.write("")
+        link_to_page(
+            "pages/17_Customer_360.py",
+            f"→ Open {drill_node} in Customer 360",
+            customer_id=drill_node,
+        )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
