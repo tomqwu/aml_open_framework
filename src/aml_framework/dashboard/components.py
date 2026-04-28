@@ -320,9 +320,49 @@ def page_header(title: str, description: str | None = None) -> None:
 
 
 def kpi_card(label: str, value: Any, accent_color: str = "#2563eb") -> None:
-    """Render a styled KPI card with colored left border."""
+    """Render a styled KPI card with colored left border.
+
+    Note: prefer ``kpi_card_rag`` for new code — the ``accent_color``
+    parameter on this helper traditionally received decorative-rainbow
+    hex codes that carried no semantic meaning, conflicting with the
+    RAG + severity color systems. Existing call sites are kept so the
+    migration can land page-by-page.
+    """
     st.markdown(
         f"""<div class="metric-card" style="border-left: 4px solid {accent_color};">
+            <div class="label">{label}</div>
+            <div class="value">{value}</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+
+# Neutral border for KPI cards that *report* a value (alerts: 17, rules
+# active: 9) rather than *assess* it. Slate-400 — quiet enough that the
+# RAG-colored cards next to it carry the visual signal.
+KPI_NEUTRAL_BORDER = "#94a3b8"
+
+
+def kpi_card_rag(label: str, value: Any, rag: str | None = None) -> None:
+    """Render a KPI card whose left border is bound to RAG semantics.
+
+    Args:
+        label: KPI label (uppercase rendering handled by CSS).
+        value: Metric value to display.
+        rag: One of ``"green"`` / ``"amber"`` / ``"red"`` / ``"breached"`` /
+            ``"unset"`` / ``None``. ``None`` and ``"unset"`` both produce
+            the neutral slate border (KPI is a fact, not an assessment).
+
+    Replaces the rainbow-decorative ``kpi_card(..., accent_color=...)``
+    pattern flagged in the design review. Color now carries one job:
+    "this metric is in a good / warning / bad state".
+    """
+    if rag and rag != "unset":
+        color = RAG_COLORS.get(rag) or SLA_BAND_COLORS.get(rag) or KPI_NEUTRAL_BORDER
+    else:
+        color = KPI_NEUTRAL_BORDER
+    st.markdown(
+        f"""<div class="metric-card" style="border-left: 4px solid {color};">
             <div class="label">{label}</div>
             <div class="value">{value}</div>
         </div>""",
