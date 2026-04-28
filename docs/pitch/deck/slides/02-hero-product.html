@@ -49,7 +49,8 @@
     to   { transform: scale(1.05) translate(0.5%, 0.5%); }
   }
 
-  /* Vignette over the screenshot for legibility */
+  /* Vignette over the screenshot for legibility — pointer-events: none
+     so clicks pass through to the .zoomable image below. */
   .vignette {
     position: absolute;
     inset: 0;
@@ -57,6 +58,27 @@
     background:
       linear-gradient(to bottom, rgba(10, 14, 26, 0) 30%, rgba(10, 14, 26, 0.85) 100%),
       radial-gradient(ellipse at 30% 80%, rgba(10, 14, 26, 0.7) 0%, transparent 60%);
+  }
+
+  /* Visual hint that the hero image is interactive */
+  .hero-frame::after {
+    content: 'click to enlarge';
+    position: absolute;
+    top: 24px;
+    right: 32px;
+    z-index: 6;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(15, 23, 42, 0.7);
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--accent);
+    pointer-events: none;
+    opacity: 0;
+    animation: fadeUp 0.6s 2.6s ease-out forwards;
   }
 
   /* Cyan glow accent that pulses subtly behind the hero */
@@ -152,7 +174,7 @@
 <div class="stage">
   <div class="glow"></div>
   <div class="hero-frame">
-    <img class="hero-img" src="../assets/screenshots/07_audit_evidence.png" alt="Audit & Evidence dashboard"/>
+    <img class="hero-img zoomable" src="../assets/screenshots/07_audit_evidence.png" alt="Audit & Evidence dashboard — full size"/>
     <div class="vignette"></div>
   </div>
   <div class="hero-headline">
@@ -162,5 +184,6 @@
   </div>
 </div>
 
+<script src="../assets/lightbox.js"></script>
 </body>
 </html>

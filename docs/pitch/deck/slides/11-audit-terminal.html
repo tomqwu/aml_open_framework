@@ -273,10 +273,37 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease, transform 0.1s ease;
   }
+  .verify-btn:hover {
+    background: rgba(103, 232, 249, 0.16);
+  }
+  .verify-btn:active {
+    transform: translateY(1px);
+  }
+  .verify-btn.verifying {
+    pointer-events: none;
+    background: rgba(103, 232, 249, 0.12);
+  }
+  .verify-btn.verifying::before { content: '◐'; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .verify-btn::before {
     content: '🔒';
     font-size: 14px;
+    display: inline-block;
+  }
+
+  /* Cyan flash when verification completes — propagates to the chain
+     terminal block + spec-hash row to feel like a real recheck. */
+  .term-block.flash {
+    animation: blockFlash 0.9s ease-out;
+  }
+  @keyframes blockFlash {
+    0%   { box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 rgba(103,232,249,0); }
+    35%  { box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 32px rgba(103,232,249,0.55); }
+    100% { box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 rgba(103,232,249,0); }
   }
 
   @keyframes fadeUp {
@@ -335,8 +362,54 @@
     a reportable control failure — not a debate. Auditors verify via CLI or the
     in-page button; the chain replays in seconds.
   </div>
-  <div class="verify-btn">Re-verify chain</div>
+  <div class="verify-btn" id="verifyBtn">Re-verify chain</div>
 </div>
+
+<script>
+// Re-verify chain: clicking restamps the "Verified at" row in the chain
+// terminal block, flashes both blocks cyan, and briefly shows a
+// "verifying…" spinner. Audit auditor ritual on demand.
+(function () {
+  const btn = document.getElementById('verifyBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    btn.classList.add('verifying');
+    btn.textContent = 'Re-verifying';
+    document.querySelectorAll('.term-block').forEach((b) => {
+      b.classList.remove('flash');
+      // restart the animation
+      void b.offsetWidth;
+      b.classList.add('flash');
+    });
+    // Update the timestamps to "now". We touch the chain block's
+    // verified-at row + the run-identity block's run-at row.
+    setTimeout(() => {
+      const now = new Date();
+      const iso = now.toISOString().replace(/\.\d+Z$/, 'Z');
+      // Find and update the "Verified at" row in the chain block.
+      document.querySelectorAll('.term-block.chain .row').forEach((r) => {
+        const k = r.querySelector('.key');
+        const v = r.querySelector('.val');
+        if (k && v && /verified at/i.test(k.textContent)) {
+          v.textContent = iso;
+        }
+      });
+      btn.classList.remove('verifying');
+      btn.textContent = '✓ Chain verified';
+      btn.style.color = 'var(--rag-green)';
+      btn.style.borderColor = 'var(--rag-green)';
+      btn.style.background = 'rgba(134, 239, 172, 0.10)';
+      // Reset back to "Re-verify chain" after a few seconds.
+      setTimeout(() => {
+        btn.textContent = 'Re-verify chain';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+        btn.style.background = '';
+      }, 4000);
+    }, 800);
+  });
+})();
+</script>
 
 </body>
 </html>

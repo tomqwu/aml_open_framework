@@ -232,3 +232,81 @@ h1 em {
   from { box-shadow: 0 0 0 rgba(103,232,249,0); }
   to   { box-shadow: 0 0 20px rgba(103,232,249,0.4); }
 }
+
+/* ---- Lightbox (used by lightbox.js) ----
+ * Shared overlay style so any slide with .zoomable images gets the
+ * same zoom-out chrome. */
+
+.zoomable {
+  cursor: zoom-in;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+.zoomable:hover {
+  filter: brightness(1.05);
+}
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 26, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  cursor: zoom-out;
+}
+.lightbox-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.lightbox-overlay img {
+  max-width: 92vw;
+  max-height: 88vh;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  box-shadow:
+    0 32px 96px rgba(0, 0, 0, 0.7),
+    0 0 64px rgba(103, 232, 249, 0.2);
+  transform: scale(0.94);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lightbox-overlay.open img {
+  transform: scale(1);
+}
+
+.lightbox-hint {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 32px;
+  right: 40px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 300;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.4);
+}

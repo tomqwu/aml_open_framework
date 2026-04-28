@@ -17,7 +17,7 @@
     z-index: 1;
   }
 
-  /* Big repo URL */
+  /* Big repo URL — real <a> link with hover treatment */
   .repo-hero {
     font-family: 'JetBrains Mono', monospace;
     font-size: 64px;
@@ -28,8 +28,18 @@
     text-align: center;
     opacity: 0;
     animation: fadeUp 0.9s 0.3s ease-out forwards;
+    text-decoration: none;
+    display: inline-block;
+    padding: 12px 24px;
+    border-radius: 12px;
+    transition: background 0.25s ease, transform 0.25s ease;
   }
-  .repo-hero .arrow { color: var(--accent); margin-right: 24px; }
+  .repo-hero:hover {
+    background: rgba(103, 232, 249, 0.06);
+    transform: translateY(-2px);
+  }
+  .repo-hero .arrow { color: var(--accent); margin-right: 24px; transition: transform 0.25s ease; display: inline-block; }
+  .repo-hero:hover .arrow { transform: translateX(4px); }
   .repo-hero .path  { color: var(--accent); }
 
   .eyebrow-c {
@@ -162,9 +172,9 @@
 
 <div class="stage">
   <div class="eyebrow-c">Apache 2.0 · 2026-04-28</div>
-  <div class="repo-hero">
+  <a class="repo-hero" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener">
     <span class="arrow">→</span>github.com/tomqwu/<span class="path">aml_open_framework</span>
-  </div>
+  </a>
 
   <div class="ways">
     <div class="way">
