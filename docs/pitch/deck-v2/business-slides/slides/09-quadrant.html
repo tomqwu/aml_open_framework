@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Where this framework lands · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  /* Quadrant chart wrapper */
+  .s9-chart {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.18fr 1fr;
+    gap: 48px;
+    align-items: stretch;
+    margin-top: 4px;
+  }
+
+  .s9-quadrant-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 0.74;
+    align-self: center;
+    max-height: 580px;
+  }
+  .s9-quadrant-wrap svg { width: 100%; height: 100%; display: block; }
+
+  /* Quadrant labels (corner) */
+  .qcorner {
+    position: absolute;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    pointer-events: none;
+  }
+  .qcorner.tl { top: 12px; left: 16px; }
+  .qcorner.tr { top: 12px; right: 16px; text-align: right; color: var(--accent); }
+  .qcorner.bl { bottom: 36px; left: 16px; }
+  .qcorner.br { bottom: 36px; right: 16px; text-align: right; }
+
+  /* Vendor dot labels (HTML overlay positioned by inline left/top %) */
+  .qdot-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    text-align: center;
+    line-height: 1.15;
+  }
+  .qdot-label .name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+    background: rgba(255,255,255,0.92);
+    padding: 1px 4px;
+  }
+  .qdot-label.us .name {
+    background: var(--accent);
+    color: white;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 2px;
+  }
+  .qdot-label .sub {
+    display: block;
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-weight: 500;
+    margin-top: 3px;
+    letter-spacing: 0.04em;
+  }
+  .qdot-label.us .sub {
+    color: var(--accent);
+    font-weight: 600;
+    margin-top: 6px;
+  }
+
+  /* Right rail: where each cluster lives */
+  .s9-key {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+  .s9-key-row {
+    border-top: 1px solid var(--rule);
+    padding-top: 10px;
+    display: grid;
+    grid-template-columns: 14px 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+  .s9-key-row:first-of-type { border-top: 2px solid var(--ink); }
+  .s9-key-row .swatch {
+    width: 12px; height: 12px; border-radius: 50%;
+    margin-top: 7px;
+    background: var(--ink-2);
+  }
+  .s9-key-row.us .swatch { background: var(--accent); width: 14px; height: 14px; margin-top: 6px; }
+  .s9-key-row .label {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+    line-height: 1.25;
+  }
+  .s9-key-row.us .label { color: var(--accent); font-weight: 700; }
+  .s9-key-row .desc {
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+  .s9-key-row .desc em { font-style: italic; color: var(--ink-2); }
+
+  .s9-takeaway { margin-top: 8px; }
+
+  /* Strategic Planning Assumption callout (Gartner-style) */
+  .s9-spa {
+    background: var(--bg-soft);
+    border-left: 4px solid var(--ink);
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--ink-2);
+  }
+  .s9-spa .lead {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .s9-spa strong { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">9</span> Where this framework lands</div>
+  <div class="top-rule"></div>
+
+  <div class="stage">
+    <h2 class="action-title fade-up" style="margin-bottom:10px;">
+      The deterministic + spec-as-source-of-truth corner is <em>uncontested</em>.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:18px;">
+      Plotted against six 2026 buyer archetypes on the two axes regulators care about — <em>completeness of vision</em> and <em>ability to execute</em>.
+    </p>
+
+    <div class="s9-chart fade-up d3">
+      <div class="s9-quadrant-wrap">
+        <svg viewBox="0 0 800 760" preserveAspectRatio="xMidYMid meet" aria-label="Magic Quadrant: Vision vs Execute">
+          <!-- Plot area: x 80→760, y 40→640. Grid 0–100 maps. -->
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="#051c2c"/>
+            </marker>
+          </defs>
+
+          <!-- Quadrant fills (very subtle, only top-right tinted with accent) -->
+          <rect x="80"  y="40"  width="340" height="300" fill="#f6f7f9"/>
+          <rect x="420" y="40"  width="340" height="300" fill="#fdeee5"/>
+          <rect x="80"  y="340" width="340" height="300" fill="#fbfbfc"/>
+          <rect x="420" y="340" width="340" height="300" fill="#f8f4f1"/>
+
+          <!-- Frame -->
+          <rect x="80" y="40" width="680" height="600" fill="none" stroke="#051c2c" stroke-width="1.5"/>
+          <!-- Mid lines -->
+          <line x1="420" y1="40"  x2="420" y2="640" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+          <line x1="80"  y1="340" x2="760" y2="340" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+
+          <!-- Axis: completeness of vision (X) -->
+          <line x1="80" y1="700" x2="760" y2="700" stroke="#051c2c" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="420" y="730" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="#051c2c" letter-spacing="0.04em">COMPLETENESS OF VISION  →</text>
+
+          <!-- Axis: ability to execute (Y) -->
+          <line x1="40" y1="640" x2="40" y2="40" stroke="#051c2c" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="40" y="340" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="#051c2c"
+                letter-spacing="0.04em" transform="rotate(-90 40 340)">ABILITY TO EXECUTE  →</text>
+
+          <!-- Vendor dots (cx,cy mapped from 0–100 grid; x: 80+(v/100)*680, y: 640-(v/100)*600 ) -->
+          <!-- Veteran rules+ML platforms: vision=42, execute=70  →  cx=80+285=365, cy=640-420=220 -->
+          <circle cx="365" cy="220" r="9" fill="#051c2c"/>
+          <!-- AI-native challengers: vision=58, execute=42  →  cx=80+394=474, cy=640-252=388 -->
+          <circle cx="474" cy="388" r="9" fill="#051c2c"/>
+          <!-- Graph specialists: vision=55, execute=48  →  cx=80+374=454, cy=640-288=352 -->
+          <circle cx="454" cy="352" r="9" fill="#051c2c"/>
+          <!-- Build-it-yourself (lakehouse): vision=48, execute=58  →  cx=80+326=406, cy=640-348=292 -->
+          <circle cx="406" cy="292" r="9" fill="#051c2c"/>
+          <!-- Marble (OSS commercial): vision=52, execute=24  →  cx=80+354=434, cy=640-144=496 -->
+          <circle cx="434" cy="496" r="8" fill="#051c2c"/>
+          <!-- Jube (OSS pure): vision=34, execute=12  →  cx=80+231=311, cy=640-72=568 -->
+          <circle cx="311" cy="568" r="8" fill="#051c2c"/>
+          <!-- AML Open Framework: vision=82, execute=22  →  cx=80+558=638, cy=640-132=508 -->
+          <circle cx="638" cy="508" r="13" fill="#dd5c34" stroke="white" stroke-width="3"/>
+          <circle cx="638" cy="508" r="22" fill="none" stroke="#dd5c34" stroke-width="1.2" opacity="0.4"/>
+        </svg>
+
+        <!-- Corner labels -->
+        <div class="qcorner tl">Challengers</div>
+        <div class="qcorner tr">Leaders</div>
+        <div class="qcorner bl">Niche players</div>
+        <div class="qcorner br">Visionaries</div>
+
+        <!-- Vendor labels (positioned in % of wrapper for responsiveness) -->
+        <div class="qdot-label" style="left:45.6%;top:36%;"><span class="name">Veteran rules + ML</span><span class="sub">Actimize · Oracle FCCM · SAS</span></div>
+        <div class="qdot-label" style="left:59.2%;top:55%;"><span class="name">AI-native challengers</span><span class="sub">Hawk:AI · ComplyAdvantage · Feedzai</span></div>
+        <div class="qdot-label" style="left:56.7%;top:50%;text-align:left;left:62%;"><span class="name">Graph specialists</span><span class="sub">Quantexa · Ripjar</span></div>
+        <div class="qdot-label" style="left:50.7%;top:43%;"><span class="name">Build-it-yourself</span><span class="sub">Lakehouse pattern</span></div>
+        <div class="qdot-label" style="left:54.2%;top:69.5%;"><span class="name">Marble</span><span class="sub">OSS-commercial</span></div>
+        <div class="qdot-label" style="left:38.9%;top:79.6%;"><span class="name">Jube · FINOS OpenAML</span><span class="sub">OSS pure</span></div>
+        <div class="qdot-label us" style="left:79.7%;top:71.8%;"><span class="name">AML Open Framework</span><span class="sub">Apache 2.0 · MIT-compatible</span></div>
+      </div>
+
+      <div class="s9-key">
+        <div class="s9-spa">
+          <div class="lead">Strategic Planning Assumption</div>
+          By April 2026, SR&nbsp;26-2 folds AML transaction monitoring into model-risk inventory — every <strong>ML-first vendor carries a model-validation tax</strong> on every typology.
+        </div>
+
+        <div class="s9-key-row us">
+          <div class="swatch"></div>
+          <div>
+            <div class="label">AML Open Framework — Visionary, by design</div>
+            <div class="desc">Spec-as-policy is <em>not a model</em> under SR&nbsp;26-2. Hash-chained replay; multi-jurisdiction templating; ISO 20022 in-tree. <em>Buyer that lands:</em> 2LoD MRM / Audit at any Cat-2+ bank.</div>
+          </div>
+        </div>
+
+        <div class="s9-key-row">
+          <div class="swatch"></div>
+          <div>
+            <div class="label">Veteran platforms — Leaders by inertia</div>
+            <div class="desc">Win Tier-1 RFPs by default. Differentiator: scale + audit comfort. <em>Where we slot:</em> 2LoD challenger model for SR&nbsp;26-2 independent re-implementation.</div>
+          </div>
+        </div>
+
+        <div class="s9-key-row">
+          <div class="swatch"></div>
+          <div>
+            <div class="label">AI-native challengers — Visionary but ML-taxed</div>
+            <div class="desc">Hawk:AI Series&nbsp;C ($56M+$10M); ComplyAdvantage cites 65–85% FP reduction. <em>Adjacent, not opposed</em> — they win mid-market; we cover the same buyer only when the buyer wants source-available code.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="takeaway s9-takeaway fade-up d6">
+      <span class="label">Key takeaway</span>
+      The framework doesn't compete with veteran platforms on detection scale — it competes on <em>provability</em>. Under SR&nbsp;26-2, that is now the buyer's procurement criterion.
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> Framework analysis based on cited 2026 vendor information (SymphonyAI, Alessa, Tookitaki, ComplyAdvantage, SiliconANGLE) · SR&nbsp;26-2 letter Apr&nbsp;2026 · OCC Bulletin 2026-13 · <em>Not a Gartner publication.</em></span>
+    <span>9 OF 11</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>
