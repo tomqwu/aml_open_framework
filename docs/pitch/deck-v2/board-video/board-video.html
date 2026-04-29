@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AML Open Framework — Board video (McKinsey style)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #ffffff;
+    --bg-soft:   #f6f7f9;
+    --ink:       #051c2c;
+    --ink-2:     #2b3641;
+    --ink-dim:   #5f6b78;
+    --ink-faint: #9aa3ad;
+    --accent:    #dd5c34;
+    --accent-tint: #fdeee5;
+    --accent-deep: #b04420;
+    --rule:      #e6eaef;
+    --rule-strong: #c8cfd6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px; height: 1080px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern", "liga", "ss01", "tnum";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ─────────────────────────────── Frame chrome (shared) ─────────────────────────────── */
+
+  .scene {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .scene.active { opacity: 1; pointer-events: auto; }
+
+  .exhibit-label {
+    position: absolute;
+    top: 60px; left: 96px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .exhibit-label .num { color: var(--accent); margin: 0 6px; }
+
+  .top-rule {
+    position: absolute;
+    top: 96px;
+    left: 96px; right: 96px;
+    height: 2px;
+    background: var(--ink);
+  }
+
+  .source-line {
+    position: absolute;
+    bottom: 60px;
+    left: 96px; right: 96px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    border-top: 1px solid var(--rule);
+    padding-top: 16px;
+  }
+  .source-line strong { color: var(--ink-dim); font-weight: 600; }
+
+  .action-title {
+    font-size: 44px;
+    font-weight: 600;
+    line-height: 1.20;
+    letter-spacing: -0.012em;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 1500px;
+  }
+  .action-title em { font-style: normal; color: var(--accent); }
+
+  .dek {
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    max-width: 1300px;
+    text-wrap: pretty;
+  }
+
+  .takeaway {
+    background: var(--accent-tint);
+    border-left: 3px solid var(--accent);
+    padding: 18px 24px;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--ink);
+    opacity: 0;
+  }
+  .takeaway .label {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-right: 10px;
+  }
+
+  /* Universal stage region */
+  .stage {
+    position: absolute;
+    top: 130px;
+    bottom: 110px;
+    left: 96px;
+    right: 96px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ============================================================ Scene 1 — Cover ============================================================ */
+  .s1-stage {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 96px;
+  }
+  .s1-eyebrow {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 36px;
+    transform: translateY(16px); opacity: 0;
+  }
+  .scene.active .s1-eyebrow { animation: fadeUp 0.8s 0.15s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s1-title {
+    font-size: 96px; font-weight: 600;
+    line-height: 1.04; letter-spacing: -0.022em;
+    color: var(--ink);
+    margin-bottom: 32px;
+    text-wrap: balance; max-width: 1500px;
+    transform: translateY(20px); opacity: 0;
+  }
+  .scene.active .s1-title { animation: fadeUp 1.0s 0.35s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s1-title .accent { color: var(--accent); }
+  .s1-thesis {
+    font-size: 26px; font-weight: 400; line-height: 1.45;
+    color: var(--ink-2); max-width: 1180px;
+    text-wrap: pretty;
+    margin-bottom: 28px;
+    transform: translateY(12px); opacity: 0;
+  }
+  .scene.active .s1-thesis { animation: fadeUp 0.9s 0.7s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s1-prepared {
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 24px;
+    width: 480px; opacity: 0;
+  }
+  .scene.active .s1-prepared { animation: fadeIn 0.8s 1.0s ease-out forwards; }
+  .s1-prepared strong { color: var(--ink-2); font-weight: 600; }
+
+  /* ============================================================ Scene 2 — The 2:1 rule ============================================================ */
+  .s2-action { margin-bottom: 12px; transform: translateY(12px); opacity: 0; }
+  .scene.active .s2-action { animation: fadeUp 0.8s 0.2s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s2-dek { margin-bottom: 56px; opacity: 0; }
+  .scene.active .s2-dek { animation: fadeIn 0.8s 0.5s ease-out forwards; }
+
+  .s2-chart {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 540px 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .s2-bars {
+    display: flex; flex-direction: column;
+    gap: 26px;
+  }
+  .s2-bar-row { display: grid; grid-template-columns: 220px 1fr 100px; gap: 20px; align-items: center; }
+  .s2-bar-row .name {
+    font-size: 16px; font-weight: 600; color: var(--ink);
+    text-align: right;
+  }
+  .s2-bar-row .name .sub {
+    display: block;
+    font-size: 12px; font-weight: 400; color: var(--ink-faint);
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+  }
+  .s2-bar-row .bar-track { height: 38px; position: relative; background: var(--bg-soft); border-radius: 1px; }
+  .s2-bar-row .bar-fill {
+    height: 100%;
+    background: var(--ink);
+    width: 0;
+    transform-origin: left;
+  }
+  .s2-bar-row.process .bar-fill { background: var(--accent); }
+  .s2-bar-row.data    .bar-fill { background: var(--ink); }
+  .scene.active .s2-bar-row.process .bar-fill { animation: growBar 1.2s 0.9s cubic-bezier(0.2,0.8,0.2,1) forwards; --w: 86%; }
+  .scene.active .s2-bar-row.data    .bar-fill { animation: growBar 1.2s 1.15s cubic-bezier(0.2,0.8,0.2,1) forwards; --w: 43%; }
+  .s2-bar-row .pct {
+    font-size: 22px; font-weight: 600;
+    color: var(--ink); font-variant-numeric: tabular-nums;
+    opacity: 0;
+  }
+  .scene.active .s2-bar-row.process .pct { animation: fadeIn 0.5s 1.7s ease-out forwards; }
+  .scene.active .s2-bar-row.data    .pct { animation: fadeIn 0.5s 1.9s ease-out forwards; }
+
+  .s2-quote {
+    border-left: 3px solid var(--ink);
+    padding: 20px 32px;
+    background: var(--bg-soft);
+  }
+  .s2-quote .text {
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--ink);
+    font-style: italic;
+    margin-bottom: 14px;
+    text-wrap: pretty;
+  }
+  .s2-quote .attr {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .s2-quote .attr strong { color: var(--ink-dim); }
+  .scene.active .s2-quote { animation: fadeIn 0.9s 0.7s ease-out forwards; opacity: 0; }
+  .scene.active .s2-quote { opacity: 1; }
+
+  .s2-takeaway { margin-top: 36px; }
+  .scene.active .s2-takeaway { animation: fadeIn 0.7s 2.2s ease-out forwards; }
+
+  /* ============================================================ Scene 3 — The cost ============================================================ */
+  .s3-action { margin-bottom: 12px; transform: translateY(12px); opacity: 0; }
+  .scene.active .s3-action { animation: fadeUp 0.8s 0.2s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s3-dek { margin-bottom: 64px; opacity: 0; }
+  .scene.active .s3-dek { animation: fadeIn 0.8s 0.5s ease-out forwards; }
+
+  .s3-stats {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 56px;
+    align-content: center;
+  }
+  .s3-stat {
+    border-top: 2px solid var(--ink);
+    padding-top: 28px;
+    opacity: 0; transform: translateY(14px);
+  }
+  .scene.active .s3-stat.s1 { animation: fadeUp 0.8s 0.7s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s3-stat.s2 { animation: fadeUp 0.8s 0.9s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s3-stat.s3 { animation: fadeUp 0.8s 1.1s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+
+  .s3-stat .label {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  .s3-stat .number {
+    font-size: 92px; font-weight: 600;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    margin-bottom: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .s3-stat .number .accent { color: var(--accent); }
+  .s3-stat .desc {
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin-bottom: 14px;
+    text-wrap: pretty;
+  }
+  .s3-stat .src {
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    border-top: 1px solid var(--rule);
+    padding-top: 10px;
+  }
+
+  .s3-takeaway { margin-top: 48px; opacity: 0; }
+  .scene.active .s3-takeaway { animation: fadeIn 0.7s 1.8s ease-out forwards; }
+
+  /* ============================================================ Scene 4 — What CCOs say ============================================================ */
+  .s4-action { margin-bottom: 12px; transform: translateY(12px); opacity: 0; }
+  .scene.active .s4-action { animation: fadeUp 0.8s 0.2s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s4-dek { margin-bottom: 48px; opacity: 0; }
+  .scene.active .s4-dek { animation: fadeIn 0.8s 0.5s ease-out forwards; }
+
+  .s4-quotes {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .s4-quote {
+    background: var(--bg-soft);
+    border-left: 3px solid var(--accent);
+    padding: 24px 30px;
+    display: flex; flex-direction: column;
+    gap: 14px;
+    opacity: 0; transform: translateY(14px);
+  }
+  .scene.active .s4-quote.q1 { animation: fadeUp 0.8s 0.7s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s4-quote.q2 { animation: fadeUp 0.8s 0.9s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s4-quote.q3 { animation: fadeUp 0.8s 1.1s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s4-quote.q4 { animation: fadeUp 0.8s 1.3s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s4-quote .pain {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .s4-quote .text {
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--ink);
+    text-wrap: pretty;
+  }
+  .s4-quote .attr {
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    border-top: 1px solid var(--rule);
+    padding-top: 10px;
+    margin-top: auto;
+  }
+  .s4-quote .attr strong { color: var(--ink-dim); font-weight: 600; }
+
+  /* ============================================================ Scene 5 — Thesis (already designed) ============================================================ */
+  .s5-action { margin-bottom: 16px; transform: translateY(12px); opacity: 0; }
+  .scene.active .s5-action { animation: fadeUp 0.8s 0.2s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s5-dek { margin-bottom: 56px; opacity: 0; }
+  .scene.active .s5-dek { animation: fadeIn 0.8s 0.5s ease-out forwards; }
+  .s5-exhibit { flex: 1; display: grid; grid-template-rows: auto auto auto; gap: 28px; align-content: start; }
+  .source-pill {
+    justify-self: center;
+    width: 360px;
+    padding: 28px 32px 24px;
+    background: var(--ink);
+    color: white;
+    text-align: center;
+    border-radius: 2px;
+    opacity: 0; transform: translateY(12px);
+  }
+  .scene.active .source-pill { animation: fadeUp 0.7s 0.85s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .source-pill .label {
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: rgba(255,255,255,0.6); margin-bottom: 8px; font-weight: 500;
+  }
+  .source-pill .name { font-size: 28px; font-weight: 600; color: white; margin-bottom: 4px; }
+  .source-pill .sub { font-size: 13px; color: rgba(255,255,255,0.7); letter-spacing: 0.02em; }
+  .branches { height: 100px; position: relative; }
+  .branches svg { width: 100%; height: 100%; }
+  .branches path { fill: none; stroke: var(--ink-dim); stroke-width: 1.5; stroke-dasharray: 700; stroke-dashoffset: 700; }
+  .scene.active .branches path.b1 { animation: drawLine 0.9s 1.2s ease-out forwards; }
+  .scene.active .branches path.b2 { animation: drawLine 0.9s 1.32s ease-out forwards; }
+  .scene.active .branches path.b3 { animation: drawLine 0.9s 1.44s ease-out forwards; }
+  .role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  .role-box {
+    border: 1px solid var(--rule-strong);
+    background: var(--bg);
+    padding: 24px 28px;
+    opacity: 0; transform: translateY(12px);
+  }
+  .scene.active .role-box.r1 { animation: fadeUp 0.7s 1.7s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .role-box.r2 { animation: fadeUp 0.7s 1.82s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .role-box.r3 { animation: fadeUp 0.7s 1.94s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .role-box .role {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 12px;
+  }
+  .role-box .what { font-size: 17px; font-weight: 500; line-height: 1.4; color: var(--ink); margin-bottom: 12px; }
+  .role-box .quote {
+    font-size: 14px; font-weight: 400; line-height: 1.5;
+    color: var(--ink-dim); font-style: italic;
+    border-top: 1px solid var(--rule); padding-top: 12px;
+  }
+  .s5-takeaway { margin-top: 40px; }
+  .scene.active .s5-takeaway { animation: fadeIn 0.8s 2.2s ease-out forwards; }
+
+  /* ============================================================ Scene 6 — What changes ============================================================ */
+  .s6-action { margin-bottom: 12px; transform: translateY(12px); opacity: 0; }
+  .scene.active .s6-action { animation: fadeUp 0.8s 0.2s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s6-dek { margin-bottom: 48px; opacity: 0; }
+  .scene.active .s6-dek { animation: fadeIn 0.8s 0.5s ease-out forwards; }
+
+  .s6-table {
+    flex: 1;
+    border-top: 2px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+  }
+  .s6-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px 1fr;
+    gap: 24px;
+    padding: 22px 8px;
+    border-bottom: 1px solid var(--rule);
+    align-items: center;
+    opacity: 0; transform: translateY(8px);
+  }
+  .scene.active .s6-row.r1 { animation: fadeUp 0.6s 0.6s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s6-row.r2 { animation: fadeUp 0.6s 0.8s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s6-row.r3 { animation: fadeUp 0.6s 1.0s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s6-row.r4 { animation: fadeUp 0.6s 1.2s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s6-row:last-child { border-bottom: none; }
+  .s6-row .num {
+    font-size: 14px; font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+  .s6-row .pain {
+    font-size: 19px;
+    font-weight: 500;
+    color: var(--ink);
+    font-style: italic;
+    line-height: 1.4;
+  }
+  .s6-row .arrow {
+    font-size: 22px;
+    color: var(--ink-faint);
+    text-align: center;
+    font-weight: 300;
+  }
+  .s6-row .answer {
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--ink-2);
+    line-height: 1.45;
+  }
+  .s6-row .answer strong { color: var(--ink); font-weight: 600; }
+
+  .s6-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px 1fr;
+    gap: 24px;
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  /* ============================================================ Scene 7 — By the numbers ============================================================ */
+  .s7-action { margin-bottom: 12px; transform: translateY(12px); opacity: 0; }
+  .scene.active .s7-action { animation: fadeUp 0.8s 0.2s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s7-dek { margin-bottom: 56px; opacity: 0; }
+  .scene.active .s7-dek { animation: fadeIn 0.8s 0.5s ease-out forwards; }
+
+  .s7-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: 36px 32px;
+    align-content: center;
+  }
+  .s7-cell {
+    border-top: 1px solid var(--ink);
+    padding-top: 18px;
+    opacity: 0; transform: translateY(10px);
+  }
+  .scene.active .s7-cell.c1 { animation: fadeUp 0.6s 0.7s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s7-cell.c2 { animation: fadeUp 0.6s 0.85s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s7-cell.c3 { animation: fadeUp 0.6s 1.0s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s7-cell.c4 { animation: fadeUp 0.6s 1.15s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s7-cell.c5 { animation: fadeUp 0.6s 1.3s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s7-cell.c6 { animation: fadeUp 0.6s 1.45s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s7-cell.c7 { animation: fadeUp 0.6s 1.6s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .scene.active .s7-cell.c8 { animation: fadeUp 0.6s 1.75s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+
+  .s7-cell .num {
+    font-size: 56px;
+    font-weight: 600;
+    line-height: 1.0;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-bottom: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .s7-cell .num .small { font-size: 32px; font-weight: 500; color: var(--ink-dim); }
+  .s7-cell .num.accent { color: var(--accent); }
+  .s7-cell .label {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .s7-cell .desc {
+    font-size: 14px;
+    color: var(--ink-2);
+    line-height: 1.45;
+  }
+
+  /* ============================================================ Scene 8 — Close ============================================================ */
+  .s8-stage {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 96px;
+  }
+  .s8-eyebrow {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 32px;
+    transform: translateY(12px); opacity: 0;
+  }
+  .scene.active .s8-eyebrow { animation: fadeUp 0.8s 0.15s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s8-title {
+    font-size: 78px; font-weight: 600;
+    line-height: 1.05; letter-spacing: -0.022em;
+    color: var(--ink);
+    margin-bottom: 56px;
+    text-wrap: balance; max-width: 1500px;
+    transform: translateY(16px); opacity: 0;
+  }
+  .scene.active .s8-title { animation: fadeUp 0.9s 0.35s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+  .s8-title em { font-style: normal; color: var(--accent); }
+  .s8-paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; max-width: 1500px; opacity: 0; }
+  .scene.active .s8-paths { animation: fadeIn 0.9s 0.75s ease-out forwards; }
+  .s8-path { border-top: 2px solid var(--ink); padding-top: 22px; }
+  .s8-path .lead {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .s8-path h3 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 12px;
+    line-height: 1.25;
+  }
+  .s8-path p {
+    font-size: 15px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+
+  .s8-repo {
+    margin-top: 56px;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 22px;
+    width: 720px;
+    opacity: 0;
+  }
+  .scene.active .s8-repo { animation: fadeIn 0.9s 1.1s ease-out forwards; }
+  .s8-repo .url { color: var(--accent); font-weight: 500; }
+
+  /* ─────────────────────────────── Animations ─────────────────────────────── */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes drawLine { to { stroke-dashoffset: 0; } }
+  @keyframes growBar { from { width: 0; } to { width: var(--w); } }
+</style>
+</head>
+<body>
+
+  <!-- ─────────────────────────────── Scene 1 · Cover ─────────────────────────────── -->
+  <section class="scene" id="s1" data-start="0" data-end="6.0">
+    <div class="exhibit-label">AML Open Framework <span class="num">·</span> Board briefing <span class="num">·</span> 2026</div>
+    <div class="top-rule"></div>
+    <div class="s1-stage">
+      <div class="s1-eyebrow">Anti-Money Laundering · 2026 Edition</div>
+      <h1 class="s1-title">An AML program <span class="accent">every decision</span> can be replayed.</h1>
+      <p class="s1-thesis">
+        Process and governance gaps outnumber data and model gaps roughly 2:1 in every recent
+        consent order. The cost of being unable to evidence a decision is now larger than the
+        cost of missing one.
+      </p>
+      <div class="s1-prepared">Prepared for <strong>CCO · MLRO · Audit Committee</strong></div>
+    </div>
+    <div class="source-line">
+      <span><strong>Source:</strong> FCA Dear-CEO Letter (Mar&nbsp;2024) · FinCEN TD&nbsp;Bank consent order (Oct&nbsp;2024) · LexisNexis True&nbsp;Cost of Compliance (Feb&nbsp;2024)</span>
+      <span>1 OF 8</span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────── Scene 2 · The 2:1 rule ─────────────────────────────── -->
+  <section class="scene" id="s2" data-start="6.0" data-end="14.5">
+    <div class="exhibit-label">Exhibit <span class="num">2</span> The 2:1 rule</div>
+    <div class="top-rule"></div>
+    <div class="stage">
+      <h2 class="action-title s2-action">
+        Process and governance gaps account for <em>~2:1</em> of every consent-order finding — not detection failures.
+      </h2>
+      <p class="dek s2-dek">
+        Five of the largest 2024–25 enforcement actions surveyed (TD, RBC, Wells&nbsp;Fargo, NatWest, Citibank).
+        Regulators rarely allege the bank missed a typology. They allege the bank cannot evidence what it did.
+      </p>
+
+      <div class="s2-chart">
+        <div class="s2-bars">
+          <div class="s2-bar-row process">
+            <div class="name">Process &amp; governance<span class="sub">audit trail · roles · accountability</span></div>
+            <div class="bar-track"><div class="bar-fill"></div></div>
+            <div class="pct">~67%</div>
+          </div>
+          <div class="s2-bar-row data">
+            <div class="name">Data &amp; model<span class="sub">scenarios · thresholds · coverage</span></div>
+            <div class="bar-track"><div class="bar-fill"></div></div>
+            <div class="pct">~33%</div>
+          </div>
+        </div>
+
+        <div class="s2-quote">
+          <div class="text">"Decisions made in relation to financial crime were not supported by evidence or an audit trail of debate and challenge."</div>
+          <div class="attr"><strong>FCA Dear-CEO Letter to Annex 1 firms</strong> · March 2024 · still operative in 2026</div>
+        </div>
+      </div>
+
+      <div class="takeaway s2-takeaway">
+        <span class="label">Key takeaway</span>
+        Lead with proof, not detection. The single highest-leverage place to spend a compliance dollar in 2026 is on <em>provability</em>.
+      </div>
+    </div>
+    <div class="source-line">
+      <span><strong>Source:</strong> Synthesis of TD&nbsp;Bank, RBC, Wells&nbsp;Fargo, NatWest, Citibank consent orders 2024–25 · FCA Dear-CEO 2024 · K&amp;L Gates 2024 BSA review</span>
+      <span>2 OF 8</span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────── Scene 3 · The cost ─────────────────────────────── -->
+  <section class="scene" id="s3" data-start="14.5" data-end="22.5">
+    <div class="exhibit-label">Exhibit <span class="num">3</span> The cost in three sizes</div>
+    <div class="top-rule"></div>
+    <div class="stage">
+      <h2 class="action-title s3-action">
+        The bill arrives in three sizes — and the largest is <em>still growing</em>.
+      </h2>
+      <p class="dek s3-dek">
+        A single record-breaking penalty in 2024, an industry-wide annual run-rate, and a daily-process tax —
+        the same dollars that buy detection also buy poor evidence and poor signal.
+      </p>
+
+      <div class="s3-stats">
+        <div class="s3-stat s1">
+          <div class="label">Single-bank penalty · 2024</div>
+          <div class="number"><span class="accent">$3.09</span>B</div>
+          <div class="desc">TD Bank's Oct&nbsp;2024 plea — the largest BSA enforcement action in history. Includes a U.S. asset cap (~$434B), only the 2nd ever on a major bank.</div>
+          <div class="src">FinCEN · DOJ · OCC consent order</div>
+        </div>
+        <div class="s3-stat s2">
+          <div class="label">Annual industry spend · US + CA</div>
+          <div class="number"><span class="accent">$61</span>B</div>
+          <div class="desc">Annual cost of financial-crime compliance. The CCO's recurring board question — <em>"is the juice worth the squeeze?"</em> — is now FinCEN's literal RFI title.</div>
+          <div class="src">LexisNexis Risk Solutions Feb 2024 · FinCEN Sep 2025 RFI</div>
+        </div>
+        <div class="s3-stat s3">
+          <div class="label">Industry false-positive baseline</div>
+          <div class="number"><span class="accent">95</span>%</div>
+          <div class="desc">Of every 100 alerts, 95 close as legitimate. Analyst attention is the scarce resource — and most of it is spent on noise, not signal.</div>
+          <div class="src">Flagright industry analysis · NICE Actimize 2026</div>
+        </div>
+      </div>
+
+      <div class="takeaway s3-takeaway">
+        <span class="label">Key takeaway</span>
+        The visible cost is the fine. The invisible cost is the analyst hour spent on the 95th false positive — every day, every quarter, every year.
+      </div>
+    </div>
+    <div class="source-line">
+      <span><strong>Source:</strong> FinCEN release Oct&nbsp;2024 · LexisNexis True&nbsp;Cost of FCC Feb&nbsp;2024 · FinCEN AML-cost RFI Sep&nbsp;2025 · Flagright TM industry analysis</span>
+      <span>3 OF 8</span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────── Scene 4 · What CCOs say ─────────────────────────────── -->
+  <section class="scene" id="s4" data-start="22.5" data-end="32.5">
+    <div class="exhibit-label">Exhibit <span class="num">4</span> What leaders actually say</div>
+    <div class="top-rule"></div>
+    <div class="stage">
+      <h2 class="action-title s4-action">
+        The diagnosis is in the language: four sentences a CCO says <em>before</em> the regulator does.
+      </h2>
+      <p class="dek s4-dek">
+        Quoted verbatim from public regulator letters and consent orders — none paraphrased. Every line below
+        is something a Chief Compliance Officer or regulator has put on the record between 2024 and 2026.
+      </p>
+
+      <div class="s4-quotes">
+        <div class="s4-quote q1">
+          <div class="pain">PAIN-1 · Audit-defensibility</div>
+          <div class="text">"Decisions made in relation to financial crime were not supported by evidence or an audit trail of debate and challenge."</div>
+          <div class="attr"><strong>FCA</strong> · Dear-CEO Letter to Annex 1 firms · Mar 2024</div>
+        </div>
+        <div class="s4-quote q2">
+          <div class="pain">PAIN-2 · Backlog visibility</div>
+          <div class="text">"Trillions of dollars in transactions annually went unmonitored… the AIU detection queue was in red status for years."</div>
+          <div class="attr"><strong>FinCEN</strong> · TD Bank consent order · Oct 2024 ($3.09B)</div>
+        </div>
+        <div class="s4-quote q3">
+          <div class="pain">PAIN-6 · Model validation</div>
+          <div class="text">"Transaction monitoring systems… meet the definition of 'model' and are held to the same standard."</div>
+          <div class="attr"><strong>ACAMS / 2021 Interagency Statement</strong> · still cited 2026</div>
+        </div>
+        <div class="s4-quote q4">
+          <div class="pain">PAIN-8 · ROI</div>
+          <div class="text">"Is the juice worth the squeeze?"</div>
+          <div class="attr"><strong>FinCEN</strong> · AML-Compliance-Cost RFI literal subject line · Sep 2025</div>
+        </div>
+      </div>
+    </div>
+    <div class="source-line">
+      <span><strong>Source:</strong> All quotes verbatim from cited regulator publications · full pain-point research at <em>docs/research/2026-04-aml-process-pain.md</em></span>
+      <span>4 OF 8</span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────── Scene 5 · The thesis ─────────────────────────────── -->
+  <section class="scene" id="s5" data-start="32.5" data-end="40.5">
+    <div class="exhibit-label">Exhibit <span class="num">5</span> The thesis</div>
+    <div class="top-rule"></div>
+    <div class="stage">
+      <h2 class="action-title s5-action">
+        One specification serves three reviewers — <em>without re-translation</em>.
+      </h2>
+      <p class="dek s5-dek">
+        A single machine-readable file is authored by Compliance, executed unchanged by Engineering, and
+        replayed byte-for-byte by an Auditor. Three different readings of the same artifact — every quarter, every regulator visit.
+      </p>
+      <div class="s5-exhibit">
+        <div class="source-pill">
+          <div class="label">Source of truth</div>
+          <div class="name">aml.yaml</div>
+          <div class="sub">written once · committed to version control</div>
+        </div>
+        <div class="branches">
+          <svg viewBox="0 0 1740 100" preserveAspectRatio="none">
+            <path class="b1" d="M 870 0 L 290 100" />
+            <path class="b2" d="M 870 0 L 870 100" />
+            <path class="b3" d="M 870 0 L 1450 100" />
+          </svg>
+        </div>
+        <div class="role-grid">
+          <div class="role-box r1">
+            <div class="role">First line · Compliance</div>
+            <div class="what">The risk policy in machine-readable form, in our own language.</div>
+            <div class="quote">"Our scenarios, our thresholds, every line cited to a regulation."</div>
+          </div>
+          <div class="role-box r2">
+            <div class="role">Engineering</div>
+            <div class="what">The schema we build from. The data the engine consumes.</div>
+            <div class="quote">"Compiles deterministically — same spec, same data, same answer."</div>
+          </div>
+          <div class="role-box r3">
+            <div class="role">Auditor · 2LoD</div>
+            <div class="what">The artifact I can replay any quarter, byte-for-byte.</div>
+            <div class="quote">"When the regulator asks 'who decided?' — the answer is in the file."</div>
+          </div>
+        </div>
+      </div>
+      <div class="takeaway s5-takeaway">
+        <span class="label">Key takeaway</span>
+        Eliminating the translation layer between three lines of defence removes the most-cited finding in 2024–26 consent orders: <em>"controls existed; the bank could not evidence they were used."</em>
+      </div>
+    </div>
+    <div class="source-line">
+      <span><strong>Source:</strong> AML Open Framework specification model · primary-source quotes from FCA Dear-CEO 2024 + K&amp;L Gates 2024 BSA review</span>
+      <span>5 OF 8</span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────── Scene 6 · What changes ─────────────────────────────── -->
+  <section class="scene" id="s6" data-start="40.5" data-end="49.5">
+    <div class="exhibit-label">Exhibit <span class="num">6</span> Pain → Capability map</div>
+    <div class="top-rule"></div>
+    <div class="stage">
+      <h2 class="action-title s6-action">
+        Each pain has a single, evidenced answer — <em>one file</em> away.
+      </h2>
+      <p class="dek s6-dek">
+        Direct mapping from public-record regulator findings to specific framework capabilities. No black box, no vendor add-ons.
+      </p>
+
+      <div class="s6-table">
+        <div class="s6-header">
+          <div></div>
+          <div>Leader's pain (regulator-cited)</div>
+          <div></div>
+          <div>Framework capability (what changes)</div>
+        </div>
+
+        <div class="s6-row r1">
+          <div class="num">1</div>
+          <div class="pain">"We can't prove what we did."</div>
+          <div class="arrow">→</div>
+          <div class="answer"><strong>Hash-chained</strong> <code style="font-family:'Inter',sans-serif;font-size:14px;color:var(--accent);">decisions.jsonl</code> + deterministic replay. Any historical run reproducible byte-for-byte.</div>
+        </div>
+        <div class="s6-row r2">
+          <div class="num">2</div>
+          <div class="pain">"The backlog has been red on the board for years."</div>
+          <div class="arrow">→</div>
+          <div class="answer"><strong>SLA timer + escalation engine.</strong> Red queues become loud, not slide-decoration. Per-queue breach-rate badges visible to the board.</div>
+        </div>
+        <div class="s6-row r3">
+          <div class="num">3</div>
+          <div class="pain">"Our risk assessment is a PDF nobody trusts."</div>
+          <div class="arrow">→</div>
+          <div class="answer"><strong>The spec IS the risk assessment</strong> — machine-readable, cited line-by-line. <em>Framework Alignment</em> dashboard renders the live BRA from the spec.</div>
+        </div>
+        <div class="s6-row r4">
+          <div class="num">4</div>
+          <div class="pain">"My monitoring system is a model and I cannot validate it."</div>
+          <div class="arrow">→</div>
+          <div class="answer"><strong>Per-rule MRM dossier + 4-quarter backtester.</strong> "Is rule X still earning its keep?" answered before lunch — no vendor study.</div>
+        </div>
+      </div>
+    </div>
+    <div class="source-line">
+      <span><strong>Source:</strong> Pain points 1, 2, 4, 6 from <em>docs/research/2026-04-aml-process-pain.md</em> · capability mapping in framework README + audit-evidence.md</span>
+      <span>6 OF 8</span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────── Scene 7 · By the numbers ─────────────────────────────── -->
+  <section class="scene" id="s7" data-start="49.5" data-end="56.5">
+    <div class="exhibit-label">Exhibit <span class="num">7</span> What the operator inherits</div>
+    <div class="top-rule"></div>
+    <div class="stage">
+      <h2 class="action-title s7-action">
+        The framework arrives <em>built</em>, not blueprinted.
+      </h2>
+      <p class="dek s7-dek">
+        Open-source · runs in your perimeter · no per-seat licence · every rule cites a regulation · re-runs deterministically.
+      </p>
+
+      <div class="s7-grid">
+        <div class="s7-cell c1">
+          <div class="num accent">8</div>
+          <div class="label">Curated typologies</div>
+          <div class="desc">Every line cited to a regulator publication. Day-one detection.</div>
+        </div>
+        <div class="s7-cell c2">
+          <div class="num accent">4</div>
+          <div class="label">Active jurisdictions</div>
+          <div class="desc">US (FinCEN) · CA (FINTRAC) · UK (FCA) · EU (EBA). FATF Travel Rule.</div>
+        </div>
+        <div class="s7-cell c3">
+          <div class="num accent">26</div>
+          <div class="label">Dashboard pages</div>
+          <div class="desc">Persona-aware. Sidebar filters by role — CCO sees board signal, analyst sees queue.</div>
+        </div>
+        <div class="s7-cell c4">
+          <div class="num accent">9</div>
+          <div class="label">Reference specs</div>
+          <div class="desc">Schedule-I bank · community bank · VASP · cyber-fraud · trade-based ML · …</div>
+        </div>
+
+        <div class="s7-cell c5">
+          <div class="num">1,632</div>
+          <div class="label">Tests · all green</div>
+          <div class="desc">5 CI jobs per pull request. Lint, unit, API, e2e dashboard, docker.</div>
+        </div>
+        <div class="s7-cell c6">
+          <div class="num">SHA<span class="small">-256</span></div>
+          <div class="label">Audit chain</div>
+          <div class="desc">Hash-chained decision log. Tampering breaks attestation, by construction.</div>
+        </div>
+        <div class="s7-cell c7">
+          <div class="num">MIT</div>
+          <div class="label">Licence</div>
+          <div class="desc">Apache 2.0 / MIT compatible. Forkable. Runs entirely in your perimeter.</div>
+        </div>
+        <div class="s7-cell c8">
+          <div class="num">$0</div>
+          <div class="label">Per-seat fees</div>
+          <div class="desc">No vendor licence renewals. Effectiveness pack quantifies what you spent.</div>
+        </div>
+      </div>
+    </div>
+    <div class="source-line">
+      <span><strong>Source:</strong> Live counts from <em>main</em> branch as of 2026-04-29 · github.com/tomqwu/aml_open_framework</span>
+      <span>7 OF 8</span>
+    </div>
+  </section>
+
+  <!-- ─────────────────────────────── Scene 8 · Close ─────────────────────────────── -->
+  <section class="scene" id="s8" data-start="56.5" data-end="63.0">
+    <div class="exhibit-label">AML Open Framework <span class="num">·</span> Engagement</div>
+    <div class="top-rule"></div>
+    <div class="s8-stage">
+      <div class="s8-eyebrow">Three paths from here</div>
+      <h1 class="s8-title">
+        The next step takes <em>five minutes</em>.
+      </h1>
+
+      <div class="s8-paths">
+        <div class="s8-path">
+          <div class="lead">Read · 15 min</div>
+          <h3>Show me the research.</h3>
+          <p>Open the 10-pain-point doc with primary citations and the TD&nbsp;2024 case study. Frame is unbranded.</p>
+        </div>
+        <div class="s8-path">
+          <div class="lead">Try · 5 min</div>
+          <h3>Run it on my desk.</h3>
+          <p>Clone, install, run a real audit pack against the canonical spec. No vendor demo cycle.</p>
+        </div>
+        <div class="s8-path">
+          <div class="lead">Talk · 30 min</div>
+          <h3>Walk me through it.</h3>
+          <p>Bring your spec or pain — pull-request a typology, open a Discussion, or tag the maintainer.</p>
+        </div>
+      </div>
+
+      <div class="s8-repo">
+        <span style="color:var(--ink-faint);font-size:13px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Open source · MIT</span><br>
+        <span class="url">github.com/tomqwu/aml_open_framework</span>
+      </div>
+    </div>
+    <div class="source-line">
+      <span><strong>Source:</strong> AML Open Framework · primary-source research grounded in FCA / FinCEN / OSFI / FINTRAC public record</span>
+      <span>8 OF 8 · END</span>
+    </div>
+  </section>
+
+  <script>
+  (() => {
+    const scenes = [...document.querySelectorAll('.scene')].map(el => ({
+      el,
+      start: parseFloat(el.dataset.start),
+      end: parseFloat(el.dataset.end),
+    }));
+    const total = Math.max(...scenes.map(s => s.end));
+
+    let startTime = null;
+    function tick(now) {
+      const t = (now - startTime) / 1000;
+      scenes.forEach(s => {
+        const active = t >= s.start && t < s.end;
+        s.el.classList.toggle('active', active);
+      });
+      if (t < total + 1) requestAnimationFrame(tick);
+    }
+
+    document.fonts.ready.then(() => {
+      requestAnimationFrame((now) => {
+        scenes[0].el.classList.add('active');
+        window.__ready = true;
+        startTime = now;
+        requestAnimationFrame(tick);
+      });
+    });
+  })();
+  </script>
+
+</body>
+</html>
