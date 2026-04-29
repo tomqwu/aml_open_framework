@@ -16,10 +16,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-import pandas as pd
 import pytest
 
-from aml_framework.dashboard.today import (
+# pandas is in `dashboard` extras, not `dev`. The unit-tests CI image
+# only installs `.[dev]`, so skip the whole module gracefully there.
+pd = pytest.importorskip("pandas")
+
+from aml_framework.dashboard.today import (  # noqa: E402
     TodayCard,
     build_cards_for_audience,
 )
