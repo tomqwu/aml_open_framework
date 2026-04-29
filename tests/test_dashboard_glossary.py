@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import re
 
-from aml_framework.dashboard.components import (
+# Import from the standalone glossary module (no pandas/streamlit
+# dependency) so this test runs on the unit-tests CI image where
+# `.[dashboard]` extras aren't installed.
+from aml_framework.dashboard.glossary import (
     GLOSSARY,
     glossary_legend,
     glossary_term,
