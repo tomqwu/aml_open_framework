@@ -3,27 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AML Open Framework — Choose your view</title>
+<title>AML Open Framework — Demo & Resources</title>
+<meta name="description" content="An anti-money-laundering program you can replay. Two audience-tailored decks (board · technical), two videos, primary-source research, full source code under MIT.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:        #f7f4ec;        /* warm parchment, between business + tech */
+    --bg:        #f7f4ec;        /* warm parchment */
+    --bg-card:   #fdfbf5;        /* slight warm white for resource cards */
     --ink:       #1c1f26;
     --ink-2:     #2b3641;
     --ink-dim:   #5f6b78;
     --ink-faint: #9aa3ad;
-    --accent:    #a44b30;        /* same family as deck-v2, slightly warmer */
+    --accent:    #a44b30;        /* terracotta */
     --rule:      rgba(28, 31, 38, 0.10);
+    --rule-strong: rgba(28, 31, 38, 0.18);
 
-    --biz-ink:   #051c2c;
     --biz-bg:    #ffffff;
-    --biz-accent:#dd5c34;
+    --biz-ink:   #051c2c;
+    --biz-acc:   #dd5c34;
 
-    --tech-ink:  #67e8f9;
     --tech-bg:   #0a0e1a;
-    --tech-accent:#67e8f9;
+    --tech-ink:  #f1f5f9;
+    --tech-acc:  #67e8f9;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,22 +36,26 @@
     color: var(--ink);
     font-family: 'Inter', -apple-system, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
     line-height: 1.5;
+    min-height: 100vh;
   }
 
   .wrap {
-    max-width: 1280px;
+    max-width: 1320px;
     margin: 0 auto;
-    padding: 80px 48px 96px;
+    padding: 56px 48px 88px;
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 40px 24px 64px; }
   }
 
-  /* ─────────────────────────────── Header ─────────────────────────────── */
+  /* ─────────────────────────────── Hero ─────────────────────────────── */
 
-  header {
-    margin-bottom: 80px;
+  header.hero {
+    margin-bottom: 64px;
   }
   .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.22em;
@@ -58,21 +65,21 @@
   }
   h1.title {
     font-family: 'Source Serif 4', Georgia, serif;
-    font-size: clamp(48px, 7vw, 88px);
+    font-size: clamp(40px, 6vw, 72px);
     font-weight: 600;
     line-height: 1.05;
     letter-spacing: -0.025em;
     color: var(--ink);
-    margin-bottom: 32px;
+    margin-bottom: 28px;
     text-wrap: balance;
     max-width: 1100px;
   }
   h1.title em { font-style: italic; font-weight: 400; color: var(--accent); }
   .lede {
-    font-size: 22px;
-    line-height: 1.5;
+    font-size: 20px;
+    line-height: 1.55;
     color: var(--ink-2);
-    max-width: 900px;
+    max-width: 920px;
     text-wrap: pretty;
     margin-bottom: 16px;
   }
@@ -80,254 +87,587 @@
     font-size: 14px;
     color: var(--ink-faint);
     letter-spacing: 0.04em;
-    max-width: 900px;
+    max-width: 920px;
+    line-height: 1.6;
   }
   .lede-cite em { font-style: italic; color: var(--ink-dim); }
 
-  /* ─────────────────────────────── Two-card chooser ─────────────────────────────── */
+  .stat-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 36px;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-dim);
+    letter-spacing: 0.04em;
+  }
+  .stat-strip strong {
+    color: var(--ink);
+    font-weight: 600;
+    margin-right: 6px;
+  }
 
-  .chooser {
+  /* ─────────────────────────────── Section heading ─────────────────────────────── */
+
+  h2.section-h {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 8px;
+    letter-spacing: -0.012em;
+  }
+  h2.section-h em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .section-dek {
+    font-size: 15px;
+    color: var(--ink-dim);
+    margin-bottom: 32px;
+    max-width: 900px;
+    text-wrap: pretty;
+  }
+
+  section.block + section.block { margin-top: 64px; }
+
+  /* ─────────────────────────────── Two-card audience picker ─────────────────────────────── */
+
+  .picker {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 28px;
-    margin-bottom: 64px;
+    gap: 24px;
   }
-  @media (max-width: 900px) {
-    .chooser { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 900px) { .picker { grid-template-columns: 1fr; } }
 
-  .card {
+  .pick {
     background: var(--biz-bg);
     color: var(--biz-ink);
     border: 1px solid rgba(28,31,38,0.08);
-    border-radius: 4px;
-    padding: 40px 40px 36px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    text-decoration: none;
-    color: inherit;
+    border-radius: 6px;
+    padding: 32px 32px 24px;
     display: flex;
     flex-direction: column;
-    min-height: 540px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .card:hover {
-    transform: translateY(-3px);
+  .pick:hover {
+    transform: translateY(-2px);
     box-shadow: 0 16px 48px rgba(0,0,0,0.10);
   }
-  .card.tech {
+  .pick.tech {
     background: var(--tech-bg);
-    color: #f1f5f9;
+    color: var(--tech-ink);
     border: 1px solid rgba(255,255,255,0.08);
   }
 
-  .card .for-tag {
+  .pick .for-tag {
+    font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
-  .card.biz  .for-tag { color: var(--biz-accent); }
-  .card.tech .for-tag { color: var(--tech-accent); }
+  .pick.biz  .for-tag { color: var(--biz-acc); }
+  .pick.tech .for-tag { color: var(--tech-acc); }
 
-  .card h2 {
+  .pick h3 {
     font-family: 'Inter', sans-serif;
-    font-size: 36px;
+    font-size: 28px;
     font-weight: 600;
-    line-height: 1.15;
+    line-height: 1.2;
     letter-spacing: -0.018em;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
   }
-  .card.biz  h2 { color: var(--biz-ink); }
-  .card.tech h2 { color: #f1f5f9; }
+  .pick.biz  h3 { color: var(--biz-ink); }
+  .pick.tech h3 { color: var(--tech-ink); }
 
-  .card .roles {
+  .pick .roles {
+    font-size: 13px;
+    margin-bottom: 18px;
+    letter-spacing: 0.02em;
+  }
+  .pick.biz  .roles { color: var(--ink-dim); }
+  .pick.tech .roles { color: rgba(241,245,249,0.55); }
+
+  .pick .desc {
     font-size: 15px;
-    margin-bottom: 28px;
-  }
-  .card.biz  .roles { color: var(--ink-dim); }
-  .card.tech .roles { color: rgba(255,255,255,0.55); }
-
-  .card .desc {
-    font-size: 16px;
     line-height: 1.55;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
     text-wrap: pretty;
   }
-  .card.biz  .desc { color: var(--ink-2); }
-  .card.tech .desc { color: rgba(255,255,255,0.75); }
+  .pick.biz  .desc { color: var(--ink-2); }
+  .pick.tech .desc { color: rgba(241,245,249,0.78); }
 
-  .card .signals {
+  /* Resource list inside each picker card */
+  .res-list {
     list-style: none;
     padding: 0;
-    margin: 0 0 28px;
+    margin: 0;
     border-top: 1px solid;
-    padding-top: 20px;
-  }
-  .card.biz  .signals { border-color: rgba(28,31,38,0.10); }
-  .card.tech .signals { border-color: rgba(255,255,255,0.08); }
-  .card .signals li {
-    display: grid;
-    grid-template-columns: 16px 1fr;
-    gap: 14px;
-    padding: 6px 0;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-  .card.biz  .signals li { color: var(--ink-2); }
-  .card.tech .signals li { color: rgba(255,255,255,0.7); }
-  .card .signals li::before {
-    content: "→";
-    font-weight: 600;
-  }
-  .card.biz  .signals li::before { color: var(--biz-accent); }
-  .card.tech .signals li::before { color: var(--tech-accent); }
-
-  .card .links {
-    margin-top: auto;
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
     padding-top: 16px;
   }
-  .card .pill {
+  .pick.biz  .res-list { border-color: rgba(28,31,38,0.10); }
+  .pick.tech .res-list { border-color: rgba(241,245,249,0.10); }
+
+  .res-list li {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    gap: 16px;
+    align-items: baseline;
+    padding: 12px 0;
+    border-bottom: 1px solid;
+  }
+  .pick.biz  .res-list li { border-color: rgba(28,31,38,0.06); }
+  .pick.tech .res-list li { border-color: rgba(241,245,249,0.06); }
+  .res-list li:last-child { border-bottom: none; }
+
+  .res-list .icon {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-align: center;
+    padding: 2px 4px;
+    border-radius: 2px;
+    line-height: 1.4;
+    align-self: center;
+  }
+  .pick.biz  .res-list .icon { background: rgba(221,92,52,0.12); color: var(--biz-acc); }
+  .pick.tech .res-list .icon { background: rgba(103,232,249,0.10); color: var(--tech-acc); }
+
+  .res-list .label {
+    display: flex;
+    flex-direction: column;
+  }
+  .res-list a {
+    color: inherit;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 16px;
+  }
+  .res-list a:hover { text-decoration: underline; }
+  .res-list .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+  }
+  .pick.biz  .res-list .meta { color: var(--ink-faint); }
+  .pick.tech .res-list .meta { color: rgba(241,245,249,0.4); }
+
+  .res-list .arrow {
+    font-size: 14px;
+    opacity: 0.4;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .res-list li:hover .arrow {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+
+  /* Primary CTA inside each picker */
+  .pick .primary-cta {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
+    padding: 12px 22px;
     border-radius: 999px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     letter-spacing: 0.04em;
-    transition: opacity 0.15s ease;
+    margin-top: 20px;
+    align-self: flex-start;
+    transition: transform 0.15s ease;
+    text-decoration: none;
   }
-  .card.biz .pill.primary {
-    background: var(--biz-ink);
-    color: #fff;
+  .pick.biz  .primary-cta { background: var(--biz-ink); color: #fff; }
+  .pick.tech .primary-cta { background: var(--tech-acc); color: var(--tech-bg); }
+  .pick .primary-cta:hover { transform: translateY(-1px); }
+
+  /* ─────────────────────────────── More resources (research / source) ─────────────────────────────── */
+
+  .more-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
   }
-  .card.biz .pill.secondary {
-    background: transparent;
-    color: var(--biz-ink);
-    border: 1px solid rgba(28,31,38,0.18);
+  @media (max-width: 900px) { .more-grid { grid-template-columns: 1fr; } }
+
+  .more-card {
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 28px 28px 24px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   }
-  .card.tech .pill.primary {
-    background: var(--tech-accent);
-    color: var(--tech-bg);
+  .more-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.06);
+    border-color: var(--rule-strong);
   }
-  .card.tech .pill.secondary {
-    background: transparent;
-    color: #f1f5f9;
-    border: 1px solid rgba(255,255,255,0.20);
+  .more-card .kind {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 16px;
   }
-  .card .pill:hover { opacity: 0.85; }
+  .more-card h4 {
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+    margin-bottom: 10px;
+  }
+  .more-card p {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+    flex: 1;
+    text-wrap: pretty;
+  }
+  .more-card .link {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    word-break: break-all;
+  }
+
+  /* ─────────────────────────────── How to use ─────────────────────────────── */
+
+  .how {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 900px) { .how { grid-template-columns: 1fr; } }
+
+  .how-row {
+    border-top: 2px solid var(--ink);
+    padding-top: 20px;
+  }
+  .how-row .who {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .how-row h5 {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 12px;
+    color: var(--ink);
+  }
+  .how-row p {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-dim);
+    text-wrap: pretty;
+  }
+  .how-row p code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+  }
 
   /* ─────────────────────────────── Footer ─────────────────────────────── */
 
   footer {
+    margin-top: 80px;
     border-top: 1px solid var(--rule);
-    padding-top: 32px;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 16px;
+    padding-top: 28px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
     font-size: 13px;
     color: var(--ink-faint);
-    letter-spacing: 0.04em;
   }
-  footer a { color: var(--accent); text-decoration: none; }
-  footer a:hover { text-decoration: underline; }
+  @media (max-width: 720px) { footer { grid-template-columns: 1fr; } }
+  footer a { color: var(--ink-dim); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
   footer .repo {
-    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 14px;
     color: var(--ink-2);
   }
+  footer .repo a { color: var(--ink-2); }
+  footer .repo a:hover { color: var(--accent); }
 
-  .meta-strip {
-    margin-bottom: 24px;
-    font-size: 12px;
-    color: var(--ink-faint);
-    letter-spacing: 0.06em;
-    display: flex;
-    gap: 14px;
-    flex-wrap: wrap;
+  /* Skip-link for keyboard users */
+  .skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--ink);
+    color: #fff;
+    padding: 8px 16px;
+    z-index: 100;
   }
-  .meta-strip strong { color: var(--ink-dim); font-weight: 600; }
+  .skip:focus { left: 8px; top: 8px; }
 </style>
 </head>
 <body>
 
+  <a href="#picker" class="skip">Skip to picker</a>
+
   <div class="wrap">
 
-    <header>
-      <div class="eyebrow">AML Open Framework · 2026</div>
-      <h1 class="title">
-        Two views of the same framework — <em>choose your audience</em>.
-      </h1>
+    <header class="hero">
+      <div class="eyebrow">AML Open Framework · Resource hub · 2026</div>
+      <h1 class="title">Two views of the same framework — <em>choose your audience</em>.</h1>
       <p class="lede">
-        The same underlying open-source AML program, narrated for the two readers it has
-        to serve at once: the executive who has to defend the program and the engineer
-        who has to ship it.
+        An anti-money-laundering program you can show to your regulator without a six-week
+        reconstruction. Process and governance gaps outnumber data and model gaps roughly
+        2:1 in every recent consent order — so we lead with proof, not detection.
       </p>
       <p class="lede-cite">
         Grounded in primary-source research: <em>FCA Dear-CEO Letter (Mar 2024)</em> ·
-        <em>FinCEN TD Bank consent order (Oct 2024, $3.09B)</em> ·
+        <em>FinCEN TD Bank consent order (Oct 2024 · $3.09B)</em> ·
         <em>LexisNexis True Cost of Compliance (Feb 2024)</em> ·
-        full pain-point doc available in the source repo.
+        <em>FinCEN AML-Compliance-Cost RFI (Sep 2025)</em>.
       </p>
+
+      <div class="stat-strip">
+        <span><strong>9</strong>example specs</span>
+        <span><strong>8</strong>curated typologies</span>
+        <span><strong>26</strong>dashboard pages</span>
+        <span><strong>24</strong>CLI commands</span>
+        <span><strong>1,632</strong>tests · all green</span>
+        <span><strong>4</strong>jurisdictions</span>
+        <span><strong>MIT</strong>licence</span>
+      </div>
     </header>
 
-    <div class="chooser">
+    <!-- ─────────────────────────────── Audience picker ─────────────────────────────── -->
 
-      <a class="card biz" href="business/">
-        <div class="for-tag">For executives</div>
-        <h2>Board briefing<br>(8 exhibits, 64-second video)</h2>
-        <div class="roles">CCO · MLRO · Audit Committee · CRO · CFO</div>
-        <p class="desc">
-          McKinsey-style board pack. Action titles, exhibit numbers,
-          source citations on every page. White paper aesthetic — print-ready,
-          email-able, no engineering jargon.
-        </p>
-        <ul class="signals">
-          <li>The 2:1 rule — process gaps drive enforcement, not detection</li>
-          <li>$3.09B / $61B / 95% — the cost in three sizes</li>
-          <li>Four verbatim CCO quotes from regulator letters</li>
-          <li>One source, three readings — the contract diagram</li>
-          <li>Pain → capability map · what the operator inherits</li>
-        </ul>
-        <div class="links">
-          <span class="pill primary">View deck →</span>
-          <span class="pill secondary">▶ 64s board video</span>
-          <span class="pill secondary">PDF · 8 pages</span>
+    <section class="block" id="picker">
+      <h2 class="section-h">Pick your <em>audience</em>.</h2>
+      <p class="section-dek">
+        Same project, two faithful narrations. Each side has a deck, a video, a PDF, and an
+        animated GIF for sharing. Click any artifact directly — or take the primary CTA.
+      </p>
+
+      <div class="picker">
+
+        <!-- Business / Board pack -->
+        <div class="pick biz">
+          <div class="for-tag">For executives</div>
+          <h3>Board briefing</h3>
+          <div class="roles">CCO · MLRO · Audit Committee · CRO · CFO</div>
+          <p class="desc">
+            McKinsey-style board pack. Action titles, exhibit numbers,
+            primary-source citations on every page. White-paper aesthetic — print-ready,
+            email-able, no engineering jargon.
+          </p>
+
+          <ul class="res-list">
+            <li>
+              <span class="icon">DECK</span>
+              <span class="label">
+                <a href="business/">Live HTML deck</a>
+                <span class="meta">8 exhibits · keyboard nav · 1920×1080</span>
+              </span>
+              <span class="arrow">→</span>
+            </li>
+            <li>
+              <span class="icon">▶</span>
+              <span class="label">
+                <a href="business/video/board-video.mp4">64-second board video</a>
+                <span class="meta">MP4 · 25 fps · BGM · 7.5 MB</span>
+              </span>
+              <span class="arrow">↗</span>
+            </li>
+            <li>
+              <span class="icon">PDF</span>
+              <span class="label">
+                <a href="business/aml-open-framework-business.pdf">Printable PDF</a>
+                <span class="meta">Vector · 8 pages · 0.8 MB</span>
+              </span>
+              <span class="arrow">↓</span>
+            </li>
+            <li>
+              <span class="icon">GIF</span>
+              <span class="label">
+                <a href="business/video/board-video-preview.gif">Animated GIF preview</a>
+                <span class="meta">23 s · 720 wide · 2.2 MB · X-friendly</span>
+              </span>
+              <span class="arrow">↗</span>
+            </li>
+            <li>
+              <span class="icon">60</span>
+              <span class="label">
+                <a href="business/video/board-video-60fps.mp4">60 fps MP4 variant</a>
+                <span class="meta">Higher frame-rate for portfolio reels</span>
+              </span>
+              <span class="arrow">↗</span>
+            </li>
+          </ul>
+
+          <a class="primary-cta" href="business/">Open the board deck →</a>
         </div>
-      </a>
 
-      <a class="card tech" href="technical/">
-        <div class="for-tag">For engineering &amp; 2LoD</div>
-        <h2>Technical deck<br>(19 slides, 92-second walkthrough)</h2>
-        <div class="roles">Head of Eng · CTO · 2LoD model validation · IA</div>
-        <p class="desc">
-          Dual-pane architecture deck. CCO question on the left, real CLI output
-          on the right. 7-act narrative covering CLI commands, audit chain,
-          backtester, multi-jurisdiction, full architecture.
-        </p>
-        <ul class="signals">
-          <li>Every leader artifact has an `aml ___` command behind it</li>
-          <li>Hash-chained <code style="font-family:'JetBrains Mono',monospace;color:#67e8f9;">decisions.jsonl</code> · deterministic replay</li>
-          <li>8 curated typologies · 1,632 tests · 24 CLI commands</li>
-          <li>JSON Schema → Pydantic → DuckDB engine architecture</li>
-          <li>F1-F8 surface · init / byod / typology-import / today / propose-change</li>
-        </ul>
-        <div class="links">
-          <span class="pill primary">View deck →</span>
-          <span class="pill secondary">▶ 92s walkthrough</span>
-          <span class="pill secondary">PDF · 19 pages</span>
+        <!-- Technical / Engineering -->
+        <div class="pick tech">
+          <div class="for-tag">For engineering &amp; 2LoD</div>
+          <h3>Technical deck</h3>
+          <div class="roles">Head of Eng · CTO · 2LoD validation · Internal Audit</div>
+          <p class="desc">
+            Dual-pane architecture deck. CCO question on the left, real CLI output on the
+            right. 7-act narrative covering audit chain, backtester, multi-jurisdiction,
+            full architecture, and 24 CLI commands.
+          </p>
+
+          <ul class="res-list">
+            <li>
+              <span class="icon">DECK</span>
+              <span class="label">
+                <a href="technical/">Live HTML deck</a>
+                <span class="meta">19 slides · keyboard nav · 1920×1080</span>
+              </span>
+              <span class="arrow">→</span>
+            </li>
+            <li>
+              <span class="icon">▶</span>
+              <span class="label">
+                <a href="technical/video/walkthrough.mp4">92-second walkthrough video</a>
+                <span class="meta">MP4 · 25 fps · BGM · 21 MB</span>
+              </span>
+              <span class="arrow">↗</span>
+            </li>
+            <li>
+              <span class="icon">PDF</span>
+              <span class="label">
+                <a href="technical/aml-open-framework-v2.pdf">Printable PDF</a>
+                <span class="meta">Vector · 19 pages · 3.6 MB</span>
+              </span>
+              <span class="arrow">↓</span>
+            </li>
+            <li>
+              <span class="icon">GIF</span>
+              <span class="label">
+                <a href="technical/video/walkthrough-preview.gif">Animated GIF preview</a>
+                <span class="meta">~22 s · 720 wide · 4.7 MB · X-friendly</span>
+              </span>
+              <span class="arrow">↗</span>
+            </li>
+            <li>
+              <span class="icon">60</span>
+              <span class="label">
+                <a href="technical/video/walkthrough-60fps.mp4">60 fps MP4 variant</a>
+                <span class="meta">Higher frame-rate for portfolio reels</span>
+              </span>
+              <span class="arrow">↗</span>
+            </li>
+          </ul>
+
+          <a class="primary-cta" href="technical/">Open the technical deck →</a>
         </div>
-      </a>
 
-    </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────── Primary research & source ─────────────────────────────── -->
+
+    <section class="block">
+      <h2 class="section-h">Primary research &amp; <em>source code</em>.</h2>
+      <p class="section-dek">
+        Every claim, number, and quote in the decks above traces to one of these documents
+        in the source repo. The decks are interpretation; this is the evidence.
+      </p>
+
+      <div class="more-grid">
+
+        <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md" target="_blank" rel="noopener">
+          <div class="kind">Research · Markdown</div>
+          <h4>10 daily pain points an AML leader feels — 2026</h4>
+          <p>Each pain anchored in an FCA / FinCEN / OSFI / FINTRAC publication, with the verbatim quote, role affected, cost type, and the framework capability that addresses it. The single source of language behind every leader-facing word in this project.</p>
+          <span class="link">docs/research/2026-04-aml-process-pain.md</span>
+        </a>
+
+        <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/case-studies/td-2024.md" target="_blank" rel="noopener">
+          <div class="kind">Case study · Markdown</div>
+          <h4>TD Bank 2024 — the framing case for every recent enforcement</h4>
+          <p>The largest BSA enforcement action in history ($3.09B + a $434B U.S. asset cap). Channel coverage gaps, pass-through patterns, AIU "red status" backlog. The walkthrough every 2025-26 deck builds from.</p>
+          <span class="link">docs/case-studies/td-2024.md</span>
+        </a>
+
+        <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-competitive-positioning.md" target="_blank" rel="noopener">
+          <div class="kind">Research · Markdown</div>
+          <h4>Competitive positioning vs. Actimize / Hawk:AI / Marble / Jube</h4>
+          <p>How the framework slots in against veteran rules-plus-ML platforms, AI-native challengers, graph specialists, regtech utilities, and the open-source neighbours. Strengths, weaknesses, where the framework competes and where it doesn't.</p>
+          <span class="link">docs/research/2026-04-competitive-positioning.md</span>
+        </a>
+
+        <a class="more-card" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener">
+          <div class="kind">Source · GitHub</div>
+          <h4>github.com/tomqwu/aml_open_framework</h4>
+          <p>9 example specs · 24 CLI commands · 1,632 tests · 26 dashboard pages · MIT licence. Apache-2.0/MIT compatible, runs entirely in your perimeter, no per-seat fees. Clone, install, open the dashboard in five minutes.</p>
+          <span class="link">git clone … && pip install -e ".[dev,dashboard,api]"</span>
+        </a>
+
+        <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/architecture.md" target="_blank" rel="noopener">
+          <div class="kind">Documentation · Markdown</div>
+          <h4>Architecture &amp; design rationale</h4>
+          <p>End-to-end data flow: spec loader → JSON-Schema + Pydantic validation → DuckDB engine → SHA-256 hash chain → audit pack. Why each design choice was made, where the trade-offs are, and how to extend each layer.</p>
+          <span class="link">docs/architecture.md</span>
+        </a>
+
+        <a class="more-card" href="v1-archive/">
+          <div class="kind">Archive</div>
+          <h4>V1 deck (Mar 2026 · preserved)</h4>
+          <p>The first iteration of the pitch deck — 27 slides, mixed audience, before the 2026 narrative refresh. Kept here so anyone with a bookmarked link still finds it. The decks above are the current version.</p>
+          <span class="link">/v1-archive/</span>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────── How to use ─────────────────────────────── -->
+
+    <section class="block">
+      <h2 class="section-h">How to <em>actually use</em> these.</h2>
+      <p class="section-dek">
+        Three handoff scenarios this hub is built for.
+      </p>
+
+      <div class="how">
+        <div class="how-row">
+          <div class="who">Sending to a board</div>
+          <h5>Email the PDF; link the video.</h5>
+          <p>The 8-page board PDF is print-ready and looks correct in any email client. Link the 64-second video for anyone who wants the audio narration. Both are sourced from primary regulator publications — your compliance review will pass.</p>
+        </div>
+        <div class="how-row">
+          <div class="who">Vendor diligence call</div>
+          <h5>Open the live deck.</h5>
+          <p>Share-screen at <code>tomqwu.github.io/aml_open_framework_demo/business/</code> and walk through. Each slide is a single exhibit — easy to pause, drill into a citation, or jump back to the 2:1 rule when a question comes up.</p>
+        </div>
+        <div class="how-row">
+          <div class="who">Engineering / 2LoD review</div>
+          <h5>Switch sides.</h5>
+          <p>Open the technical deck and the source repo side-by-side. Every CLI command on the right pane of every slide is real — clone, run, see the same output. The pain → capability map page is the index of what this framework actually changes.</p>
+        </div>
+      </div>
+    </section>
 
     <footer>
-      <span>Source-grounded throughout · primary citations on every exhibit · Apache 2.0 / MIT · runs in your perimeter</span>
+      <span>
+        Source-grounded throughout · primary citations on every exhibit · Apache 2.0 / MIT · runs in your perimeter ·
+        <a href="https://github.com/tomqwu/aml_open_framework/issues">open an issue</a> ·
+        <a href="https://github.com/tomqwu/aml_open_framework/discussions">join a discussion</a>
+      </span>
       <span class="repo"><a href="https://github.com/tomqwu/aml_open_framework">github.com/tomqwu/aml_open_framework</a></span>
     </footer>
 
