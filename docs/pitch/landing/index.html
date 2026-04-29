@@ -1177,14 +1177,26 @@
           <a class="more-card" href="#/research/td-2024">
             <div class="kind">Case study · 2024</div>
             <h4>The largest BSA enforcement action of 2024 — $3.09B</h4>
-            <p>Five findings — channel coverage, pass-through, shell companies, internal-alert failures, SAR delays — each mapped clause-by-clause to a specific spec primitive in the framework.</p>
+            <p>Five findings — channel coverage, pass-through, shell companies, internal-alert failures, SAR delays — each mapped clause-by-clause to a specific Manifest entry in the framework.</p>
             <span class="link">research/td-2024 → opens in viewer</span>
+          </a>
+          <a class="more-card" href="#/research/fintech">
+            <div class="kind">Research · FinTech reality</div>
+            <h4>FinTech AML reality — sponsor-bank pressure + AMLA scope + 2024-26 enforcement</h4>
+            <p>The companion to the 10-pain Tier-1 style guide, written for the FinTech / EMI / MSB / VASP MLRO. 8 realities anchored in 2024-26 enforcement (Block / Cash App $80M, Starling £29M, Coinbase $100M, Robinhood Crypto $30M) plus sponsor-bank cure-notice dynamics post-Synapse / Evolve.</p>
+            <span class="link">research/fintech → opens in viewer</span>
           </a>
           <a class="more-card" href="#/research/competitive">
             <div class="kind">Research · Landscape</div>
             <h4>Competitive positioning · 2026</h4>
-            <p>Where the framework slots in against veteran rules+ML platforms, AI-native challengers, graph specialists, OSS alternatives — and the five highest-leverage next features ranked by impact ÷ effort.</p>
+            <p>Where the framework slots in against veteran rules+ML platforms, AI-native challengers, graph specialists, OSS alternatives — plus the buyer-archetype matrix mapping the four landing personas to the wins they actually care about.</p>
             <span class="link">research/competitive → opens in viewer</span>
+          </a>
+          <a class="more-card" href="#/research/regulator-pulse">
+            <div class="kind">Research · 90-day regulator pulse</div>
+            <h4>What's moved in the last 90 days — Feb-Apr 2026</h4>
+            <p>30 events across 10 regulators / 8 jurisdictions. SR 26-2 effective 2026-04-17, FinCEN AML Effectiveness NPRM, AMLA RTS consultations, FATF grey-listing of Kuwait + PNG, EU's 20th Russia sanctions package. Every entry primary-source-only.</p>
+            <span class="link">research/regulator-pulse → opens in viewer</span>
           </a>
           <a class="more-card" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener">
             <div class="kind">Source · GitHub</div>
@@ -1194,8 +1206,8 @@
           </a>
           <a class="more-card" href="#/research/architecture">
             <div class="kind">Architecture · Design rationale</div>
-            <h4>One spec. Four layers. No drift.</h4>
-            <p>The spec-as-source-of-truth pattern explained: Policy → Generation → Runtime → Evidence. Persona arrows show who authors and who verifies each layer.</p>
+            <h4>One Manifest. Four layers. No drift.</h4>
+            <p>The Compliance Manifest pattern explained: Policy → Generation → Runtime → Evidence. Persona arrows show who authors and who verifies each layer.</p>
             <span class="link">research/architecture → opens in viewer</span>
           </a>
           <a class="more-card" href="v1-archive/" target="_blank" rel="noopener">
@@ -1230,10 +1242,12 @@
       'technical/deck': { kind: 'iframe', src: 'technical/',                                 title: 'Technical deck · 19 slides' },
       'technical/video':{ kind: 'video',  src: 'technical/video/walkthrough.mp4',            title: 'Walkthrough video · 92 s · BGM' },
       'technical/pdf':  { kind: 'iframe', src: 'technical/aml-open-framework-v2.pdf',        title: 'Technical PDF · 19 pages' },
-      'research/process-pain':  { kind: 'iframe', src: 'research/process-pain.html',         title: '10 daily pain points · style guide' },
-      'research/td-2024':       { kind: 'iframe', src: 'research/td-2024.html',              title: 'Case study · $3.09B BSA enforcement (Oct 2024)' },
-      'research/competitive':   { kind: 'iframe', src: 'research/competitive-positioning.html', title: 'Competitive landscape · 2026' },
-      'research/architecture':  { kind: 'iframe', src: 'research/architecture.html',          title: 'Architecture · 4-layer stack (one spec, no drift)' },
+      'research/process-pain':    { kind: 'iframe', src: 'research/process-pain.html',           title: '10 daily pain points · Tier-1 bank lens · style guide' },
+      'research/fintech':         { kind: 'iframe', src: 'research/fintech.html',                 title: 'FinTech AML reality · 2024-26 enforcement + sponsor-bank pressure + AMLA scope' },
+      'research/td-2024':         { kind: 'iframe', src: 'research/td-2024.html',                title: 'Case study · $3.09B BSA enforcement (Oct 2024)' },
+      'research/competitive':     { kind: 'iframe', src: 'research/competitive-positioning.html', title: 'Competitive landscape · 2026 · buyer-archetype matrix' },
+      'research/regulator-pulse': { kind: 'iframe', src: 'research/regulator-pulse.html',         title: 'Regulator pulse · Feb-Apr 2026 · what moved in the last 90 days' },
+      'research/architecture':    { kind: 'iframe', src: 'research/architecture.html',            title: 'Architecture · 4-layer stack · one Manifest, no drift' },
     };
 
     // Per-scope metadata: each scope defines its own secondary tabs.
@@ -1257,10 +1271,12 @@
       research: {
         label: 'Research',
         tabs: [
-          { key: 'process-pain', label: 'Pain points',  meta: '10 pains' },
-          { key: 'td-2024',      label: 'Case study',   meta: '2024' },
-          { key: 'competitive',  label: 'Landscape',    meta: '2026' },
-          { key: 'architecture', label: 'Architecture', meta: '4 layers' },
+          { key: 'process-pain',    label: 'Tier-1 pain',     meta: '10 pains' },
+          { key: 'fintech',         label: 'FinTech reality', meta: '6-8 pains' },
+          { key: 'td-2024',         label: 'Case study',      meta: '2024' },
+          { key: 'competitive',     label: 'Landscape',       meta: '2026' },
+          { key: 'regulator-pulse', label: 'Reg. pulse',      meta: '90 days' },
+          { key: 'architecture',    label: 'Architecture',    meta: '4 layers' },
         ],
       },
     };

@@ -671,3 +671,128 @@ ol.r-rules li em, ul.r-list li em { font-style: italic; color: var(--ink); }
   margin-bottom: 18px;
 }
 .r-feat .risk strong { color: var(--ink-2); font-weight: 600; font-style: normal; }
+
+/* ──────────── Event log (regulator pulse) ──────────── */
+
+.r-event {
+  border-left: 3px solid var(--rule-strong);
+  padding: 14px 0 14px 20px;
+  margin: 18px 0;
+  position: relative;
+}
+.r-event:hover { border-left-color: var(--accent); }
+.r-event .r-event-date {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent-deep);
+  background: var(--accent-tint);
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 2px;
+  margin-bottom: 6px;
+}
+.r-event h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.3;
+  color: var(--ink);
+  margin: 4px 0 10px;
+  letter-spacing: -0.01em;
+}
+.r-event h3 em { font-style: italic; color: var(--accent-deep); }
+.r-event .r-event-what {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+.r-event .r-event-what strong { color: var(--ink); font-weight: 600; }
+.r-event .r-event-impact {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin-bottom: 10px;
+}
+.r-event .r-event-impact .label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent-deep);
+  display: inline-block;
+  margin-right: 8px;
+}
+.r-event .r-event-source {
+  font-size: 14px;
+  color: var(--ink-dim);
+  letter-spacing: 0.02em;
+}
+.r-event .r-event-source .label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-faint);
+  margin-right: 6px;
+}
+
+/* ──────────── Buyer-archetype matrix ──────────── */
+
+.r-archetype {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0 32px;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.r-archetype thead th {
+  text-align: left;
+  padding: 12px 14px;
+  background: var(--bg-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  border-bottom: 2px solid var(--ink);
+  vertical-align: top;
+}
+.r-archetype tbody td {
+  padding: 18px 14px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  color: var(--ink-2);
+}
+.r-archetype tbody tr.primary td { background: var(--accent-tint); }
+.r-archetype tbody tr.primary td.who strong { color: var(--accent-deep); }
+.r-archetype td.who { width: 22%; }
+.r-archetype td.who strong { font-size: 17px; color: var(--ink); display: block; margin-bottom: 4px; }
+.r-archetype td.who .role {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.r-archetype tbody tr.primary td.who .role { color: var(--accent-deep); }
+.r-archetype td.size { width: 20%; font-size: 15px; color: var(--ink-dim); }
+.r-archetype td.wins { width: 38%; }
+.r-archetype td.wins ol { padding-left: 20px; margin: 0; }
+.r-archetype td.wins ol li { margin-bottom: 8px; font-size: 16px; }
+.r-archetype td.wins ol li:last-child { margin-bottom: 0; }
+.r-archetype td.wins strong { color: var(--ink); font-weight: 600; }
+.r-archetype td.meh { width: 20%; font-size: 15px; color: var(--ink-faint); font-style: italic; }
+@media (max-width: 720px) {
+  .r-archetype { font-size: 15px; }
+  .r-archetype thead { display: none; }
+  .r-archetype, .r-archetype tbody, .r-archetype tr, .r-archetype td { display: block; width: 100%; }
+  .r-archetype tbody td { border-bottom: none; padding: 8px 0; }
+  .r-archetype tbody tr {
+    border-bottom: 1px solid var(--rule);
+    padding: 18px 0;
+  }
+  .r-archetype td.who, .r-archetype td.size, .r-archetype td.wins, .r-archetype td.meh { width: 100%; }
+}

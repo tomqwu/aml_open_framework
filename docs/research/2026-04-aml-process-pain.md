@@ -1,5 +1,7 @@
 # 10 Daily Pain Points an AML Leader Feels — 2026
 
+*Date: 2026-04-29 · Audience: CCO / MLRO / Head of Financial Crime at a Tier-1 / Tier-2 bank. For FinTech / EMI / MSB / VASP MLRO pain points, see the companion doc [`2026-04-fintech-aml-reality.md`](./2026-04-fintech-aml-reality.md).*
+
 ## How to use this doc
 
 This is the **style guide** for every leader-facing word in this repository — README headlines, dashboard page descriptions, deck slides, exec emails. Before you write copy aimed at a CCO, MLRO, Head of Financial Crime, or CRO, find the closest pain point below and **borrow its plain-English phrasing**. Each pain is anchored in a primary source (regulator letter, enforcement order, or cited industry survey) so the copy is defensible the moment a buyer asks "where did you get that?"
@@ -24,7 +26,7 @@ PR-2 (README), PR-3 (dashboard page descriptions), and PR-4 (glossary) all cite 
 | **Primary source** | FCA Dear CEO Letter to Annex 1 firms, March 2024 (still operative in 2026): *"Decisions made in relation to financial crime were not supported by evidence or an audit trail of debate and challenge."* — [FCA letter](https://www.fca.org.uk/publication/correspondence/dear-ceo-letter-action-response-common-control-failings-anti-money-laundering-frameworks.pdf). Reinforced by K&L Gates' 2024 BSA review which found examiner testing "only determined whether controls existed rather than if they were actually being used." |
 | **Roles affected** | CCO, MLRO, Internal Audit |
 | **Cost type** | Audit-defensibility |
-| **Framework capability** | Hash-chained `decisions.jsonl` audit ledger + deterministic replay → any historical run reproducible byte-for-byte. *Audit & Evidence* dashboard page; PR #97 (rule-effectiveness backtester) extends this to "show me the rule's track record." |
+| **Framework capability** | Hash-chained audit ledger + deterministic replay → any historical run reproducible byte-for-byte. *Audit & Evidence* dashboard page; PR #97 (rule-effectiveness backtester) extends this to "show me the rule's track record." |
 
 ### PAIN-2 · "The backlog is red — and the board has known for years."
 
@@ -54,7 +56,7 @@ PR-2 (README), PR-3 (dashboard page descriptions), and PR-4 (glossary) all cite 
 | **Primary source** | FCA Dear CEO: *"Many Annex 1 firms did not have a BRA in place… the quality of the BRA was poor in terms of detail and methodology."* — [FCA via Waystone](https://compliance.waystone.com/insights-from-the-fcas-dear-ceo-letter-addressing-financial-crime-risks-in-annex-1-firms/). FINTRAC has reclassified missing/stale risk assessments as **"very serious"** violations under its 2025 AMP regime. — [AML Incubator](https://amlincubator.com/blog/fintracs-new-amp-regime-in-2025-record-penalties-and-higher-stakes). |
 | **Roles affected** | CCO, 2LoD, Internal Audit |
 | **Cost type** | Audit-defensibility |
-| **Framework capability** | The spec **is** the risk assessment in machine-readable form — every rule cites the regulation it answers. *Framework Alignment* and *Program Maturity* dashboard pages render the live BRA from the spec. |
+| **Framework capability** | The Compliance Manifest **is** the risk assessment in machine-readable form — every rule cites the regulation it answers. *Framework Alignment* and *Program Maturity* dashboard pages render the live BRA from the Manifest. |
 
 ### PAIN-5 · "Business grew, controls didn't."
 
@@ -64,7 +66,7 @@ PR-2 (README), PR-3 (dashboard page descriptions), and PR-4 (glossary) all cite 
 | **Primary source** | FCA: firms showed *"business growth without evolving financial crime systems and controls… inadequately resourcing financial crime teams alongside business growth."* — [FCA letter](https://www.fca.org.uk/publication/correspondence/dear-ceo-letter-action-response-common-control-failings-anti-money-laundering-frameworks.pdf). OCC Wells Fargo enforcement (Sep 2024, still active in 2026): bank now barred from *"expanding into medium-to-high risk products and geographies without prior approval."* — [Banking Dive](https://www.bankingdive.com/news/occ-hits-wells-fargo-with-aml-enforcement-action/726890/). |
 | **Roles affected** | CCO, MLRO, CRO |
 | **Cost type** | Audit-defensibility |
-| **Framework capability** | New product = new spec primitives in days, not quarters; PR #100 (US RTP/FedNow detector pack) ships in one PR with full citations. *Multi-jurisdiction* page shows coverage gaps the moment a new geography is added. |
+| **Framework capability** | New product = new Manifest entries in days, not quarters; PR #100 (US RTP/FedNow detector pack) ships in one PR with full citations. *Multi-jurisdiction* page shows coverage gaps the moment a new geography is added. |
 
 ### PAIN-6 · "My monitoring system is a model and I cannot validate it."
 
@@ -74,7 +76,7 @@ PR-2 (README), PR-3 (dashboard page descriptions), and PR-4 (glossary) all cite 
 | **Primary source** | ACAMS on the 2021 Interagency Statement (still the reference frame in 2026): transaction-monitoring systems, customer-risk rating, and watch-list filtering *"meet the definition of 'model'… held to the same standard."* — [ACAMS](https://www.acams.org/en/opinion/effective-aml-model-risk-management-for-financial-institutions); [Databricks 2026 banker's guide](https://www.databricks.com/blog/model-risk-management-2026-bankers-guide-revised-interagency-guidance). **Language note:** banks call it "model risk management" in regulatory filings; internally they say *"tuning"* or *"scenario performance"*. **In leader-facing copy use "we can show our model still works" — not "MRM."** |
 | **Roles affected** | CCO, 2LoD model validation, Internal Audit |
 | **Cost type** | Cost + audit-defensibility |
-| **Framework capability** | Per-rule MRM dossier (`generators/mrm.py`) + PR #97 backtester → "rule X precision/recall trend over the last 4 quarters" answered before lunch. The spec itself is human-readable, so "the model" stops being a black box. |
+| **Framework capability** | Per-rule MRM dossier (`generators/mrm.py`) + PR #97 backtester → "rule X precision/recall trend over the last 4 quarters" answered before lunch. The Compliance Manifest itself is human-readable, so "the model" stops being a black box. |
 
 ### PAIN-7 · "We file SARs we don't believe in, and we miss the ones we should file."
 
@@ -104,7 +106,7 @@ PR-2 (README), PR-3 (dashboard page descriptions), and PR-4 (glossary) all cite 
 | **Primary source** | FCA (2021 retail-bank Dear CEO letter, still cited in 2025-26 supervisory framing): firms *"blurred responsibilities between first line business roles and second line compliance roles, such that first line employees often do not own or fully understand the financial crime risk faced by the firm."* — [Lexology](https://www.lexology.com/library/detail.aspx?g=df2caec4-a52e-4dfe-8d41-715994233b5e); [Mayer Brown](https://www.mayerbrown.com/en/insights/publications/2021/08/the-fcas-dear-ceo-letter). |
 | **Roles affected** | 1LoD, 2LoD, CCO |
 | **Cost type** | Audit-defensibility + morale |
-| **Framework capability** | One spec — same artifact 1LoD ships, 2LoD reviews, 3LoD attests. PR #98 (fraud-AML case linkage) makes overlapping work visible across operational lines. Deck slide *Three Lines of Defence* shows the handoff explicitly. |
+| **Framework capability** | One Compliance Manifest — same artifact 1LoD ships, 2LoD reviews, 3LoD attests. PR #98 (fraud-AML case linkage) makes overlapping work visible across operational lines. Deck slide *Three Lines of Defence* shows the handoff explicitly. |
 
 ### PAIN-10 · "The Officer's name is on the line, personally."
 
@@ -138,11 +140,12 @@ The dominant pain in 2026 sources is **audit-defensibility, not detection** — 
 
 ### Avoid these on leader-facing surfaces
 
-- "spec", "YAML", "schema", "Pydantic", "DuckDB", "FastAPI"
-- "deterministic", "hash chain", "audit ledger" (use "audit trail you can replay")
-- "MRM" (use "model validation" or "show the model still works")
-- "aggregation strategies", "evidence bundle" (use "examination ZIP" or "regulator pack")
-- "primitives" (use "building blocks" or just describe the thing)
-- "rule logic", "rule engine" (use "detector" or "what fires the alert")
+- "spec", "aml.yaml", "YAML", "schema", "Pydantic", "DuckDB", "FastAPI" — use **"Compliance Manifest"** when referring to the source-of-truth file
+- "decisions.jsonl" — use **"audit ledger"**
+- "deterministic", "hash chain" — use "audit trail you can replay"
+- "MRM" — use "model validation" or "show the model still works"
+- "aggregation strategies", "evidence bundle" — use "examination ZIP" or "regulator pack"
+- "primitives", "spec primitives" — use **"Manifest entries"** or "building blocks"
+- "rule logic", "rule engine" — use "detector" or "what fires the alert"
 
 These terms are still correct on developer-facing surfaces (Spec Editor page, Run History, code, contributor docs). The goal is **hide them from leaders**, not delete them.
