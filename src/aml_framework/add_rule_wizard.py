@@ -32,6 +32,7 @@ the entity-resolution graph and a graph-shape parameter).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -85,8 +86,6 @@ class HighRiskJurisdictionConfig:
 # ---------------------------------------------------------------------------
 # Validation helpers
 # ---------------------------------------------------------------------------
-
-import re
 
 _RULE_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
