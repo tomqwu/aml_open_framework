@@ -298,6 +298,179 @@
   }
   .stat-strip strong { color: var(--ink); font-weight: 600; margin-right: 6px; }
 
+  /* Hero "How it works" flow diagram */
+  .flow-hero {
+    margin: 64px 0 0;
+    padding: 56px 48px 40px;
+    background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg) 100%);
+    border-radius: 8px;
+    border: 1px solid var(--rule);
+    position: relative;
+    overflow: hidden;
+  }
+  .flow-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent 0%, var(--accent) 25%, var(--accent) 75%, transparent 100%);
+    opacity: 0.5;
+  }
+  .flow-hero .heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .flow-hero h2 {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 40px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.014em;
+    line-height: 1.1;
+  }
+  .flow-hero h2 em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .flow-hero .heading .sub {
+    font-size: 17px;
+    color: var(--ink-dim);
+    max-width: 480px;
+    text-wrap: pretty;
+  }
+
+  .flow-stages {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    align-items: stretch;
+    margin-bottom: 24px;
+  }
+  .flow-stage {
+    position: relative;
+    padding: 22px 20px 20px;
+    background: var(--bg);
+    border: 1px solid var(--rule-strong);
+    border-radius: 6px;
+    text-align: center;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    cursor: default;
+  }
+  .flow-stage:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(164,75,48,0.12);
+  }
+  .flow-stage .glyph {
+    width: 56px; height: 56px;
+    margin: 0 auto 12px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .flow-stage .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .flow-stage .name {
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 6px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .flow-stage .name code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--accent);
+  }
+  .flow-stage .desc {
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+  /* Connector arrows between stages — drawn with pseudo-elements */
+  .flow-stage:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -12px;
+    width: 16px; height: 2px;
+    background: var(--accent);
+    transform: translateY(-50%);
+    z-index: 1;
+  }
+  .flow-stage:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -16px;
+    width: 0; height: 0;
+    border-left: 8px solid var(--accent);
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    transform: translateY(-50%);
+    z-index: 2;
+  }
+
+  .flow-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .flow-foot .stamp {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-dim);
+    letter-spacing: 0.04em;
+  }
+  .flow-foot .stamp strong {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .flow-foot .stamp .dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.55; }
+  }
+  .flow-foot .cite {
+    font-size: 13px;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+
+  @media (max-width: 900px) {
+    .flow-stages { grid-template-columns: 1fr 1fr; gap: 16px; }
+    .flow-stage:nth-child(odd):not(:last-child)::after,
+    .flow-stage:nth-child(odd):not(:last-child)::before { display: none; }
+    .flow-stage:nth-child(even):not(:last-child)::after,
+    .flow-stage:nth-child(even):not(:last-child)::before { display: none; }
+    .flow-hero .heading { flex-direction: column; align-items: flex-start; }
+    .flow-hero h2 { font-size: 32px; }
+  }
+
   /* Section heading */
   h2.section-h {
     font-family: 'Source Serif 4', Georgia, serif;
@@ -613,6 +786,54 @@
         </div>
       </header>
 
+      <section class="flow-hero">
+        <div class="heading">
+          <h2>How it works in <em>five stages</em>.</h2>
+          <p class="sub">One YAML spec defines policy. Generation, runtime and audit all flow from it — deterministically, every time.</p>
+        </div>
+
+        <div class="flow-stages">
+          <div class="flow-stage">
+            <div class="glyph">📜</div>
+            <div class="num">Stage 01</div>
+            <div class="name"><code>aml.yaml</code></div>
+            <div class="desc">Compliance writes one spec. Rules cite the regulation that justifies them.</div>
+          </div>
+          <div class="flow-stage">
+            <div class="glyph">⚙️</div>
+            <div class="num">Stage 02</div>
+            <div class="name">Generators</div>
+            <div class="desc">SQL, DAGs, tests, MRM dossiers, control matrix — all built from the spec.</div>
+          </div>
+          <div class="flow-stage">
+            <div class="glyph">⚡</div>
+            <div class="num">Stage 03</div>
+            <div class="name">Engine</div>
+            <div class="desc">Rules execute on the warehouse. Alerts produced with full evidence chain.</div>
+          </div>
+          <div class="flow-stage">
+            <div class="glyph">⚖</div>
+            <div class="num">Stage 04</div>
+            <div class="name">Cases &amp; STRs</div>
+            <div class="desc">SLA-timed queues, auto-drafted narratives, regulator-ready ZIP exports.</div>
+          </div>
+          <div class="flow-stage">
+            <div class="glyph">🔒</div>
+            <div class="num">Stage 05</div>
+            <div class="name">Audit ledger</div>
+            <div class="desc">Every decision SHA-256-chained. Re-run any history byte-for-byte.</div>
+          </div>
+        </div>
+
+        <div class="flow-foot">
+          <div class="stamp">
+            <span class="dot"></span>
+            <span><strong>same spec + same data + same seed</strong> = identical output hashes</span>
+          </div>
+          <div class="cite">FCA Mar 2024 · FinCEN Apr 2026 NPRM · SR 26-2 effective Apr 2026</div>
+        </div>
+      </section>
+
       <section class="block" id="picker">
         <h2 class="section-h">Pick your <em>audience</em>.</h2>
         <p class="section-dek">
@@ -636,7 +857,7 @@
                 <span class="icon">DECK</span>
                 <span class="label">
                   <a href="#/business/deck">Live HTML deck</a>
-                  <span class="meta">11 exhibits · keyboard nav</span>
+                  <span class="meta">12 exhibits · keyboard nav</span>
                 </span>
                 <span class="arrow">→</span>
               </li>
@@ -652,7 +873,7 @@
                 <span class="icon">PDF</span>
                 <span class="label">
                   <a href="#/business/pdf">Printable PDF</a>
-                  <span class="meta">Vector · 11 pages · 1.2 MB</span>
+                  <span class="meta">Vector · 12 pages · 1.4 MB</span>
                 </span>
                 <span class="arrow">→</span>
               </li>
@@ -764,9 +985,9 @@
   (() => {
     // Resource registry — what each /audience/type loads, and how.
     const RESOURCES = {
-      'business/deck':  { kind: 'iframe', src: 'business/',                                  title: 'Business deck · 11 exhibits' },
+      'business/deck':  { kind: 'iframe', src: 'business/',                                  title: 'Business deck · 12 exhibits' },
       'business/video': { kind: 'video',  src: 'business/video/board-video.mp4',             title: 'Board video · 64 s · BGM' },
-      'business/pdf':   { kind: 'iframe', src: 'business/aml-open-framework-business.pdf',   title: 'Business PDF · 11 pages' },
+      'business/pdf':   { kind: 'iframe', src: 'business/aml-open-framework-business.pdf',   title: 'Business PDF · 12 pages' },
       'technical/deck': { kind: 'iframe', src: 'technical/',                                 title: 'Technical deck · 19 slides' },
       'technical/video':{ kind: 'video',  src: 'technical/video/walkthrough.mp4',            title: 'Walkthrough video · 92 s · BGM' },
       'technical/pdf':  { kind: 'iframe', src: 'technical/aml-open-framework-v2.pdf',        title: 'Technical PDF · 19 pages' },
@@ -781,9 +1002,9 @@
       business: {
         label: 'Business',
         tabs: [
-          { key: 'deck',  label: 'Deck',  meta: '11 exhibits' },
+          { key: 'deck',  label: 'Deck',  meta: '12 exhibits' },
           { key: 'video', label: 'Video', meta: '64 s' },
-          { key: 'pdf',   label: 'PDF',   meta: '11 pp' },
+          { key: 'pdf',   label: 'PDF',   meta: '12 pp' },
         ],
       },
       technical: {
