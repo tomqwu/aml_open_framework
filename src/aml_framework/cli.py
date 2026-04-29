@@ -1115,6 +1115,108 @@ def dashboard(
     )
 
 
+@app.command()
+def backtest(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    rule_id: str = typer.Option(..., "--rule", help="Which rule to backtest."),
+    quarters: int = typer.Option(
+        4, "--quarters", help="Number of 90-day windows ending at --as-of."
+    ),
+    as_of: str | None = typer.Option(
+        None, "--as-of", help="ISO timestamp of the most-recent window. Defaults to now."
+    ),
+    seed: int = typer.Option(42, "--seed", help="Synthetic data seed."),
+    labels_csv: Path | None = typer.Option(
+        None,
+        "--labels",
+        help="CSV with header 'customer_id,is_true_positive,period' (period optional). "
+        "When 'period' is present, rows are filtered to the matching period label.",
+    ),
+    out: Path = typer.Option(
+        Path(".artifacts/backtest_report.json"),
+        "--out",
+        help="Where to write the BacktestReport JSON.",
+    ),
+) -> None:
+    """Backtest one rule across N historical quarters.
+
+    Built for 2LoD model-risk: answers "is rule X still earning its
+    keep, or is precision/recall trending down?" without commissioning
+    a vendor study. The output JSON drops straight into a per-rule
+    SR 26-2 / OCC 2026-13 dossier.
+
+    The default quarter generator steps back 90 days from --as-of; pass
+    your own period list via the Python API when your fiscal calendar
+    is non-standard.
+    """
+    import csv as _csv
+    import json as _json
+
+    from aml_framework.engine.backtest import (
+        BacktestPeriod,
+        backtest_rule,
+        quarters as _quarters_helper,
+    )
+
+    spec = load_spec(spec_path)
+    end_dt = _parse_as_of(as_of)
+    periods: list[BacktestPeriod] = [
+        BacktestPeriod(label=p.label, as_of=p.as_of, seed=seed)
+        for p in _quarters_helper(end=end_dt, n=quarters)
+    ]
+
+    labels_loader = None
+    if labels_csv is not None:
+        per_period_labels: dict[str | None, dict[str, bool]] = {}
+        with labels_csv.open(encoding="utf-8") as f:
+            for row in _csv.DictReader(f):
+                period_key = row.get("period") or None
+                bucket = per_period_labels.setdefault(period_key, {})
+                bucket[row["customer_id"]] = row.get("is_true_positive", "0") in (
+                    "1",
+                    "true",
+                    "True",
+                    "yes",
+                )
+
+        def labels_loader(period: BacktestPeriod) -> dict[str, bool] | None:
+            if period.label in per_period_labels:
+                return per_period_labels[period.label]
+            return per_period_labels.get(None)
+
+    report = backtest_rule(spec, rule_id, periods, labels_loader=labels_loader)
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(_json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+
+    table = Table(title=f"Backtest · {rule_id}")
+    table.add_column("Period")
+    table.add_column("As-of")
+    table.add_column("Alerts", justify="right")
+    table.add_column("Precision", justify="right")
+    table.add_column("Recall", justify="right")
+    table.add_column("F1", justify="right")
+    for p in report.periods:
+        table.add_row(
+            p.period,
+            p.as_of[:10],
+            str(p.alert_count),
+            f"{p.precision:.2%}" if p.precision is not None else "—",
+            f"{p.recall:.2%}" if p.recall is not None else "—",
+            f"{p.f1:.2%}" if p.f1 is not None else "—",
+        )
+    console.print(table)
+
+    if report.drift_summary:
+        console.print("\n[bold]Drift summary:[/bold]")
+        for k, v in report.drift_summary.items():
+            colour = "green"
+            if any(metric in k for metric in ("precision", "recall", "f1")):
+                colour = "red" if (isinstance(v, (int, float)) and v < 0) else "green"
+            console.print(f"  [{colour}]{k}[/{colour}] = {v}")
+    console.print(f"\n[green]Backtest written[/green] {out}")
+
+
 _DEMO_PERSONA_NEXT_STEPS: dict[str, list[tuple[str, str, str]]] = {
     "cco": [
         (
