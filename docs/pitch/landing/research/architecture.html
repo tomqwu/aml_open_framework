@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Architecture · AML Open Framework</title>
-<meta name="description" content="The spec is the source of truth. Four layers — Policy / Generation / Runtime / Evidence — that turn one YAML file into the entire program.">
+<meta name="description" content="The Compliance Manifest is the source of truth. Four layers — Policy / Generation / Runtime / Evidence — that turn one document into the entire AML program.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -150,7 +150,7 @@
   <div class="r-eyebrow">Architecture · design rationale</div>
   <h1 class="r-title">One spec. <em>Four layers</em>. No drift.</h1>
   <p class="r-lede">
-    Policy, data contracts, detection rules, case workflow, and regulator mapping live in one versioned YAML file. Every runtime artifact — SQL, DAGs, data-quality tests, dashboards, alert payloads, audit ledger entries — is <strong>generated</strong> from the spec, never hand-written in parallel. This is what kills the drift that causes AML enforcement actions.
+    Policy, data contracts, detection rules, case workflow, and regulator mapping live in one versioned document — the <strong>Compliance Manifest</strong> (an <code>aml.yaml</code> file, for engineers). Every runtime artifact — SQL, DAGs, data-quality tests, dashboards, alert payloads, audit ledger entries — is <strong>generated</strong> from the Manifest, never hand-written in parallel. This is what kills the drift that causes AML enforcement actions.
   </p>
   <div class="r-meta">
     <span><strong>Pattern</strong> · spec-as-source-of-truth (cf. Terraform / dbt / Kubernetes)</span>
@@ -168,7 +168,7 @@
     <div class="arch-personas left">
       <div class="arch-persona">
         <div class="role">Authored by</div>
-        <div class="what"><strong>CCO / MLRO</strong> — writes the spec; signs the decision log.</div>
+        <div class="what"><strong>CCO / MLRO</strong> — writes the Manifest; signs the decision log.</div>
       </div>
       <div class="arch-persona">
         <div class="role">Operated by</div>
@@ -190,7 +190,7 @@
         <div class="head">
           <span class="icon">📜</span>
           <span class="name">Policy</span>
-          <span class="sub">aml.yaml · plain YAML · reviewed via PR</span>
+          <span class="sub">The Compliance Manifest · <code>aml.yaml</code> for engineers · reviewed via PR</span>
         </div>
         <div class="items">
           <div class="item"><strong>program</strong>jurisdiction · regulator · owner</div>
@@ -265,7 +265,7 @@
     <div class="arch-personas right">
       <div class="arch-persona">
         <div class="role">Verified by</div>
-        <div class="what"><strong>2LoD</strong> — challenges the spec quarterly.</div>
+        <div class="what"><strong>2LoD</strong> — challenges the Manifest quarterly.</div>
       </div>
       <div class="arch-persona">
         <div class="role">Validated by</div>
@@ -287,7 +287,7 @@
     Every rule execution records four hashes:
   </p>
   <ol class="r-rules">
-    <li><strong>spec_version</strong> — git SHA of <code>aml.yaml</code> plus a content hash. <em>What policy ran?</em></li>
+    <li><strong>manifest_version</strong> — git SHA of the Compliance Manifest (<code>aml.yaml</code>) plus a content hash. <em>What policy ran?</em></li>
     <li><strong>input_hash</strong> — hash of the ordered input rows (or a snapshot ID). <em>What data did it see?</em></li>
     <li><strong>output_hash</strong> — hash of the alert set. <em>What did it produce?</em></li>
     <li><strong>engine_version</strong> — version of this framework. <em>What code executed?</em></li>
