@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>How it works · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s6h-stage { padding-top: 4px; }
+
+  /* 5-stage flow diagram */
+  .s6h-flow {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+  .s6h-card {
+    position: relative;
+    padding: 24px 22px 22px;
+    background: var(--bg);
+    border: 1.5px solid var(--rule-strong);
+    border-radius: 6px;
+    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  }
+  .s6h-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 28px rgba(221,92,52,0.14);
+  }
+  .s6h-card .glyph {
+    width: 64px; height: 64px;
+    margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: var(--accent-tint);
+    color: var(--accent);
+    font-size: 28px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+  }
+  .s6h-card .num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .s6h-card .name {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 12px;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+  .s6h-card .name code {
+    font-family: 'Inter', sans-serif;
+    color: var(--accent);
+  }
+  .s6h-card .desc {
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--ink-2);
+    margin-bottom: 12px;
+    text-wrap: pretty;
+  }
+  .s6h-card .who {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border-top: 1px solid var(--rule);
+    padding-top: 10px;
+    margin-top: auto;
+  }
+  /* Connector arrow between stages */
+  .s6h-card:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -16px;
+    width: 20px; height: 2px;
+    background: var(--accent);
+    transform: translateY(-50%);
+    z-index: 1;
+  }
+  .s6h-card:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -22px;
+    width: 0; height: 0;
+    border-left: 10px solid var(--accent);
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    transform: translateY(-50%);
+    z-index: 2;
+  }
+
+  /* Below the flow: determinism stamp */
+  .s6h-stamp {
+    margin-top: 22px;
+    background: var(--ink);
+    color: white;
+    padding: 18px 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: 'Inter', sans-serif;
+  }
+  .s6h-stamp .dot {
+    width: 12px; height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: s6h-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes s6h-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+  }
+  .s6h-stamp .lab {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+    flex-shrink: 0;
+  }
+  .s6h-stamp .body {
+    font-size: 17px;
+    color: white;
+    flex: 1;
+  }
+  .s6h-stamp .body strong { color: var(--accent); font-weight: 700; }
+
+  .s6h-takeaway { margin-top: 12px; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">6</span> How it works</div>
+  <div class="top-rule"></div>
+
+  <div class="stage s6h-stage">
+    <h2 class="action-title fade-up" style="margin-bottom:6px;">
+      <em>Five stages</em> from one YAML file to a regulator-ready audit.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:0;">
+      One spec. Five deterministic transformations. Every artefact in the chain — alerts, cases, STRs, audit ledger entries — generated, never hand-written in parallel.
+    </p>
+
+    <div class="s6h-flow fade-up d3">
+      <div class="s6h-card">
+        <div class="glyph">📜</div>
+        <div class="num">Stage · 01</div>
+        <div class="name"><code>aml.yaml</code></div>
+        <div class="desc">Compliance writes one spec. Every rule cites the regulation that justifies it. PR-reviewed.</div>
+        <div class="who">Authored by · CCO / MLRO</div>
+      </div>
+      <div class="s6h-card">
+        <div class="glyph">⚙</div>
+        <div class="num">Stage · 02</div>
+        <div class="name">Generators</div>
+        <div class="desc">SQL queries, DAG stubs, data-quality tests, MRM dossiers, control matrix — all built from the spec.</div>
+        <div class="who">Operated by · 1LoD eng</div>
+      </div>
+      <div class="s6h-card">
+        <div class="glyph">⚡</div>
+        <div class="num">Stage · 03</div>
+        <div class="name">Engine</div>
+        <div class="desc">Rules execute on the warehouse. Alerts produced with the full evidence chain attached. ISO 20022 native.</div>
+        <div class="who">Operated by · 1LoD eng</div>
+      </div>
+      <div class="s6h-card">
+        <div class="glyph">⚖</div>
+        <div class="num">Stage · 04</div>
+        <div class="name">Cases &amp; STRs</div>
+        <div class="desc">SLA-timed queues. Auto-drafted narratives. Regulator-ready ZIP via <code>aml audit-pack</code>.</div>
+        <div class="who">Operated by · 1LoD analyst</div>
+      </div>
+      <div class="s6h-card">
+        <div class="glyph">🔒</div>
+        <div class="num">Stage · 05</div>
+        <div class="name">Audit ledger</div>
+        <div class="desc">Every decision SHA-256-hash-chained. Re-run any history byte-for-byte. Tampering breaks the chain.</div>
+        <div class="who">Verified by · 2LoD / Audit</div>
+      </div>
+    </div>
+
+    <div class="s6h-stamp fade-up d4">
+      <span class="dot"></span>
+      <span class="lab">Determinism guarantee</span>
+      <span class="body"><strong>same spec + same data + same seed = identical output hashes.</strong> No commercial platform publishes this guarantee. SR&nbsp;26-2 expects it from challenger models.</span>
+    </div>
+
+    <div class="takeaway s6h-takeaway fade-up d5">
+      <span class="label">Key takeaway</span>
+      The four other slides in this section show what each stage <em>removes</em> — analyst hours, cross-team meetings, audit-prep sprints. The pipeline above is what removes them.
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> Reference architecture · 4-layer stack documented at <em>docs/architecture.md</em> · spec model in <em>spec/loader.py</em> · audit chain in <em>engine/audit.py</em> · re-runnability tested by <em>test_run_is_reproducible</em></span>
+    <span>6 OF 12</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>
