@@ -1,0 +1,19 @@
+No run directories found. Run `aml run` first.
+# Today · CCO · schedule_i_bank_aml
+# Generated 2026-04-29T02:08:07.851152
+
+[1] ℹ Re-run regulation-drift watcher
+    FinCEN BOI was silently narrowed in March 2025; the watcher catches that 
+pattern. Cron weekly.
+    → aml regwatch <spec>
+
+[2] ℹ Verify the hash chain on today's run
+    If the chain breaks, every downstream attestation fails. The Audit & 
+Evidence page does this in one click.
+    → aml dashboard <spec>  # → Audit & Evidence → 🔒 Re-verify
+
+[3] ℹ Build the auditor pack — pre-empt the next walk-in
+    One ZIP, chain-verified, jurisdiction-mapped. Keep it on a shared drive so 
+the auditor downloads it themselves.
+    → aml auditor-pack <spec> --print-link
+

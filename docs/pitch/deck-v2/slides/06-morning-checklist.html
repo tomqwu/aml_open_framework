@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Morning Checklist · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  /* Slide-specific: terminal sizing for captured output */
+  .terminal { height: 100%; }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">06 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act III · The Daily Ritual</div>
+    <h1 class="fade-in d2">
+      The CCO's morning, in <em>one command</em>.
+    </h1>
+  </div>
+
+  <div class="dualpane">
+
+    <div class="narrative">
+
+      <div class="point fade-in d3">
+        <div class="num">01</div>
+        <div class="body">
+          <strong>Replaces</strong> three dashboards opened in tabs,
+          one email subject-line scan, one Slack scroll for late
+          escalations.
+          <em>~22 minutes every weekday.</em>
+        </div>
+      </div>
+
+      <div class="point fade-in d4">
+        <div class="num">02</div>
+        <div class="body">
+          <strong>Persona-aware.</strong> CCO sees board signal · MLRO
+          sees model-challenge work · analyst sees their queue.
+          <em>Same data, three readings.</em>
+        </div>
+      </div>
+
+      <div class="point fade-in d5">
+        <div class="num">03</div>
+        <div class="body">
+          <strong>Quiet defaults.</strong> When nothing is on fire,
+          the checklist is one line: <em>"All clear"</em>.
+          No fake-data dashboards keeping the ritual alive.
+        </div>
+      </div>
+
+      <div class="outcome fade-in d6">
+        Each item points back to another <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:18px;font-style:normal;">aml ___</code>
+        command — the morning view <em>is</em> the framework's
+        navigation.
+      </div>
+
+    </div>
+
+    <div class="terminal fade-in d3">
+      <div class="terminal-chrome">
+        <div class="terminal-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+        <div class="terminal-title">aml today --persona cco · examples/canadian_schedule_i_bank/aml.yaml</div>
+      </div>
+      <div class="terminal-body"><span class="t-prompt">$</span> <span class="t-cmd">aml today</span> <span class="t-flag">--persona cco</span> examples/canadian_schedule_i_bank/aml.yaml
+
+<span class="t-header"># Today · CCO · schedule_i_bank_aml</span>
+<span class="t-meta"># Generated 2026-04-29T02:08:34</span>
+
+<span class="t-num">[1]</span> <span class="t-info">ℹ</span> <span class="t-cmd">Re-run regulation-drift watcher</span>
+    <span class="t-comment">FinCEN BOI was silently narrowed in March 2025;</span>
+    <span class="t-comment">the watcher catches that pattern. Cron weekly.</span>
+    <span class="t-arrow">→</span> <span class="t-cmd">aml regwatch</span> <span class="t-comment">&lt;spec&gt;</span>
+
+<span class="t-num">[2]</span> <span class="t-info">ℹ</span> <span class="t-cmd">Verify the hash chain on today's run</span>
+    <span class="t-comment">If the chain breaks, every downstream attestation</span>
+    <span class="t-comment">fails. The Audit &amp; Evidence page does this in</span>
+    <span class="t-comment">one click.</span>
+    <span class="t-arrow">→</span> <span class="t-cmd">aml dashboard</span> <span class="t-comment">&lt;spec&gt;  # → Audit &amp; Evidence → 🔒</span>
+
+<span class="t-num">[3]</span> <span class="t-info">ℹ</span> <span class="t-cmd">Build the auditor pack — pre-empt walk-in</span>
+    <span class="t-comment">One ZIP, chain-verified, jurisdiction-mapped.</span>
+    <span class="t-comment">Keep it on a shared drive so the auditor</span>
+    <span class="t-comment">downloads it themselves.</span>
+    <span class="t-arrow">→</span> <span class="t-cmd">aml auditor-pack</span> <span class="t-flag">--print-link</span>
+
+<span class="t-prompt">$</span> <span class="cursor-blink"></span></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>F6 · PR&nbsp;#117 · CAPTURED 2026-04-29</span>
+  </div>
+
+</body>
+</html>

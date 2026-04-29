@@ -1,0 +1,18 @@
+# Today · MLRO · schedule_i_bank_aml
+# Generated 2026-04-29T02:08:40.690837
+
+[1] ℹ Backtest one of your 10 rules this week
+    Pick the rule whose precision/recall you'd most struggle to defend at the 
+next exam. The backtester returns the SR-26-2 evidence in one command.
+    → aml backtest <spec> --rule <id> --quarters 4
+
+[2] ℹ Re-run regulation-drift watcher
+    FinCEN BOI was silently narrowed in March 2025; the watcher catches that 
+pattern. Cron weekly.
+    → aml regwatch <spec>
+
+[3] ℹ Verify the hash chain on today's run
+    If the chain breaks, every downstream attestation fails. The Audit & 
+Evidence page does this in one click.
+    → aml dashboard <spec>  # → Audit & Evidence → 🔒 Re-verify
+
