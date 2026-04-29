@@ -95,6 +95,70 @@ def auditor_pack_cmd(
         console.print(f"\n[bold]Auditor dashboard URL:[/bold]\n  {url}")
 
 
+@app.command(name="notify-digest")
+def notify_digest_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Option(
+        None, "--run-dir", help="Run directory; defaults to newest under artifacts/."
+    ),
+    artifacts: Path = typer.Option(
+        Path("artifacts"), "--artifacts", help="Where engine runs are written."
+    ),
+    window_hours: int = typer.Option(24, "--since-hours", help="Lookback window."),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Print the rendered Slack message; don't POST to webhooks.",
+    ),
+    suppress_empty: bool = typer.Option(
+        False,
+        "--suppress-empty",
+        help="Skip the send when nothing crossed the line in the window.",
+    ),
+) -> None:
+    """Roll up escalations + SLA breaches + critical alerts into one Slack/Teams message.
+
+    Cron this every 4-24 hours into your team's compliance channel.
+    Without it, the only way the supervisor finds out about a breach
+    is by opening the dashboard — so they don't, until end-of-day.
+
+    Configure via env:
+      SLACK_WEBHOOK_URL — Slack incoming webhook
+      TEAMS_WEBHOOK_URL — Teams incoming webhook
+    """
+    from aml_framework.integrations.digest import build_digest, post_digest, render_slack_text
+
+    spec = load_spec(spec_path)
+    run = _resolve_run_dir(run_dir, artifacts)
+    payload = build_digest(run, program_name=spec.program.name, window_hours=window_hours)
+
+    text = render_slack_text(payload)
+    console.rule("[bold]Digest preview[/bold]")
+    console.print(text)
+    console.rule()
+
+    if dry_run:
+        console.print("[yellow]Dry run — not posting to webhooks.[/yellow]")
+        return
+
+    sent = post_digest(payload, suppress_when_empty=suppress_empty)
+    if not any(sent.values()):
+        if suppress_empty and payload.total == 0:
+            console.print(
+                "[dim]Suppressed (no events in window). Re-run without "
+                "--suppress-empty to send a heartbeat anyway.[/dim]"
+            )
+        else:
+            console.print(
+                "[yellow]No webhooks reachable.[/yellow] Set SLACK_WEBHOOK_URL "
+                "or TEAMS_WEBHOOK_URL in env. Use --dry-run to preview without posting."
+            )
+    else:
+        for platform, ok in sent.items():
+            mark = "[green]✓[/green]" if ok else "[red]✗[/red]"
+            console.print(f"  {mark} {platform}")
+
+
 @app.command()
 def init(
     target_dir: Path = typer.Argument(
