@@ -732,11 +732,11 @@
             <p>9 example specs · 24 CLI commands · 1,632 tests · 26 dashboard pages · MIT licence. Apache-2.0/MIT compatible, runs entirely in your perimeter.</p>
             <span class="link">git clone … && pip install -e ".[dev,dashboard,api]"</span>
           </a>
-          <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/architecture.md" target="_blank" rel="noopener">
-            <div class="kind">Documentation · Markdown</div>
-            <h4>Architecture &amp; design rationale</h4>
-            <p>End-to-end data flow: spec loader → JSON-Schema + Pydantic validation → DuckDB engine → SHA-256 hash chain → audit pack. Why each design choice was made.</p>
-            <span class="link">docs/architecture.md</span>
+          <a class="more-card" href="#/research/architecture">
+            <div class="kind">Architecture · Design rationale</div>
+            <h4>One spec. Four layers. No drift.</h4>
+            <p>The spec-as-source-of-truth pattern explained: Policy → Generation → Runtime → Evidence. Persona arrows show who authors and who verifies each layer.</p>
+            <span class="link">research/architecture → opens in viewer</span>
           </a>
           <a class="more-card" href="v1-archive/" target="_blank" rel="noopener">
             <div class="kind">Archive</div>
@@ -773,6 +773,7 @@
       'research/process-pain':  { kind: 'iframe', src: 'research/process-pain.html',         title: '10 daily pain points · style guide' },
       'research/td-2024':       { kind: 'iframe', src: 'research/td-2024.html',              title: 'Case study · $3.09B BSA enforcement (Oct 2024)' },
       'research/competitive':   { kind: 'iframe', src: 'research/competitive-positioning.html', title: 'Competitive landscape · 2026' },
+      'research/architecture':  { kind: 'iframe', src: 'research/architecture.html',          title: 'Architecture · 4-layer stack (one spec, no drift)' },
     };
 
     // Per-scope metadata: each scope defines its own secondary tabs.
@@ -796,9 +797,10 @@
       research: {
         label: 'Research',
         tabs: [
-          { key: 'process-pain', label: 'Pain points', meta: '10 pains' },
-          { key: 'td-2024',      label: 'Case study',  meta: '2024' },
-          { key: 'competitive',  label: 'Landscape',   meta: '2026' },
+          { key: 'process-pain', label: 'Pain points',  meta: '10 pains' },
+          { key: 'td-2024',      label: 'Case study',   meta: '2024' },
+          { key: 'competitive',  label: 'Landscape',    meta: '2026' },
+          { key: 'architecture', label: 'Architecture', meta: '4 layers' },
         ],
       },
     };
