@@ -29,7 +29,7 @@
   --chapter-warm:    #f5e6c8;     /* parchment for serif chapter openers */
   --terminal-dim:    #64748b;     /* darker than ink-dim for terminal comments */
   --terminal-prompt: #67e8f9;     /* cyan for $ prompt */
-  --terminal-glow:   rgba(103, 232, 249, 0.08);  /* subtle cyan glow on terminal panel */
+  --terminal-glow:   rgba(103, 232, 249, 0.04);  /* subtler · narrative pane reads first */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -223,8 +223,8 @@ h1 em {
   left: 96px;
   right: 96px;
   display: grid;
-  grid-template-columns: 36fr 60fr;  /* narrative left, code right */
-  gap: 64px;
+  grid-template-columns: 44fr 52fr;  /* narrative left, code right · TD-lens rebalance */
+  gap: 56px;
   z-index: 1;
 }
 
@@ -288,8 +288,8 @@ h1 em {
   border-radius: 12px;
   overflow: hidden;
   box-shadow:
-    0 12px 48px rgba(0,0,0,0.45),
-    0 0 64px var(--terminal-glow);
+    0 8px 32px rgba(0,0,0,0.3),
+    0 0 48px var(--terminal-glow);
   position: relative;
   display: flex;
   flex-direction: column;

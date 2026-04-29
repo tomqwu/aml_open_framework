@@ -140,3 +140,34 @@ Used at the start of each Act (Acts I-VI). 6 slides total. No body content — p
 - **Eng / 2LoD**：右 pane 的 CLI 输出 + 命令 + spec
 
 如果右 pane 看不懂、左 pane 看不到价值——这张 slide 失败了 50% 的受众。**reviewer 模式：每张 slide 自检"这张同时讲明白业务和技术了吗？"**
+
+## 🪧 TD 领导层 lens（headline 硬规则）
+
+> 来自 user feedback：「AML pitches: lead with process/people pain (易沟通/易做事/易报告/易管理/易审计/省钱), not architecture/tool」。
+
+**Headline 必须以 process pain 开头，而不是工具名字**：
+
+| ✗ 工具优先（违反 lens）| ✓ 流程/人优先（符合 lens）|
+|---|---|
+| "Every leader artifact has an `aml ___` command behind it." | "Every leader question has a one-line answer." |
+| "The CCO's morning, in one command." | "Replace four dashboards. The morning, in one view." |
+| "Tamper-evident by construction." | "When the auditor asks 'who decided?' the answer is in the file." |
+| "Zero to a working spec." | "Zero to day-one detection." |
+| "One YAML." | "One source." |
+
+**禁词** in headlines（除非是 Tech Substrate Act 的 slide）：
+- `aml ___`, `command`, `CLI`, `wizard`, `terminal`
+- `YAML`, `spec` (除非紧跟「之于业务」的解释)
+- `SHA-256`, `hash chain`, `byte-for-byte`, `Pydantic`, `DuckDB`
+
+**允许词** in headlines（process / people / money / regulator pain）：
+- "morning" / "Tuesday afternoon" / "evening" / "weekday"
+- "auditor walks in" / "regulator asks" / "MLRO challenges"
+- "six-week" / "18-month" / "quarter" / "$36B" / "22 minutes"
+- "answer" / "evidence" / "checklist" / "ritual"
+- 具体动作：reconcile / reconstruct / replace / explain / decide
+
+**视觉对应规则**：
+- 同时有 narrative + CLI 双 pane 时，narrative 列宽 ≥ CLI 列宽（44/52 而不是 36/60）
+- Terminal 阴影/glow 收敛到「证据」级，不抢「论点」的视觉位
+- 真正的纯 tech 受众 slide（Architecture / CLI Cheat Sheet）才能 break 这条规则——明牌 tech，让工程师认出自己的家
