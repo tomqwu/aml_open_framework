@@ -358,6 +358,180 @@ def page_header(title: str, description: str | None = None) -> None:
     st.divider()
 
 
+def tooltip_banner(page_title: str, body: str) -> None:
+    """Render the legacy "Guided demo" tooltip-style banner.
+
+    Used when the user picks ``Mode: Tooltip mode`` in the sidebar.
+    No-ops when no banner mode is active. Preserved so we don't lose
+    the per-page context strings the legacy ``guided_demo`` toggle
+    provided — they still have value in tooltip-only contexts.
+    """
+    if st.session_state.get("guided_mode") != "tooltip":
+        return
+    st.info(f"**Guided · {page_title}**\n\n{body}")
+
+
+def tour_panel(page_title: str) -> None:
+    """Render the guided-tour navigation card at the top of a page.
+
+    Reads tour state from ``st.session_state``. No-ops if no tour is
+    active. If the active tour is on a different page, shows a quiet
+    "you've drifted off the tour" hint with a back-on-track button.
+
+    The card is intentionally heavier than the legacy ``st.info``
+    banner — it carries step counter, narrative, the concrete task,
+    and three action buttons (Back / Skip / Next or Finish).
+    """
+    from aml_framework.dashboard import tour as tour_mod
+
+    state = st.session_state
+    if not tour_mod.is_active(state):
+        return
+
+    # Tour completion state — render a "finished" card.
+    if tour_mod.is_complete(state):
+        _render_complete_card(page_title)
+        return
+
+    step = tour_mod.current_step(state)
+    if step is None:
+        return
+
+    # If the user navigated to a page that's not the current tour step,
+    # show a soft hint instead of the full panel — don't hijack the page.
+    if step.page_title != page_title:
+        _render_off_track_hint(step)
+        return
+
+    cur, total = tour_mod.step_position(state)
+    arc_label = state.get("tour_arc", "").upper()
+
+    # Tour panel container — slate background, cyan accent border-left.
+    st.markdown(
+        f"""<div style="
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            border: 1px solid #334155;
+            border-left: 4px solid #67e8f9;
+            border-radius: 12px;
+            padding: 20px 28px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        ">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px;
+                      letter-spacing: 0.18em; text-transform: uppercase; color: #67e8f9;">
+            🗺️ {arc_label} TOUR · STEP {cur} / {total}
+          </div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px;
+                      color: #94a3b8; letter-spacing: 0.05em;">{step.duration}</div>
+        </div>
+        <div style="font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">
+          {step.step_title}
+        </div>
+        <div style="font-size: 14px; line-height: 1.6; color: #cbd5e1; margin-bottom: 12px;">
+          {step.narrative}
+        </div>
+        <div style="font-size: 13px; color: #94a3b8; padding: 10px 14px;
+                    background: rgba(103, 232, 249, 0.06); border-radius: 6px;
+                    border-left: 2px solid #67e8f9;">
+          <b style="color: #67e8f9; font-family: 'JetBrains Mono', monospace;
+                   font-size: 11px; letter-spacing: 0.12em;">TRY THIS →</b>
+          <span style="margin-left: 8px;">{step.task}</span>
+        </div></div>""",
+        unsafe_allow_html=True,
+    )
+
+    # Navigation row. Streamlit columns for native button widgets.
+    col_back, col_skip, _, col_next = st.columns([1, 1, 3, 1])
+    with col_back:
+        if st.button(
+            "← Back",
+            key=f"tour_back_{cur}",
+            disabled=(cur == 1),
+            use_container_width=True,
+        ):
+            prev = tour_mod.retreat(state)
+            if prev:
+                st.switch_page(prev.page_path)
+    with col_skip:
+        if st.button("Skip tour", key=f"tour_skip_{cur}", use_container_width=True):
+            tour_mod.end(state)
+            st.rerun()
+    with col_next:
+        is_last = cur == total
+        label = "Finish ✓" if is_last else "Next →"
+        if st.button(label, key=f"tour_next_{cur}", type="primary", use_container_width=True):
+            nxt = tour_mod.advance(state)
+            if nxt:
+                st.switch_page(nxt.page_path)
+            else:
+                # Reached completion — rerender to show completion card.
+                st.rerun()
+
+
+def _render_off_track_hint(step: Any) -> None:
+    """Quiet banner when user has navigated away from the active tour step."""
+    st.markdown(
+        f"""<div style="
+            background: rgba(103, 232, 249, 0.04);
+            border: 1px dashed #67e8f9;
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            font-size: 13px; color: #94a3b8;
+        ">
+        🗺️ Tour paused — you're off the recommended path. Next stop:
+        <b style="color: #67e8f9;">{step.page_title}</b> ({step.step_title}).
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    if st.button(f"↩ Back on track → {step.page_title}", key="tour_resume"):
+        st.switch_page(step.page_path)
+
+
+def _render_complete_card(page_title: str) -> None:
+    """Tour-finished card. Offers Replay / End."""
+    from aml_framework.dashboard import tour as tour_mod
+
+    state = st.session_state
+    arc_id = state.get("tour_arc", "")
+    arc_label = arc_id.upper()
+
+    st.markdown(
+        f"""<div style="
+            background: linear-gradient(135deg, rgba(134, 239, 172, 0.1), rgba(15, 23, 42, 1));
+            border: 1px solid #16a34a;
+            border-radius: 12px;
+            padding: 24px 28px;
+            margin-bottom: 16px;
+        ">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px;
+                    letter-spacing: 0.18em; text-transform: uppercase; color: #86efac;
+                    margin-bottom: 10px;">
+          ✓ {arc_label} TOUR COMPLETE
+        </div>
+        <div style="font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">
+          You've walked the canonical {arc_label.lower()} arc.
+        </div>
+        <div style="font-size: 14px; line-height: 1.6; color: #cbd5e1;">
+          Next up: explore other personas, drill into the data, or read the
+          <a href="https://github.com/tomqwu/aml_open_framework" style="color: #67e8f9;">source</a>.
+        </div></div>""",
+        unsafe_allow_html=True,
+    )
+    col_replay, col_end, _ = st.columns([1, 1, 3])
+    with col_replay:
+        if st.button("↻ Replay tour", key="tour_replay", use_container_width=True):
+            tour_mod.start(state, arc_id)
+            step = tour_mod.current_step(state)
+            if step:
+                st.switch_page(step.page_path)
+    with col_end:
+        if st.button("End tour", key="tour_end_complete", use_container_width=True):
+            tour_mod.end(state)
+            st.rerun()
+
+
 def kpi_card(label: str, value: Any, accent_color: str = "#2563eb") -> None:
     """Render a styled KPI card with colored left border.
 
@@ -603,3 +777,14 @@ def chart_layout(fig: Any, height: int = 380) -> Any:
         plot_bgcolor="rgba(0,0,0,0)",
     )
     return fig
+
+
+# Glossary helpers live in `dashboard/glossary.py` (a pandas/streamlit-
+# free module so unit-tests CI can import them) and are re-exported here
+# for backwards compatibility. Pages still do
+# `from aml_framework.dashboard.components import glossary_legend`.
+from aml_framework.dashboard.glossary import (  # noqa: E402,F401
+    GLOSSARY,
+    glossary_legend,
+    glossary_term,
+)

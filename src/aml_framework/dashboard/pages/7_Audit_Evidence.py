@@ -23,15 +23,18 @@ from datetime import datetime, timezone
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    glossary_legend,
     kpi_card_rag,
     page_header,
     terminal_block,
+    tooltip_banner,
+    tour_panel,
 )
 from aml_framework.engine.audit import AuditLedger
 
 page_header(
     "Audit & Evidence",
-    "Immutable audit trail with hash verification, decision log, and evidence bundle.",
+    "What you'd hand a regulator if they walked in tomorrow.",
 )
 
 result = st.session_state.result
@@ -39,13 +42,14 @@ run_dir = st.session_state.run_dir
 df_decisions = st.session_state.df_decisions
 manifest = result.manifest
 
-if st.session_state.get("guided_demo"):
-    st.info(
-        "**Guided Demo -- Audit & Evidence**\n\n"
-        "Every rule execution records a content hash so the same spec + "
-        "same data + same engine = same output. The decision log is "
-        "append-only. This is the regulator and auditor view."
-    )
+
+tour_panel("Audit & Evidence")
+tooltip_banner(
+    "Audit & Evidence",
+    "Every rule execution records a content hash so the same spec + "
+    "same data + same engine = same output. The decision log is "
+    "append-only. This is the regulator and auditor view.",
+)
 
 # --- Run identity: terminal-style header ---
 # Hashes go in mono-font dark block (cyan) — the rest of the dashboard
@@ -349,3 +353,10 @@ else:
         "Future rounds will add UK FCA / EU AMLA / US FinCEN templates "
         "using the same generator skeleton."
     )
+
+# Acronyms used on this page — leader-friendly expansions so the
+# regulator-facing terminology stays visible without losing readers.
+st.markdown(
+    glossary_legend(["STR", "SAR", "FINTRAC", "OSFI", "FCA", "AMLA", "FinCEN", "MRM"]),
+    unsafe_allow_html=True,
+)
