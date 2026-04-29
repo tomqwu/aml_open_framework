@@ -471,6 +471,168 @@
     .flow-hero h2 { font-size: 32px; }
   }
 
+  /* "Who fits where" quadrant section */
+  .fit-section {
+    margin: 64px 0 0;
+    padding: 56px 48px 48px;
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--rule);
+    position: relative;
+  }
+  .fit-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, transparent 0%, var(--accent) 25%, var(--accent) 75%, transparent 100%);
+    opacity: 0.5;
+  }
+  .fit-section .heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .fit-section h2 {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 40px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.014em;
+    line-height: 1.1;
+  }
+  .fit-section h2 em { font-style: italic; color: var(--accent); font-weight: 400; }
+  .fit-section .heading .sub {
+    font-size: 17px;
+    color: var(--ink-dim);
+    max-width: 480px;
+    text-wrap: pretty;
+  }
+
+  .fit-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 56px;
+    align-items: stretch;
+  }
+
+  .fit-quadrant {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 0.86;
+    max-height: 540px;
+  }
+  .fit-quadrant svg { width: 100%; height: 100%; display: block; }
+
+  .fit-corner {
+    position: absolute;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-faint);
+    pointer-events: none;
+  }
+  .fit-corner.tl { top: 14px; left: 18px; }
+  .fit-corner.tr { top: 14px; right: 18px; text-align: right; }
+  .fit-corner.bl { bottom: 38px; left: 18px; color: var(--accent); }
+  .fit-corner.br { bottom: 38px; right: 18px; text-align: right; }
+
+  /* Cell labels positioned over SVG */
+  .fit-cell {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: white;
+    padding: 8px 14px;
+    border: 1.5px solid var(--ink);
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.25;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(5,28,44,0.06);
+  }
+  .fit-cell.fintech {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(221,92,52,0.28);
+  }
+  .fit-cell .meta {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    margin-top: 2px;
+  }
+  .fit-cell.fintech .meta { color: rgba(255,255,255,0.78); }
+
+  /* Right rail — persona cards */
+  .fit-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-self: stretch;
+  }
+  .fit-card {
+    border: 1px solid var(--rule-strong);
+    border-radius: 4px;
+    padding: 16px 20px 14px;
+    background: var(--bg-card);
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .fit-card.fintech {
+    background: var(--bg);
+    border-color: var(--accent);
+    border-left: 3px solid var(--accent);
+  }
+  .fit-card:hover { transform: translateX(2px); }
+  .fit-card.fintech:hover {
+    box-shadow: 0 6px 20px rgba(221,92,52,0.16);
+  }
+  .fit-card .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .fit-card .name {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .fit-card.fintech .name { color: var(--accent); }
+  .fit-card .role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+  }
+  .fit-card.fintech .role { color: var(--accent); }
+  .fit-card .desc {
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink-dim);
+    text-wrap: pretty;
+  }
+  .fit-card .desc strong { color: var(--ink); font-weight: 600; }
+
+  @media (max-width: 900px) {
+    .fit-grid { grid-template-columns: 1fr; gap: 32px; }
+  }
+
   /* Section heading */
   h2.section-h {
     font-family: 'Source Serif 4', Georgia, serif;
@@ -831,6 +993,83 @@
             <span><strong>same Manifest + same data + same seed</strong> = identical output hashes</span>
           </div>
           <div class="cite">FCA Mar 2024 · FinCEN Apr 2026 NPRM · SR 26-2 effective Apr 2026</div>
+        </div>
+      </section>
+
+      <section class="fit-section">
+        <div class="heading">
+          <h2>Same Manifest, <em>four sizes</em>.</h2>
+          <p class="sub">Lean fintech to Tier-1 bank — different scope, same single-source-of-truth pattern. The framework <em>fits where you are</em>.</p>
+        </div>
+
+        <div class="fit-grid">
+          <div class="fit-quadrant">
+            <svg viewBox="0 0 700 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <defs>
+                <marker id="fit-arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#1c1f26"/>
+                </marker>
+              </defs>
+              <!-- 4 quadrant fills -->
+              <rect x="80"  y="40"  width="280" height="240" fill="#fbfbfc"/>
+              <rect x="360" y="40"  width="280" height="240" fill="#f6f7f9"/>
+              <rect x="80"  y="280" width="280" height="240" fill="#fdeee5"/>
+              <rect x="360" y="280" width="280" height="240" fill="#fbfbfc"/>
+              <!-- Frame -->
+              <rect x="80" y="40" width="560" height="480" fill="none" stroke="#1c1f26" stroke-width="1.5"/>
+              <line x1="360" y1="40"  x2="360" y2="520" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+              <line x1="80"  y1="280" x2="640" y2="280" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+              <!-- X axis -->
+              <line x1="80" y1="572" x2="640" y2="572" stroke="#1c1f26" stroke-width="2" marker-end="url(#fit-arr)"/>
+              <text x="360" y="595" text-anchor="middle" font-family="Inter" font-size="13" font-weight="600" fill="#1c1f26" letter-spacing="0.04em">PROGRAM COMPLEXITY  →</text>
+              <!-- Y axis -->
+              <line x1="40" y1="520" x2="40" y2="40" stroke="#1c1f26" stroke-width="2" marker-end="url(#fit-arr)"/>
+              <text x="40" y="280" text-anchor="middle" font-family="Inter" font-size="13" font-weight="600" fill="#1c1f26"
+                    letter-spacing="0.04em" transform="rotate(-90 40 280)">TEAM SIZE  →</text>
+            </svg>
+
+            <div class="fit-corner tl">Mid-tier bank</div>
+            <div class="fit-corner tr">Tier-1 bank</div>
+            <div class="fit-corner bl">FinTech ◆</div>
+            <div class="fit-corner br">Scaling fintech</div>
+
+            <!-- Cells positioned in % of wrapper -->
+            <div class="fit-cell" style="left:31.4%;top:30%;">Pilot + 2LoD challenger<span class="meta">10–20 compliance · single juris</span></div>
+            <div class="fit-cell" style="left:71.4%;top:24%;">MRM challenger model<span class="meta">100+ FTE · global · SR 26-2</span></div>
+            <div class="fit-cell fintech" style="left:31.4%;top:65%;">★ Primary platform<span class="meta">1 person · ship in days</span></div>
+            <div class="fit-cell" style="left:71.4%;top:65%;">Cross-border platform<span class="meta">small team · multi-juris · ISO 20022</span></div>
+          </div>
+
+          <div class="fit-rail">
+            <div class="fit-card fintech">
+              <div class="head">
+                <span class="name">FinTech / EMI applicant</span>
+                <span class="role">★ Primary</span>
+              </div>
+              <div class="desc"><strong>1 MLRO runs the whole program.</strong> Clone canonical spec → customise → ship. Time-to-first-alert in minutes. Examiner-pack via one CLI command. Investor DD answer in 5 minutes.</div>
+            </div>
+            <div class="fit-card">
+              <div class="head">
+                <span class="name">Scaling fintech / VASP / cross-border</span>
+                <span class="role">Platform</span>
+              </div>
+              <div class="desc">Multi-jurisdiction templates (US/CA/EU/UK), ISO 20022 native, BOI workflow, FATF Travel Rule. Lean team gets enterprise reach without enterprise headcount.</div>
+            </div>
+            <div class="fit-card">
+              <div class="head">
+                <span class="name">Mid-tier bank</span>
+                <span class="role">Pilot</span>
+              </div>
+              <div class="desc">Runs alongside vendor TM as proof-of-concept. Becomes the 2LoD <em>independent challenger model</em> SR 26-2 expects — without buying a second commercial licence.</div>
+            </div>
+            <div class="fit-card">
+              <div class="head">
+                <span class="name">Tier-1 bank</span>
+                <span class="role">2LoD challenger</span>
+              </div>
+              <div class="desc">MRM independent re-implementation under SR 26-2 / OCC 2026-13. Deterministic re-run + hash-chained audit ledger as published guarantee — what no commercial vendor offers.</div>
+            </div>
+          </div>
         </div>
       </section>
 
