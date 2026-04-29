@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pain → Capability map · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s6-table {
+    flex: 1;
+    border-top: 2px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+  }
+  .s6-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px 1fr;
+    gap: 24px;
+    padding: 22px 8px;
+    border-bottom: 1px solid var(--rule);
+    align-items: center;
+  }
+  .s6-row:last-child { border-bottom: none; }
+  .s6-row .num {
+    font-size: 14px; font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+  .s6-row .pain {
+    font-size: 19px; font-weight: 500;
+    color: var(--ink); font-style: italic; line-height: 1.4;
+  }
+  .s6-row .arrow {
+    font-size: 22px; color: var(--ink-faint);
+    text-align: center; font-weight: 300;
+  }
+  .s6-row .answer {
+    font-size: 17px; font-weight: 400;
+    color: var(--ink-2); line-height: 1.45;
+  }
+  .s6-row .answer strong { color: var(--ink); font-weight: 600; }
+  .s6-row .answer code {
+    font-family: 'Inter', sans-serif;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .s6-header {
+    display: grid;
+    grid-template-columns: 60px 1fr 60px 1fr;
+    gap: 24px;
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">6</span> Pain → Capability map</div>
+  <div class="top-rule"></div>
+
+  <div class="stage">
+    <h2 class="action-title fade-up" style="margin-bottom:12px;">
+      Each pain has a single, evidenced answer — <em>one file</em> away.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:48px;">
+      Direct mapping from public-record regulator findings to specific framework capabilities. No black box, no vendor add-ons.
+    </p>
+
+    <div class="s6-table fade-up d3">
+      <div class="s6-header">
+        <div></div>
+        <div>Leader's pain (regulator-cited)</div>
+        <div></div>
+        <div>Framework capability (what changes)</div>
+      </div>
+
+      <div class="s6-row">
+        <div class="num">1</div>
+        <div class="pain">"We can't prove what we did."</div>
+        <div class="arrow">→</div>
+        <div class="answer"><strong>Hash-chained</strong> <code>decisions.jsonl</code> + deterministic replay. Any historical run reproducible byte-for-byte.</div>
+      </div>
+      <div class="s6-row">
+        <div class="num">2</div>
+        <div class="pain">"The backlog has been red on the board for years."</div>
+        <div class="arrow">→</div>
+        <div class="answer"><strong>SLA timer + escalation engine.</strong> Red queues become loud, not slide-decoration. Per-queue breach-rate badges visible to the board.</div>
+      </div>
+      <div class="s6-row">
+        <div class="num">3</div>
+        <div class="pain">"Our risk assessment is a PDF nobody trusts."</div>
+        <div class="arrow">→</div>
+        <div class="answer"><strong>The spec IS the risk assessment</strong> — machine-readable, cited line-by-line. <em>Framework Alignment</em> dashboard renders the live BRA from the spec.</div>
+      </div>
+      <div class="s6-row">
+        <div class="num">4</div>
+        <div class="pain">"My monitoring system is a model and I cannot validate it."</div>
+        <div class="arrow">→</div>
+        <div class="answer"><strong>Per-rule MRM dossier + 4-quarter backtester.</strong> "Is rule X still earning its keep?" answered before lunch — no vendor study.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> Pain points 1, 2, 4, 6 from <em>docs/research/2026-04-aml-process-pain.md</em> · capability mapping in framework README + audit-evidence.md</span>
+    <span>6 OF 8</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>

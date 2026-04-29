@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>What the operator inherits · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s7-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: 36px 32px;
+    align-content: center;
+  }
+  .s7-cell {
+    border-top: 1px solid var(--ink);
+    padding-top: 18px;
+  }
+  .s7-cell .num {
+    font-size: 56px; font-weight: 600;
+    line-height: 1.0; letter-spacing: -0.025em;
+    color: var(--ink); margin-bottom: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .s7-cell .num .small { font-size: 32px; font-weight: 500; color: var(--ink-dim); }
+  .s7-cell .num.accent { color: var(--accent); }
+  .s7-cell .label {
+    font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--ink-faint);
+    font-weight: 600; margin-bottom: 8px;
+  }
+  .s7-cell .desc {
+    font-size: 14px; color: var(--ink-2); line-height: 1.45;
+  }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">7</span> What the operator inherits</div>
+  <div class="top-rule"></div>
+
+  <div class="stage">
+    <h2 class="action-title fade-up" style="margin-bottom:12px;">
+      The framework arrives <em>built</em>, not blueprinted.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:56px;">
+      Open-source · runs in your perimeter · no per-seat licence · every rule cites a regulation · re-runs deterministically.
+    </p>
+
+    <div class="s7-grid">
+      <div class="s7-cell fade-up d3">
+        <div class="num accent">8</div>
+        <div class="label">Curated typologies</div>
+        <div class="desc">Every line cited to a regulator publication. Day-one detection.</div>
+      </div>
+      <div class="s7-cell fade-up d3">
+        <div class="num accent">4</div>
+        <div class="label">Active jurisdictions</div>
+        <div class="desc">US (FinCEN) · CA (FINTRAC) · UK (FCA) · EU (EBA). FATF Travel Rule.</div>
+      </div>
+      <div class="s7-cell fade-up d4">
+        <div class="num accent">26</div>
+        <div class="label">Dashboard pages</div>
+        <div class="desc">Persona-aware. Sidebar filters by role — CCO sees board signal, analyst sees queue.</div>
+      </div>
+      <div class="s7-cell fade-up d4">
+        <div class="num accent">9</div>
+        <div class="label">Reference specs</div>
+        <div class="desc">Schedule-I bank · community bank · VASP · cyber-fraud · trade-based ML · …</div>
+      </div>
+
+      <div class="s7-cell fade-up d5">
+        <div class="num">1,632</div>
+        <div class="label">Tests · all green</div>
+        <div class="desc">5 CI jobs per pull request. Lint, unit, API, e2e dashboard, docker.</div>
+      </div>
+      <div class="s7-cell fade-up d5">
+        <div class="num">SHA<span class="small">-256</span></div>
+        <div class="label">Audit chain</div>
+        <div class="desc">Hash-chained decision log. Tampering breaks attestation, by construction.</div>
+      </div>
+      <div class="s7-cell fade-up d6">
+        <div class="num">MIT</div>
+        <div class="label">Licence</div>
+        <div class="desc">Apache 2.0 / MIT compatible. Forkable. Runs entirely in your perimeter.</div>
+      </div>
+      <div class="s7-cell fade-up d6">
+        <div class="num">$0</div>
+        <div class="label">Per-seat fees</div>
+        <div class="desc">No vendor licence renewals. Effectiveness pack quantifies what you spent.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> Live counts from <em>main</em> branch as of 2026-04-29 · github.com/tomqwu/aml_open_framework</span>
+    <span>7 OF 8</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>

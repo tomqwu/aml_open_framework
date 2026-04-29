@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Engagement · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s8-stage {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 96px;
+  }
+  .s8-eyebrow {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 32px;
+  }
+  .s8-title {
+    font-size: 78px; font-weight: 600;
+    line-height: 1.05; letter-spacing: -0.022em;
+    color: var(--ink);
+    margin-bottom: 56px;
+    text-wrap: balance; max-width: 1500px;
+  }
+  .s8-title em { font-style: normal; color: var(--accent); }
+
+  .s8-paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; max-width: 1500px; }
+  .s8-path { border-top: 2px solid var(--ink); padding-top: 22px; }
+  .s8-path .lead {
+    font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    font-weight: 700; color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .s8-path h3 {
+    font-size: 24px; font-weight: 600;
+    color: var(--ink); margin-bottom: 12px;
+    line-height: 1.25;
+  }
+  .s8-path p {
+    font-size: 15px; color: var(--ink-dim); line-height: 1.5;
+  }
+
+  .s8-repo {
+    margin-top: 56px;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 22px;
+    width: 720px;
+  }
+  .s8-repo .url { color: var(--accent); font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">AML Open Framework <span class="num">·</span> Engagement</div>
+  <div class="top-rule"></div>
+
+  <div class="s8-stage">
+    <div class="s8-eyebrow fade-up">Three paths from here</div>
+    <h1 class="s8-title fade-up d2">The next step takes <em>five minutes</em>.</h1>
+
+    <div class="s8-paths">
+      <div class="s8-path fade-up d3">
+        <div class="lead">Read · 15 min</div>
+        <h3>Show me the research.</h3>
+        <p>Open the 10-pain-point doc with primary citations and the TD&nbsp;2024 case study. Frame is unbranded.</p>
+      </div>
+      <div class="s8-path fade-up d4">
+        <div class="lead">Try · 5 min</div>
+        <h3>Run it on my desk.</h3>
+        <p>Clone, install, run a real audit pack against the canonical spec. No vendor demo cycle.</p>
+      </div>
+      <div class="s8-path fade-up d5">
+        <div class="lead">Talk · 30 min</div>
+        <h3>Walk me through it.</h3>
+        <p>Bring your spec or pain — pull-request a typology, open a Discussion, or tag the maintainer.</p>
+      </div>
+    </div>
+
+    <div class="s8-repo fade-up d6">
+      <span style="color:var(--ink-faint);font-size:13px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Open source · MIT</span><br>
+      <span class="url">github.com/tomqwu/aml_open_framework</span>
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> AML Open Framework · primary-source research grounded in FCA / FinCEN / OSFI / FINTRAC public record</span>
+    <span>8 OF 8 · END</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>

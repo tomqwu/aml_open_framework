@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cover · AML Open Framework — Board briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s1-stage {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 96px;
+  }
+  .s1-eyebrow {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 36px;
+  }
+  .s1-title {
+    font-size: 96px; font-weight: 600;
+    line-height: 1.04; letter-spacing: -0.022em;
+    color: var(--ink);
+    margin-bottom: 32px;
+    text-wrap: balance; max-width: 1500px;
+  }
+  .s1-title .accent { color: var(--accent); }
+  .s1-thesis {
+    font-size: 26px; font-weight: 400; line-height: 1.45;
+    color: var(--ink-2); max-width: 1180px;
+    text-wrap: pretty;
+    margin-bottom: 28px;
+  }
+  .s1-prepared {
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 24px;
+    width: 480px;
+  }
+  .s1-prepared strong { color: var(--ink-2); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">AML Open Framework <span class="num">·</span> Board briefing <span class="num">·</span> 2026</div>
+  <div class="top-rule"></div>
+
+  <div class="s1-stage">
+    <div class="s1-eyebrow fade-up">Anti-Money Laundering · 2026 Edition</div>
+    <h1 class="s1-title fade-up d2">An AML program<br><span class="accent">every decision</span> can be replayed.</h1>
+    <p class="s1-thesis fade-up d3">
+      Process and governance gaps outnumber data and model gaps roughly 2:1 in every recent
+      consent order. The cost of being unable to evidence a decision is now larger than the
+      cost of missing one.
+    </p>
+    <div class="s1-prepared fade-up d4">Prepared for <strong>CCO · MLRO · Audit Committee</strong></div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> FCA Dear-CEO Letter (Mar&nbsp;2024) · FinCEN TD&nbsp;Bank consent order (Oct&nbsp;2024) · LexisNexis True&nbsp;Cost of Compliance (Feb&nbsp;2024)</span>
+    <span>1 OF 8</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>
