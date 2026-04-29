@@ -55,6 +55,82 @@
     PR-2 (README), PR-3 (dashboard page descriptions), and PR-4 (glossary) all cite <strong>PAIN-N</strong> identifiers from this table.
   </div>
 
+  <h2 class="r-h2">Pain <em>quadrant</em>.</h2>
+  <p class="r-section-dek">
+    The 10 pains plotted on the two axes leaders actually triage on — <em>how often felt</em> (annual review → daily floor) and <em>how painful when felt</em> (manageable cost → existential exposure). Top-right cluster is the urgent-must-fix quadrant a CCO should spend the next budget cycle on.
+  </p>
+
+  <div class="r-quadrant" style="aspect-ratio: 1 / 0.74; max-width: 920px;">
+    <svg viewBox="0 0 800 720" preserveAspectRatio="xMidYMid meet" aria-label="Pain Quadrant: Frequency vs Severity">
+      <defs>
+        <marker id="arrowP" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M 0 0 L 8 4 L 0 8 z" fill="#051c2c"/>
+        </marker>
+      </defs>
+      <rect x="80"  y="40"  width="340" height="280" fill="#fbfbfc"/>
+      <rect x="420" y="40"  width="340" height="280" fill="#fdeee5"/>
+      <rect x="80"  y="320" width="340" height="280" fill="#fbfbfc"/>
+      <rect x="420" y="320" width="340" height="280" fill="#fbfbfc"/>
+      <rect x="80" y="40" width="680" height="560" fill="none" stroke="#051c2c" stroke-width="1.5"/>
+      <line x1="420" y1="40"  x2="420" y2="600" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="80"  y1="320" x2="760" y2="320" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="80" y1="660" x2="760" y2="660" stroke="#051c2c" stroke-width="2" marker-end="url(#arrowP)"/>
+      <text x="420" y="690" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="#051c2c" letter-spacing="0.04em">FREQUENCY · annual → daily  →</text>
+      <line x1="40" y1="600" x2="40" y2="40" stroke="#051c2c" stroke-width="2" marker-end="url(#arrowP)"/>
+      <text x="40" y="320" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="#051c2c"
+            letter-spacing="0.04em" transform="rotate(-90 40 320)">SEVERITY · costly → existential  →</text>
+
+      <!-- Pain dots -->
+      <!-- PAIN-1: freq=85, sev=88   x=80+0.85*680=658, y=600-0.88*560=107 -->
+      <circle cx="658" cy="107" r="11" fill="#dd5c34"/>
+      <!-- PAIN-2: freq=82, sev=82   x=637, y=141 -->
+      <circle cx="637" cy="141" r="11" fill="#dd5c34"/>
+      <!-- PAIN-3: freq=88, sev=58   x=678, y=275 -->
+      <circle cx="678" cy="275" r="9" fill="#051c2c"/>
+      <!-- PAIN-4: freq=32, sev=76   x=298, y=174 -->
+      <circle cx="298" cy="174" r="9" fill="#051c2c"/>
+      <!-- PAIN-5: freq=26, sev=70   x=257, y=208 -->
+      <circle cx="257" cy="208" r="9" fill="#051c2c"/>
+      <!-- PAIN-6: freq=48, sev=78   x=406, y=163 -->
+      <circle cx="406" cy="163" r="9" fill="#051c2c"/>
+      <!-- PAIN-7: freq=72, sev=72   x=570, y=197 -->
+      <circle cx="570" cy="197" r="11" fill="#dd5c34"/>
+      <!-- PAIN-8: freq=42, sev=46   x=366, y=343 -->
+      <circle cx="366" cy="343" r="9" fill="#051c2c"/>
+      <!-- PAIN-9: freq=38, sev=64   x=338, y=242 -->
+      <circle cx="338" cy="242" r="9" fill="#051c2c"/>
+      <!-- PAIN-10: freq=22, sev=92  x=230, y=85 -->
+      <circle cx="230" cy="85" r="9" fill="#051c2c"/>
+    </svg>
+
+    <div class="qcorner tl">High pain · rare</div>
+    <div class="qcorner tr">URGENT · MUST FIX</div>
+    <div class="qcorner bl">Manageable</div>
+    <div class="qcorner br">Daily friction</div>
+
+    <!-- Pain labels (position % of wrapper; viewBox 800×720 means y% = (cy/720)*100) -->
+    <div class="qdot-label" style="left:82.3%;top:14.9%;"><span class="name">PAIN-1 · "Can't prove"</span><span class="sub">FCA Mar 2024</span></div>
+    <div class="qdot-label" style="left:79.6%;top:19.6%;"><span class="name">PAIN-2 · Backlog red</span><span class="sub">FinCEN Oct 2024</span></div>
+    <div class="qdot-label" style="left:84.8%;top:38.2%;"><span class="name">PAIN-3 · 95% noise</span><span class="sub">Flagright + NICE</span></div>
+    <div class="qdot-label" style="left:37.2%;top:24.2%;"><span class="name">PAIN-4 · BRA stale</span><span class="sub">FCA + FINTRAC</span></div>
+    <div class="qdot-label" style="left:32.1%;top:28.9%;"><span class="name">PAIN-5 · Growth gap</span><span class="sub">FCA + OCC 2024</span></div>
+    <div class="qdot-label" style="left:50.7%;top:22.6%;"><span class="name">PAIN-6 · MRM black box</span><span class="sub">ACAMS · SR 26-2</span></div>
+    <div class="qdot-label" style="left:71.2%;top:27.4%;"><span class="name">PAIN-7 · SAR quality</span><span class="sub">FINTRAC RBC 2024</span></div>
+    <div class="qdot-label" style="left:45.7%;top:47.6%;"><span class="name">PAIN-8 · ROI</span><span class="sub">LexisNexis · FinCEN RFI</span></div>
+    <div class="qdot-label" style="left:42.3%;top:33.6%;"><span class="name">PAIN-9 · 1LoD/2LoD</span><span class="sub">FCA 2021/2024</span></div>
+    <div class="qdot-label" style="left:28.7%;top:11.8%;"><span class="name">PAIN-10 · Officer accountable</span><span class="sub">OSFI Jan 2026 · FinCEN NPRM</span></div>
+  </div>
+
+  <div class="r-spa">
+    <div class="lead">Strategic Planning Assumption · #1</div>
+    By <strong>January 2026</strong>, OSFI's lower-tolerance AMP regime makes individual MLRO accountability sharper. PAIN-10 moves from "annual" to "any-time-something-goes-wrong" — its position on the quadrant slides right.
+  </div>
+
+  <div class="r-spa">
+    <div class="lead">Strategic Planning Assumption · #2</div>
+    By <strong>July 2026</strong>, AMLA's RTS on STR-effectiveness telemetry binds EU PIs/EMIs. PAIN-7 (SAR quality) gets <em>measured</em> for the first time — backlog-as-reportable-metric pushes the dot further right.
+  </div>
+
   <h2 class="r-h2">The <em>10 pains</em>.</h2>
 
   <!-- PAIN 1 -->

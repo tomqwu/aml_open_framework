@@ -484,6 +484,146 @@ ol.r-rules li em, ul.r-list li em { font-style: italic; color: var(--ink); }
   margin-bottom: 10px;
 }
 
+/* ────────────────────────── Strategic Planning Assumption ────────────────────────── */
+
+.r-spa {
+  background: var(--bg-soft);
+  border-left: 4px solid var(--ink);
+  padding: 22px 28px 20px;
+  margin: 24px 0;
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.r-spa .lead {
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
+.r-spa strong { color: var(--ink); font-weight: 600; }
+
+/* ────────────────────────── Magic Quadrant chart ────────────────────────── */
+
+.r-quadrant {
+  position: relative;
+  width: 100%;
+  max-width: 920px;
+  aspect-ratio: 1 / 0.78;
+  margin: 32px 0 56px;
+}
+.r-quadrant svg { width: 100%; height: 100%; display: block; }
+.r-quadrant .qcorner {
+  position: absolute;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+.r-quadrant .qcorner.tl { top: 14px; left: 18px; }
+.r-quadrant .qcorner.tr { top: 14px; right: 18px; text-align: right; color: var(--accent); }
+.r-quadrant .qcorner.bl { bottom: 38px; left: 18px; }
+.r-quadrant .qcorner.br { bottom: 38px; right: 18px; text-align: right; }
+.r-quadrant .qdot-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  text-align: center;
+  line-height: 1.15;
+}
+.r-quadrant .qdot-label .name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  background: rgba(255,255,255,0.92);
+  padding: 1px 4px;
+}
+.r-quadrant .qdot-label.us .name {
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 2px;
+}
+.r-quadrant .qdot-label .sub {
+  display: block;
+  font-size: 10px;
+  color: var(--ink-faint);
+  font-weight: 500;
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+}
+.r-quadrant .qdot-label.us .sub {
+  color: var(--accent); font-weight: 600; margin-top: 5px;
+}
+
+/* ────────────────────────── Strengths / Cautions table ────────────────────────── */
+
+.r-vendor {
+  margin: 32px 0;
+  border-top: 2px solid var(--ink);
+  padding-top: 24px;
+}
+.r-vendor .archetype {
+  font-size: 14px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.r-vendor h3 {
+  font-family: var(--sans);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.r-vendor .vendors {
+  font-size: 16px;
+  color: var(--ink-dim);
+  margin-bottom: 22px;
+  font-style: italic;
+}
+.r-vendor .sc {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.r-vendor .sc .col h4 {
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.r-vendor .sc .strengths h4 { color: #2f6f3a; }
+.r-vendor .sc .cautions  h4 { color: var(--accent-deep); }
+.r-vendor .sc ul {
+  margin: 0; padding: 0; list-style: none;
+}
+.r-vendor .sc ul li {
+  padding: 10px 0;
+  border-top: 1px solid var(--rule);
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.r-vendor .sc ul li:first-child { border-top: none; padding-top: 0; }
+.r-vendor .sc ul li strong { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 720px) {
+  .r-vendor .sc { grid-template-columns: 1fr; gap: 16px; }
+}
+
 /* Ranked feature list (for competitive doc) */
 .r-feat {
   border-top: 2px solid var(--ink);

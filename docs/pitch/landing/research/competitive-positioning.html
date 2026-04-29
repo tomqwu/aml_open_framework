@@ -30,40 +30,186 @@
     <span><strong>Refresh</strong> · 2026-04-27</span>
   </div>
 
-  <h2 class="r-h2"><span class="num">1.</span> Competitive <em>landscape</em></h2>
-
-  <h3 class="r-h3">Commercial enterprise platforms</h3>
-  <p class="r-p">
-    The 2026 buyer field separates into four archetypes, and the framework competes against each differently.
-  </p>
-  <p class="r-p">
-    <strong>Veteran rules-plus-ML platforms</strong> — NICE Actimize SAM, Oracle FCCM, SymphonyAI Sensa-NetReveal, FIS / SAS AML. These dominate Tier-1 RFPs by default; veteran vendors win on enterprise-scale detection, regulator familiarity, and decades of typology libraries (<a href="https://www.symphonyai.com/resources/blog/financial-services/top-10-aml-software-banks-2026/">SymphonyAI 2026</a>, <a href="https://alessa.com/blog/top-10-transaction-monitoring-software-solutions/">Alessa 2026</a>). Differentiator: scale + audit comfort. <strong>Where the framework slots in:</strong> proof-of-concept tier at large banks (where ~18–24-month deploy costs $50M+ TCO per <a href="https://www.tookitaki.com/compliance-hub/best-aml-solution-for-banks-2025">Tookitaki 2025</a>), and as a <strong>second-line challenger model</strong> for MRM independent re-implementation under SR 26-2.
-  </p>
-  <p class="r-p">
-    <strong>AI-native challengers</strong> — ComplyAdvantage, Hawk:AI, Featurespace (Visa), Feedzai, Lucinity. Hawk:AI raised a $56M Series C in April 2025 and another $10M in Jan 2026 explicitly for "AML-as-a-service" (<a href="https://siliconangle.com/2025/04/08/hawk-secures-56-million-expand-financial-crime-detection-platform/">SiliconAngle 2025-04-08</a>). They differentiate on cloud-native deployment, claimed false-positive reduction (ComplyAdvantage cites 65–85%, <a href="https://complyadvantage.com/vendor/best-transaction-monitoring-software/">ComplyAdvantage</a>), and explainable-AI marketing. <strong>The framework slots in adjacent, not opposed</strong> — challengers win mid-market RFPs where the framework currently has no commercial sales motion; it competes for the same buyer only when the buyer specifically wants source-available code.
-  </p>
-  <p class="r-p">
-    <strong>Graph / network specialists</strong> — Quantexa, Ripjar, Sayari. Quantexa's "contextual decision intelligence" graph is the marketed differentiator for complex layering investigations. The framework's <code>network_pattern</code> rule plus Mermaid renders is <strong>functionally narrower</strong> but ships in one binary; Quantexa requires multi-quarter integration. Slot: useful for case-level visualisation, not full graph-DB workloads.
-  </p>
-  <p class="r-p">
-    <strong>Regtech utilities</strong> — Fenergo (KYC orchestration), ComplyAdvantage data, Refinitiv WorldCheck. Mostly orthogonal — they sell data and onboarding, not detection.
+  <h2 class="r-h2">Where the <em>2026 field</em> sits.</h2>
+  <p class="r-section-dek">
+    Six buyer archetypes plotted on the two axes regulators care about — completeness of vision (modern architecture, deterministic guarantees) and ability to execute (enterprise scale, sales motion, support).
   </p>
 
-  <h3 class="r-h3">Open source / neighbour OSS</h3>
-  <p class="r-p">Three projects are real competitors today:</p>
-  <ul class="r-list">
-    <li><strong>Marble</strong> (<a href="https://github.com/checkmarble/marble">checkmarble/marble</a>) — the only commercially-backed OSS competitor. AGPL / MIT split, real-time decision engine, no-code rule builder, AI investigation assistant. Strongest direct alternative; strength is the no-code UX and modern Go / TS stack. Weakness vs. AML Open Framework: no spec-as-source-of-truth, no MRM bundle, no jurisdiction-specific reporting templates, no deterministic-rerun guarantee.</li>
-    <li><strong>Jube</strong> (<a href="https://github.com/jube-home/aml-fraud-transaction-monitoring">jube-home</a>) — AGPLv3, ML-first (adaptive ANN), real-time scoring + workflow. Differentiates on built-in models. <em>Weakness:</em> ML-first design is exactly what FinCEN's NPRM and SR 26-2 push back against (model-risk surface).</li>
-    <li><strong>FINOS OpenAML</strong> (<a href="https://github.com/finos-labs/dtcch-2025-OpenAML">finos-labs/dtcch-2025-OpenAML</a>) — DTCC hackathon origin, on-chain AML focus, ML-classification of wallets. Narrow scope (crypto wallets), labs-stage, not a TM platform.</li>
-  </ul>
-  <p class="r-p">
-    Apache Fineract, OpenCRE, and Frankfurter are <em>adjacent</em> (core banking, control mappings, FX rates) — none compete on detection.
+  <div class="r-quadrant">
+    <svg viewBox="0 0 800 760" preserveAspectRatio="xMidYMid meet" aria-label="Magic Quadrant: Vision vs Execute">
+      <defs>
+        <marker id="arrowR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M 0 0 L 8 4 L 0 8 z" fill="#051c2c"/>
+        </marker>
+      </defs>
+      <rect x="80"  y="40"  width="340" height="300" fill="#f6f7f9"/>
+      <rect x="420" y="40"  width="340" height="300" fill="#fdeee5"/>
+      <rect x="80"  y="340" width="340" height="300" fill="#fbfbfc"/>
+      <rect x="420" y="340" width="340" height="300" fill="#f8f4f1"/>
+      <rect x="80" y="40" width="680" height="600" fill="none" stroke="#051c2c" stroke-width="1.5"/>
+      <line x1="420" y1="40"  x2="420" y2="640" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="80"  y1="340" x2="760" y2="340" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="80" y1="700" x2="760" y2="700" stroke="#051c2c" stroke-width="2" marker-end="url(#arrowR)"/>
+      <text x="420" y="730" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="#051c2c" letter-spacing="0.04em">COMPLETENESS OF VISION  →</text>
+      <line x1="40" y1="640" x2="40" y2="40" stroke="#051c2c" stroke-width="2" marker-end="url(#arrowR)"/>
+      <text x="40" y="340" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="#051c2c"
+            letter-spacing="0.04em" transform="rotate(-90 40 340)">ABILITY TO EXECUTE  →</text>
+
+      <circle cx="365" cy="220" r="9" fill="#051c2c"/>
+      <circle cx="474" cy="388" r="9" fill="#051c2c"/>
+      <circle cx="454" cy="352" r="9" fill="#051c2c"/>
+      <circle cx="406" cy="292" r="9" fill="#051c2c"/>
+      <circle cx="434" cy="496" r="8" fill="#051c2c"/>
+      <circle cx="311" cy="568" r="8" fill="#051c2c"/>
+      <circle cx="638" cy="508" r="13" fill="#dd5c34" stroke="white" stroke-width="3"/>
+      <circle cx="638" cy="508" r="22" fill="none" stroke="#dd5c34" stroke-width="1.2" opacity="0.4"/>
+    </svg>
+
+    <div class="qcorner tl">Challengers</div>
+    <div class="qcorner tr">Leaders</div>
+    <div class="qcorner bl">Niche players</div>
+    <div class="qcorner br">Visionaries</div>
+
+    <div class="qdot-label" style="left:45.6%;top:36%;"><span class="name">Veteran rules + ML</span><span class="sub">Actimize · Oracle · SAS</span></div>
+    <div class="qdot-label" style="left:59.2%;top:55%;"><span class="name">AI-native challengers</span><span class="sub">Hawk:AI · ComplyAdvantage · Feedzai</span></div>
+    <div class="qdot-label" style="left:62%;top:50%;"><span class="name">Graph specialists</span><span class="sub">Quantexa · Ripjar</span></div>
+    <div class="qdot-label" style="left:50.7%;top:43%;"><span class="name">Build-it-yourself</span><span class="sub">Lakehouse pattern</span></div>
+    <div class="qdot-label" style="left:54.2%;top:69.5%;"><span class="name">Marble</span><span class="sub">OSS-commercial</span></div>
+    <div class="qdot-label" style="left:38.9%;top:79.6%;"><span class="name">Jube · FINOS OpenAML</span><span class="sub">OSS pure</span></div>
+    <div class="qdot-label us" style="left:79.7%;top:71.8%;"><span class="name">AML Open Framework</span><span class="sub">Apache 2.0 · MIT-compatible</span></div>
+  </div>
+
+  <div class="r-spa">
+    <div class="lead">Strategic Planning Assumption · #1</div>
+    By <strong>April 2026</strong>, SR&nbsp;26-2 (joint Fed/OCC/FDIC, effective Apr 17) folds AML transaction monitoring, sanctions screening and CDD into the model-risk inventory — every <strong>ML-first vendor carries a model-validation tax</strong> on every typology. YAML rules with cited <code>regulation_ref</code> are not models under SR&nbsp;26-2; they are policy artefacts.
+  </div>
+
+  <div class="r-spa">
+    <div class="lead">Strategic Planning Assumption · #2</div>
+    By <strong>July 2026</strong>, AMLA's RTS on STR-effectiveness telemetry becomes binding for all EU PIs/EMIs. The framework's alert→case→STR funnel + per-rule precision/recall is the <strong>only OSS implementation</strong> shipping the required schema today.
+  </div>
+
+  <h2 class="r-h2"><span class="num">1.</span> Vendor archetypes — <em>strengths &amp; cautions</em></h2>
+
+  <p class="r-section-dek">
+    The 2026 buyer field separates into four archetypes; the framework competes against each differently. Each archetype below uses the standard <em>Strengths · Cautions</em> assessment format.
   </p>
 
-  <h3 class="r-h3">Internal "build it yourself"</h3>
-  <p class="r-p">
-    Tier-1 / Tier-2 banks predominantly <strong>build on Databricks / Snowflake lakehouses</strong> with bespoke Spark or SQL rule libraries, plus a commercial alert manager bolted on top (<a href="https://www.databricks.com/blog/2021/07/16/aml-solutions-at-scale-using-databricks-lakehouse-platform.html">Databricks AML pattern</a>, <a href="https://www.tookitaki.com/compliance-hub/best-aml-solution-for-banks-2025">Tookitaki 2025</a>). Build-cost cited at &gt;$50M / 5y; only viable above ~5B txns/month. The framework displaces <strong>the rule-authoring + audit-trail + reporting layers</strong> of these stacks (which are the parts banks consistently underinvest in), while leaving the lakehouse storage layer untouched. The persona that lands is the <strong>second-line model-risk team</strong> that needs an independent, reproducible re-implementation to validate the production engine — not the production engine itself.
-  </p>
+  <div class="r-vendor">
+    <div class="archetype">Veteran rules + ML platforms</div>
+    <h3>Tier-1 RFP defaults — Leaders by inertia</h3>
+    <div class="vendors">NICE Actimize SAM · Oracle FCCM · SymphonyAI Sensa-NetReveal · FIS / SAS AML</div>
+    <div class="sc">
+      <div class="col strengths">
+        <h4>✓ Strengths</h4>
+        <ul>
+          <li><strong>Enterprise scale.</strong> Real-time scoring at billions-of-txns/month proven in production.</li>
+          <li><strong>Audit comfort + brand.</strong> Decades of typology libraries; regulator-familiar.</li>
+          <li><strong>Procurement template.</strong> Tier-1 vendor-risk-management process accepts these names without friction.</li>
+        </ul>
+      </div>
+      <div class="col cautions">
+        <h4>! Cautions</h4>
+        <ul>
+          <li><strong>Deploy time + cost.</strong> ~18–24 months, $50M+ TCO (<a href="https://www.tookitaki.com/compliance-hub/best-aml-solution-for-banks-2025">Tookitaki 2025</a>).</li>
+          <li><strong>Black-box typologies.</strong> Vendor scenarios you can't see inside; tuning takes a quarter.</li>
+          <li><strong>SR 26-2 model-validation tax.</strong> ML scoring layers now folded into model risk inventory — every typology carries an MRM cost.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="r-vendor">
+    <div class="archetype">AI-native challengers</div>
+    <h3>Cloud-native, FP-reduction marketing — Visionary but ML-taxed</h3>
+    <div class="vendors">ComplyAdvantage · Hawk:AI · Featurespace (Visa) · Feedzai · Lucinity</div>
+    <div class="sc">
+      <div class="col strengths">
+        <h4>✓ Strengths</h4>
+        <ul>
+          <li><strong>Modern architecture.</strong> Cloud-native, API-first, weeks-to-months deploys.</li>
+          <li><strong>Funded.</strong> Hawk:AI Series C $56M (Apr 2025) + $10M (Jan 2026) for AML-as-a-service (<a href="https://siliconangle.com/2025/04/08/hawk-secures-56-million-expand-financial-crime-detection-platform/">SiliconANGLE</a>).</li>
+          <li><strong>Claimed FP reduction.</strong> ComplyAdvantage cites 65–85% (<a href="https://complyadvantage.com/vendor/best-transaction-monitoring-software/">vendor data</a>).</li>
+        </ul>
+      </div>
+      <div class="col cautions">
+        <h4>! Cautions</h4>
+        <ul>
+          <li><strong>ML-first = SR 26-2 surface.</strong> Adaptive scoring inherits the full model-validation tax.</li>
+          <li><strong>Vendor-lock data residency.</strong> Cloud SaaS may not satisfy in-perimeter compliance requirements.</li>
+          <li><strong>FP-reduction claims.</strong> Vendor-reported, not independently audited.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="r-vendor">
+    <div class="archetype">Graph / network specialists</div>
+    <h3>Contextual decision intelligence — Leaders for layering</h3>
+    <div class="vendors">Quantexa · Ripjar · Sayari</div>
+    <div class="sc">
+      <div class="col strengths">
+        <h4>✓ Strengths</h4>
+        <ul>
+          <li><strong>Entity-resolution at scale.</strong> Quantexa's graph is the marketed differentiator for complex layering.</li>
+          <li><strong>Investigative depth.</strong> Multi-hop network analysis surfaces relationships rules-only platforms miss.</li>
+        </ul>
+      </div>
+      <div class="col cautions">
+        <h4>! Cautions</h4>
+        <ul>
+          <li><strong>Multi-quarter integration.</strong> Heavy data-engineering required to wire customer + transaction graph.</li>
+          <li><strong>Narrow purchase rationale.</strong> Hard to justify outside large complex-trade-finance / sanctions-evasion mandates.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="r-vendor">
+    <div class="archetype">Open source / neighbour OSS</div>
+    <h3>Marble · Jube · FINOS OpenAML — Niche players</h3>
+    <div class="vendors">Three real competitors today; one closely-related.</div>
+    <div class="sc">
+      <div class="col strengths">
+        <h4>✓ Strengths</h4>
+        <ul>
+          <li><strong>Marble</strong> (<a href="https://github.com/checkmarble/marble">checkmarble/marble</a>) — modern Go/TS stack, no-code UX, commercial backing.</li>
+          <li><strong>Jube</strong> (<a href="https://github.com/jube-home/aml-fraud-transaction-monitoring">jube-home</a>) — built-in adaptive ML scoring.</li>
+          <li><strong>FINOS OpenAML</strong> (<a href="https://github.com/finos-labs/dtcch-2025-OpenAML">labs</a>) — DTCC pedigree; on-chain AML focus.</li>
+        </ul>
+      </div>
+      <div class="col cautions">
+        <h4>! Cautions</h4>
+        <ul>
+          <li><strong>Marble.</strong> No spec-as-source-of-truth; no MRM bundle; no jurisdiction-specific reports; no deterministic-rerun guarantee.</li>
+          <li><strong>Jube.</strong> ML-first design is exactly what FinCEN NPRM + SR 26-2 push back against.</li>
+          <li><strong>FINOS OpenAML.</strong> Narrow scope (crypto wallets), labs-stage, not a TM platform.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="r-vendor">
+    <div class="archetype">Internal "build it yourself"</div>
+    <h3>Lakehouse pattern — Visionary but expensive</h3>
+    <div class="vendors">Databricks / Snowflake + bespoke SQL rules + commercial alert manager bolted on top</div>
+    <div class="sc">
+      <div class="col strengths">
+        <h4>✓ Strengths</h4>
+        <ul>
+          <li><strong>Full control.</strong> No vendor lock-in; rule library is the bank's IP.</li>
+          <li><strong>Lakehouse-native.</strong> Already where transaction data lives.</li>
+        </ul>
+      </div>
+      <div class="col cautions">
+        <h4>! Cautions</h4>
+        <ul>
+          <li><strong>Build-cost.</strong> &gt;$50M / 5y, only viable above ~5B txns/month.</li>
+          <li><strong>Underinvested layers.</strong> Banks consistently underbuild rule-authoring, audit-trail, and reporting on top of the lakehouse — which is exactly where this framework slots in.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
 
   <h2 class="r-h2"><span class="num">2.</span> Where the framework <em>actually wins</em></h2>
 
