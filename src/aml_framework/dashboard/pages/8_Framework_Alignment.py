@@ -39,6 +39,7 @@ else:
         "standards. Green = fully mapped, yellow = partially mapped, red = gap.",
     )
 
+
 STATUS_LABELS = {
     "mapped": "✓ Mapped",
     "partial": "∼ Partial",

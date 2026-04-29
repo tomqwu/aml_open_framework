@@ -9,7 +9,7 @@ import streamlit as st
 from aml_framework.dashboard.components import (
     SEVERITY_COLORS,
     chart_layout,
-    kpi_card,
+    kpi_card_rag,
     link_to_page,
     metric_table,
     page_header,
@@ -37,28 +37,39 @@ if st.session_state.get("guided_demo"):
 # --- KPI tiles ---
 metrics_by_id = {m.id: m for m in result.metrics}
 
+# KPI border colors are now bound to RAG semantics — color = "is this in
+# a good / warning / bad state?" not "which rainbow slot is this card
+# in?". KPIs that *report* a fact (alert count, active rules) get the
+# neutral slate border via rag=None.
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 with c1:
-    kpi_card("Total Alerts", result.total_alerts, "#dc2626")
+    kpi_card_rag("Total Alerts", result.total_alerts)
 with c2:
-    kpi_card("Open Cases", len(result.case_ids), "#d97706")
+    kpi_card_rag("Open Cases", len(result.case_ids))
 with c3:
     active = len([r for r in spec.rules if r.status == "active"])
-    kpi_card("Active Rules", active, "#2563eb")
+    kpi_card_rag("Active Rules", active)
 with c4:
     tc = metrics_by_id.get("typology_coverage")
-    kpi_card("Typology Coverage", f"{tc.value * 100:.0f}%" if tc else "N/A", "#059669")
+    kpi_card_rag(
+        "Typology Coverage",
+        f"{tc.value * 100:.0f}%" if tc else "N/A",
+        rag=tc.rag if tc else None,
+    )
 with c5:
     dc = metrics_by_id.get("distinct_customers_alerted")
-    kpi_card("Customers Alerted", int(dc.value) if dc else 0, "#7c3aed")
+    kpi_card_rag(
+        "Customers Alerted",
+        int(dc.value) if dc else 0,
+        rag=dc.rag if dc else None,
+    )
 with c6:
     # Find the volume metric by checking common ids
     tv = metrics_by_id.get("transaction_volume_usd") or metrics_by_id.get("transaction_volume_cad")
     if tv:
-        unit = spec.program.jurisdiction
-        kpi_card("Volume Screened", f"${tv.value:,.0f}", "#0891b2")
+        kpi_card_rag("Volume Screened", f"${tv.value:,.0f}", rag=tv.rag)
     else:
-        kpi_card("Volume Screened", "N/A", "#6b7280")
+        kpi_card_rag("Volume Screened", "N/A")
 
 # --- KPI drill-downs ---
 # Streamlit metric-style cards aren't natively clickable, so each
@@ -249,15 +260,29 @@ try:
 
     _report = compute_outcomes(_cases, _decisions, spec_program=spec.program.name)
 
+    # Funnel KPIs: counts are reports (neutral border). Alert→STR is
+    # an effectiveness band — bound to a simple threshold so the color
+    # *means* "this conversion rate is healthy / borderline / weak".
+    # Thresholds chosen to mirror FinCEN NPRM commentary on what counts
+    # as a typical SAR conversion rate (5–10% across rule families).
+    pct = _report.alert_to_str_pct or 0
+    if pct >= 10:
+        funnel_rag = "green"
+    elif pct >= 5:
+        funnel_rag = "amber"
+    elif pct > 0:
+        funnel_rag = "red"
+    else:
+        funnel_rag = None  # No conversions — likely no STRs filed yet, not a state
     fc1, fc2, fc3, fc4 = st.columns(4)
     with fc1:
-        kpi_card("Alerts", _report.total_alerts, "#dc2626")
+        kpi_card_rag("Alerts", _report.total_alerts)
     with fc2:
-        kpi_card("Cases", _report.total_cases, "#d97706")
+        kpi_card_rag("Cases", _report.total_cases)
     with fc3:
-        kpi_card("STR filed", _report.total_str_filed, "#7c3aed")
+        kpi_card_rag("STR filed", _report.total_str_filed)
     with fc4:
-        kpi_card("Alert → STR", f"{_report.alert_to_str_pct}%", "#16a34a")
+        kpi_card_rag("Alert → STR", f"{_report.alert_to_str_pct}%", rag=funnel_rag)
 
     # Per-rule funnel breakdown.
     if _report.rules:
