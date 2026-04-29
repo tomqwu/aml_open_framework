@@ -48,9 +48,11 @@
     { file: "slides/03-cost.html",       label: "Exhibit 3 · The cost in three sizes" },
     { file: "slides/04-quotes.html",     label: "Exhibit 4 · What leaders actually say" },
     { file: "slides/05-thesis.html",     label: "Exhibit 5 · The thesis" },
-    { file: "slides/06-changes.html",    label: "Exhibit 6 · Pain → Capability map" },
-    { file: "slides/07-numbers.html",    label: "Exhibit 7 · What the operator inherits" },
-    { file: "slides/08-close.html",      label: "Engagement · End" },
+    { file: "slides/06-tuesday.html",    label: "Exhibit 6 · A Tuesday on the AML floor" },
+    { file: "slides/07-meetings.html",   label: "Exhibit 7 · The meetings that stop happening" },
+    { file: "slides/08-changes.html",    label: "Exhibit 8 · Pain → Capability map" },
+    { file: "slides/09-numbers.html",    label: "Exhibit 9 · What the operator inherits" },
+    { file: "slides/10-close.html",      label: "Engagement · End" },
   ];
 
   // 固定 canvas 尺寸。每页 HTML 都应该按这个尺寸设计。
@@ -343,7 +345,6 @@
     counter.innerHTML =
       `${idx + 1} / ${deck.length} <span class="label">${deck[idx].label || ''}</span>` +
       '<span class="menu-icon">⌘</span>';
-    try { localStorage.setItem(storageKey, String(idx)); } catch (_) {}
     if (location.hash !== '#' + (idx + 1)) {
       history.replaceState(null, '', '#' + (idx + 1));
     }
@@ -425,13 +426,12 @@
     if (m) show(parseInt(m[1], 10) - 1);
   });
 
-  // Initial: hash > localStorage > 0
+  // Initial: hash takes precedence; otherwise always start at slide 1.
+  // (Cold opens should not resume a previous session — a pitch deck always
+  // begins at the beginning. Direct deep-links via #N still work.)
   const hashMatch = location.hash.match(/^#(\d+)$/);
   if (hashMatch) current = Math.min(parseInt(hashMatch[1], 10) - 1, deck.length - 1);
-  else try {
-    const v = parseInt(localStorage.getItem(storageKey), 10);
-    if (!isNaN(v) && v >= 0 && v < deck.length) current = v;
-  } catch (_) {}
+  else current = 0;
   fit();
   buildPicker();
   show(current);

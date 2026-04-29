@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The meetings that stop happening · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s7-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 56px;
+    margin-top: 24px;
+  }
+
+  /* Left: industry-pattern callout */
+  .s7-callout {
+    border-left: 4px solid var(--accent);
+    background: var(--bg-soft);
+    padding: 28px 32px 26px;
+    align-self: start;
+  }
+  .s7-callout .lead {
+    font-size: 13px; letter-spacing: 0.22em;
+    text-transform: uppercase; font-weight: 700;
+    color: var(--accent); margin-bottom: 14px;
+  }
+  .s7-callout .quote {
+    font-size: 24px; font-weight: 500; line-height: 1.4;
+    color: var(--ink); font-style: italic;
+    margin-bottom: 18px; text-wrap: pretty;
+  }
+  .s7-callout .gloss {
+    font-size: 16px; color: var(--ink-dim);
+    line-height: 1.5; margin-bottom: 18px;
+    text-wrap: pretty;
+  }
+  .s7-callout .gloss strong { color: var(--ink); font-weight: 600; }
+  .s7-callout .attr {
+    font-size: 13px; letter-spacing: 0.06em;
+    color: var(--ink-faint); text-transform: uppercase;
+    font-weight: 600;
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+  }
+  .s7-callout .attr strong { color: var(--ink-dim); font-weight: 600; }
+
+  /* Right: meetings list */
+  .s7-list {}
+  .s7-list-head {
+    font-size: 14px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-faint);
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 0;
+  }
+  .s7-row {
+    border-bottom: 1px solid var(--rule);
+    padding: 18px 0 16px;
+  }
+  .s7-row:last-child { border-bottom: none; }
+  .s7-row .meeting {
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+  .s7-row .meeting .arrow {
+    color: var(--ink-faint);
+    margin: 0 12px;
+    font-weight: 400;
+  }
+  .s7-row .meeting .answer {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .s7-row .gloss {
+    font-size: 16px;
+    color: var(--ink-dim);
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+  .s7-row .gloss em { font-style: italic; color: var(--ink-2); }
+
+  .s7-takeaway { margin-top: 28px; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">7</span> The meetings that stop happening</div>
+  <div class="top-rule"></div>
+
+  <div class="stage">
+    <h2 class="action-title fade-up" style="margin-bottom:12px;">
+      The other half of the win is <em>political</em>. When the spec is the artifact, cross-team coordination collapses.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:24px;">
+      Most of an AML program's calendar is consumed by handoffs — 1LoD ⇄ 2LoD ⇄ IT ⇄ MRM ⇄ Audit. None of that produces detection.
+      It produces alignment, and only when the alignment holds.
+    </p>
+
+    <div class="s7-grid">
+      <div class="s7-callout fade-up d3">
+        <div class="lead">Why this matters</div>
+        <div class="quote">"Examiner testing only determined whether controls existed rather than if they were actually being used."</div>
+        <div class="gloss">
+          Across the largest 2024–25 enforcement actions, the same pattern recurs: <strong>the controls existed; the coordination didn't.</strong>
+          Internal alerts get filed and never escalated. Rule changes wait on a calendar. Audit prep starts at the regulator's email.
+          Removing the meetings removes the failure mode.
+        </div>
+        <div class="attr"><strong>K&amp;L Gates</strong> · 2024 BSA enforcement-action review · referenced in FCA Dear-CEO Mar&nbsp;2024</div>
+      </div>
+
+      <div class="s7-list fade-up d4">
+        <div class="s7-list-head">Months → minutes</div>
+
+        <div class="s7-row">
+          <div class="meeting">Rule-change approval <span class="arrow">→</span> <span class="answer">one PR with cited regulation</span></div>
+          <div class="gloss">Today: months of 1LoD ⇄ 2LoD ⇄ IT ⇄ Audit alignment. With the framework: <em>git diff,</em> reviewer signs, audit chain records the change.</div>
+        </div>
+
+        <div class="s7-row">
+          <div class="meeting">BRA refresh <span class="arrow">→</span> <span class="answer">live render from spec</span></div>
+          <div class="gloss">Today: quarterly committee assembling spreadsheets. With the framework: the spec <em>is</em> the BRA — <em>Framework Alignment</em> dashboard shows it live.</div>
+        </div>
+
+        <div class="s7-row">
+          <div class="meeting">Annual MRM challenge <span class="arrow">→</span> <span class="answer">backtester self-serves</span></div>
+          <div class="gloss">Today: 4-week consultant engagement to validate scenarios. With the framework: per-rule precision/recall over 4 quarters, generated on demand.</div>
+        </div>
+
+        <div class="s7-row">
+          <div class="meeting">Pre-exam evidence assembly <span class="arrow">→</span> <span class="answer"><code style="background:var(--accent-tint);padding:2px 8px;border-radius:2px;font-family:'Inter',sans-serif;font-size:18px;">aml audit-pack</code></span></div>
+          <div class="gloss">Today: 8-person sprint, 6 weeks, "what did we run?" forensics. With the framework: one CLI command exports the regulator-ready ZIP.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="takeaway s7-takeaway fade-up d5">
+      <span class="label">Key takeaway</span>
+      Detection vendors sell better alerts. The framework removes the <em>meetings about the alerts</em> — and that is where the AML program's calendar actually lives.
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> K&amp;L Gates 2024 BSA enforcement-action review · FCA Dear-CEO Letter Mar&nbsp;2024 · framework workflows in <em>Spec Editor</em>, <em>Framework Alignment</em>, <em>Tuning Lab</em>, <em>Audit&nbsp;Evidence</em> dashboard pages · <code>aml audit-pack</code> CLI</span>
+    <span>7 OF 10</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>
