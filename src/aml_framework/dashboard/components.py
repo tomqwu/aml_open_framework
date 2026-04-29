@@ -133,6 +133,45 @@ button[data-baseweb="tab"] {
     padding: 1.2rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
+
+/* ---- Terminal block (Audit & Evidence — PR 4) ----
+ * The hash chain + decision log lives on Audit & Evidence and is the
+ * page auditors trust most. Render hashes in mono so they're scannable
+ * + copyable without ambiguity (0/O, 1/l/I, etc), and lean the page
+ * toward a Bloomberg-terminal vocabulary instead of SaaS-card. */
+.terminal-block {
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-family: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.terminal-block .row {
+    display: flex;
+    gap: 1.5rem;
+    align-items: baseline;
+}
+.terminal-block .key {
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    min-width: 6.5rem;
+}
+.terminal-block .value {
+    color: #f1f5f9;
+}
+.terminal-block .value.hash {
+    color: #67e8f9;  /* cyan-300 — distinguishes hashes from human text */
+}
+.terminal-block .value.ok { color: #86efac; }    /* green-300 */
+.terminal-block .value.warn { color: #fde68a; }  /* amber-300 */
+.terminal-block .value.bad { color: #fca5a5; }   /* red-300 */
 .metric-card-accent {
     border-left: 4px solid #2563eb;
 }
@@ -515,6 +554,33 @@ def kpi_card(label: str, value: Any, accent_color: str = "#2563eb") -> None:
 # active: 9) rather than *assess* it. Slate-400 — quiet enough that the
 # RAG-colored cards next to it carry the visual signal.
 KPI_NEUTRAL_BORDER = "#94a3b8"
+
+
+def terminal_block(rows: list[tuple[str, str, str]]) -> None:
+    """Render a compact terminal-style block of key/value rows.
+
+    Each row is a tuple ``(key, value, kind)`` where ``kind`` is one of:
+      - ``"hash"``  — cyan, fixed-width truncation supported via CSS
+      - ``"ok"``    — green ("verified")
+      - ``"warn"``  — amber
+      - ``"bad"``   — red ("tamper detected")
+      - ``""`` / anything else — neutral light slate
+
+    Pulls toward Bloomberg/FactSet aesthetic for the Audit & Evidence
+    page rather than the rounded-card SaaS look used elsewhere — the
+    huashu-design 120%-on-one-page recommendation.
+    """
+    pieces = []
+    for key, value, kind in rows:
+        kind_class = f" {kind}" if kind in {"hash", "ok", "warn", "bad"} else ""
+        pieces.append(
+            f'<div class="row"><span class="key">{key}</span>'
+            f'<span class="value{kind_class}">{value}</span></div>'
+        )
+    st.markdown(
+        '<div class="terminal-block">' + "".join(pieces) + "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def kpi_card_rag(label: str, value: Any, rag: str | None = None) -> None:

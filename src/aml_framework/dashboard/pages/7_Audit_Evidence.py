@@ -1,13 +1,32 @@
-"""Audit & Evidence -- manifest viewer, hash verification, decision log."""
+"""Audit & Evidence -- manifest viewer, hash verification, decision log.
+
+The huashu-design review picked this page as the candidate for the
+"signature 120%" treatment — it's the page auditors and regulators
+look at first, and the place where the framework's evidence-chain
+claim has to feel **trustworthy** rather than just functional. PR 4
+adds:
+
+  - Mono-font terminal block for spec/run hashes (scannable hashes
+    without 0/O ambiguity).
+  - Explicit "Verify hash chain" button that re-runs verification and
+    timestamps the proof, instead of only relying on the auto-load
+    check.
+  - Migrated KPI borders to RAG semantics (PR 2 helper).
+  - Citations / baseline KPIs use rag=None for facts and a real RAG
+    band on baseline freshness.
+"""
 
 from __future__ import annotations
+
+from datetime import datetime, timezone
 
 import streamlit as st
 
 from aml_framework.dashboard.components import (
     glossary_legend,
-    kpi_card,
+    kpi_card_rag,
     page_header,
+    terminal_block,
     tooltip_banner,
     tour_panel,
 )
@@ -32,46 +51,60 @@ tooltip_banner(
     "append-only. This is the regulator and auditor view.",
 )
 
-# --- KPI row ---
+# --- Run identity: terminal-style header ---
+# Hashes go in mono-font dark block (cyan) — the rest of the dashboard
+# uses rounded SaaS cards, this page leans terminal.
 rule_outputs = manifest.get("rule_outputs", {})
-c1, c2, c3, c4 = st.columns(4)
+spec_hash = manifest.get("spec_content_hash", "")
+output_hash = manifest.get("output_hash", "")
+engine_version = manifest.get("engine_version", "n/a")
+ts = manifest.get("ts", "")[:19] if manifest.get("ts") else ""
+
+terminal_block(
+    [
+        ("Spec Hash", spec_hash or "—", "hash"),
+        ("Output Hash", output_hash or "—", "hash"),
+        ("Engine", engine_version, ""),
+        ("Run At", ts or "—", ""),
+    ]
+)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- KPI row — counts only (facts, not assessments) ---
+c1, c2, c3 = st.columns(3)
 with c1:
-    kpi_card("Spec Hash", manifest.get("spec_content_hash", "")[:12] + "...", "#2563eb")
+    kpi_card_rag("Rules Hashed", len(rule_outputs))
 with c2:
-    kpi_card("Rules Hashed", len(rule_outputs), "#059669")
+    kpi_card_rag("Decisions Logged", len(df_decisions))
 with c3:
-    kpi_card("Decisions", len(df_decisions), "#7c3aed")
-with c4:
-    kpi_card("Engine Version", manifest.get("engine_version", "N/A"), "#6b7280")
+    kpi_card_rag("Cases", len(getattr(result, "case_ids", [])))
 
 # --- Integrity verification ---
 st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("### Integrity Verification")
+ver_col1, ver_col2 = st.columns([3, 1])
+with ver_col1:
+    st.markdown("### Integrity Verification")
+with ver_col2:
+    # Re-verify on demand — gives auditors an explicit ritual ("I clicked
+    # Verify, the chain held, here's the timestamp") rather than relying
+    # on the implicit auto-load check.
+    if st.button("🔒 Re-verify chain", use_container_width=True):
+        st.session_state["audit_last_verified"] = datetime.now(tz=timezone.utc).isoformat()
 
 # Always show current integrity status.
 valid, msg = AuditLedger.verify_decisions(run_dir)
+last_verified = st.session_state.get("audit_last_verified")
 if valid:
-    st.markdown(
-        '<div style="background:linear-gradient(135deg, #05966918, #05966908); '
-        "border-left:4px solid #059669; border-radius:8px; padding:1rem 1.5rem; "
-        'margin-bottom:0.5rem;">'
-        '<span style="font-size:1.1rem; font-weight:600; color:#059669;">'
-        "&#x2705; Decision Log Integrity Verified</span><br>"
-        f'<span style="font-size:0.85rem; color:#475569;">{msg}</span>'
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    rows = [("Status", "✓ chain verified", "ok"), ("Detail", msg, "")]
+    if last_verified:
+        rows.append(("Verified at", last_verified, ""))
+    terminal_block(rows)
 else:
-    st.markdown(
-        '<div style="background:linear-gradient(135deg, #dc262618, #dc262608); '
-        "border-left:4px solid #dc2626; border-radius:8px; padding:1rem 1.5rem; "
-        'margin-bottom:0.5rem;">'
-        '<span style="font-size:1.1rem; font-weight:600; color:#dc2626;">'
-        "&#x1F6A8; TAMPER DETECTED</span><br>"
-        f'<span style="font-size:0.85rem; color:#475569;">{msg}</span>'
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    rows = [("Status", "✗ TAMPER DETECTED", "bad"), ("Detail", msg, "")]
+    if last_verified:
+        rows.append(("Verified at", last_verified, ""))
+    terminal_block(rows)
 
 # Also verify rule output hashes against stored hashes.
 rule_outputs = manifest.get("rule_outputs", {})
@@ -92,20 +125,14 @@ elif rule_outputs:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- Hash Verification ---
+# --- Per-rule hash chain (mono terminal block) ---
 st.markdown("### Rule Output Hashes")
 if rule_outputs:
-    import pandas as pd
-
-    hash_rows = []
-    for rule_id, output_hash in rule_outputs.items():
-        hash_rows.append(
-            {
-                "Rule": rule_id,
-                "SHA-256": output_hash,
-            }
-        )
-    st.dataframe(pd.DataFrame(hash_rows), use_container_width=True, hide_index=True)
+    # Each rule rendered as a row in a single terminal block — looks
+    # like a verification log rather than a sortable spreadsheet.
+    # The hash kind class makes the SHA-256 cyan / fixed-width.
+    terminal_block([(rid, h, "hash") for rid, h in rule_outputs.items()])
+    st.caption(f"{len(rule_outputs)} rule output hashes — copy from any row.")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -228,18 +255,22 @@ try:
             }
         )
 
+    # Citations + resolvable + in-baseline are facts — neutral border.
+    # Baseline-status carries an actual assessment: missing baseline =
+    # red (drift detection unavailable); present = green.
+    baseline_rag = "green" if _baseline else "red"
     rc1, rc2, rc3, rc4 = st.columns(4)
     with rc1:
-        kpi_card("Citations", len(citations), "#2563eb")
+        kpi_card_rag("Citations", len(citations))
     with rc2:
-        kpi_card("Resolvable URLs", resolved_count, "#059669")
+        kpi_card_rag("Resolvable URLs", resolved_count)
     with rc3:
-        kpi_card("In baseline", len(_baseline), "#7c3aed")
+        kpi_card_rag("In baseline", len(_baseline))
     with rc4:
-        kpi_card(
-            "Baseline at",
+        kpi_card_rag(
+            "Baseline",
             str(_baseline_path) if _baseline else "(none)",
-            "#d97706" if not _baseline else "#16a34a",
+            rag=baseline_rag,
         )
 
     if not _baseline:
