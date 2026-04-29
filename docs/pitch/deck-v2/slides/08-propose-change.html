@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>2LoD Sign-Off · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .packet {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.45), 0 0 64px var(--terminal-glow);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .packet-chrome {
+    height: 44px;
+    background: linear-gradient(180deg,#131c34 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+  .packet-chrome .file {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+  }
+  .packet-chrome .file .ok { color: var(--rag-green); }
+
+  .packet-body {
+    flex: 1;
+    padding: 24px 32px 32px;
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-dim);
+  }
+  .packet-body h2 {
+    font-family: 'Inter', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+  .packet-body h2 code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .packet-body .meta {
+    font-size: 13px;
+    color: var(--ink-faint);
+    margin-bottom: 18px;
+  }
+  .packet-body .meta strong { color: var(--ink-dim); font-weight: 600; }
+
+  .packet-body h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 18px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .packet-body h3::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  .packet-body p { margin-bottom: 12px; text-wrap: pretty; }
+
+  .packet-body .diff {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--ink-dim);
+    margin: 8px 0 14px;
+  }
+  .packet-body .diff .add { color: var(--rag-green); }
+  .packet-body .diff .rem { color: var(--rag-red); }
+  .packet-body .diff .ctx { color: var(--ink-faint); }
+
+  .signoff {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 8px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+  .signoff .role { color: var(--accent); letter-spacing: 0.1em; }
+  .signoff .blank {
+    border-bottom: 1px solid var(--rule);
+    color: var(--ink-faint);
+    padding-bottom: 2px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">08 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act III · The Daily Ritual</div>
+    <h1 class="fade-in d2">
+      Threshold changes leave the email thread.<br><em>They join the audit trail.</em>
+    </h1>
+  </div>
+
+  <div class="dualpane">
+
+    <div class="narrative">
+
+      <div class="point fade-in d3">
+        <div class="num">01</div>
+        <div class="body">
+          <strong>1LoD proposes.</strong> One command produces a 6-section
+          packet — rationale, expected impact, full diff, citations,
+          and a sign-off block.
+        </div>
+      </div>
+
+      <div class="point fade-in d4">
+        <div class="num">02</div>
+        <div class="body">
+          <strong>2LoD reviews in-line.</strong> The packet attaches to
+          the spec PR. Review happens against the diff, in GitHub —
+          not in Outlook, not in Word.
+        </div>
+      </div>
+
+      <div class="point fade-in d5">
+        <div class="num">03</div>
+        <div class="body">
+          <strong>MLRO countersigns.</strong> Signed packet + commit
+          history together <em>are</em> the audit-trail artifact.
+          Eighteen months from now, the answer to "who decided?"
+          is not in someone's inbox.
+        </div>
+      </div>
+
+      <div class="outcome fade-in d6">
+        SR&nbsp;26-2 / OSFI&nbsp;E-23 / FCA&nbsp;CASS expect the same thing:
+        an evidenced governance ritual. This is what one looks like.
+      </div>
+
+    </div>
+
+    <div class="packet fade-in d3">
+      <div class="packet-chrome">
+        <div class="terminal-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+        <div class="file">mlro-review-packet.md &nbsp;·&nbsp; <span class="ok">attached to spec PR</span></div>
+      </div>
+      <div class="packet-body">
+        <h2>MLRO Review Packet · <code>structuring_cash_deposits</code></h2>
+        <div class="meta">
+          <strong>Proposer:</strong> Aisha N. (Senior Analyst, FCC) &nbsp;
+          <strong>Generated:</strong> 2026-04-29 02:23 UTC<br>
+          <strong>Spec:</strong> <code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent);">examples/canadian_schedule_i_bank/aml.yaml</code>
+        </div>
+
+        <h3>1 · Rationale</h3>
+        <p>Lower <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:13px;">sum_amount</code> threshold from $20k to $15k. Internal precision audit (Q1 2026) flagged 3 suspicious patterns in the 15-20k band that escaped detection. Backtest shows +14% recall, &minus;2% precision.</p>
+
+        <h3>2 · Expected impact</h3>
+        <p>+12 alerts/month, +1 likely STR.</p>
+
+        <h3>3 · Diff</h3>
+        <div class="diff">
+<span class="ctx">      having:</span>
+<span class="ctx">        count:      { gte: 3 }</span>
+<span class="rem">-       sum_amount: { gte: 20000 }</span>
+<span class="add">+       sum_amount: { gte: 15000 }</span>
+        </div>
+
+        <h3>4 · Sign-off</h3>
+        <div class="signoff">
+          <div class="role">1LoD PROPOSER</div>
+          <div>Aisha N.</div>
+          <div class="blank">2026-04-29</div>
+
+          <div class="role">2LoD REVIEWER</div>
+          <div class="blank">_______________</div>
+          <div class="blank">_______________</div>
+
+          <div class="role">MLRO COUNTERSIGN</div>
+          <div class="blank">_______________</div>
+          <div class="blank">_______________</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>F7 · PR #118 · CAPTURED 2026-04-29</span>
+  </div>
+
+</body>
+</html>

@@ -39,12 +39,36 @@
   //   18-21 Drill        — color, architecture, validation, rule logic, personas
   //   22-25 Reach        — multi-juris, ISO/sanctions, R7 gaps
   //   26-27 Close        — open-source proof, CTA
-  // V2 deck — showcase mode. Two slides locked in to validate grammar
-  // before batch-producing the remaining 17. Once approved, expand
-  // this MANIFEST to the full 19-slide narrative listed in brand-spec.md.
+  // V2 deck — full 19-slide narrative. See brand-spec.md for the
+  // 7-act structure: Gap · Spec-Contract · Daily-Ritual ·
+  // Detection-Substrate · Institution-Fit · Tech-Substrate · Close.
   window.DECK_MANIFEST = [
-    { file: "slides/05-cli-bridge.html",          label: "The CLI Bridge" },
-    { file: "slides/06-morning-checklist.html",   label: "Morning Checklist · aml today" },
+    // Act I · The Gap
+    { file: "slides/01-cover.html",                    label: "Cover" },
+    { file: "slides/02-three-way-gap.html",            label: "The Three-Way Gap" },
+    { file: "slides/03-cost-of-status-quo.html",       label: "Cost of Status Quo" },
+    // Act II · The Spec Is The Contract
+    { file: "slides/04-one-yaml-three-reviewers.html", label: "One YAML, Three Reviewers" },
+    { file: "slides/05-cli-bridge.html",               label: "The CLI Bridge" },
+    // Act III · The Daily Ritual
+    { file: "slides/06-morning-checklist.html",        label: "Morning Checklist · aml today" },
+    { file: "slides/07-new-typology.html",             label: "New Typology in 60s" },
+    { file: "slides/08-propose-change.html",           label: "2LoD Sign-Off · propose-change" },
+    { file: "slides/09-auditor-pack.html",             label: "Auditor Self-Service" },
+    // Act IV · The Detection Substrate
+    { file: "slides/10-curated-catalogue.html",        label: "Curated Catalogue · 8 typologies" },
+    { file: "slides/11-tune-before-promote.html",      label: "Tune Before You Promote" },
+    { file: "slides/12-audit-hash-chain.html",         label: "Audit & Evidence · Hash Chain" },
+    // Act V · Institution-Fit
+    { file: "slides/13-init-byod.html",                label: "Zero to Spec · init + byod" },
+    { file: "slides/14-notify-digest.html",            label: "Slack/Teams Digest" },
+    { file: "slides/15-multi-jurisdiction.html",       label: "Multi-Jurisdiction" },
+    // Act VI · The Tech Substrate
+    { file: "slides/16-architecture.html",             label: "Architecture" },
+    { file: "slides/17-cli-cheat-sheet.html",          label: "CLI Cheat Sheet & Tests" },
+    // Act VII · Close
+    { file: "slides/18-by-the-numbers.html",           label: "By The Numbers" },
+    { file: "slides/19-cta.html",                      label: "Engage" },
   ];
 
   // 固定 canvas 尺寸。每页 HTML 都应该按这个尺寸设计。

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Curated Catalogue · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .catalogue {
+    position: absolute;
+    top: 460px;
+    left: 96px;
+    right: 96px;
+    bottom: 130px;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .cat-table {
+    flex: 1;
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    color: var(--ink);
+  }
+  .cat-table thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--rule);
+    font-weight: 500;
+  }
+  .cat-table tbody td {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .cat-table tbody tr:hover { background: rgba(103,232,249,0.03); }
+  .cat-table tbody td:first-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .cat-table .sev {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    display: inline-block;
+  }
+  .cat-table .sev.crit { color: var(--rag-red); }
+  .cat-table .sev.high { color: var(--rag-amber); }
+  .cat-table .sev.med  { color: var(--rag-green); }
+  .cat-table .juris {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    letter-spacing: 0.06em;
+  }
+  .cat-table .source {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+  .cat-table .source code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .cat-table .desc {
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+
+  .cat-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    letter-spacing: 0.12em;
+  }
+  .cat-meta .accent { color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">10 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act IV · The Detection Substrate</div>
+    <h1 class="fade-in d2">
+      Day-one catalogue.<br>Eight typologies, <em>every line cited</em>.
+    </h1>
+  </div>
+
+  <div class="catalogue fade-in d3">
+    <table class="cat-table">
+      <thead>
+        <tr>
+          <th>Typology id</th>
+          <th>Severity</th>
+          <th>Jurisdictions</th>
+          <th>Source · Citation</th>
+          <th>What it catches</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>structuring_cash</td>
+          <td><span class="sev high">high</span></td>
+          <td><span class="juris">US · CA · GB · EU</span></td>
+          <td class="source"><code>TD&nbsp;2024 · finding&nbsp;#2</code><br>31&nbsp;CFR&nbsp;1010.314 · PCMLTFR&nbsp;s.7(1)</td>
+          <td class="desc">≥ 3 cash deposits, total &gt; $25k in 30d, each below the LCTR/CTR floor.</td>
+        </tr>
+        <tr>
+          <td>pig_butchering_outbound_fan</td>
+          <td><span class="sev crit">crit</span></td>
+          <td><span class="juris">US · CA · GB · EU · AU · SG</span></td>
+          <td class="source"><code>FATF&nbsp;2026 · finding&nbsp;#4</code><br>FinCEN FIN-2023-Alert005</td>
+          <td class="desc">5+ outbound payments to first-use payees in 14d, ≥&nbsp;$20k total.</td>
+        </tr>
+        <tr>
+          <td>app_fraud_first_use_payee</td>
+          <td><span class="sev high">high</span></td>
+          <td><span class="juris">GB · EU</span></td>
+          <td class="source"><code>UK&nbsp;PSR&nbsp;PS24/3</code> · Oct&nbsp;2024<br>FCA FG24/4</td>
+          <td class="desc">Single push payment ≥&nbsp;£1k to a payee never paid before.</td>
+        </tr>
+        <tr>
+          <td>mule_burst_inbound</td>
+          <td><span class="sev high">high</span></td>
+          <td><span class="juris">US · CA · GB · EU</span></td>
+          <td class="source"><code>FinCEN&nbsp;FIN-2020-A003</code><br>+ 2026 RTP/FedNow telemetry</td>
+          <td class="desc">≥ 8 inbound from distinct remitters in 7d, &gt;&nbsp;$15k total.</td>
+        </tr>
+        <tr>
+          <td>ramp_up_then_drain</td>
+          <td><span class="sev crit">crit</span></td>
+          <td><span class="juris">US · CA · GB · EU · AU · SG</span></td>
+          <td class="source"><code>FATF&nbsp;2026 · finding&nbsp;#5</code><br>FinCEN FIN-2023-Alert005</td>
+          <td class="desc">Dormant account → ≥&nbsp;$20k inbound → drained ≥&nbsp;90% in 72h.</td>
+        </tr>
+        <tr>
+          <td>wire_to_high_risk_juris</td>
+          <td><span class="sev high">high</span></td>
+          <td><span class="juris">US · CA · GB · EU · AU · SG · HK · JP</span></td>
+          <td class="source"><code>FATF&nbsp;R.19</code> · 31&nbsp;CFR&nbsp;1010.610<br>FinCEN AML/CFT National Priorities</td>
+          <td class="desc">Outbound wire ≥&nbsp;$3k to a country on FATF grey/black list.</td>
+        </tr>
+        <tr>
+          <td>dormant_reactivation</td>
+          <td><span class="sev med">med</span></td>
+          <td><span class="juris">US · CA · GB · EU</span></td>
+          <td class="source"><code>TD&nbsp;2024 · finding&nbsp;#5</code><br>FFIEC BSA/AML Manual</td>
+          <td class="desc">Dormant 180+ days → suddenly &gt; $10k traffic in 7d.</td>
+        </tr>
+        <tr>
+          <td>shell_company_pass_through</td>
+          <td><span class="sev high">high</span></td>
+          <td><span class="juris">US · CA · GB · EU · SG · HK</span></td>
+          <td class="source"><code>TD&nbsp;2024 · finding&nbsp;#3</code><br>FATF R.24 · FinCEN BOI rule</td>
+          <td class="desc">Business: ≥&nbsp;$50k in, &gt;&nbsp;90% out same day, EoD bal &lt;&nbsp;5%.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="cat-meta">
+      <span><span class="accent">aml typology-import</span> &nbsp;·&nbsp; one command, atomic install, post-splice validation</span>
+      <span>EVERY ROW HAS A REGULATOR LINK · NO BLACK-BOX RULES</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · src/aml_framework/spec/library/typologies/</span>
+  </div>
+
+</body>
+</html>

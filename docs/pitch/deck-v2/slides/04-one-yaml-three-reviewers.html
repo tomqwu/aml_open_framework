@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>One YAML, Three Reviewers · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .layout {
+    position: absolute;
+    top: 460px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: 1fr 700px 1fr;
+    gap: 48px;
+    z-index: 1;
+  }
+
+  .reviewers {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 28px;
+  }
+  .reviewers.left { text-align: right; }
+
+  .reviewer .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .reviewers.left .reviewer .tag { justify-content: flex-end; }
+  .reviewer .reads {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 24px;
+    line-height: 1.35;
+    color: var(--ink);
+    text-wrap: pretty;
+  }
+  .reviewer .reads strong {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .reviewer .artifact {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-top: 10px;
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+  }
+
+  .center-spec {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 64px rgba(0,0,0,0.5), 0 0 96px var(--terminal-glow);
+    display: flex;
+    flex-direction: column;
+  }
+  .center-spec .file-bar {
+    height: 38px;
+    background: linear-gradient(180deg,#131c34 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .center-spec .file-bar .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    margin-right: 8px;
+  }
+  .center-spec .yaml-body {
+    flex: 1;
+    padding: 22px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink);
+    white-space: pre;
+    overflow: hidden;
+  }
+  .yaml-key  { color: var(--accent); }
+  .yaml-str  { color: var(--rag-green); }
+  .yaml-num  { color: var(--rag-amber); }
+  .yaml-comm { color: var(--ink-faint); font-style: italic; }
+
+  .punchline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--chapter-warm);
+    line-height: 1.5;
+    z-index: 1;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">04 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act II · The Spec Is The Contract</div>
+    <h1 class="fade-in d2">
+      One YAML.<br><em>Three readings</em>, all faithful.
+    </h1>
+  </div>
+
+  <div class="layout">
+
+    <div class="reviewers left">
+      <div class="reviewer fade-in d3">
+        <div class="tag">CCO &middot; reads top-down</div>
+        <div class="reads"><strong>Program metadata, regulator, owner.</strong> What is in scope, who is accountable, when it took effect.</div>
+        <div class="artifact">→ board report &middot; regwatch &middot; effectiveness pack</div>
+      </div>
+      <div class="reviewer fade-in d4">
+        <div class="tag">MLRO &middot; reads sideways</div>
+        <div class="reads"><strong>Rule logic + regulation refs + tuning grids.</strong> Is each rule still earning its keep?</div>
+        <div class="artifact">→ backtest &middot; propose-change &middot; MRM bundle</div>
+      </div>
+    </div>
+
+    <div class="center-spec fade-in d3">
+      <div class="file-bar"><span class="dot"></span>aml.yaml &nbsp; · &nbsp; canadian_schedule_i_bank</div>
+      <div class="yaml-body"><span class="yaml-comm"># Program — what compliance owns</span>
+<span class="yaml-key">program:</span>
+  <span class="yaml-key">name:</span>            <span class="yaml-str">schedule_i_bank_aml</span>
+  <span class="yaml-key">jurisdiction:</span>    <span class="yaml-str">CA</span>
+  <span class="yaml-key">regulator:</span>       <span class="yaml-str">FINTRAC</span>
+  <span class="yaml-key">owner:</span>           <span class="yaml-str">chief_compliance_officer</span>
+  <span class="yaml-key">effective_date:</span>  <span class="yaml-str">2026-01-01</span>
+
+<span class="yaml-comm"># Rules — what engineering ships</span>
+<span class="yaml-key">rules:</span>
+  - <span class="yaml-key">id:</span>       <span class="yaml-str">structuring_cash_deposits</span>
+    <span class="yaml-key">severity:</span> <span class="yaml-str">high</span>
+    <span class="yaml-key">regulation_refs:</span>
+      - <span class="yaml-key">citation:</span> <span class="yaml-str">"PCMLTFA s.11.1"</span>
+    <span class="yaml-key">logic:</span>
+      <span class="yaml-key">type:</span>    <span class="yaml-str">aggregation_window</span>
+      <span class="yaml-key">window:</span>  <span class="yaml-str">30d</span>
+      <span class="yaml-key">having:</span>
+        <span class="yaml-key">count:</span>      { gte: <span class="yaml-num">3</span> }
+        <span class="yaml-key">sum_amount:</span> { gte: <span class="yaml-num">20000</span> }
+    <span class="yaml-key">escalate_to:</span> <span class="yaml-str">l1_aml_analyst</span>
+
+<span class="yaml-comm"># Workflow — who reviews + how it routes</span>
+<span class="yaml-key">workflow:</span>
+  <span class="yaml-key">queues:</span>
+    - <span class="yaml-key">id:</span> <span class="yaml-str">l1_aml_analyst</span>     <span class="yaml-key">sla:</span> <span class="yaml-str">24h</span>
+    - <span class="yaml-key">id:</span> <span class="yaml-str">l2_investigator</span>    <span class="yaml-key">sla:</span> <span class="yaml-str">72h</span>
+    - <span class="yaml-key">id:</span> <span class="yaml-str">str_filing</span>         <span class="yaml-key">sla:</span> <span class="yaml-str">30d</span>
+</div>
+    </div>
+
+    <div class="reviewers right">
+      <div class="reviewer fade-in d5">
+        <div class="tag">Engineering &middot; reads as schema</div>
+        <div class="reads"><strong>JSON Schema → Pydantic → DuckDB.</strong> Same spec the engine compiles, same fields the API exposes.</div>
+        <div class="artifact">→ run &middot; validate-data &middot; audit chain</div>
+      </div>
+      <div class="reviewer fade-in d6">
+        <div class="tag">Auditor &middot; reads as evidence</div>
+        <div class="reads"><strong>SHA-256 of this exact file.</strong> Tied to every alert, decision, and STR — replayable byte-for-byte.</div>
+        <div class="artifact">→ replay &middot; auditor-pack &middot; regwatch verify</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="punchline">
+    The spec <strong>is</strong> the contract.
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SCHEMA · schema/aml-spec.schema.json</span>
+  </div>
+
+</body>
+</html>

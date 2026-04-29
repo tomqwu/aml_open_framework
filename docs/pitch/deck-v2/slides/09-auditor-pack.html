@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Auditor Self-Service · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .terminal { height: 100%; }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">09 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act III · The Daily Ritual</div>
+    <h1 class="fade-in d2">
+      What you'd hand a regulator<br><em>tomorrow morning</em>.
+    </h1>
+  </div>
+
+  <div class="dualpane">
+
+    <div class="narrative">
+
+      <div class="point fade-in d3">
+        <div class="num">01</div>
+        <div class="body">
+          <strong>One ZIP, one command, no IT call.</strong>
+          Hash-verified ledger, examination pack, effectiveness
+          pack, manifest, decisions log — bundled, indexed,
+          auditor-ready.
+        </div>
+      </div>
+
+      <div class="point fade-in d4">
+        <div class="num">02</div>
+        <div class="body">
+          <strong>Self-service.</strong>
+          <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:18px;">--print-link</code>
+          gives the auditor a deep-link onto the dashboard's Audit
+          &amp; Evidence page in auditor-persona mode. They click
+          before they download.
+        </div>
+      </div>
+
+      <div class="point fade-in d5">
+        <div class="num">03</div>
+        <div class="body">
+          <strong>Hash chain integrity verified at build time.</strong>
+          If the decision log was tampered with — even a single
+          line — the ZIP refuses to build. Tamper-evident, by
+          construction.
+        </div>
+      </div>
+
+      <div class="outcome fade-in d6">
+        Average enforcement order is 18 months because the bank
+        cannot evidence what it did. <em>This is the evidence,
+        already on the shelf.</em>
+      </div>
+
+    </div>
+
+    <div class="terminal fade-in d3">
+      <div class="terminal-chrome">
+        <div class="terminal-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+        <div class="terminal-title">aml auditor-pack · canadian_schedule_i_bank</div>
+      </div>
+      <div class="terminal-body"><span class="t-prompt">$</span> <span class="t-cmd">aml auditor-pack</span> examples/canadian_schedule_i_bank/aml.yaml \
+   <span class="t-flag">--out</span> auditor-pack.zip <span class="t-flag">--print-link</span>
+
+<span class="t-header">Auditor pack · schedule_i_bank_aml</span>
+
+<span class="t-comment">┌─────────────────────────┬────────┐</span>
+<span class="t-comment">│ Component               │ Status │</span>
+<span class="t-comment">├─────────────────────────┼────────┤</span>
+│ MANIFEST.txt            │ <span class="t-ok">✓</span>      │
+│ audit_pack.zip          │ <span class="t-ok">✓</span>      │
+│ manifest.json           │ <span class="t-ok">✓</span>      │
+│ decisions.jsonl         │ <span class="t-ok">✓</span>      │
+│ spec_snapshot.yaml      │ <span class="t-ok">✓</span>      │
+<span class="t-comment">└─────────────────────────┴────────┘</span>
+
+<span class="t-ok">✓ Hash chain verified.</span> Decision log integrity verified.
+
+Auditor pack written <span class="t-cmd">auditor-pack.zip</span>
+
+Auditor dashboard URL:
+  <span class="t-arrow">→</span> <span class="t-cmd">http://localhost:8501</span><span class="t-comment">/?audience=auditor</span>
+     <span class="t-comment">&page=Audit+%26+Evidence&spec=aml.yaml</span>
+
+<span class="t-prompt">$</span> <span class="cursor-blink"></span></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>F3 · PR #114 · CAPTURED 2026-04-29</span>
+  </div>
+
+</body>
+</html>

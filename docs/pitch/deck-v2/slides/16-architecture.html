@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Architecture · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .pipeline {
+    position: absolute;
+    top: 460px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    align-items: stretch;
+  }
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 26px 22px 22px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: hidden;
+  }
+  .stage::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+  .stage .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .stage h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+    text-wrap: pretty;
+  }
+  .stage h3 em {
+    font-style: normal;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--accent);
+    display: block;
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+  .stage .what {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    text-wrap: pretty;
+  }
+  .stage .modules {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+  }
+  .stage .modules code { color: var(--accent); }
+
+  .arrow-row {
+    position: absolute;
+    top: calc(460px + 110px);
+    left: 96px;
+    right: 96px;
+    z-index: 0;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    pointer-events: none;
+  }
+  .arrow-row .arrow {
+    text-align: right;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    transform: translateX(15px) translateY(-8px);
+    opacity: 0.7;
+  }
+
+  .layer-banner {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    z-index: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--ink-dim);
+  }
+  .layer-banner .label {
+    color: var(--accent);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+  .layer-banner .item {
+    color: var(--ink-dim);
+  }
+  .layer-banner .item code {
+    color: var(--ink);
+  }
+  .layer-banner .sep {
+    color: var(--ink-faint);
+  }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">16 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act VI · The Tech Substrate</div>
+    <h1 class="fade-in d2">
+      One spec compiles into <em>everything else</em>.
+    </h1>
+  </div>
+
+  <div class="pipeline">
+
+    <div class="stage fade-in d3">
+      <div class="num">01 · INPUT</div>
+      <h3>Spec + Data<em>aml.yaml + warehouse</em></h3>
+      <p class="what">JSON Schema (structural) + Pydantic v2 cross-reference checks. CSV/Parquet/DuckDB/S3/GCS/Snowflake/BigQuery sources. ISO 20022 ingest.</p>
+      <div class="modules"><code>spec/</code><br><code>data/sources.py</code></div>
+    </div>
+
+    <div class="stage fade-in d4">
+      <div class="num">02 · ENGINE</div>
+      <h3>Run<em>DuckDB · seeded · deterministic</em></h3>
+      <p class="what">Same spec + same data + same seed = byte-identical output hashes. 4 rule logic types: aggregation_window, custom_sql, python_ref, list_match.</p>
+      <div class="modules"><code>engine/runner.py</code><br><code>engine/audit.py</code></div>
+    </div>
+
+    <div class="stage fade-in d5">
+      <div class="num">03 · CASES</div>
+      <h3>Investigation<em>aggregator · SLA · linkage</em></h3>
+      <p class="what">Three aggregation strategies. Fraud↔AML case linkage. STR bundling. SLA timer per queue. Persona-aware routing.</p>
+      <div class="modules"><code>cases/</code><br><code>cases/sla.py</code></div>
+    </div>
+
+    <div class="stage fade-in d6">
+      <div class="num">04 · GENERATORS</div>
+      <h3>Artefacts<em>SQL · DAG · audit · STR</em></h3>
+      <p class="what">Audit pack (jurisdiction-mapped) · MRM bundle (SR 26-2) · effectiveness pack (FinCEN NPRM) · STR narratives · DAG stubs · control matrix.</p>
+      <div class="modules"><code>generators/</code><br><code>narratives/</code></div>
+    </div>
+
+    <div class="stage fade-in d6">
+      <div class="num">05 · SURFACES</div>
+      <h3>Read<em>dashboard · API · CLI</em></h3>
+      <p class="what">Streamlit dashboard (26 pages, persona-aware). FastAPI REST with JWT/OIDC + multi-tenant. Typer CLI: 24 commands, 1,463 tests.</p>
+      <div class="modules"><code>dashboard/</code><br><code>api/</code> &middot; <code>cli.py</code></div>
+    </div>
+
+  </div>
+
+  <div class="layer-banner fade-in d6">
+    <span class="label">Cross-cutting</span>
+    <span class="sep">|</span>
+    <span class="item"><code>compliance/regwatch</code> reg-text drift</span>
+    <span class="sep">·</span>
+    <span class="item"><code>integrations/notabene</code> + <code>sumsub</code> Travel Rule</span>
+    <span class="sep">·</span>
+    <span class="item"><code>compliance/sandbox</code> FATF R.18</span>
+    <span class="sep">·</span>
+    <span class="item"><code>pkyc/</code> periodic KYC</span>
+    <span class="sep">·</span>
+    <span class="item"><code>vasp/</code> blockchain heuristics</span>
+  </div>
+
+  <div class="footer" style="bottom: 30px;">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · src/aml_framework/ · MIT</span>
+  </div>
+
+</body>
+</html>

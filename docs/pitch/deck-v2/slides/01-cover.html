@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cover · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .cover-stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 96px 96px 220px;
+    z-index: 1;
+  }
+  .cover-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 56px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    opacity: 0;
+    animation: fadeUp 0.7s 0.1s ease-out forwards;
+  }
+  .cover-eyebrow::after {
+    content: '';
+    width: 64px;
+    height: 1px;
+    background: var(--accent);
+  }
+  .cover-display {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    font-size: 132px;
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 1480px;
+    margin-bottom: 48px;
+    opacity: 0;
+    animation: fadeUp 1s 0.3s ease-out forwards;
+  }
+  .cover-display em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+  .cover-tagline {
+    font-size: 28px;
+    line-height: 1.4;
+    color: var(--ink-dim);
+    max-width: 1180px;
+    text-wrap: pretty;
+    opacity: 0;
+    animation: fadeUp 0.9s 0.55s ease-out forwards;
+  }
+  .cover-bottom {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    z-index: 1;
+    opacity: 0;
+    animation: fadeUp 0.7s 0.85s ease-out forwards;
+  }
+  .cover-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: var(--ink-faint);
+    line-height: 1.8;
+  }
+  .cover-meta strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .cover-repo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--ink-dim);
+    letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+  <div class="cover-stage">
+    <div class="cover-eyebrow">PITCH DECK V2 · 2026 EDITION</div>
+    <div class="cover-display">
+      AML Open<br>
+      <em>Framework</em>
+    </div>
+    <div class="cover-tagline">
+      An anti-money-laundering program you can show to your regulator
+      without a six-week reconstruction. One spec compliance writes,
+      engineering ships, the auditor replays — byte-for-byte.
+    </div>
+  </div>
+
+  <div class="cover-bottom">
+    <div class="cover-meta">
+      19 SLIDES · 24 CLI COMMANDS · 1,463 TESTS<br>
+      <strong>9 SPECS</strong> · 4 JURISDICTIONS · MIT LICENCE
+    </div>
+    <div class="cover-repo">github.com/tomqwu/aml_open_framework</div>
+  </div>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">01 / 19</div>
+</body>
+</html>

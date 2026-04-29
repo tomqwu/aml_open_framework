@@ -1,0 +1,7 @@
+────────────────────── ✓ Rule 'new_velocity_burst' added ───────────────────────
+  spec: /tmp/test_addrule.yaml
+  inserted near line 232
+
+Try it now:
+  $ aml validate /tmp/test_addrule.yaml
+  $ aml run /tmp/test_addrule.yaml --seed 42

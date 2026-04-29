@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Zero to Spec in 60s · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .terminal { height: 100%; }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">13 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act V · Institution-Fit</div>
+    <h1 class="fade-in d2">
+      Zero to a working spec —<br><em>before the kettle boils</em>.
+    </h1>
+  </div>
+
+  <div class="dualpane">
+
+    <div class="narrative">
+
+      <div class="point fade-in d3">
+        <div class="num">01</div>
+        <div class="body">
+          <strong>Pick an archetype.</strong> Schedule-I bank · community
+          bank · VASP · fintech. Each scaffolds with sensible
+          contracts, three starter rules, four queues, and a STR
+          form pre-cited.
+        </div>
+      </div>
+
+      <div class="point fade-in d4">
+        <div class="num">02</div>
+        <div class="body">
+          <strong>Map your warehouse.</strong>
+          <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:18px;">aml byod</code>
+          inspects your CSV/Parquet/DuckDB schemas and proposes the
+          column mapping with confidence scores. Low-confidence
+          rows are flagged, not auto-decided.
+        </div>
+      </div>
+
+      <div class="point fade-in d5">
+        <div class="num">03</div>
+        <div class="body">
+          <strong>Validate, then run.</strong>
+          <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:18px;">aml validate-data</code>
+          checks completeness against your spec — every column,
+          every quality check, before the engine touches a row.
+        </div>
+      </div>
+
+      <div class="outcome fade-in d6">
+        Most pilots stall on "where do we even start?". This is the
+        path from <em>fresh repo</em> to a regulator-mappable spec
+        running on real data — same afternoon.
+      </div>
+
+    </div>
+
+    <div class="terminal fade-in d3">
+      <div class="terminal-chrome">
+        <div class="terminal-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+        <div class="terminal-title">aml init · aml byod · aml validate-data</div>
+      </div>
+      <div class="terminal-body"><span class="t-prompt">$</span> <span class="t-cmd">aml init</span> /tmp/acme <span class="t-flag">--archetype</span> schedule_i_bank \
+   <span class="t-flag">--jurisdiction</span> CA <span class="t-flag">--non-interactive</span>
+
+<span class="t-ok">✓ Scaffold written to</span> /tmp/acme
+  <span class="t-arrow">→</span> /tmp/acme/aml.yaml
+  <span class="t-arrow">→</span> /tmp/acme/README.md
+
+<span class="t-prompt">$</span> <span class="t-cmd">aml byod</span> /tmp/acme/aml.yaml ./warehouse-export/
+
+<span class="t-header">Mapping report · aml.yaml</span>
+<span class="t-comment">───────────────────────────────────────────────</span>
+Contract  Source         Total  Mapped  LowConf  Unmapped
+<span class="t-comment">───────────────────────────────────────────────</span>
+txn       txn.csv            7       <span class="t-ok">7</span>        0         0
+customer  customer.csv       5       <span class="t-ok">5</span>        0         0
+
+Mapping written <span class="t-cmd">data_mapping.yaml</span>
+
+<span class="t-prompt">$</span> <span class="t-cmd">aml validate-data</span> /tmp/acme/aml.yaml \
+   <span class="t-flag">--data-dir</span> ./warehouse-export/
+
+<span class="t-ok">✓ All quality checks pass.</span> Ready for <span class="t-cmd">aml run</span>.
+
+<span class="t-prompt">$</span> <span class="cursor-blink"></span></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>F1 + F2 · PRs #112, #113 · CAPTURED 2026-04-29</span>
+  </div>
+
+</body>
+</html>

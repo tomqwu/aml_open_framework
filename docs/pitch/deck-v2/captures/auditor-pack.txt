@@ -1,0 +1,18 @@
+        Auditor pack ·         
+      schedule_i_bank_aml      
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ Component          ┃ Status ┃
+┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ MANIFEST.txt       │ ✓      │
+│ audit_pack.zip     │ ✓      │
+│ manifest.json      │ ✓      │
+│ decisions.jsonl    │ ✓      │
+│ spec_snapshot.yaml │ ✓      │
+└────────────────────┴────────┘
+
+✓ Hash chain verified. Decision log integrity verified
+
+Auditor pack written /tmp/deck-v2-captures/auditor-pack.zip
+
+Auditor dashboard URL:
+  http://localhost:8501/?audience=auditor&page=Audit+%26+Evidence&spec=aml.yaml

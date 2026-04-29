@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Three-Way Gap · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .triad {
+    position: absolute;
+    top: 460px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    z-index: 1;
+  }
+  .role {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 36px 32px 32px;
+    position: relative;
+  }
+  .role .role-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 28px;
+  }
+  .role h3 {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 36px;
+    line-height: 1.25;
+    color: var(--ink);
+    margin-bottom: 32px;
+    text-wrap: pretty;
+  }
+  .role .what {
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    margin-bottom: 24px;
+    text-wrap: pretty;
+  }
+  .role .what strong { color: var(--ink); font-weight: 600; }
+
+  .role .artifact {
+    margin-top: auto;
+    padding: 18px 20px;
+    background: rgba(103,232,249,0.04);
+    border: 1px dashed var(--rule);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-dim);
+    letter-spacing: 0.04em;
+  }
+  .role .artifact .ok { color: var(--rag-green); }
+  .role .artifact .fail { color: var(--rag-red); }
+  .role .artifact .meh { color: var(--rag-amber); }
+
+  .gap-tag {
+    position: absolute;
+    bottom: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+    padding: 0 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--rag-red);
+  }
+
+  .punchline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 28px;
+    line-height: 1.5;
+    color: var(--chapter-warm);
+    z-index: 1;
+    text-wrap: pretty;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">02 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act I · The Gap</div>
+    <h1 class="fade-in d2">
+      Three teams write the program.<br>None of them write the <em>same</em> thing.
+    </h1>
+  </div>
+
+  <div class="triad">
+
+    <div class="role fade-in d3">
+      <div class="role-label">1st Line · Compliance</div>
+      <h3>"We wrote it down. In English. In a binder."</h3>
+      <p class="what">
+        <strong>What lives here:</strong> typology narratives, threshold
+        rationale, regulator mapping. All Word, PowerPoint, SharePoint.
+      </p>
+      <div class="artifact">
+        Risk_Assessment_2024.docx<br>
+        Typology_Standards_v18.pptx<br>
+        SOP_Approval_Email_Chain.eml<br>
+        <span class="meh">→ archived, not executable</span>
+      </div>
+    </div>
+
+    <div class="role fade-in d4">
+      <div class="role-label">Engineering</div>
+      <h3>"We shipped detectors. The SQL is in the warehouse."</h3>
+      <p class="what">
+        <strong>What lives here:</strong> SQL behind a vendor abstraction,
+        Airflow DAGs, model code, Slack-signoff threshold tweaks.
+      </p>
+      <div class="artifact">
+        rule_engine.dbt/<br>
+        airflow/dags/aml_pipeline.py<br>
+        commits.merged_3am.signoff=Slack<br>
+        <span class="fail">→ no link back to the binder</span>
+      </div>
+    </div>
+
+    <div class="role fade-in d5">
+      <div class="role-label">2LoD &middot; Audit &middot; Regulator</div>
+      <h3>"Six weeks to reconstruct what fired, why, and who decided."</h3>
+      <p class="what">
+        <strong>What lives here:</strong> sample-based testing, e-mail forensics,
+        analyst interviews, redacted screenshots — months after the fact.
+      </p>
+      <div class="artifact">
+        Audit_Walkthrough_Q3.xlsx<br>
+        decisions_extracted_manually.csv<br>
+        sample_size = 25 of ~3,000<br>
+        <span class="fail">→ findings often "cannot evidence"</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="punchline fade-in d6">
+    Across recent enforcement orders, regulators rarely allege missed typologies —
+    they allege the bank <strong>cannot evidence</strong> what it did.
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · docs/research/2026-04-aml-process-pain.md</span>
+  </div>
+
+</body>
+</html>

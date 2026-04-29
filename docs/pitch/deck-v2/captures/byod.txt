@@ -1,0 +1,13 @@
+                    Mapping report · aml.yaml                     
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┓
+┃ Contract ┃ Source       ┃ Total ┃ Mapped ┃ Low conf ┃ Unmapped ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━┩
+│ txn      │ txn.csv      │     7 │      7 │        0 │        0 │
+│ customer │ customer.csv │     5 │      5 │        0 │        0 │
+└──────────┴──────────────┴───────┴────────┴──────────┴──────────┘
+
+Mapping written /tmp/deck-v2-captures/byod-mapping.yaml
+
+Try it next:
+  $ /tmp/deck-v2-captures/byod-mapping.yaml  # review + edit
+  $ aml validate-data examples/community_bank/aml.yaml --data-dir data/input

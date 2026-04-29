@@ -1,0 +1,10 @@
+─────────────────── ✓ Scaffold written to /tmp/aml-init-test ───────────────────
+
+  → /tmp/aml-init-test/aml.yaml
+  → /tmp/aml-init-test/README.md
+
+Try it now:
+  $ aml validate /tmp/aml-init-test/aml.yaml
+  $ aml run /tmp/aml-init-test/aml.yaml --seed 42
+  $ aml dashboard /tmp/aml-init-test/aml.yaml
+

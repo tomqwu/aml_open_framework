@@ -1,0 +1,6 @@
+Review packet written /tmp/deck-v2-captures/mlro-review-packet.md
+  proposer: Aisha N. (Senior Analyst, FCC)
+  rule:     structuring_cash_deposits
+
+Next: paste this Markdown into the spec PR description,
+or commit it next to your spec change so the audit trail keeps both.

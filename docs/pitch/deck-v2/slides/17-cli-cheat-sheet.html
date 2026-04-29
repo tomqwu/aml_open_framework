@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CLI Cheat Sheet & Test Matrix · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .cheat {
+    position: absolute;
+    top: 460px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    z-index: 1;
+  }
+  .commands-panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+  }
+  .commands-panel .section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .commands-panel .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+  .cmd-row {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 18px;
+    align-items: baseline;
+    padding: 6px 0;
+  }
+  .cmd-row code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .cmd-row .what {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+
+  .proof {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: auto;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+  }
+  .proof-stat {
+    text-align: center;
+  }
+  .proof-stat .num {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    font-size: 38px;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .proof-stat .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">17 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act VI · The Tech Substrate</div>
+    <h1 class="fade-in d2">
+      Reproducible by command.<br><em>Tested by CI.</em>
+    </h1>
+  </div>
+
+  <div class="cheat">
+
+    <div class="commands-panel fade-in d3">
+      <div class="section-title">Build &middot; Run &middot; Validate</div>
+      <div class="cmd-row"><code>aml init</code> <span class="what">Scaffold a starter spec by archetype.</span></div>
+      <div class="cmd-row"><code>aml byod</code> <span class="what">Map your warehouse into spec contracts.</span></div>
+      <div class="cmd-row"><code>aml validate</code> <span class="what">JSON Schema + Pydantic + cross-ref check.</span></div>
+      <div class="cmd-row"><code>aml validate-data</code> <span class="what">Quality checks against your spec.</span></div>
+      <div class="cmd-row"><code>aml run</code> <span class="what">Execute detectors · seeded · deterministic.</span></div>
+      <div class="cmd-row"><code>aml replay</code> <span class="what">Verify a historical run byte-for-byte.</span></div>
+
+      <div class="section-title" style="margin-top: 18px;">Detection &middot; Tuning</div>
+      <div class="cmd-row"><code>aml typology-list</code> <span class="what">Browse the curated catalogue (8 + growing).</span></div>
+      <div class="cmd-row"><code>aml typology-import</code> <span class="what">Atomic install of a regulator-cited rule.</span></div>
+      <div class="cmd-row"><code>aml add-rule</code> <span class="what">Wizard for structuring / velocity / juris rules.</span></div>
+      <div class="cmd-row"><code>aml backtest</code> <span class="what">4-quarter precision/recall on a candidate.</span></div>
+      <div class="cmd-row"><code>aml tune</code> <span class="what">Sweep tuning grid; emit YAML patch.</span></div>
+      <div class="cmd-row"><code>aml propose-change</code> <span class="what">2LoD packet with diff + sign-off block.</span></div>
+    </div>
+
+    <div class="commands-panel fade-in d4">
+      <div class="section-title">Operations &middot; Daily</div>
+      <div class="cmd-row"><code>aml today</code> <span class="what">Per-persona morning checklist.</span></div>
+      <div class="cmd-row"><code>aml dashboard</code> <span class="what">Streamlit · 26 pages · persona-aware.</span></div>
+      <div class="cmd-row"><code>aml notify-digest</code> <span class="what">Slack/Teams escalation digest.</span></div>
+      <div class="cmd-row"><code>aml regwatch</code> <span class="what">Watch reg pages for silent narrowing.</span></div>
+      <div class="cmd-row"><code>aml sanctions-sync</code> <span class="what">Refresh OFAC / UN / EU lists.</span></div>
+      <div class="cmd-row"><code>aml pkyc-scan</code> <span class="what">Periodic KYC trigger sweep.</span></div>
+
+      <div class="section-title" style="margin-top: 18px;">Audit &middot; Regulator Surfaces</div>
+      <div class="cmd-row"><code>aml auditor-pack</code> <span class="what">Self-service ZIP · hash-verified.</span></div>
+      <div class="cmd-row"><code>aml audit-pack</code> <span class="what">Examination ZIP · per jurisdiction.</span></div>
+      <div class="cmd-row"><code>aml mrm-bundle</code> <span class="what">SR 26-2 model dossier per rule.</span></div>
+      <div class="cmd-row"><code>aml effectiveness-pack</code> <span class="what">FinCEN NPRM 2026 evidence.</span></div>
+      <div class="cmd-row"><code>aml export-amla-str</code> <span class="what">AMLA RTS draft 2026-02 · JSON.</span></div>
+      <div class="cmd-row"><code>aml export-goaml</code> <span class="what">goAML XML · UNODC reporting.</span></div>
+
+      <div class="proof">
+        <div class="proof-stat">
+          <div class="num">1,463</div>
+          <div class="label">tests · all green</div>
+        </div>
+        <div class="proof-stat">
+          <div class="num">5</div>
+          <div class="label">CI jobs · per PR</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>CI · lint · unit · api · e2e-dashboard · docker-build</span>
+  </div>
+
+</body>
+</html>
