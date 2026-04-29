@@ -19,9 +19,13 @@ See [Architecture principle →](docs/architecture.md#principle) and [How each r
 ```bash
 git clone https://github.com/tomqwu/aml_open_framework.git && cd aml_open_framework
 pip install -e ".[dev,dashboard,api]"
+aml demo --persona cco        # 5-min guided tour for a non-technical buyer
+# or:
 aml dashboard examples/community_bank/aml.yaml
 # Open http://localhost:8501
 ```
+
+`aml demo` runs validate → engine → audit pack against the canonical Canadian Schedule-I bank spec, narrates each step, and prints persona-specific next-step commands (`--persona cco|mlro|analyst|auditor`). It exists so a CCO who has 5 minutes between meetings can self-serve a real regulator-ready audit pack — no vendor demo cycle required.
 
 **5-minute path with no prior context:** [`docs/getting-started.md`](docs/getting-started.md) — install, pick a spec, run, launch dashboard, bring your own data, write your first rule, generate an audit bundle.
 
