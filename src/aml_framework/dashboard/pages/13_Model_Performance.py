@@ -11,7 +11,7 @@ from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Model Performance",
-    "ML model analytics, score distributions, and model risk management metadata.",
+    "How the scoring models behave — and what your validation team would ask about them.",
 )
 show_audience_context("Model Performance")
 

@@ -1,0 +1,264 @@
+# US instant-payments push-fraud spec — RTP + FedNow.
+#
+# Process problem this spec is built to attack
+# --------------------------------------------
+# A customer calls the fraud hotline: "I just sent $7,000 over RTP/FedNow
+# to a romance contact and now they're not responding."  Today the CSR
+# spends 30+ minutes pulling transaction history, KYC, network neighbours,
+# and prior alerts from four systems before they can even *talk* to the
+# customer about it. The case isn't ready when the phone rings.
+#
+# The fix is not a faster CSR; it's a detector pack that **opens a
+# pre-investigated case at payment time**, so that when the customer
+# calls (or the receiving FI sends a Confirmation-of-Payee mismatch),
+# the alert, the network neighbours, the recent history, and the
+# customer KYC are already attached.
+#
+# Why now
+# -------
+# - FedNow processed ~1.3M txns/day in Q1 2026; TCH RTP fraud rate
+#   reached 0.18% — well above the 0.05% wire baseline.
+# - FinCEN-FBI joint advisory Jan 2026 named RTP/FedNow push-fraud
+#   schemes a top-tier 2026 priority.
+# - The reimbursement model that's been live in the UK (PSR, Oct 2024)
+#   is the most likely US regulatory path; sending FIs that can prove
+#   "we caught it before it left" lower their projected liability.
+#
+# What this spec demonstrates
+# ---------------------------
+# Five composable rules, all using existing engine primitives:
+#   1. first_use_payee_large_amount    (aggregation_window)
+#   2. velocity_spike_on_receive       (custom_sql)
+#   3. ramp_up_then_drain_rtp          (aggregation_window)
+#   4. mule_receiver_fan_out           (network_pattern)
+#   5. unusual_time_for_customer       (custom_sql)
+#
+# Every rule carries `aml_priority: fraud` so PR-C's fraud-AML case
+# linkage panel correctly classifies these as fraud-domain — meaning
+# any customer who also has AML-domain alerts in the same run shows
+# up under "⚠️ Linked across domains" on the Investigations page.
+
+version: 1
+
+program:
+  name: us_rtp_fednow_push_fraud
+  jurisdiction: US
+  regulator: FinCEN
+  owner: chief_compliance_officer
+  effective_date: 2026-04-28
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 5m   # instant rails — alerts must keep up.
+    columns:
+      - { name: txn_id,            type: string,    nullable: false }
+      - { name: customer_id,       type: string,    nullable: false, pii: true }
+      - { name: amount,            type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,          type: string,    nullable: false }
+      - { name: channel,           type: string,    enum: [rtp, fednow, fedwire, ach, card, cash] }
+      - { name: direction,         type: string,    enum: [in, out] }
+      - { name: booked_at,         type: timestamp, nullable: false }
+      - { name: counterparty_id,   type: string,    nullable: true }
+      - { name: counterparty_name, type: string,    nullable: true, pii: true }
+      - { name: counterparty_bic,  type: string,    nullable: true }
+      - { name: cop_match_status,  type: string,    enum: [match, mismatch, partial, unsupported] }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at, channel] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,   type: string,    nullable: false, pii: true }
+      - { name: full_name,     type: string,    nullable: false, pii: true }
+      - { name: country,       type: string,    nullable: false }
+      - { name: risk_rating,   type: string,    enum: [low, medium, high, critical] }
+      - { name: onboarded_at,  type: timestamp, nullable: false }
+      - { name: typical_send_window_start_hour, type: integer, nullable: true }
+      - { name: typical_send_window_end_hour,   type: integer, nullable: true }
+    quality_checks:
+      - { not_null: [customer_id, full_name, onboarded_at] }
+      - { unique:   [customer_id] }
+
+rules:
+  # ---------- 1. First-use payee, large amount -----------------------------
+  # The textbook APP-fraud pattern: a customer sends an unusually large
+  # amount over RTP/FedNow to a payee they've never paid before. The
+  # threshold catches the typical pig-butchering "drain transfer".
+  - id: first_use_payee_large_amount_rtp
+    name: First-use payee — large RTP/FedNow send
+    severity: high
+    aml_priority: fraud
+    regulation_refs:
+      - citation: "FinCEN-FBI Joint Advisory Jan 2026"
+        description: "RTP/FedNow push-fraud typology — first-use large transfer."
+      - citation: "31 CFR § 1020.320"
+        description: "BSA SAR filing obligation."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: out
+        channel: { in: [rtp, fednow] }
+        amount: { gte: 1000 }
+      group_by: [customer_id, counterparty_id]
+      window: 1d
+      having:
+        count:      { gte: 1 }   # any qualifying txn
+        sum_amount: { gte: 1000 }
+    escalate_to: fraud_l2
+    evidence:
+      - matching_outbound_txn
+      - counterparty_first_seen_check
+      - customer_kyc_profile
+      - prior_outbound_to_payee
+    tags: [push_fraud, rtp, fednow, first_use_payee]
+    tuning_grid:
+      logic.filter.amount: [{gte: 500}, {gte: 1000}, {gte: 5000}]
+
+  # ---------- 2. Velocity spike on receive ---------------------------------
+  # A receiving account suddenly takes in many small RTP credits in a short
+  # window. Strong mule-account signal regardless of whether the customer
+  # is also sending out (that's covered by rule 4).
+  - id: velocity_spike_on_receive_rtp
+    name: Velocity spike on receive — sudden RTP/FedNow credit burst
+    severity: high
+    aml_priority: fraud
+    regulation_refs:
+      - citation: "FinCEN-FBI Joint Advisory Jan 2026"
+        description: "Mule account indicators on instant-payment rails."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: in
+        channel: { in: [rtp, fednow] }
+      group_by: [customer_id]
+      window: 1h
+      having:
+        count: { gte: 5 }
+    escalate_to: fraud_l2
+    evidence:
+      - matching_inbound_txns
+      - customer_kyc_profile
+      - account_age_check
+    tags: [push_fraud, rtp, fednow, mule_indicator, velocity]
+
+  # ---------- 3. Ramp-up then drain (RTP variant) --------------------------
+  # Same shape as the cyber_enabled_fraud spec's ramp_up_then_drain but
+  # restricted to RTP/FedNow. Operators include both specs in a real
+  # deployment; the engine de-duplicates alerts that hit on identical
+  # (customer, counterparty, window).
+  - id: ramp_up_then_drain_rtp
+    name: Ramp-up then drain — small priming over RTP, then large
+    severity: high
+    aml_priority: fraud
+    regulation_refs:
+      - citation: "FinCEN FIN-2023-Alert005"
+        description: "Pig-butchering payment-pattern indicator."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: out
+        channel: { in: [rtp, fednow] }
+        amount: { lt: 500 }
+      group_by: [customer_id, counterparty_id]
+      window: 14d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 1000 }
+    escalate_to: fraud_l2
+    evidence:
+      - matching_priming_transfers
+      - subsequent_drain_transfer
+      - beneficiary_history
+      - customer_kyc_profile
+    tags: [push_fraud, rtp, fednow, ramp_up, fincen_alert005]
+
+  # ---------- 4. Mule-receiver fan-out (network) ---------------------------
+  # network_pattern detects receiving accounts whose outbound neighbourhood
+  # converges on a small number of nodes — the classic mule-cluster
+  # topology. Reuses the entity-resolution graph the engine already builds.
+  - id: mule_receiver_fan_out_rtp
+    name: Mule receiver — fan-out cluster on RTP/FedNow
+    severity: critical
+    aml_priority: fraud
+    regulation_refs:
+      - citation: "FinCEN-FBI Joint Advisory Jan 2026"
+        description: "Mule-network detection for instant-payment rails."
+    logic:
+      type: network_pattern
+      source: customer
+      pattern: component_size
+      max_hops: 2
+      having:
+        component_size: { gte: 4 }
+    escalate_to: fraud_l2
+    evidence:
+      - resolved_entity_subgraph
+      - all_inbound_outbound_30d
+      - customer_kyc_profile
+    tags: [push_fraud, rtp, fednow, mule_network]
+
+  # ---------- 5. Unusual hour for customer ---------------------------------
+  # Real-time rails are 24/7. A customer who has a settled "typical send
+  # window" (set on the customer record from past behaviour) and then
+  # sends large RTP outside that window is a strong scam-call indicator.
+  - id: unusual_send_hour_for_customer_rtp
+    name: Unusual hour — RTP/FedNow send outside customer's typical window
+    severity: medium
+    aml_priority: fraud
+    regulation_refs:
+      - citation: "FinCEN-FBI Joint Advisory Jan 2026"
+        description: "Behavioural-anomaly flags on instant-payment rails."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT t.customer_id, t.txn_id, t.amount, t.booked_at, t.counterparty_id
+        FROM txn t JOIN customer c USING (customer_id)
+        WHERE t.direction = 'out'
+          AND t.channel IN ('rtp', 'fednow')
+          AND t.amount >= 500
+          AND c.typical_send_window_start_hour IS NOT NULL
+          AND (
+            EXTRACT(HOUR FROM t.booked_at) < c.typical_send_window_start_hour
+            OR EXTRACT(HOUR FROM t.booked_at) > c.typical_send_window_end_hour
+          )
+          AND t.booked_at >= TIMESTAMP '{recent_start}'
+    escalate_to: fraud_l2
+    evidence:
+      - matching_outbound_txn
+      - customer_typical_send_window
+      - customer_kyc_profile
+    tags: [push_fraud, rtp, fednow, time_anomaly]
+
+workflow:
+  queues:
+    - id: fraud_l1
+      sla: 4h
+      next: [fraud_l2, closed_no_action]
+    - id: fraud_l2
+      sla: 24h
+      next: [str_filing, closed_no_action]
+    - id: str_filing
+      sla: 30d
+      regulator_form: fincen_sar
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    fincen_sar:
+      template: docs/templates/fincen_sar.j2
+      mandatory_fields:
+        - subject_full_name
+        - subject_country
+        - sar_typology
+        - aggregate_amount_usd
+        - rule_id
+        - regulation_refs
+      trigger:
+        queue: str_filing
