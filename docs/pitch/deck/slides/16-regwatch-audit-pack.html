@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regwatch + Audit Pack · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .body {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    bottom: 160px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 56px;
+  }
+
+  .col {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.7s ease-out forwards;
+    display: flex;
+    flex-direction: column;
+  }
+  .col.l { animation-delay: 0.4s; }
+  .col.r { animation-delay: 0.6s; }
+
+  .col-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--rule);
+    margin-bottom: 18px;
+  }
+  .col-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .col-rd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .col h3 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+  .col h3 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .col p.lead {
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-dim);
+    margin-bottom: 18px;
+  }
+
+  /* Regwatch baseline mini-table */
+  .baseline {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  .baseline-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: baseline;
+    padding: 4px 0;
+  }
+  .baseline-row .ref { color: var(--ink); }
+  .baseline-row .hash { color: var(--accent); font-size: 11px; }
+  .baseline-row.changed .hash { color: var(--rag-red); }
+  .baseline-row .stat {
+    font-size: 10px;
+    color: var(--rag-green);
+    margin-top: 2px;
+    letter-spacing: 0.08em;
+  }
+  .baseline-row.changed .stat { color: var(--rag-red); }
+
+  .alert-line {
+    background: rgba(220, 38, 38, 0.06);
+    border-left: 3px solid var(--rag-red);
+    padding: 12px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--rag-red);
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+  .alert-line b { color: #fecaca; font-weight: 600; }
+
+  /* Audit pack contents */
+  .pack-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .pack-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 4px 0;
+    color: var(--ink-dim);
+  }
+  .pack-row::before {
+    content: '·';
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .pack-row b { color: var(--ink); font-weight: 500; }
+
+  .pack-cta {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-dim);
+  }
+  .pack-cta b { color: var(--accent); font-weight: 600; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.2s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">25 / 27 · ROUND 7 GAPS</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">2026 NPRMs flagged two gaps. We closed both.</div>
+  <h1>The regulator <em>changes the page</em>.<br>The framework <em>notices</em>.</h1>
+</div>
+
+<div class="body">
+  <div class="col l">
+    <div class="col-head">
+      <span class="col-tag">REGWATCH</span>
+      <span class="col-rd">compliance/regwatch.py</span>
+    </div>
+    <h3>Detect <em>regulation drift</em> at the URL-content level.</h3>
+    <p class="lead">FinCEN BOI was silently narrowed in March 2025 — the canonical example of a regulator page changing without redirect, leaving downstream specs citing stale language. Hash every cited URL; compare against baseline.</p>
+
+    <div class="baseline">
+      <div class="baseline-row">
+        <span><span class="ref">PCMLTFA s.7</span><div class="stat">UNCHANGED · 2026-04-12</div></span>
+        <span class="hash">a4be592a…73338</span>
+      </div>
+      <div class="baseline-row">
+        <span><span class="ref">FinCEN BSA 31 CFR 1010</span><div class="stat">UNCHANGED · 2026-04-12</div></span>
+        <span class="hash">8bcc816d…15569</span>
+      </div>
+      <div class="baseline-row changed">
+        <span><span class="ref">FinCEN BOI Reporting</span><div class="stat">DRIFT · 2026-04-28</div></span>
+        <span class="hash">d03624…282e55</span>
+      </div>
+    </div>
+
+    <div class="alert-line">
+      <b>Drift detected</b> on FinCEN BOI Reporting URL. Section "small reporting company exemption" added 2026-04-22. <span style="color:var(--ink-dim);">Re-run <code style="color:var(--accent);">aml regwatch &lt;spec&gt; --update</code> after acknowledging.</span>
+    </div>
+  </div>
+
+  <div class="col r">
+    <div class="col-head">
+      <span class="col-tag">AUDIT PACK</span>
+      <span class="col-rd">generators/audit_pack.py</span>
+    </div>
+    <h3>Pre-exam ZIP for the FINTRAC <em>examiner who walks in tomorrow</em>.</h3>
+    <p class="lead">January 2026 examination manual update made the pre-exam evidence demand explicit. One CLI command, one ZIP — file-by-file SHA-256, ready to hand over.</p>
+
+    <div class="pack-grid">
+      <div class="pack-row"><b>program.md</b></div>
+      <div class="pack-row"><b>inventory.json</b></div>
+      <div class="pack-row"><b>alerts_summary.json</b></div>
+      <div class="pack-row"><b>cases_summary.json</b></div>
+      <div class="pack-row"><b>audit_trail_verification.json</b></div>
+      <div class="pack-row"><b>sanctions_evidence.json</b></div>
+      <div class="pack-row"><b>pcmltfa_section_map.md</b></div>
+      <div class="pack-row"><b>osfi_b8_pillars.md</b></div>
+      <div class="pack-row" style="grid-column: span 2;"><b>manifest.json</b> · file-by-file SHA-256</div>
+    </div>
+
+    <div class="pack-cta">
+      Run: <b>aml audit-pack &lt;spec&gt; --jurisdiction CA-FINTRAC</b><br>
+      → <span style="color:var(--accent);">canadian_schedule_i_bank_fintrac_audit_pack.zip</span>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Both gaps surfaced in Round 7 (PRs #74, #78). <b>From regulator's announcement to compiled answer in &lt; 60 seconds.</b></div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

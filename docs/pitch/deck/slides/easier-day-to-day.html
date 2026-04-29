@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Easier Day-to-Day · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 180px; left: 96px; right: 96px; }
+  .eyebrow, h1, .sub-h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+  .sub-h1 {
+    margin-top: 14px;
+    font-size: 18px;
+    color: var(--ink-dim);
+    max-width: 1100px;
+    line-height: 1.5;
+    animation: fadeUp 0.8s 0.35s ease-out forwards;
+  }
+
+  .grid {
+    position: absolute;
+    top: 420px;
+    left: 96px; right: 96px;
+    bottom: 110px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: 24px;
+  }
+  .cell {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.65s ease-out forwards;
+    position: relative;
+    overflow: hidden;
+  }
+  .cell::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--accent);
+    opacity: 0.7;
+  }
+  .cell.c1 { animation-delay: 0.45s; }
+  .cell.c2 { animation-delay: 0.55s; }
+  .cell.c3 { animation-delay: 0.65s; }
+  .cell.c4 { animation-delay: 0.75s; }
+  .cell.c5 { animation-delay: 0.85s; }
+  .cell.c6 { animation-delay: 0.95s; }
+
+  .cell-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .cell-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .cell-icon {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+  }
+  .cell h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.25;
+    margin-bottom: 14px;
+    text-wrap: balance;
+  }
+  .cell h3 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .pain {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    font-style: italic;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--rule);
+    margin-bottom: 12px;
+  }
+  .pain::before {
+    content: 'TODAY: ';
+    font-style: normal;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--rag-red);
+    margin-right: 4px;
+  }
+
+  .win {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+    flex: 1;
+  }
+  .win::before {
+    content: 'WITH FRAMEWORK: ';
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--rag-green);
+    margin-bottom: 6px;
+  }
+  .win b { color: var(--accent); font-weight: 500; }
+
+  .artifact {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.02em;
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.15s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">06 / 27 · EASIER DAY-TO-DAY</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">AML is a process problem before it is a technology problem.</div>
+  <h1>Make every part of the AML day <em>easier</em>.</h1>
+  <div class="sub-h1">Below the architecture, what changes is human: comms stop bouncing, analysts stop hunting, supervisors stop guessing, auditors stop calling. Pick any panel — that's a meeting that disappears or a weekend that comes back.</div>
+</div>
+
+<div class="grid">
+
+  <div class="cell c1">
+    <div class="cell-head">
+      <span class="cell-tag">Easier Communication</span>
+      <span class="cell-icon">1LoD ↔ 2LoD ↔ 3LoD</span>
+    </div>
+    <h3>One spec everyone <em>can read</em>.</h3>
+    <p class="pain">Compliance writes a policy doc. Engineering writes code. They never match, and finding the gap takes a six-person meeting.</p>
+    <div class="win">The detection rule, the threshold, the regulation citation, and the deployed code are <b>the same YAML file</b>. MLRO and dev are reviewing the same artifact.</div>
+    <div class="artifact">spec/rules/structuring_cash_deposits.yaml · git PR review</div>
+  </div>
+
+  <div class="cell c2">
+    <div class="cell-head">
+      <span class="cell-tag">Easier Work</span>
+      <span class="cell-icon">L1 / L2 ANALYST</span>
+    </div>
+    <h3>Stop hunting <em>across eight tabs</em>.</h3>
+    <p class="pain">Open the alert, screenshot the txn list, paste the customer KYC, copy from sanctions UI, retype into the case note. Repeat for 30 alerts a day.</p>
+    <div class="win">Each alert opens with <b>txn list, KYC, sanctions hit, network neighbours, prior STRs</b> already attached. Analyst writes the narrative, not the bundle.</div>
+    <div class="artifact">dashboard/Alert_Queue → drill-down → STR-ready bundle</div>
+  </div>
+
+  <div class="cell c3">
+    <div class="cell-head">
+      <span class="cell-tag">Easier Reporting</span>
+      <span class="cell-icon">STR · BOARD · REGULATOR</span>
+    </div>
+    <h3>The pack writes <em>itself</em>.</h3>
+    <p class="pain">Every quarter: someone rebuilds the board deck in Excel. Every regulator letter: two weeks of digging. Every STR: a Word template fight.</p>
+    <div class="win">STR narratives auto-drafted from alert evidence. Board KPIs computed from the live run. <b>FINTRAC examination ZIP in 60 seconds</b>, section-mapped.</div>
+    <div class="artifact">aml audit-pack &lt;spec&gt; --jurisdiction CA-FINTRAC</div>
+  </div>
+
+  <div class="cell c4">
+    <div class="cell-head">
+      <span class="cell-tag">Easier Management</span>
+      <span class="cell-icon">SUPERVISOR · MLRO · CCO</span>
+    </div>
+    <h3>See real status, <em>not Excel rumours</em>.</h3>
+    <p class="pain">"How many alerts are aging past SLA?" Three versions of the answer arrive over two days, all from different spreadsheets.</p>
+    <div class="win">Supervisor's first screen shows <b>SLA timer, queue depth, override rate, model drift</b> — all live, all from the same engine run that generated the alerts.</div>
+    <div class="artifact">dashboard/Today (per-persona landing) · KPIs bound to RAG</div>
+  </div>
+
+  <div class="cell c5">
+    <div class="cell-head">
+      <span class="cell-tag">Audit-Ready by Default</span>
+      <span class="cell-icon">OSFI · FINTRAC · INTERNAL</span>
+    </div>
+    <h3>Examiner walks in. <em>You're done.</em></h3>
+    <p class="pain">"Show me what ran in March." Six weeks of reconstruction, three external consultants, and a finding for incomplete evidence.</p>
+    <div class="win">Every decision is in a <b>SHA-256 hash chain</b>. Replay any historical run; bytes match. Examination ZIP is pre-built. Tampering shows up as a verify failure.</div>
+    <div class="artifact">decisions.jsonl · verify_decisions() · deterministic replay</div>
+  </div>
+
+  <div class="cell c6">
+    <div class="cell-head">
+      <span class="cell-tag">Save $</span>
+      <span class="cell-icon">CFO · COO · FCC HEAD</span>
+    </div>
+    <h3>Fewer FTE-hours, <em>fewer findings</em>.</h3>
+    <p class="pain">Vendor licences, consulting fees on every regulator response, FTEs writing the same board pack each quarter, audit findings that pull six people for a month.</p>
+    <div class="win">Apache 2.0 — <b>runs in your perimeter</b>, no per-seat licence. Auditor self-serves. Reports auto-generate. Findings get <b>citation-grade evidence</b> on first ask.</div>
+    <div class="artifact">open source · DuckDB · runs on existing data warehouse</div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="tag">If a panel above describes a recurring pain in your shop, that's <b>the slide to remember</b>.</div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Real Product · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .gallery {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    bottom: 100px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: 28px;
+  }
+
+  .tile {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform-origin: center;
+    animation: tileIn 0.8s ease-out forwards, breathe 6s ease-in-out infinite alternate;
+  }
+  @keyframes tileIn {
+    from { opacity: 0; transform: scale(0.92) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes breathe {
+    from { transform: scale(1) translateY(0); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+    to   { transform: scale(1.012) translateY(-3px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(103, 232, 249, 0.08); }
+  }
+
+  /* Stagger entrance + offset breathing so they don't all pulse together */
+  .tile.t1 { animation-delay: 0.4s, 1.5s; }
+  .tile.t2 { animation-delay: 0.55s, 2.1s; }
+  .tile.t3 { animation-delay: 0.7s, 2.7s; }
+  .tile.t4 { animation-delay: 0.85s, 3.3s; }
+  .tile.t5 { animation-delay: 1.0s, 1.8s; }
+  .tile.t6 { animation-delay: 1.15s, 2.4s; }
+
+  /* Slight tilt on alternate tiles for visual variety */
+  .tile.tilt-l { animation-name: tileIn, breatheLeft; }
+  .tile.tilt-r { animation-name: tileIn, breatheRight; }
+  @keyframes breatheLeft {
+    from { transform: rotate(-0.4deg) scale(1); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+    to   { transform: rotate(-0.6deg) scale(1.015); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(103, 232, 249, 0.08); }
+  }
+  @keyframes breatheRight {
+    from { transform: rotate(0.4deg) scale(1); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4); }
+    to   { transform: rotate(0.6deg) scale(1.015); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(103, 232, 249, 0.08); }
+  }
+
+  .tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+
+  /* Top-fade label overlay so the screenshot tiles still read at a glance */
+  .tile-label {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 14px 18px;
+    background: linear-gradient(to bottom, rgba(10, 14, 26, 0.92), rgba(10, 14, 26, 0));
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    z-index: 2;
+    pointer-events: none;
+  }
+  .tile-label .ref {
+    display: block;
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.1em;
+    text-transform: none;
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.4s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">03 / 27 · SIX SURFACES</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">24 dashboard pages · six picked at random</div>
+  <h1>Same engine. <em>Same color discipline.</em><br>Twenty-four <em>different surfaces</em>.</h1>
+</div>
+
+<div class="gallery">
+  <div class="tile t1 tilt-l">
+    <div class="tile-label">Today<span class="ref">pages/0_Today.py · PR 3</span></div>
+    <img class="zoomable" src="../assets/screenshots/00_today.png" alt="Today landing — full size"/>
+  </div>
+  <div class="tile t2">
+    <div class="tile-label">Executive Dashboard<span class="ref">pages/1_Executive_Dashboard.py · PR 2</span></div>
+    <img class="zoomable" src="../assets/screenshots/01_executive_dashboard.png" alt="Executive Dashboard — full size"/>
+  </div>
+  <div class="tile t3 tilt-r">
+    <div class="tile-label">Audit &amp; Evidence<span class="ref">pages/7_Audit_Evidence.py · PR 4</span></div>
+    <img class="zoomable" src="../assets/screenshots/07_audit_evidence.png" alt="Audit &amp; Evidence — full size"/>
+  </div>
+  <div class="tile t4 tilt-r">
+    <div class="tile-label">Network Explorer<span class="ref">pages/10_Network_Explorer.py · PR 5</span></div>
+    <img class="zoomable" src="../assets/screenshots/10_network_explorer.png" alt="Network Explorer — full size"/>
+  </div>
+  <div class="tile t5">
+    <div class="tile-label">Risk Assessment<span class="ref">pages/6_Risk_Assessment.py · PR 5</span></div>
+    <img class="zoomable" src="../assets/screenshots/06_risk_assessment.png" alt="Risk Assessment — full size"/>
+  </div>
+  <div class="tile t6 tilt-l">
+    <div class="tile-label">Framework Alignment<span class="ref">pages/8_Framework_Alignment.py · PR 1</span></div>
+    <img class="zoomable" src="../assets/screenshots/08_framework_alignment.png" alt="Framework Alignment — full size"/>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Eighteen more pages live behind the audience selector. <b>Persona-filtered to ≤ 8 pages each.</b></div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+<script src="../assets/lightbox.js"></script>
+</body>
+</html>

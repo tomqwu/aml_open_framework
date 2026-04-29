@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Detection Arc · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .arc {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr 60px 1fr;
+    gap: 0;
+    align-items: stretch;
+  }
+
+  .step {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: stepIn 0.7s ease-out forwards;
+  }
+  @keyframes stepIn {
+    0%   { opacity: 0; transform: translateY(16px); border-color: var(--panel-border); }
+    50%  { opacity: 1; transform: translateY(0);    border-color: var(--accent); box-shadow: 0 0 24px rgba(103,232,249,0.4); }
+    100% { opacity: 1; transform: translateY(0);    border-color: var(--panel-border); box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
+  }
+  .step.s1 { animation-delay: 0.5s; }
+  .step.s2 { animation-delay: 1.4s; }
+  .step.s3 { animation-delay: 2.3s; }
+
+  .step-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--rule);
+    margin-bottom: 18px;
+  }
+  .step-head .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.18em;
+  }
+  .step-head .page {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+  }
+  .step h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+  .step h3 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .step p {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-dim);
+    margin-bottom: 16px;
+    text-wrap: pretty;
+  }
+
+  /* Mock content per step */
+  .mock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 12px 14px;
+    color: var(--ink);
+  }
+  .mock .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+  }
+  .mock .row .ent { color: var(--ink); }
+  .mock .row .sev.high { color: var(--rag-red); font-weight: 600; }
+  .mock .row .sev.crit { color: #c084fc; font-weight: 600; }
+  .mock .row .sev.med { color: var(--rag-amber); font-weight: 600; }
+
+  .sla-bar {
+    margin-top: 12px;
+    height: 6px;
+    background: rgba(148, 163, 184, 0.15);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+  .sla-bar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--rag-green) 0%, var(--rag-amber) 60%, var(--rag-red) 100%);
+    transform-origin: left;
+    transform: scaleX(0);
+    animation: sla 4s 0.5s ease-out forwards;
+  }
+  @keyframes sla { to { transform: scaleX(0.78); } }
+
+  .sla-label {
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+  }
+  .sla-label .countdown { color: var(--rag-amber); }
+
+  /* Connector arrows between steps */
+  .connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    height: 100%;
+  }
+  .connector::before {
+    content: '';
+    position: absolute;
+    left: 10%; right: 10%;
+    height: 1px;
+    background: var(--rule);
+    transform-origin: left;
+    transform: scaleX(0);
+    animation: connectGrow 0.6s ease-out forwards;
+  }
+  .connector::after {
+    content: '';
+    position: absolute;
+    right: 12%;
+    width: 0; height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid var(--accent);
+    opacity: 0;
+    animation: arrowAppear 0.2s ease forwards;
+  }
+  @keyframes connectGrow { to { transform: scaleX(1); background: var(--accent); } }
+  @keyframes arrowAppear { to { opacity: 1; } }
+  .connector.c1::before { animation-delay: 1.2s; }
+  .connector.c2::before { animation-delay: 2.1s; }
+  .connector.c1::after  { animation-delay: 1.8s; }
+  .connector.c2::after  { animation-delay: 2.7s; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 3.2s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">15 / 27 · DETECTION ARC</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Phase B-1 · alert → case → STR with SLA</div>
+  <h1>Three pages, <em>one ticking clock</em>.</h1>
+</div>
+
+<div class="arc">
+  <div class="step s1">
+    <div class="step-head">
+      <span class="num">01 · TRIAGE</span>
+      <span class="page">Alert Queue</span>
+    </div>
+    <h3><em>17</em> alerts fired this run</h3>
+    <p>Filter by severity / rule. Bulk-acknowledge or snooze. Drill into any customer in one click.</p>
+    <div class="mock">
+      <div class="row"><span class="ent">structuring · C0001</span><span class="sev high">HIGH</span></div>
+      <div class="row"><span class="ent">rapid_pass · C0007</span><span class="sev crit">CRIT</span></div>
+      <div class="row"><span class="ent">shell_ind · C0008</span><span class="sev high">HIGH</span></div>
+      <div class="row"><span class="ent">jurisdiction · C0003</span><span class="sev high">HIGH</span></div>
+      <div class="row"><span class="ent">large_lctr · C0004</span><span class="sev med">MED</span></div>
+    </div>
+  </div>
+
+  <div class="connector c1"></div>
+
+  <div class="step s2">
+    <div class="step-head">
+      <span class="num">02 · INVESTIGATE</span>
+      <span class="page">Case Investigation</span>
+    </div>
+    <h3>Case <em>C0007</em> · rapid pass-through</h3>
+    <p>Entity profile + transaction timeline + Sankey channel flow + every regulation citation behind the trigger.</p>
+    <div class="mock">
+      <div class="row"><span class="ent">Customer</span><span style="color:var(--accent);">Angie Henderson</span></div>
+      <div class="row"><span class="ent">Risk rating</span><span class="sev high">HIGH</span></div>
+      <div class="row"><span class="ent">Amount</span><span style="color:var(--ink);">$108,000</span></div>
+      <div class="row"><span class="ent">Window</span><span style="color:var(--ink-dim);">2026-04-19 → 04-20</span></div>
+      <div class="row"><span class="ent">Citation</span><span style="color:var(--ink-dim);">PCMLTFA s.7</span></div>
+    </div>
+    <div class="sla-bar"></div>
+    <div class="sla-label">
+      <span>SLA · 24h L1</span>
+      <span class="countdown">5h 18m</span>
+    </div>
+  </div>
+
+  <div class="connector c2"></div>
+
+  <div class="step s3">
+    <div class="step-head">
+      <span class="num">03 · FILE</span>
+      <span class="page">STR Bundle</span>
+    </div>
+    <h3>Bundle <em>STR-2026-04287</em></h3>
+    <p>Auto-drafted narrative. goAML XML for FINTRAC. Chain of custody hashed and signed at submit.</p>
+    <div class="mock">
+      <div class="row"><span class="ent">Subject</span><span style="color:var(--ink);">C0007</span></div>
+      <div class="row"><span class="ent">Format</span><span style="color:var(--accent);">goAML XML</span></div>
+      <div class="row"><span class="ent">Signed by</span><span style="color:var(--ink);">l2_investigator</span></div>
+      <div class="row"><span class="ent">Hash</span><span style="color:var(--accent); font-size:10px;">8bcc816da7…</span></div>
+      <div class="row"><span class="ent">Submitted</span><span class="sev" style="color:var(--rag-green);">✓ 2026-04-28</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">SLA timer ticking from triage. <b>Every step writes a hashed line to the audit ledger.</b></div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

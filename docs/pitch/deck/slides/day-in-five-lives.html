@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A Day in Five Lives · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 180px; left: 96px; right: 96px; }
+  .eyebrow, h1, .sub-h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+  .sub-h1 {
+    margin-top: 12px;
+    font-size: 17px;
+    color: var(--ink-dim);
+    max-width: 1200px;
+    line-height: 1.5;
+    animation: fadeUp 0.8s 0.35s ease-out forwards;
+  }
+
+  .grid {
+    position: absolute;
+    top: 410px;
+    left: 96px; right: 96px;
+    bottom: 110px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+  }
+
+  .person {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.65s ease-out forwards;
+    overflow: hidden;
+  }
+  .person.p1 { animation-delay: 0.5s; }
+  .person.p2 { animation-delay: 0.6s; }
+  .person.p3 { animation-delay: 0.7s; }
+  .person.p4 { animation-delay: 0.8s; }
+  .person.p5 { animation-delay: 0.9s; }
+
+  .person-head {
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--rule);
+    margin-bottom: 14px;
+  }
+  .person-head .role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .person-head .name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .person-head .title {
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
+  }
+
+  .timeline {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .slot {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    gap: 8px;
+    padding: 6px 0;
+    border-left: 2px solid var(--rule);
+    padding-left: 10px;
+    margin-left: 4px;
+    position: relative;
+  }
+  .slot::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: 12px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+  }
+  .slot.win::before { background: var(--rag-green); box-shadow: 0 0 8px rgba(134, 239, 172, 0.5); }
+  .slot.pain::before { background: var(--rag-red); }
+
+  .slot .time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    padding-top: 2px;
+  }
+  .slot .activity {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+  .slot.pain .activity { color: var(--ink-dim); text-decoration: line-through; text-decoration-color: rgba(252, 165, 165, 0.4); }
+  .slot.win .activity b { color: var(--accent); font-weight: 500; }
+
+  .stamp {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+    text-align: center;
+  }
+  .stamp .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .stamp .saved {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--rag-green);
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.1s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">08 / 27 · A DAY IN FIVE LIVES</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">A Tuesday in May, two years from now.</div>
+  <h1>What changes is not the org chart — it's <em>their day</em>.</h1>
+  <div class="sub-h1">Five roles, one shift each. <span style="color:var(--rag-red);">Red dots</span> are work that disappears. <span style="color:var(--rag-green);">Green dots</span> are work that becomes visible — strategy, judgement, narrative — the parts the person was hired for in the first place.</div>
+</div>
+
+<div class="grid">
+
+  <div class="person p1">
+    <div class="person-head">
+      <div class="role">Analyst</div>
+      <div class="name">Priya</div>
+      <div class="title">L2 · Toronto · 4 yr in seat</div>
+    </div>
+    <div class="timeline">
+      <div class="slot pain"><span class="time">08:30</span><span class="activity">Open 8 tabs to assemble alert evidence</span></div>
+      <div class="slot pain"><span class="time">09:15</span><span class="activity">Re-key txn list into case template</span></div>
+      <div class="slot win"><span class="time">09:30</span><span class="activity">Open alert — <b>evidence pre-attached</b></span></div>
+      <div class="slot win"><span class="time">10:00</span><span class="activity">Read network neighbours, write narrative</span></div>
+      <div class="slot win"><span class="time">11:30</span><span class="activity">Escalate 2 cases with <b>citation links</b></span></div>
+      <div class="slot win"><span class="time">14:00</span><span class="activity">Quality-review a junior's case</span></div>
+      <div class="slot win"><span class="time">16:30</span><span class="activity">Leave on time, kid's recital</span></div>
+    </div>
+    <div class="stamp">
+      <div class="lbl">Reclaimed</div>
+      <div class="saved">~2.5 hr / day</div>
+    </div>
+  </div>
+
+  <div class="person p2">
+    <div class="person-head">
+      <div class="role">Supervisor</div>
+      <div class="name">Marc</div>
+      <div class="title">QA Lead · 12 reports</div>
+    </div>
+    <div class="timeline">
+      <div class="slot pain"><span class="time">08:00</span><span class="activity">Chase 3 spreadsheets for SLA status</span></div>
+      <div class="slot pain"><span class="time">09:00</span><span class="activity">Reconcile queue counts by hand</span></div>
+      <div class="slot win"><span class="time">08:00</span><span class="activity">Open <b>Today page</b> — SLA timer live</span></div>
+      <div class="slot win"><span class="time">08:15</span><span class="activity">Reassign 3 aged cases in 2 clicks</span></div>
+      <div class="slot win"><span class="time">10:00</span><span class="activity">1:1 with Priya, evidence-anchored</span></div>
+      <div class="slot win"><span class="time">13:00</span><span class="activity">Run <b>override-rate report</b> for QA</span></div>
+      <div class="slot win"><span class="time">15:00</span><span class="activity">Calibrate threshold in spec PR</span></div>
+    </div>
+    <div class="stamp">
+      <div class="lbl">Status meetings</div>
+      <div class="saved">5 → 1 / wk</div>
+    </div>
+  </div>
+
+  <div class="person p3">
+    <div class="person-head">
+      <div class="role">MLRO</div>
+      <div class="name">Aisha</div>
+      <div class="title">Chief Compliance · 2nd line</div>
+    </div>
+    <div class="timeline">
+      <div class="slot pain"><span class="time">08:30</span><span class="activity">Email IT for last week's rule changes</span></div>
+      <div class="slot pain"><span class="time">10:00</span><span class="activity">Read three diff'd vendor reports</span></div>
+      <div class="slot win"><span class="time">08:30</span><span class="activity">Read git log of <b>spec changes</b> herself</span></div>
+      <div class="slot win"><span class="time">09:00</span><span class="activity">Approve PR adding new typology rule</span></div>
+      <div class="slot win"><span class="time">11:00</span><span class="activity">Sign off STR with embedded citations</span></div>
+      <div class="slot win"><span class="time">14:00</span><span class="activity">Brief CRO with <b>live KPI page</b></span></div>
+      <div class="slot win"><span class="time">16:00</span><span class="activity">Read FATF update, draft rule mod</span></div>
+    </div>
+    <div class="stamp">
+      <div class="lbl">Engineering tickets</div>
+      <div class="saved">~80% fewer</div>
+    </div>
+  </div>
+
+  <div class="person p4">
+    <div class="person-head">
+      <div class="role">Auditor</div>
+      <div class="name">Jin</div>
+      <div class="title">Internal Audit · 3rd line</div>
+    </div>
+    <div class="timeline">
+      <div class="slot pain"><span class="time">09:00</span><span class="activity">Wait for IT to extract March logs</span></div>
+      <div class="slot pain"><span class="time">11:00</span><span class="activity">Sample 25 alerts, manually verify</span></div>
+      <div class="slot win"><span class="time">09:00</span><span class="activity">Pull <b>full March run</b> from audit ledger</span></div>
+      <div class="slot win"><span class="time">09:15</span><span class="activity">Run <b>verify-chain</b>: hash matches</span></div>
+      <div class="slot win"><span class="time">10:00</span><span class="activity">Replay run at March-15 spec hash</span></div>
+      <div class="slot win"><span class="time">13:00</span><span class="activity">Write finding-free report by lunch</span></div>
+      <div class="slot win"><span class="time">15:00</span><span class="activity">Test <b>tomorrow's</b> rule change in PR</span></div>
+    </div>
+    <div class="stamp">
+      <div class="lbl">Exam fieldwork</div>
+      <div class="saved">6 wk → 1 wk</div>
+    </div>
+  </div>
+
+  <div class="person p5">
+    <div class="person-head">
+      <div class="role">CRO</div>
+      <div class="name">David</div>
+      <div class="title">Risk · reports to CEO</div>
+    </div>
+    <div class="timeline">
+      <div class="slot pain"><span class="time">07:30</span><span class="activity">Get pre-board pack PDF (week-old data)</span></div>
+      <div class="slot pain"><span class="time">14:00</span><span class="activity">Field "are we OSFI-ready" from CEO</span></div>
+      <div class="slot win"><span class="time">07:30</span><span class="activity">Open exec dashboard — <b>this morning's</b> KPIs</span></div>
+      <div class="slot win"><span class="time">08:00</span><span class="activity">See RAG band shift, ask MLRO why</span></div>
+      <div class="slot win"><span class="time">11:00</span><span class="activity">Board: show <b>live audit pack</b>, not slides</span></div>
+      <div class="slot win"><span class="time">14:00</span><span class="activity">Tell CEO: "exam-ready since Friday"</span></div>
+      <div class="slot win"><span class="time">16:00</span><span class="activity">Approve next jurisdiction rollout</span></div>
+    </div>
+    <div class="stamp">
+      <div class="lbl">Surprise findings</div>
+      <div class="saved">trending → 0</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="tag">The technology change is small. The <b>day-shape</b> change is the whole pitch.</div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

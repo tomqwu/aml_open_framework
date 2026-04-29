@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Problem · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block {
+    position: absolute;
+    top: 200px;
+    left: 96px; right: 96px;
+  }
+  .title-block .eyebrow { opacity: 0; animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  .title-block h1 { opacity: 0; animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .symptoms {
+    position: absolute;
+    top: 480px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+  }
+  .sym {
+    border-left: 1px solid var(--rule);
+    padding: 0 0 0 32px;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.7s ease-out forwards;
+  }
+  .sym.s1 { animation-delay: 0.5s; }
+  .sym.s2 { animation-delay: 0.7s; }
+  .sym.s3 { animation-delay: 0.9s; }
+  .sym .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    margin-bottom: 16px;
+  }
+  .sym h3 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 16px;
+    letter-spacing: -0.01em;
+  }
+  .sym p {
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--ink-dim);
+    text-wrap: pretty;
+  }
+  .sym .quote {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-faint);
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.2s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">11 / 27 · THE PROBLEM</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Compliance drifts. Code interprets.</div>
+  <h1>Policy lives in a <em>Word doc</em>.<br>Detection lives <em>somewhere else</em>.</h1>
+</div>
+
+<div class="symptoms">
+  <div class="sym s1">
+    <div class="num">SYMPTOM 01</div>
+    <h3>Policy drift</h3>
+    <p>The KYC PDF says one thing. Your detection rules say another. Two years and three vendors later, no one knows which one is canonical.</p>
+    <div class="quote">"We updated the policy in March. Did anyone update the rules?"</div>
+  </div>
+  <div class="sym s2">
+    <div class="num">SYMPTOM 02</div>
+    <h3>Black-box rules</h3>
+    <p>Compliance can't read SQL. Engineering can't read FATF Recommendations. The bridge is one senior who's been here ten years.</p>
+    <div class="quote">"What does <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);">ml_risk_scorer_v3</code> actually check?"</div>
+  </div>
+  <div class="sym s3">
+    <div class="num">SYMPTOM 03</div>
+    <h3>Audit panic</h3>
+    <p>Examiner asks "show me where this rule traces to PCMLTFR." Three weeks of archaeology, four Slack threads, one panicked spreadsheet.</p>
+    <div class="quote">"Can someone find the link to the regulation again?"</div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Detective compliance is <b>expensive</b>, <b>brittle</b>, and <b>slow to change</b>.</div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

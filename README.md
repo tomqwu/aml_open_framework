@@ -1,5 +1,8 @@
 # AML Open Framework
 
+> **🎬 [View the live 27-slide pitch deck →](https://tomqwu.github.io/aml_open_framework_demo/)**
+> Architecture, dashboard tour, animated workflows, real screenshots — runs in the browser.
+
 **An anti-money-laundering program you can show to your regulator without a six-week reconstruction.**
 
 The hard part of AML at a bank is not detection. It's proving — months later — that the right rule fired, was reviewed, was acted on, and that nothing was quietly turned off. *(See [PAIN-1, PAIN-2 in the leader pain doc](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) — across recent enforcement orders, regulators rarely allege missed typologies; they allege the bank cannot evidence what it did.)*
@@ -45,6 +48,7 @@ aml dashboard examples/community_bank/aml.yaml
 
 | Doc | Use when |
 |---|---|
+| 🎬 [Live Pitch Deck](https://tomqwu.github.io/aml_open_framework_demo/) | 27 slides · architecture, dashboard tour, animated workflows · runs in browser |
 | 📖 [Getting Started](docs/getting-started.md) | First install through your first audit bundle (15 min) |
 | 👥 [Personas & Workflows](docs/personas.md) | Map your role (CCO / MLRO / Analyst / Auditor / Developer) to the framework |
 | 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 26 pages with screenshots + audience filtering |

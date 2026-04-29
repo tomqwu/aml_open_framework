@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Personas · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .tiers {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-rows: auto auto auto;
+    gap: 28px;
+  }
+
+  .tier {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.7s ease-out forwards;
+  }
+  .tier.t1 { animation-delay: 0.4s; }
+  .tier.t2 { animation-delay: 0.7s; }
+  .tier.t3 { animation-delay: 1.0s; }
+
+  .tier-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    width: 200px;
+    line-height: 1.5;
+    border-right: 1px solid var(--rule);
+    padding-right: 28px;
+  }
+  .tier-label .scope {
+    color: var(--ink-faint);
+    margin-top: 4px;
+    display: block;
+    font-size: 11px;
+  }
+
+  .personas {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .persona {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    min-width: 130px;
+    flex: 1;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .persona:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .persona .glyph {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .persona .name {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .persona .pages {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.04em;
+  }
+  .persona .pages b { color: var(--accent); font-weight: 600; }
+
+  /* Cap callout */
+  .cap-callout {
+    position: absolute;
+    top: 460px;
+    right: 96px;
+    width: 260px;
+    background: rgba(103, 232, 249, 0.06);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 18px 22px;
+    opacity: 0;
+    animation: fadeUp 0.7s 1.3s ease-out forwards;
+  }
+  .cap-callout .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .cap-callout .lbl {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 8px 0 12px;
+  }
+  .cap-callout p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.5s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">22 / 27 · PERSONAS</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Five vocabularies, one spec</div>
+  <h1><em>Eleven personas</em>. Eight-page cap. <em>Zero overlap</em>.</h1>
+</div>
+
+<div class="tiers">
+  <div class="tier t1">
+    <div class="tier-label">Strategic
+      <span class="scope">Board · regulator review · roadmap</span>
+    </div>
+    <div class="personas">
+      <div class="persona">
+        <div class="glyph">SVP</div>
+        <div class="name">SVP Compliance</div>
+        <div class="pages"><b>4</b> pages · maturity + framework</div>
+      </div>
+      <div class="persona">
+        <div class="glyph">CTO</div>
+        <div class="name">CTO</div>
+        <div class="pages"><b>6</b> pages · run history</div>
+      </div>
+      <div class="persona">
+        <div class="glyph">CCO</div>
+        <div class="name">Chief Compliance</div>
+        <div class="pages"><b>7</b> pages · risk + audit</div>
+      </div>
+      <div class="persona">
+        <div class="glyph">VP</div>
+        <div class="name">VP Financial Crime</div>
+        <div class="pages"><b>5</b> pages · rule perf</div>
+      </div>
+      <div class="persona">
+        <div class="glyph">DIR</div>
+        <div class="name">Director</div>
+        <div class="pages"><b>7</b> pages · alerts + RAG</div>
+      </div>
+      <div class="persona">
+        <div class="glyph">BIZ</div>
+        <div class="name">Business Owner</div>
+        <div class="pages"><b>4</b> pages · exec + audit</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tier t2">
+    <div class="tier-label">Operational
+      <span class="scope">Daily triage · case work · queue</span>
+    </div>
+    <div class="personas">
+      <div class="persona">
+        <div class="glyph">MGR</div>
+        <div class="name">Manager</div>
+        <div class="pages"><b>8</b> pages · triage → tune</div>
+      </div>
+      <div class="persona">
+        <div class="glyph">L1/L2</div>
+        <div class="name">Analyst</div>
+        <div class="pages"><b>8</b> pages · case → STR</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tier t3">
+    <div class="tier-label">Specialist
+      <span class="scope">Deep work · spec authoring · audit</span>
+    </div>
+    <div class="personas">
+      <div class="persona">
+        <div class="glyph">AUD</div>
+        <div class="name">Auditor</div>
+        <div class="pages"><b>6</b> pages · evidence + framework</div>
+      </div>
+      <div class="persona">
+        <div class="glyph">DEV</div>
+        <div class="name">Developer</div>
+        <div class="pages"><b>8</b> pages · spec + tuning</div>
+      </div>
+      <div class="persona">
+        <div class="glyph">PM</div>
+        <div class="name">Programme Manager</div>
+        <div class="pages"><b>8</b> pages · roadmap + maturity</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Sidebar audience selector hides the other 16 pages. <b>Cognitive load capped at 8 by construction.</b></div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

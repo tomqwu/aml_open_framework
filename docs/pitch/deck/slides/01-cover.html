@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AML Open Framework — Cover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #0a0e1a;
+    --bg-grid:      rgba(103, 232, 249, 0.04);
+    --ink:          #f1f5f9;
+    --ink-dim:      #94a3b8;
+    --ink-faint:    #475569;
+    --accent:       #67e8f9;
+    --accent-dim:   #0891b2;
+    --rag-green:    #16a34a;
+    --rag-amber:    #d97706;
+    --rag-red:      #dc2626;
+    --rule:         rgba(148, 163, 184, 0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px;
+    height: 1080px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Subtle grid texture — anchors composition without competing */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+    background-size: 80px 80px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+  }
+
+  /* Wordmark top-left */
+  .wordmark {
+    position: absolute;
+    top: 64px; left: 96px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .wordmark::before {
+    content: '';
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px rgba(103, 232, 249, 0.6);
+  }
+
+  /* Stat block top-right */
+  .stats {
+    position: absolute;
+    top: 64px; right: 96px;
+    display: flex;
+    gap: 64px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.4s ease-out forwards;
+  }
+  .stat { text-align: right; }
+  .stat .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 36px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .lbl {
+    margin-top: 8px;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  /* Hairline below header */
+  .header-rule {
+    position: absolute;
+    top: 144px;
+    left: 96px; right: 96px;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  /* Main composition */
+  .center {
+    position: absolute;
+    top: 240px; left: 96px; right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 96px;
+    align-items: center;
+  }
+
+  .headline-block {
+    opacity: 0;
+    animation: fadeUp 1s 0.1s ease-out forwards;
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 32px;
+  }
+  .eyebrow::after {
+    content: '';
+    display: inline-block;
+    width: 32px;
+    height: 1px;
+    background: var(--accent);
+    margin-left: 16px;
+    vertical-align: middle;
+  }
+  h1 {
+    font-size: 96px;
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  h1 em {
+    font-style: normal;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .subhead {
+    margin-top: 36px;
+    font-size: 22px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    max-width: 540px;
+    text-wrap: pretty;
+  }
+
+  /* Receipt block right side */
+  .receipt {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 32px 36px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    line-height: 2;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.7s ease-out forwards;
+  }
+  .receipt-title {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .receipt .row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 32px;
+    align-items: baseline;
+  }
+  .receipt .key {
+    color: var(--ink-faint);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .receipt .val { color: var(--ink); }
+  .receipt .val.hash {
+    color: var(--accent);
+    font-size: 14px;
+    word-break: break-all;
+    line-height: 1.7;
+  }
+  .receipt .val.ok {
+    color: var(--rag-green);
+    font-weight: 500;
+  }
+  .receipt .val.ok::before {
+    content: '✓ ';
+    margin-right: 4px;
+  }
+
+  /* Hash typewriter — types in sequence */
+  .hash-line {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 2px solid var(--accent);
+    animation:
+      typing 1.2s 1.0s steps(64, end) forwards,
+      caret 0.7s 1.0s 4 step-end,
+      noCaret 0s 3.8s forwards;
+    width: 0;
+  }
+  .hash-line.line2 {
+    animation:
+      typing 1.2s 2.4s steps(64, end) forwards,
+      caret 0.7s 2.4s 4 step-end,
+      noCaret 0s 5.2s forwards;
+  }
+
+  @keyframes typing { to { width: 100%; } }
+  @keyframes caret { 50% { border-right-color: transparent; } }
+  @keyframes noCaret { to { border-right: 0; } }
+
+  /* Footer */
+  .footer {
+    position: absolute;
+    bottom: 64px;
+    left: 96px; right: 96px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    opacity: 0;
+    animation: fadeUp 0.8s 1.0s ease-out forwards;
+  }
+  .footer .tag {
+    font-size: 16px;
+    color: var(--ink-dim);
+    letter-spacing: 0.02em;
+  }
+  .footer .tag b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .footer .repo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    color: var(--ink-dim);
+  }
+  .footer .repo .arrow { color: var(--accent); margin-right: 8px; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+
+<div class="stats">
+  <div class="stat"><div class="num">24</div><div class="lbl">Dashboard pages</div></div>
+  <div class="stat"><div class="num">5</div><div class="lbl">Jurisdictions</div></div>
+  <div class="stat"><div class="num">1,263</div><div class="lbl">Tests passing</div></div>
+</div>
+
+<div class="header-rule"></div>
+
+<div class="center">
+  <div class="headline-block">
+    <div class="eyebrow">v0.7 · Round 7</div>
+    <h1>AML you can<br><em>actually prove</em>.</h1>
+    <p class="subhead">
+      When the regulator asks <i>"show us the working,"</i> you have an answer.
+      Detect, investigate, and prove — all on one source of truth your compliance
+      team can read and your auditor can replay byte-for-byte.
+    </p>
+  </div>
+
+  <div class="receipt">
+    <div class="receipt-title">Run receipt · canonical example</div>
+    <div class="row"><span class="key">Spec hash</span><span class="val hash hash-line">0d3a88e836d8a1b7f2c4e9d6b5a8f3e1c7d2b4a6f9e8c5d3b1a7f4e2c8d6b5a9</span></div>
+    <div class="row"><span class="key">Output hash</span><span class="val hash hash-line line2">8bcc816da76d44947e29714573522442988eb4fa54a951e2c17fe12913c15569</span></div>
+    <div class="row"><span class="key">Engine</span><span class="val">v0.7.0</span></div>
+    <div class="row"><span class="key">Run at</span><span class="val">2026-04-28T14:23:17Z</span></div>
+    <div class="row"><span class="key">Chain</span><span class="val ok">verified · 28 decisions</span></div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">What changes is human — comms stop bouncing, analysts stop hunting, examiners stop calling.</div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

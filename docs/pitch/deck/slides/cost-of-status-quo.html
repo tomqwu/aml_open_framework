@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cost of the Status Quo · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 180px; left: 96px; right: 96px; }
+  .eyebrow, h1, .sub-h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+  .sub-h1 {
+    margin-top: 14px;
+    font-size: 18px;
+    color: var(--ink-dim);
+    max-width: 1100px;
+    line-height: 1.5;
+    animation: fadeUp 0.8s 0.35s ease-out forwards;
+  }
+
+  .body {
+    position: absolute;
+    top: 420px;
+    left: 96px; right: 96px;
+    bottom: 110px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 32px;
+  }
+
+  /* Left: cost stack */
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .row {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    display: grid;
+    grid-template-columns: 280px 1fr 220px;
+    gap: 24px;
+    align-items: center;
+    opacity: 0;
+    transform: translateX(-12px);
+    animation: slideRight 0.6s ease-out forwards;
+  }
+  @keyframes slideRight {
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .row.r1 { animation-delay: 0.45s; }
+  .row.r2 { animation-delay: 0.55s; }
+  .row.r3 { animation-delay: 0.65s; }
+  .row.r4 { animation-delay: 0.75s; }
+  .row.r5 { animation-delay: 0.85s; }
+  .row.r6 { animation-delay: 0.95s; }
+
+  .row-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .row-label .name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .row-label .driver {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+  }
+
+  .bar-wrap {
+    position: relative;
+    height: 26px;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar {
+    position: absolute;
+    top: 0; left: 0; height: 100%;
+    background: linear-gradient(90deg, var(--rag-red), rgba(252, 165, 165, 0.4));
+    border-radius: 4px;
+    transform-origin: left;
+    transform: scaleX(0);
+    animation: barGrow 0.9s ease-out forwards;
+  }
+  @keyframes barGrow {
+    to { transform: scaleX(1); }
+  }
+  .r1 .bar { animation-delay: 0.7s; width: 92%; }
+  .r2 .bar { animation-delay: 0.8s; width: 78%; }
+  .r3 .bar { animation-delay: 0.9s; width: 58%; }
+  .r4 .bar { animation-delay: 1.0s; width: 45%; }
+  .r5 .bar { animation-delay: 1.1s; width: 38%; }
+  .r6 .bar { animation-delay: 1.2s; width: 28%; }
+
+  .bar-label {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: 0.05em;
+  }
+
+  .delta {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .delta .pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--rag-green);
+  }
+  .delta .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* Right: total + sources */
+  .totals {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    opacity: 0;
+    animation: fadeUp 0.7s 1.0s ease-out forwards;
+  }
+  .total-card {
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    box-shadow: 0 0 24px rgba(103, 232, 249, 0.15);
+  }
+  .total-card .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .total-card .big {
+    font-size: 56px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .total-card .big .unit {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    margin-left: 4px;
+  }
+  .total-card .sub {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+
+  .saved-card {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid var(--rag-green);
+    border-radius: 12px;
+    padding: 24px 28px;
+  }
+  .saved-card .head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--rag-green);
+    margin-bottom: 10px;
+  }
+  .saved-card .num {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .saved-card .ctx {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+  .saved-card .ctx b { color: var(--ink); font-weight: 500; }
+
+  .sources {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    line-height: 1.6;
+    padding: 14px 18px;
+    border: 1px dashed var(--rule);
+    border-radius: 6px;
+  }
+  .sources .src-head {
+    color: var(--ink-dim);
+    letter-spacing: 0.15em;
+    margin-bottom: 6px;
+  }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.3s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">07 / 27 · COST OF THE STATUS QUO</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Before we talk capability — let's talk cost.</div>
+  <h1>What a Tier-1 bank pays <em>just to keep AML running</em>.</h1>
+  <div class="sub-h1">Six recurring cost pools. Six places where the framework moves the number — through automation, deterministic replay, and an open-source licence model. Right-hand column: where you actually feel the difference.</div>
+</div>
+
+<div class="body">
+
+  <div class="stack">
+    <div class="row r1">
+      <div class="row-label">
+        <span class="name">Alert review labour</span>
+        <span class="driver">~250K alerts/yr × 18 min × loaded FTE</span>
+      </div>
+      <div class="bar-wrap"><div class="bar"></div><span class="bar-label">$18–28M / yr</span></div>
+      <div class="delta"><span class="pct">−35%</span><span class="lbl">PRE-ATTACHED EVIDENCE</span></div>
+    </div>
+
+    <div class="row r2">
+      <div class="row-label">
+        <span class="name">Case mgmt &amp; STR filing</span>
+        <span class="driver">~6K STRs/yr × 4 hr analyst+MLRO</span>
+      </div>
+      <div class="bar-wrap"><div class="bar"></div><span class="bar-label">$8–14M / yr</span></div>
+      <div class="delta"><span class="pct">−45%</span><span class="lbl">AUTO-DRAFTED NARRATIVES</span></div>
+    </div>
+
+    <div class="row r3">
+      <div class="row-label">
+        <span class="name">Audit &amp; exam preparation</span>
+        <span class="driver">FINTRAC + OSFI cycles + internal</span>
+      </div>
+      <div class="bar-wrap"><div class="bar"></div><span class="bar-label">$5–10M / yr</span></div>
+      <div class="delta"><span class="pct">−60%</span><span class="lbl">PRE-BUILT EXAM ZIP</span></div>
+    </div>
+
+    <div class="row r4">
+      <div class="row-label">
+        <span class="name">Model validation (MRM)</span>
+        <span class="driver">SR 26-2 / Interagency · per-rule dossier</span>
+      </div>
+      <div class="bar-wrap"><div class="bar"></div><span class="bar-label">$3–7M / yr</span></div>
+      <div class="delta"><span class="pct">−40%</span><span class="lbl">DETERMINISTIC REPLAY</span></div>
+    </div>
+
+    <div class="row r5">
+      <div class="row-label">
+        <span class="name">Regulator RFI / consulting</span>
+        <span class="driver">findings, remediation, special exams</span>
+      </div>
+      <div class="bar-wrap"><div class="bar"></div><span class="bar-label">$3–6M / yr</span></div>
+      <div class="delta"><span class="pct">−50%</span><span class="lbl">CITATION-GRADE EVIDENCE</span></div>
+    </div>
+
+    <div class="row r6">
+      <div class="row-label">
+        <span class="name">Vendor &amp; per-seat licences</span>
+        <span class="driver">TLM / Actimize / SAS / point tools</span>
+      </div>
+      <div class="bar-wrap"><div class="bar"></div><span class="bar-label">$2–5M / yr</span></div>
+      <div class="delta"><span class="pct">−70%</span><span class="lbl">APACHE-2.0 CORE</span></div>
+    </div>
+  </div>
+
+  <div class="totals">
+    <div class="total-card">
+      <div class="lbl">Recurring AML run-rate (Tier-1 CA bank)</div>
+      <div class="big">$40<span class="unit">–70M / yr</span></div>
+      <div class="sub">Excludes one-time program builds, vendor implementations, and FTE expansion for net-new typologies.</div>
+    </div>
+
+    <div class="saved-card">
+      <div class="head">Composite reduction (mid-point)</div>
+      <div class="num">$18–28M / yr</div>
+      <div class="ctx"><b>Within 24 months</b> of adoption — assuming the framework wraps existing systems first (shadow run → dual run → primary), then deprecates point tools.</div>
+    </div>
+
+    <div class="sources">
+      <div class="src-head">RANGES SOURCED FROM</div>
+      LexisNexis True Cost of Compliance 2024 · Celent AML Tech Spend 2025 · OSFI E-13 cost benchmarks · Wolters Kluwer Reg Survey 2025 · framework's own audit-pack timing benchmarks
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="tag">Take the lowest figure in every range. The case still pays back inside <b>year one</b>.</div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

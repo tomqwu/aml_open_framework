@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Two-Layer Validation · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .layers {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+  }
+  .layer {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 36px 40px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.7s ease-out forwards;
+  }
+  .layer.l1 { animation-delay: 0.5s; }
+  .layer.l2 { animation-delay: 0.8s; }
+
+  .layer-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .layer-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    padding: 6px 12px;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+  }
+  .layer h3 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .layer .file {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+  }
+  .layer p.desc {
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--ink-dim);
+    margin-bottom: 24px;
+  }
+  .check-list {
+    list-style: none;
+    margin-bottom: 24px;
+  }
+  .check-list li {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--ink);
+    padding-left: 28px;
+    position: relative;
+  }
+  .check-list li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--rag-green);
+    font-weight: 700;
+  }
+
+  .err-block {
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    border-radius: 6px;
+    padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--rag-red);
+    margin-top: 8px;
+    overflow: hidden;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    animation: errReveal 0.6s ease-out forwards;
+  }
+  .layer.l1 .err-block { animation-delay: 1.4s; }
+  .layer.l2 .err-block { animation-delay: 1.7s; }
+  @keyframes errReveal {
+    to {
+      max-height: 200px;
+      padding-top: 16px;
+      padding-bottom: 16px;
+      border-top-width: 1px;
+      border-bottom-width: 1px;
+    }
+  }
+  .err-block .label {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--rag-red);
+    margin-bottom: 8px;
+    opacity: 0.8;
+  }
+  .err-block .msg { color: #fecaca; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.3s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">20 / 27 · VALIDATION</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Refuses to load broken specs</div>
+  <h1>Two layers of validation. <em>Catch errors before code runs.</em></h1>
+</div>
+
+<div class="layers">
+  <div class="layer l1">
+    <div class="layer-head">
+      <div class="layer-num">LAYER 1</div>
+      <div>
+        <h3>JSON Schema</h3>
+        <div class="file">schema/aml-spec.schema.json</div>
+      </div>
+    </div>
+    <p class="desc">Structural validation. The spec must declare the right shape before semantic checks even start.</p>
+    <ul class="check-list">
+      <li>Required keys present</li>
+      <li>Field types correct</li>
+      <li>Enum values valid</li>
+      <li>No unknown keys (extra="forbid")</li>
+    </ul>
+    <div class="err-block">
+      <div class="label">REJECTED · STRUCTURE</div>
+      <div class="msg">spec.rules[3].logic.type: "agg_window" is not one of<br>['aggregation_window', 'custom_sql', 'python_ref', 'list_match']</div>
+    </div>
+  </div>
+
+  <div class="layer l2">
+    <div class="layer-head">
+      <div class="layer-num">LAYER 2</div>
+      <div>
+        <h3>Pydantic</h3>
+        <div class="file">spec/models.py</div>
+      </div>
+    </div>
+    <p class="desc">Cross-reference integrity. Names referenced across the spec must resolve. Targets must match contract fields.</p>
+    <ul class="check-list">
+      <li>Rule data_contract refs exist</li>
+      <li>Workflow queue refs exist</li>
+      <li>Metric formula columns valid</li>
+      <li>Regulation citation IDs unique</li>
+    </ul>
+    <div class="err-block">
+      <div class="label">REJECTED · CROSS-REF</div>
+      <div class="msg">rules.sanctions_screening.list = "OFAC_SDN" but no list<br>with id "OFAC_SDN" defined in spec.lists</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">Both layers must pass before <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);">aml run</code> executes a single line. <b>Drift caught at load, not in production.</b></div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

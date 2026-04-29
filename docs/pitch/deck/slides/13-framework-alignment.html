@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Framework Alignment · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .jur-grid {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 18px;
+  }
+  .jur {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 24px 22px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.6s ease-out forwards;
+  }
+  .jur.j1 { animation-delay: 0.4s; }
+  .jur.j2 { animation-delay: 0.55s; }
+  .jur.j3 { animation-delay: 0.7s; }
+  .jur.j4 { animation-delay: 0.85s; }
+  .jur.j5 { animation-delay: 1.0s; }
+
+  .jur .flag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .jur .body {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.2;
+    margin-bottom: 14px;
+  }
+  .jur .scope {
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--rule);
+    min-height: 48px;
+  }
+  .jur .stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  .jur .stat .lbl { color: var(--ink-faint); letter-spacing: 0.05em; }
+  .jur .stat .val { color: var(--ink); font-weight: 600; }
+  .jur .stat .val.ok    { color: var(--rag-green); }
+  .jur .stat .val.amber { color: var(--rag-amber); }
+
+  .specs {
+    position: absolute;
+    top: 760px;
+    left: 96px; right: 96px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    opacity: 0;
+    animation: fadeUp 0.7s 1.2s ease-out forwards;
+  }
+  .spec-pill {
+    background: rgba(103, 232, 249, 0.06);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.5;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .spec-pill .name { color: var(--accent); font-weight: 600; }
+  .spec-pill .meta { color: var(--ink-dim); font-size: 11px; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.5s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">23 / 27 · MULTI-JURISDICTION</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">One spec, every regulator</div>
+  <h1>Five jurisdictions. <em>Same engine.</em></h1>
+</div>
+
+<div class="jur-grid">
+  <div class="jur j1">
+    <div class="flag">FATF · GLOBAL</div>
+    <div class="body">Recommendations</div>
+    <div class="scope">The 40 Recommendations — global AML/CFT standard.</div>
+    <div class="stat"><span class="lbl">Key recs mapped</span><span class="val ok">10</span></div>
+    <div class="stat"><span class="lbl">Coverage</span><span class="val">R.1 · R.10 · R.20</span></div>
+  </div>
+  <div class="jur j2">
+    <div class="flag">FINTRAC · CA</div>
+    <div class="body">PCMLTFA</div>
+    <div class="scope">PCMLTFR s.71 5 pillars + OSFI Guideline B-8.</div>
+    <div class="stat"><span class="lbl">Pillars mapped</span><span class="val ok">5 / 5</span></div>
+    <div class="stat"><span class="lbl">B-8 expectations</span><span class="val">8 / 8</span></div>
+  </div>
+  <div class="jur j3">
+    <div class="flag">FinCEN · US</div>
+    <div class="body">BSA</div>
+    <div class="scope">5 + April 2026 proposed 6th pillar (formal risk assessment).</div>
+    <div class="stat"><span class="lbl">Pillars mapped</span><span class="val ok">5 / 6</span></div>
+    <div class="stat"><span class="lbl">NPRM Apr 2026</span><span class="val amber">drafting</span></div>
+  </div>
+  <div class="jur j4">
+    <div class="flag">EBA · EU</div>
+    <div class="body">AMLD6</div>
+    <div class="scope">7 articles from risk assessment through STR filing.</div>
+    <div class="stat"><span class="lbl">Articles mapped</span><span class="val ok">7</span></div>
+    <div class="stat"><span class="lbl">RTS due</span><span class="val">2026-07-10</span></div>
+  </div>
+  <div class="jur j5">
+    <div class="flag">FCA · UK</div>
+    <div class="body">POCA + JMLSG</div>
+    <div class="scope">Mar 2026 Dear-CEO letter on detection effectiveness.</div>
+    <div class="stat"><span class="lbl">Principles</span><span class="val ok">8 / 8</span></div>
+    <div class="stat"><span class="lbl">Wolfsberg add'l</span><span class="val">8 / 8</span></div>
+  </div>
+</div>
+
+<div class="specs">
+  <div class="spec-pill"><span class="name">canadian_schedule_i_bank/aml.yaml</span><span class="meta">CA · FINTRAC</span></div>
+  <div class="spec-pill"><span class="name">community_bank/aml.yaml</span><span class="meta">US · FinCEN</span></div>
+  <div class="spec-pill"><span class="name">eu_payment_institution/aml.yaml</span><span class="meta">EU · AMLD6</span></div>
+  <div class="spec-pill"><span class="name">trade_based_ml/aml.yaml</span><span class="meta">cross-border</span></div>
+  <div class="spec-pill"><span class="name">uk_app_fraud/aml.yaml</span><span class="meta">UK · PSR</span></div>
+</div>
+
+<div class="footer">
+  <div class="tag">Tabs auto-switch on jurisdiction. <b>Open a US spec → see BSA pillars; open an EU spec → see AMLD6.</b></div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

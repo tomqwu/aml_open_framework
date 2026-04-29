@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ISO 20022 + Sanctions · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .title-block { position: absolute; top: 200px; left: 96px; right: 96px; }
+  .eyebrow, h1 { opacity: 0; }
+  .eyebrow { animation: fadeUp 0.6s 0.1s ease-out forwards; }
+  h1 { animation: fadeUp 0.8s 0.2s ease-out forwards; }
+
+  .body {
+    position: absolute;
+    top: 460px;
+    left: 96px; right: 96px;
+    bottom: 160px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 56px;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeUp 0.7s ease-out forwards;
+  }
+  .col.left  { animation-delay: 0.4s; }
+  .col.right { animation-delay: 0.7s; }
+
+  .col-head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .iso-rows { display: flex; flex-direction: column; gap: 12px; }
+  .iso-row {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 18px;
+    align-items: center;
+  }
+  .iso-row .code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .iso-row .desc {
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .iso-row .desc .meta {
+    display: block;
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* XML sample */
+  .xml-block {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .xml-block .tag    { color: var(--accent); }
+  .xml-block .attr   { color: #f5d0a9; }
+  .xml-block .val    { color: #fbb6ce; }
+  .xml-block .c      { color: var(--ink-faint); font-style: italic; }
+
+  /* Sanctions list */
+  .list-block {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .list-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .list-row:last-child { border-bottom: 0; }
+  .list-row .name { color: var(--ink); }
+  .list-row .src  { color: var(--ink-faint); font-size: 11px; }
+
+  .match-block {
+    background: rgba(220, 38, 38, 0.06);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    margin-top: 8px;
+  }
+  .match-block .label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--rag-red);
+    margin-bottom: 8px;
+  }
+  .match-block .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .match-block .lbl { color: var(--ink-faint); font-size: 11px; }
+  .match-block .val { color: var(--ink); }
+  .match-block .val.score { color: var(--rag-red); font-weight: 600; }
+
+  .footer { opacity: 0; animation: fadeUp 0.6s 1.2s ease-out forwards; }
+</style>
+</head>
+<body>
+
+<div class="wordmark">AML OPEN FRAMEWORK</div>
+<div class="slide-num">24 / 27 · INGEST &amp; SCREEN</div>
+<div class="header-rule"></div>
+
+<div class="title-block">
+  <div class="eyebrow">Round 5 · payment rails · Round 6 · sanctions</div>
+  <h1>The messages banks <em>actually move money with</em>.<br>The lists regulators <em>actually examine</em>.</h1>
+</div>
+
+<div class="body">
+  <div class="col left">
+    <div class="col-head">ISO 20022 · post SWIFT MT cutover (2025-11-22)</div>
+
+    <div class="iso-rows">
+      <div class="iso-row">
+        <div class="code">pacs.008</div>
+        <div class="desc">FI-to-FI customer credit transfer<span class="meta">data/iso20022/pacs008_loader.py</span></div>
+      </div>
+      <div class="iso-row">
+        <div class="code">pacs.009</div>
+        <div class="desc">FI-to-FI institution credit transfer<span class="meta">cover-payment screening</span></div>
+      </div>
+      <div class="iso-row">
+        <div class="code">pain.001</div>
+        <div class="desc">Customer credit transfer initiation<span class="meta">corporate batch ingestion</span></div>
+      </div>
+      <div class="iso-row">
+        <div class="code">pacs.004</div>
+        <div class="desc">Payment return + reason code mining<span class="meta">3 typology snippets included</span></div>
+      </div>
+    </div>
+
+    <div class="xml-block">
+<span class="c">&lt;!-- pacs.008 cover-payment fragment --&gt;</span>
+<span class="tag">&lt;CdtTrfTxInf&gt;</span>
+  <span class="tag">&lt;PmtId&gt;&lt;EndToEndId&gt;</span><span class="val">CTX-2026-04-7891</span><span class="tag">&lt;/EndToEndId&gt;&lt;/PmtId&gt;</span>
+  <span class="tag">&lt;IntrBkSttlmAmt</span> <span class="attr">Ccy</span>=<span class="val">"USD"</span><span class="tag">&gt;</span><span class="val">108000.00</span><span class="tag">&lt;/IntrBkSttlmAmt&gt;</span>
+  <span class="tag">&lt;Purp&gt;&lt;Cd&gt;</span><span class="val">CASH</span><span class="tag">&lt;/Cd&gt;&lt;/Purp&gt;</span> <span class="c">&lt;!-- ExternalPurpose1Code --&gt;</span>
+<span class="tag">&lt;/CdtTrfTxInf&gt;</span></div>
+  </div>
+
+  <div class="col right">
+    <div class="col-head">Sanctions · OFAC SDN · adverse media · sanctioned wallets</div>
+
+    <div class="list-block">
+      <div class="list-row"><span class="name">ALEXEI VOLKOV</span><span class="src">OFAC SDN · 2026-03</span></div>
+      <div class="list-row"><span class="name">OCEANIC HOLDINGS LTD</span><span class="src">OFAC SDN · 2024-09</span></div>
+      <div class="list-row"><span class="name">YANG XIAO YONG</span><span class="src">SEMA · 2025-11</span></div>
+      <div class="list-row"><span class="name">JONATHAN STERLING</span><span class="src">PEP · 2026-01</span></div>
+      <div class="list-row"><span class="name">RAINBOW LOGISTICS</span><span class="src">Adverse media · 2026-04</span></div>
+      <div class="list-row"><span class="name">bc1q...x9k4</span><span class="src">Sanctioned wallet</span></div>
+    </div>
+
+    <div class="match-block">
+      <div class="label">FUZZY MATCH · CRITICAL</div>
+      <div class="row"><span class="lbl">Customer</span><span class="val">C0003 · Alexei Volkov</span></div>
+      <div class="row"><span class="lbl">Match against</span><span class="val">OFAC SDN: ALEXEI VOLKOV</span></div>
+      <div class="row"><span class="lbl">Match score</span><span class="val score">1.00</span></div>
+      <div class="row"><span class="lbl">Action</span><span class="val">Auto-route → l2_investigator queue</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="tag">FATF R.16 Travel Rule validator built in. <b>Travel-rule completeness flagged at FATF Feb 2026 plenary — closed by Round 5.</b></div>
+  <a class="repo" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener"><span class="arrow">→</span>github.com/tomqwu/aml_open_framework</a>
+</div>
+
+</body>
+</html>

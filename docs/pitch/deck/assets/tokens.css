@@ -1,0 +1,312 @@
+/* Shared design tokens for AML Open Framework deck.
+ * Each slide @imports or <link>s this so colors / typography / chrome
+ * stay in sync. Slide-specific styles go in the slide HTML's <style>.
+ *
+ * Layout budget (1920×1080 canvas):
+ *   - Wordmark + slide-num + hairline:  top 64–144 px
+ *   - Title block (eyebrow + h1):        top 200–420 px (≈220 px)
+ *   - Body (cards / charts / panels):    top 460 px → bottom 160 px
+ *   - Footer (tagline + repo URL):       bottom 64 px
+ *
+ * Dense content (slide 06 rule cards / slide 17 stat grid) needs
+ * top: 420 / bottom: 110 instead — 60-80 px tighter. If a body grid
+ * has >4 dense panels in a row OR multi-row card content with code
+ * samples, prefer the dense budget.
+ */
+
+:root {
+  --bg:           #0a0e1a;
+  --bg-grid:      rgba(103, 232, 249, 0.04);
+  --panel:        #0f172a;
+  --panel-border: #1e293b;
+  --ink:          #f1f5f9;
+  --ink-dim:      #94a3b8;
+  --ink-faint:    #475569;
+  --accent:       #67e8f9;
+  --accent-glow:  rgba(103, 232, 249, 0.4);
+  --rag-green:    #86efac;
+  --rag-amber:    #fde68a;
+  --rag-red:      #fca5a5;
+  --rule:         rgba(148, 163, 184, 0.15);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 1920px;
+  height: 1080px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Grid texture — subtle, masked to center attention */
+body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--bg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+  z-index: 0;
+}
+
+/* ---- Chrome ---- */
+
+.wordmark {
+  position: absolute;
+  top: 64px; left: 96px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--ink-dim);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+.wordmark::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.slide-num {
+  position: absolute;
+  top: 64px; right: 96px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  color: var(--ink-faint);
+  letter-spacing: 0.1em;
+  z-index: 10;
+}
+
+.header-rule {
+  position: absolute;
+  top: 144px;
+  left: 96px; right: 96px;
+  height: 1px;
+  background: var(--rule);
+  z-index: 5;
+}
+
+/* ---- Typography ---- */
+
+.eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 24px;
+}
+.eyebrow::after {
+  content: '';
+  display: inline-block;
+  width: 32px;
+  height: 1px;
+  background: var(--accent);
+  margin-left: 16px;
+  vertical-align: middle;
+}
+
+h1 {
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+/* ---- Panels ---- */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 28px 32px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  position: relative;
+  z-index: 1;
+}
+
+.panel-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--rule);
+}
+
+/* Mono key/value rows */
+.kv {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 24px;
+  align-items: baseline;
+  padding: 4px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.kv .k {
+  color: var(--ink-faint);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.kv .v { color: var(--ink); }
+.kv .v.hash {
+  color: var(--accent);
+  font-size: 13px;
+  word-break: break-all;
+  line-height: 1.5;
+}
+.kv .v.ok {
+  color: var(--rag-green);
+}
+.kv .v.warn { color: var(--rag-amber); }
+.kv .v.bad  { color: var(--rag-red); }
+
+/* Pulse — used on "live" indicators */
+.pulse {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--rag-green);
+  box-shadow: 0 0 6px rgba(134, 239, 172, 0.7);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 0.5; transform: scale(0.85); }
+  50%     { opacity: 1; transform: scale(1.1); }
+}
+
+/* Footer */
+.footer {
+  position: absolute;
+  bottom: 64px;
+  left: 96px; right: 96px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  z-index: 5;
+}
+.footer .tag {
+  font-size: 16px;
+  color: var(--ink-dim);
+}
+.footer .tag b { color: var(--ink); font-weight: 600; }
+.footer .repo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+}
+.footer .repo .arrow { color: var(--accent); margin-right: 8px; }
+
+/* ---- Animations ---- */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes typing { to { width: 100%; } }
+@keyframes glow {
+  from { box-shadow: 0 0 0 rgba(103,232,249,0); }
+  to   { box-shadow: 0 0 20px rgba(103,232,249,0.4); }
+}
+
+/* ---- Lightbox (used by lightbox.js) ----
+ * Shared overlay style so any slide with .zoomable images gets the
+ * same zoom-out chrome. */
+
+.zoomable {
+  cursor: zoom-in;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+.zoomable:hover {
+  filter: brightness(1.05);
+}
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 26, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  cursor: zoom-out;
+}
+.lightbox-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.lightbox-overlay img {
+  max-width: 92vw;
+  max-height: 88vh;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  box-shadow:
+    0 32px 96px rgba(0, 0, 0, 0.7),
+    0 0 64px rgba(103, 232, 249, 0.2);
+  transform: scale(0.94);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lightbox-overlay.open img {
+  transform: scale(1);
+}
+
+.lightbox-hint {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 32px;
+  right: 40px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 300;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.4);
+}
