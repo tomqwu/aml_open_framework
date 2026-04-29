@@ -8,56 +8,159 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/tokens.css">
 <style>
-  .s6-table {
+  .s8-flow {
     flex: 1;
-    border-top: 2px solid var(--ink);
-    border-bottom: 1px solid var(--ink);
-  }
-  .s6-row {
+    position: relative;
     display: grid;
-    grid-template-columns: 64px 1fr 60px 1fr;
-    gap: 28px;
-    padding: 26px 8px;
-    border-bottom: 1px solid var(--rule);
-    align-items: center;
-  }
-  .s6-row:last-child { border-bottom: none; }
-  .s6-row .num {
-    font-size: 18px; font-weight: 700;
-    color: var(--accent);
-    letter-spacing: 0.04em;
-    font-variant-numeric: tabular-nums;
-  }
-  .s6-row .pain {
-    font-size: 24px; font-weight: 500;
-    color: var(--ink); font-style: italic; line-height: 1.35;
-  }
-  .s6-row .arrow {
-    font-size: 28px; color: var(--ink-faint);
-    text-align: center; font-weight: 300;
-  }
-  .s6-row .answer {
-    font-size: 21px; font-weight: 400;
-    color: var(--ink-2); line-height: 1.45;
-  }
-  .s6-row .answer strong { color: var(--ink); font-weight: 600; }
-  .s6-row .answer code {
-    font-family: 'Inter', sans-serif;
-    color: var(--accent);
-    font-size: 18px;
-    font-weight: 500;
+    grid-template-columns: 1fr 280px 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin-top: 12px;
   }
 
-  .s6-header {
-    display: grid;
-    grid-template-columns: 64px 1fr 60px 1fr;
-    gap: 28px;
-    padding: 14px 8px;
-    border-bottom: 1px solid var(--rule);
-    font-size: 14px; font-weight: 700;
-    letter-spacing: 0.22em; text-transform: uppercase;
-    color: var(--ink-faint);
+  .s8-svg {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 1;
   }
+  .s8-svg path {
+    fill: none;
+    stroke: var(--rule-strong);
+    stroke-width: 1.5;
+    transition: stroke 0.25s ease, stroke-width 0.25s ease, opacity 0.25s ease;
+  }
+  .s8-svg path.hi {
+    stroke: var(--accent);
+    stroke-width: 3;
+  }
+  .s8-flow.highlighted .s8-svg path:not(.hi) { opacity: 0.3; }
+
+  .s8-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 2;
+  }
+  .s8-col.pains { padding-right: 8px; }
+  .s8-col.caps  { padding-left: 8px; }
+
+  .s8-col .colhead {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 6px;
+    margin-bottom: 2px;
+  }
+  .s8-col.caps .colhead { color: var(--accent); border-color: var(--accent); }
+
+  .s8-pain, .s8-cap {
+    flex: 1;
+    border-radius: 4px;
+    padding: 12px 18px 10px;
+    border: 1px solid var(--rule-strong);
+    background: var(--bg);
+    transition: opacity 0.22s, border-color 0.22s, box-shadow 0.22s, transform 0.22s;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .s8-pain { border-left: 3px solid var(--ink); }
+  .s8-cap {
+    border-left: 3px solid var(--accent);
+    background: linear-gradient(135deg, var(--bg) 0%, var(--accent-tint) 140%);
+  }
+
+  .s8-pain .num, .s8-cap .num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .s8-pain .quote {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ink);
+    font-style: italic;
+    margin-bottom: 4px;
+  }
+  .s8-pain .src {
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+  }
+
+  .s8-cap .name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+  .s8-cap .name code {
+    font-family: 'Inter', sans-serif;
+    background: var(--accent-tint);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .s8-cap .where {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+  .s8-cap .where strong { color: var(--ink); font-weight: 600; }
+
+  .s8-flow.highlighted .s8-pain:not(.active),
+  .s8-flow.highlighted .s8-cap:not(.active) { opacity: 0.32; }
+  .s8-pain.active, .s8-cap.active {
+    border-color: var(--accent);
+    box-shadow: 0 4px 18px rgba(221,92,52,0.18);
+    transform: translateX(2px);
+  }
+  .s8-cap.active { transform: translateX(-2px); }
+
+  .s8-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    z-index: 2;
+  }
+  .s8-center .word {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--accent);
+    background: white;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1.5px solid var(--accent);
+  }
+  .s8-center .hint {
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+    text-align: center;
+    margin-top: 4px;
+    max-width: 220px;
+    line-height: 1.4;
+    padding: 0 8px;
+  }
+
+  .s8-takeaway { margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -65,45 +168,78 @@
   <div class="top-rule"></div>
 
   <div class="stage">
-    <h2 class="action-title fade-up" style="margin-bottom:12px;">
+    <h2 class="action-title fade-up" style="margin-bottom:6px;">
       Each pain has a single, evidenced answer — <em>one file</em> away.
     </h2>
-    <p class="dek fade-up d2" style="margin-bottom:48px;">
-      Direct mapping from public-record regulator findings to specific framework capabilities. No black box, no vendor add-ons.
+    <p class="dek fade-up d2" style="margin-bottom:0;">
+      Direct mapping from public-record regulator findings to specific framework capabilities. Hover any card to trace the connection.
     </p>
 
-    <div class="s6-table fade-up d3">
-      <div class="s6-header">
-        <div></div>
-        <div>Leader's pain (regulator-cited)</div>
-        <div></div>
-        <div>Framework capability (what changes)</div>
+    <div class="s8-flow fade-up d3" id="s8Flow">
+      <svg class="s8-svg" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+        <path data-i="1" d="M 0 75  C 400 75,  600 75,  1000 75"  />
+        <path data-i="2" d="M 0 225 C 400 225, 600 225, 1000 225" />
+        <path data-i="3" d="M 0 375 C 400 375, 600 375, 1000 375" />
+        <path data-i="4" d="M 0 525 C 400 525, 600 525, 1000 525" />
+      </svg>
+
+      <div class="s8-col pains">
+        <div class="colhead">Leader's pain · regulator-cited</div>
+        <div class="s8-pain" data-i="1">
+          <div class="num">Pain · 01</div>
+          <div class="quote">"We can't prove what we did."</div>
+          <div class="src">FCA Dear-CEO · Mar 2024</div>
+        </div>
+        <div class="s8-pain" data-i="2">
+          <div class="num">Pain · 02</div>
+          <div class="quote">"The backlog has been red on the board for years."</div>
+          <div class="src">2024 BSA consent order</div>
+        </div>
+        <div class="s8-pain" data-i="3">
+          <div class="num">Pain · 03</div>
+          <div class="quote">"Our risk assessment is a PDF nobody trusts."</div>
+          <div class="src">FCA + FINTRAC 2025 AMP regime</div>
+        </div>
+        <div class="s8-pain" data-i="4">
+          <div class="num">Pain · 04</div>
+          <div class="quote">"My monitoring system is a model and I cannot validate it."</div>
+          <div class="src">ACAMS · 2021 Interagency Statement</div>
+        </div>
       </div>
 
-      <div class="s6-row">
-        <div class="num">1</div>
-        <div class="pain">"We can't prove what we did."</div>
-        <div class="arrow">→</div>
-        <div class="answer"><strong>Hash-chained</strong> <code>decisions.jsonl</code> + deterministic replay. Any historical run reproducible byte-for-byte.</div>
+      <div class="s8-center">
+        <div class="word">Maps to</div>
+        <div class="hint">One spec primitive · one regulator citation · one audit-trail entry — for every pain.</div>
       </div>
-      <div class="s6-row">
-        <div class="num">2</div>
-        <div class="pain">"The backlog has been red on the board for years."</div>
-        <div class="arrow">→</div>
-        <div class="answer"><strong>SLA timer + escalation engine.</strong> Red queues become loud, not slide-decoration. Per-queue breach-rate badges visible to the board.</div>
+
+      <div class="s8-col caps">
+        <div class="colhead">Framework capability · what changes</div>
+        <div class="s8-cap" data-i="1">
+          <div class="num">Capability · 01</div>
+          <div class="name"><strong>Hash-chained <code>decisions.jsonl</code></strong> + deterministic replay</div>
+          <div class="where">Any historical run reproducible byte-for-byte. <strong>Audit &amp; Evidence</strong> page.</div>
+        </div>
+        <div class="s8-cap" data-i="2">
+          <div class="num">Capability · 02</div>
+          <div class="name"><strong>SLA timer + escalation engine</strong></div>
+          <div class="where">Red queues become loud, not slide-decoration. Per-queue breach-rate badges. <strong>Investigations</strong> page.</div>
+        </div>
+        <div class="s8-cap" data-i="3">
+          <div class="num">Capability · 03</div>
+          <div class="name">The spec <strong>IS</strong> the risk assessment</div>
+          <div class="where">Machine-readable, cited line-by-line. <strong>Framework Alignment</strong> page renders the live BRA.</div>
+        </div>
+        <div class="s8-cap" data-i="4">
+          <div class="num">Capability · 04</div>
+          <div class="name"><strong>Per-rule MRM dossier</strong> + 4-quarter backtester</div>
+          <div class="where">"Is rule X still earning its keep?" answered before lunch — no vendor study.</div>
+        </div>
       </div>
-      <div class="s6-row">
-        <div class="num">3</div>
-        <div class="pain">"Our risk assessment is a PDF nobody trusts."</div>
-        <div class="arrow">→</div>
-        <div class="answer"><strong>The spec IS the risk assessment</strong> — machine-readable, cited line-by-line. <em>Framework Alignment</em> dashboard renders the live BRA from the spec.</div>
-      </div>
-      <div class="s6-row">
-        <div class="num">4</div>
-        <div class="pain">"My monitoring system is a model and I cannot validate it."</div>
-        <div class="arrow">→</div>
-        <div class="answer"><strong>Per-rule MRM dossier + 4-quarter backtester.</strong> "Is rule X still earning its keep?" answered before lunch — no vendor study.</div>
-      </div>
+    </div>
+
+    <div class="takeaway s8-takeaway fade-up d5">
+      <span class="label">Key takeaway</span>
+      Every pain on the left has a <em>specific spec primitive + dashboard page + regulator citation</em> on the right. No black box, no vendor add-ons.
     </div>
   </div>
 
@@ -113,6 +249,29 @@
   </div>
 
   <script>
+    const flow = document.getElementById('s8Flow');
+    const pains = flow.querySelectorAll('.s8-pain');
+    const caps  = flow.querySelectorAll('.s8-cap');
+    const conns = flow.querySelectorAll('.s8-svg path');
+
+    function highlight(i) {
+      flow.classList.add('highlighted');
+      pains.forEach(p => p.classList.toggle('active', p.dataset.i === i));
+      caps.forEach(c => c.classList.toggle('active', c.dataset.i === i));
+      conns.forEach(c => c.classList.toggle('hi', c.dataset.i === i));
+    }
+    function clear() {
+      flow.classList.remove('highlighted');
+      pains.forEach(p => p.classList.remove('active'));
+      caps.forEach(c => c.classList.remove('active'));
+      conns.forEach(c => c.classList.remove('hi'));
+    }
+
+    [...pains, ...caps].forEach(el => {
+      el.addEventListener('mouseenter', () => highlight(el.dataset.i));
+      el.addEventListener('mouseleave', clear);
+    });
+
     document.fonts.ready.then(() => {
       document.body.classList.add('ready');
       window.__ready = true;
