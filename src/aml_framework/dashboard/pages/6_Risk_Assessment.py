@@ -8,7 +8,7 @@ import streamlit as st
 from aml_framework.dashboard.components import (
     RISK_RATING_COLORS,
     chart_layout,
-    kpi_card,
+    kpi_card_rag,
     page_header,
     risk_color,
 )
@@ -61,16 +61,24 @@ if df_customers.empty:
     st.stop()
 
 # --- KPI row ---
+# High-risk count carries an actual assessment — any high-risk
+# customer is a "state to notice" for compliance. Medium binds amber.
+# Total customers + country count are facts (neutral).
 risk_counts = df_customers["risk_rating"].value_counts()
+high_risk = int(risk_counts.get("high", 0))
+medium_risk = int(risk_counts.get("medium", 0))
+high_risk_rag = "red" if high_risk else None
+medium_risk_rag = "amber" if medium_risk else None
+
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    kpi_card("Total Customers", len(df_customers), "#2563eb")
+    kpi_card_rag("Total Customers", len(df_customers))
 with c2:
-    kpi_card("High Risk", int(risk_counts.get("high", 0)), "#dc2626")
+    kpi_card_rag("High Risk", high_risk, rag=high_risk_rag)
 with c3:
-    kpi_card("Medium Risk", int(risk_counts.get("medium", 0)), "#d97706")
+    kpi_card_rag("Medium Risk", medium_risk, rag=medium_risk_rag)
 with c4:
-    kpi_card("Countries", df_customers["country"].nunique(), "#059669")
+    kpi_card_rag("Countries", df_customers["country"].nunique())
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -94,16 +102,26 @@ with col_left:
 
 with col_right:
     st.markdown("### Customer Geography")
-    geo = df_customers["country"].value_counts().reset_index()
-    geo.columns = ["Country", "Count"]
+    # Stack by risk rating so the chart tells where risk concentrates
+    # geographically — not just where customers count is highest.
+    # Pre-PR-5 this was a monochrome blue gradient on raw count which
+    # had no story beyond bar height.
+    geo = df_customers.groupby(["country", "risk_rating"]).size().reset_index(name="Count")
+    geo = geo.sort_values("Count", ascending=False)
     fig = px.bar(
         geo,
-        x="Country",
+        x="country",
         y="Count",
-        color="Count",
-        color_continuous_scale="Blues",
+        color="risk_rating",
+        color_discrete_map=RISK_RATING_COLORS,
+        category_orders={"risk_rating": ["high", "medium", "low"]},
     )
-    fig.update_layout(coloraxis_showscale=False, xaxis_title="", yaxis_title="")
+    fig.update_layout(
+        xaxis_title="",
+        yaxis_title="",
+        legend_title_text="Risk",
+        barmode="stack",
+    )
     st.plotly_chart(chart_layout(fig, 340), use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)

@@ -14,7 +14,7 @@ from streamlit_agraph import Config, Edge, Node, agraph
 
 from aml_framework.dashboard.components import (
     empty_state,
-    kpi_card,
+    kpi_card_rag,
     link_to_page,
     page_header,
     risk_color,
@@ -61,6 +61,34 @@ if st.session_state.get("guided_demo"):
 alerted_ids = set()
 if not df_alerts.empty and "customer_id" in df_alerts.columns:
     alerted_ids = set(df_alerts["customer_id"].dropna().unique())
+
+# --- Filters --- (PR 5)
+# Past ~25 customers the full graph becomes hairball-soup. Filters let
+# the user trim to (a) only customers with active alerts + their direct
+# counterparties, or (b) nodes with high fan-in degree. Both filters
+# are computed before edge construction so the rendered graph stays
+# legible without the agraph layout fighting itself.
+fc1, fc2, fc3 = st.columns([2, 2, 1])
+with fc1:
+    show_alerted_only = st.toggle(
+        "Show alerted nodes + counterparties only",
+        value=False,
+        help=(
+            "Hides customers with no active alert AND no temporal "
+            "correlation to an alerted customer. Surfaces the "
+            "investigation-relevant subgraph."
+        ),
+    )
+with fc2:
+    min_fan_in = st.slider(
+        "Minimum fan-in (correlated counterparties)",
+        min_value=0,
+        max_value=10,
+        value=0,
+        help="Filter to nodes whose temporal-correlation degree ≥ this threshold.",
+    )
+with fc3:
+    st.caption(f"{len(df_customers)} total customers in spec")
 
 # Per-customer stats.
 cust_stats = (
@@ -145,16 +173,46 @@ for c1, c2 in edge_weights:
     fan_in_counts.setdefault(c2, set()).add(c1)
 fan_in_suspects = {cid for cid, senders in fan_in_counts.items() if len(senders) >= 3}
 
+# --- Apply filters (PR 5) ---
+# After edges are computed we know which nodes are connected to which.
+# Filtering the *node* list shrinks the visible graph; edges referencing
+# filtered-out nodes are dropped automatically by agraph.
+if show_alerted_only and alerted_ids:
+    keep_ids = set(alerted_ids)
+    # Include direct counterparties so the alerted node has context.
+    for c1, c2 in edge_weights:
+        if c1 in alerted_ids:
+            keep_ids.add(c2)
+        if c2 in alerted_ids:
+            keep_ids.add(c1)
+    nodes = [n for n in nodes if n.id in keep_ids]
+    edges = [e for e in edges if e.source in keep_ids and e.to in keep_ids]
+if min_fan_in > 0:
+    keep_ids = {cid for cid, senders in fan_in_counts.items() if len(senders) >= min_fan_in}
+    nodes = [n for n in nodes if n.id in keep_ids]
+    edges = [e for e in edges if e.source in keep_ids and e.to in keep_ids]
+
 # --- KPI row ---
+# Alerted nodes carries an actual assessment (any alert is a state to
+# notice). Fan-in suspects ≥ 3 also a signal — bind to red. Counts of
+# total nodes/edges are facts.
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    kpi_card("Nodes", len(nodes), "#2563eb")
+    kpi_card_rag("Nodes", len(nodes))
 with c2:
-    kpi_card("Flow Edges", len(edges), "#7c3aed")
+    kpi_card_rag("Flow Edges", len(edges))
 with c3:
-    kpi_card("Alerted Nodes", len(alerted_ids), "#dc2626")
+    kpi_card_rag(
+        "Alerted Nodes",
+        len(alerted_ids),
+        rag="red" if alerted_ids else None,
+    )
 with c4:
-    kpi_card("Fan-In (3+ links)", len(fan_in_suspects), "#d97706")
+    kpi_card_rag(
+        "Fan-In (3+ links)",
+        len(fan_in_suspects),
+        rag="red" if fan_in_suspects else None,
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
