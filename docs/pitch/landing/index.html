@@ -1036,7 +1036,7 @@
             <!-- Cells positioned in % of wrapper -->
             <div class="fit-cell" style="left:31.4%;top:30%;">Pilot + 2LoD challenger<span class="meta">10–20 compliance · single juris</span></div>
             <div class="fit-cell" style="left:71.4%;top:24%;">MRM challenger model<span class="meta">100+ FTE · global · SR 26-2</span></div>
-            <div class="fit-cell fintech" style="left:31.4%;top:65%;">★ Primary platform<span class="meta">1 person · ship in days</span></div>
+            <div class="fit-cell fintech" style="left:31.4%;top:65%;">★ Primary platform<span class="meta">1 MLRO · pilot in weeks</span></div>
             <div class="fit-cell" style="left:71.4%;top:65%;">Cross-border platform<span class="meta">small team · multi-juris · ISO 20022</span></div>
           </div>
 
@@ -1046,7 +1046,7 @@
                 <span class="name">FinTech / EMI applicant</span>
                 <span class="role">★ Primary</span>
               </div>
-              <div class="desc"><strong>1 MLRO runs the whole program.</strong> Clone canonical spec → customise → ship. Time-to-first-alert in minutes. Examiner-pack via one CLI command. Investor DD answer in 5 minutes.</div>
+              <div class="desc"><strong>One lean team holds the whole program.</strong> Demo on synthetic data in minutes; pilot on your data in weeks; defensible program (tuned + 2LoD-reviewed) in months — not the 9-24-month commercial deploy window. Once running, the cure-notice evidence pack is one CLI command and the investor-DD answer is a query, not a consultant engagement.</div>
             </div>
             <div class="fit-card">
               <div class="head">
@@ -1068,6 +1068,82 @@
                 <span class="role">2LoD challenger</span>
               </div>
               <div class="desc">MRM independent re-implementation under SR 26-2 / OCC 2026-13. Deterministic re-run + hash-chained audit ledger as published guarantee — what no commercial vendor offers.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fit-section adv-section">
+        <div class="heading">
+          <h2>Examiner-defensible, <em>without the vendor</em>.</h2>
+          <p class="sub">Four categories a CCO actually picks between, plotted on what 2026 enforcement scores you on — <em>can you prove it</em> (Y axis) and <em>do you control it</em> (X axis).</p>
+        </div>
+
+        <div class="fit-grid">
+          <div class="fit-quadrant">
+            <svg viewBox="0 0 700 600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <defs>
+                <marker id="adv-arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#1c1f26"/>
+                </marker>
+              </defs>
+              <!-- 4 quadrant fills · TR is the desirable position -->
+              <rect x="80"  y="40"  width="280" height="240" fill="#fbfbfc"/>
+              <rect x="360" y="40"  width="280" height="240" fill="#fdeee5"/>
+              <rect x="80"  y="280" width="280" height="240" fill="#fbfbfc"/>
+              <rect x="360" y="280" width="280" height="240" fill="#fbfbfc"/>
+              <!-- Frame -->
+              <rect x="80" y="40" width="560" height="480" fill="none" stroke="#1c1f26" stroke-width="1.5"/>
+              <line x1="360" y1="40"  x2="360" y2="520" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+              <line x1="80"  y1="280" x2="640" y2="280" stroke="#c8cfd6" stroke-width="1" stroke-dasharray="4 4"/>
+              <!-- X axis -->
+              <line x1="80" y1="572" x2="640" y2="572" stroke="#1c1f26" stroke-width="2" marker-end="url(#adv-arr)"/>
+              <text x="360" y="595" text-anchor="middle" font-family="Inter" font-size="13" font-weight="600" fill="#1c1f26" letter-spacing="0.04em">YOU CONTROL THE PROGRAM  →</text>
+              <!-- Y axis -->
+              <line x1="40" y1="520" x2="40" y2="40" stroke="#1c1f26" stroke-width="2" marker-end="url(#adv-arr)"/>
+              <text x="40" y="280" text-anchor="middle" font-family="Inter" font-size="13" font-weight="600" fill="#1c1f26"
+                    letter-spacing="0.04em" transform="rotate(-90 40 280)">EXAMINER-DEFENSIBLE  →</text>
+              <!-- Dots: Commercial TL, AML Open Framework TR, Spreadsheets BR, AI-native SaaS lower-left -->
+              <circle cx="174" cy="142" r="9" fill="#1c1f26"/>
+              <circle cx="556" cy="118" r="13" fill="#dd5c34" stroke="white" stroke-width="3"/>
+              <circle cx="556" cy="118" r="22" fill="none" stroke="#dd5c34" stroke-width="1.2" opacity="0.4"/>
+              <circle cx="244" cy="356" r="9" fill="#1c1f26"/>
+              <circle cx="528" cy="438" r="9" fill="#1c1f26"/>
+            </svg>
+
+            <div class="fit-corner tl">Vendor-locked · audit-mature</div>
+            <div class="fit-corner tr">★ Defensible &amp; independent</div>
+            <div class="fit-corner bl">Cloud SaaS · SR 26-2 ML tax</div>
+            <div class="fit-corner br">Cheap · undefendable</div>
+
+            <!-- Cell labels positioned in % of the wrapper -->
+            <div class="fit-cell" style="left:24.9%;top:31%;">Commercial enterprise<span class="meta">Actimize · Oracle · SAS · ~$50M TCO</span></div>
+            <div class="fit-cell fintech" style="left:79.4%;top:24%;">★ AML Open Framework<span class="meta">Apache 2.0 · deterministic re-run · audit ledger</span></div>
+            <div class="fit-cell" style="left:35%;top:64.5%;">AI-native SaaS<span class="meta">Hawk:AI · ComplyAdvantage · Feedzai</span></div>
+            <div class="fit-cell" style="left:75.4%;top:78.5%;">Spreadsheets + DIY<span class="meta">manual evidence · no replay</span></div>
+          </div>
+
+          <div class="fit-rail">
+            <div class="fit-card">
+              <div class="head">
+                <span class="name">"Examiner-defensible" (Y axis)</span>
+                <span class="role">Y</span>
+              </div>
+              <div class="desc">Can you replay any historical run byte-for-byte and prove what fired, when, and against which regulation? Hash-chained audit ledger + deterministic re-run is a <em>published</em> guarantee — no other platform offers it as a contract.</div>
+            </div>
+            <div class="fit-card">
+              <div class="head">
+                <span class="name">"You control the program" (X axis)</span>
+                <span class="role">X</span>
+              </div>
+              <div class="desc">Who owns the rule library, the thresholds, and the audit trail? Vendor-controlled means a 9-24 month deploy + per-jurisdiction module fees + extraction friction. You-controlled means the Manifest is yours; the engine runs in your perimeter; the spec is plain text under version control.</div>
+            </div>
+            <div class="fit-card fintech">
+              <div class="head">
+                <span class="name">Why we land top-right</span>
+                <span class="role">★</span>
+              </div>
+              <div class="desc">Apache 2.0 + deterministic re-run + hash-chained audit ledger + 7 jurisdiction templates. Commercial vendors are audit-mature but vendor-locked; AI-native SaaS carries the SR 26-2 model-validation tax; spreadsheets are cheap but won't survive a regulator. <strong>This is the only point on the chart that's both.</strong></div>
             </div>
           </div>
         </div>
