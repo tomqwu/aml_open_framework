@@ -87,13 +87,20 @@
     padding: 24px 28px 26px;
     background: var(--bg);
     transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
-    cursor: default;
+    cursor: pointer;
     position: relative;
+    display: block;
+    text-decoration: none;
+    color: inherit;
   }
   .s11-branch:hover {
     border-color: var(--accent);
     box-shadow: 0 12px 32px rgba(221,92,52,0.14);
     transform: translateY(-3px);
+  }
+  .s11-branch:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
   }
 
   .s11-branch .icon-bar {
@@ -191,17 +198,17 @@
       </div>
 
       <div class="s11-branches">
-        <div class="s11-branch fade-up d3">
+        <a class="s11-branch fade-up d3" href="../../#/research/process-pain" target="_top" rel="noopener">
           <div class="icon-bar">
             <div class="glyph">①</div>
-            <span class="time">Read · 15 min</span>
+            <span class="time">Read · 30 min</span>
           </div>
           <h3>Show me the research.</h3>
-          <p>Open the 10-pain-point doc with primary regulator citations + a 2024 enforcement case study. Unbranded frame, citable sources.</p>
-          <div class="cta">/research/process-pain <span class="arr">→</span></div>
-        </div>
+          <p>Five primary-source pages — Tier-1 pain points, FinTech reality, TD enforcement case study, competitive landscape, 90-day regulator pulse. Every claim cited.</p>
+          <div class="cta">5 research pages <span class="arr">→</span></div>
+        </a>
 
-        <div class="s11-branch fade-up d4">
+        <a class="s11-branch fade-up d4" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener noreferrer">
           <div class="icon-bar">
             <div class="glyph">②</div>
             <span class="time">Try · 5 min</span>
@@ -209,9 +216,9 @@
           <h3>Run it on my desk.</h3>
           <p>Clone, install, run a real audit pack against the canonical spec. <code style="font-family:Inter;background:var(--accent-tint);color:var(--accent);padding:1px 6px;border-radius:2px;font-weight:600;">aml audit-pack</code> — no vendor demo cycle.</p>
           <div class="cta">github.com/tomqwu/aml_open_framework <span class="arr">→</span></div>
-        </div>
+        </a>
 
-        <div class="s11-branch fade-up d5">
+        <a class="s11-branch fade-up d5" href="https://github.com/tomqwu/aml_open_framework/discussions" target="_blank" rel="noopener noreferrer">
           <div class="icon-bar">
             <div class="glyph">③</div>
             <span class="time">Talk · 30 min</span>
@@ -219,14 +226,14 @@
           <h3>Walk me through it.</h3>
           <p>Bring your spec or pain — open a GitHub Discussion, pull-request a typology, or tag the maintainer in an issue.</p>
           <div class="cta">github.com/.../discussions <span class="arr">→</span></div>
-        </div>
+        </a>
       </div>
     </div>
 
-    <div class="s11-repo fade-up d6">
+    <a class="s11-repo fade-up d6" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener noreferrer" style="text-decoration:none;color:inherit;display:block;">
       <span class="meta">Open source · MIT · runs in your perimeter</span>
       <span class="url">github.com/tomqwu/aml_open_framework</span>
-    </div>
+    </a>
   </div>
 
   <div class="source-line">
