@@ -36,14 +36,14 @@ html, body {
 
 .exhibit-label {
   position: absolute;
-  top: 60px; left: 96px;
-  font-size: 11px;
+  top: 56px; left: 96px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
-.exhibit-label .num { color: var(--accent); margin: 0 6px; }
+.exhibit-label .num { color: var(--accent); margin: 0 8px; }
 
 .top-rule {
   position: absolute;
@@ -55,25 +55,26 @@ html, body {
 
 .source-line {
   position: absolute;
-  bottom: 60px;
+  bottom: 50px;
   left: 96px; right: 96px;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 11px;
+  font-size: 15px;
   color: var(--ink-faint);
   letter-spacing: 0.04em;
   border-top: 1px solid var(--rule);
-  padding-top: 16px;
+  padding-top: 18px;
+  gap: 32px;
 }
 .source-line strong { color: var(--ink-dim); font-weight: 600; }
 
 /* Action title — every slide opens with a complete thesis sentence */
 .action-title {
-  font-size: 44px;
+  font-size: 56px;
   font-weight: 600;
-  line-height: 1.20;
-  letter-spacing: -0.012em;
+  line-height: 1.15;
+  letter-spacing: -0.014em;
   color: var(--ink);
   text-wrap: balance;
   max-width: 1500px;
@@ -81,31 +82,32 @@ html, body {
 .action-title em { font-style: normal; color: var(--accent); }
 
 .dek {
-  font-size: 18px;
+  font-size: 26px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--ink-dim);
-  max-width: 1300px;
+  max-width: 1400px;
   text-wrap: pretty;
 }
 
 /* Key takeaway right rail / bottom callout */
 .takeaway {
   background: var(--accent-tint);
-  border-left: 3px solid var(--accent);
-  padding: 18px 24px;
-  font-size: 16px;
+  border-left: 4px solid var(--accent);
+  padding: 22px 28px;
+  font-size: 22px;
   font-weight: 500;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--ink);
 }
 .takeaway .label {
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent);
   font-weight: 700;
-  margin-right: 10px;
+  margin-right: 14px;
+  display: inline-block;
 }
 
 /* Universal stage region — between top-rule and source-line */
