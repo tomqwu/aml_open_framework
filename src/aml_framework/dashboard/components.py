@@ -583,7 +583,6 @@ def terminal_block(rows: list[tuple[str, str, str]]) -> None:
     )
 
 
-
 def kpi_card_rag(label: str, value: Any, rag: str | None = None) -> None:
     """Render a KPI card whose left border is bound to RAG semantics.
 
