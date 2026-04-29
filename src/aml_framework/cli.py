@@ -359,6 +359,73 @@ def today_cmd(
     console.print(render_checklist_text(checklist))
 
 
+@app.command(name="propose-change")
+def propose_change_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    rule_id: str = typer.Option(..., "--rule", help="Rule id whose threshold is changing."),
+    proposed_yaml_path: Path = typer.Option(
+        ...,
+        "--proposed-yaml",
+        exists=True,
+        readable=True,
+        help="File containing the proposed rule YAML (replaces the current rule block).",
+    ),
+    rationale: str = typer.Option(..., "--rationale", help="One-paragraph what + why."),
+    proposer: str = typer.Option("", "--proposer", help="1LoD name (defaults to git user.name)."),
+    expected_impact: str = typer.Option(
+        "", "--expected-impact", help="One-line prediction (optional)."
+    ),
+    out: Path = typer.Option(
+        Path("mlro-review-packet.md"),
+        "--out",
+        help="Where to write the Markdown packet.",
+    ),
+) -> None:
+    """Package a threshold change as a 2LoD review packet (Markdown).
+
+    Process problem: today, when 1LoD wants to lower a structuring
+    threshold, the 2LoD review ritual happens in email or Word — not
+    archived with the spec PR. When OSFI walks in 18 months later
+    asking "who decided?", the answer is in an Outlook thread.
+
+    This command produces a Markdown packet 1LoD attaches to their
+    spec PR. 2LoD reads it in-line, fills the sign-off block, the
+    MLRO countersigns. The packet + spec PR commit history together
+    are the audit-trail artifact.
+    """
+    import subprocess
+
+    from aml_framework.propose_change import ProposedChange, build_review_packet
+
+    if not proposer:
+        try:
+            proposer = subprocess.check_output(
+                ["git", "config", "--get", "user.name"], text=True
+            ).strip()
+        except Exception:
+            proposer = "(unknown — set with --proposer)"
+
+    proposed_yaml = proposed_yaml_path.read_text(encoding="utf-8")
+    change = ProposedChange(
+        spec_path=spec_path,
+        rule_id=rule_id,
+        proposed_yaml=proposed_yaml,
+        proposer=proposer,
+        rationale=rationale,
+        expected_impact=expected_impact,
+    )
+    packet = build_review_packet(change=change)
+    out.write_text(packet, encoding="utf-8")
+
+    console.print(f"[green]Review packet written[/green] {out}")
+    console.print(f"  proposer: {proposer}")
+    console.print(f"  rule:     {rule_id}")
+    console.print(
+        "\n[bold]Next:[/bold] paste this Markdown into the spec PR description,\n"
+        "or commit it next to your spec change so the audit trail keeps both."
+    )
+
+
 @app.command(name="notify-digest")
 def notify_digest_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
