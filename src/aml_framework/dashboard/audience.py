@@ -25,6 +25,78 @@ from __future__ import annotations
 # 8 pages becomes hard to navigate from the sidebar without scrolling.
 MAX_PAGES_PER_PERSONA = 8
 
+
+# Persona labels + one-line descriptions in business language. Surfaces
+# in the sidebar selector dropdown so a leader can self-identify by
+# title rather than guess what `cco` / `svp` / `cto` mean.
+#
+# Source: descriptions written to match the PAIN-N voice in
+# docs/research/2026-04-aml-process-pain.md so the language is
+# consistent across deck, README, dashboard.
+PERSONA_LABELS: dict[str, tuple[str, str]] = {
+    "svp": (
+        "Senior VP of Risk",
+        "Owns the risk function. Cares about board reporting and regulator relationship.",
+    ),
+    "cto": (
+        "Chief Technology Officer",
+        "Owns the platform. Cares about deployability, deterministic replay, vendor risk.",
+    ),
+    "cco": (
+        "Chief Compliance Officer",
+        "Owns the AML program. Cares about exam readiness and 'can we prove what we did?'",
+    ),
+    "vp": (
+        "VP / MLRO",
+        "Second line of defence. Reads the spec; challenges the rules; signs the STRs.",
+    ),
+    "director": (
+        "Director of Financial Crime",
+        "Runs the operation. Cares about backlog, SLA breaches, queue health.",
+    ),
+    "manager": (
+        "AML Operations Manager",
+        "Triage to escalation. Cares about queue throughput and analyst load balance.",
+    ),
+    "analyst": (
+        "Analyst (L1 / L2)",
+        "Works the alerts. Cares about evidence being pre-attached so they can write the narrative.",
+    ),
+    "pm": (
+        "Program / Product Manager",
+        "Plans the roadmap. Cares about coverage gaps and where to invest next.",
+    ),
+    "developer": (
+        "Engineer / Detection Developer",
+        "Authors the detectors. Cares about the spec, tests, and CI feedback loop.",
+    ),
+    "business": (
+        "Business Stakeholder",
+        "Outside FCC. Cares about the headline picture without operational detail.",
+    ),
+    "auditor": (
+        "Auditor (Internal / External)",
+        "Replays runs and verifies the chain. Cares about evidence completeness and reproducibility.",
+    ),
+}
+
+
+def persona_options_with_labels() -> list[tuple[str, str]]:
+    """Return [(code, "Code — Title")] for the sidebar selector.
+
+    Keeps the selectbox value as the bare code (so existing
+    `selected_audience` lookups continue to work) but renders the
+    full title to the user.
+    """
+    return [(code, f"{label} ({code.upper()})") for code, (label, _desc) in PERSONA_LABELS.items()]
+
+
+def persona_description(code: str) -> str:
+    """Return the one-line description for a persona code, or empty."""
+    entry = PERSONA_LABELS.get(code)
+    return entry[1] if entry else ""
+
+
 # Which pages are most relevant per audience.
 AUDIENCE_PAGES = {
     "svp": [

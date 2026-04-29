@@ -1,21 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-04-27. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-04-28. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
 ---
 
 ## At a Glance
 
-| Metric | Value (post Round 6, snapshot 2026-04-27) | After Round 7 closes |
-|---|---|---|
-| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC (compliance/, metrics/outcomes, generators/audit_pack, data/psd3) |
-| Tests | 991 collected, 953 passing on minimal CI | + ~110 (regwatch 31 + outcomes 21 + tbml/app 17 + psd3 25 + audit-pack 20) |
-| Test files | 34 | 39 |
-| Documentation | 2,212 LOC across 11 docs + 1,476-line CHANGELOG + 125-line README | unchanged shape |
-| Example specs | 7 | 9 (+ trade_based_ml + uk_app_fraud) |
-| Unique regulation citations | 61+ | ~75+ |
-| Dashboard pages | 24 | 24 (integration deferred to follow-up PR) |
-| Merged PRs (2026-04-27) | 18 (#46–#73) | + Round 7 PRs #74–#78 (in CI) |
+| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-28) |
+|---|---|---|---|
+| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC (compliance/, metrics/outcomes, generators/audit_pack, data/psd3) | + ~700 LOC (dashboard helpers + integrations) |
+| Tests | 991 | + ~110 | 1,161 passing |
+| Test files | 34 | 39 | 43 |
+| Example specs | 7 | 9 (+ trade_based_ml + uk_app_fraud) | 9 |
+| Unique regulation citations | 61+ | ~75+ | ~75+ |
+| Dashboard pages | 24 | 24 (integration deferred) | 24 (every Round-6/7 module surfaced) |
+| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 (8-PR dashboard plan) |
 
 ---
 
@@ -100,10 +99,28 @@ Goal: ship the top-5 features ranked by impact ÷ effort in the [2026-04 competi
 
 **Result**: framework now has a defensive layer that sits *above* the spec — drift detection against silently-changing regulator pages, regulator-format effectiveness JSON, jurisdiction-templated examination evidence packs. This is the layer commercial vendors don't ship because they own the rule library themselves; the framework needs it precisely because it doesn't.
 
-**Cross-feature integration** (deferred to Round 7 polish):
-- Dashboard page surfacing the outcomes funnel (visualises `compute_outcomes()` output)
-- Dashboard panel for regwatch drift findings
-- One-click audit-pack download from the Investigations page
+**Cross-feature integration** (closed in Dashboard Workflow & Design plan, 2026-04-28):
+- Dashboard page surfacing the outcomes funnel ✅ Phase B-2
+- Dashboard panel for regwatch drift findings ✅ Phase B-2
+- One-click audit-pack download from Audit & Evidence ✅ Phase B-3
+- VoP outcomes panel on Sanctions Screening ✅ Phase B-3
+
+### Dashboard Workflow & Design plan (8 PRs, 2026-04-27 → 2026-04-28)
+
+Goal: ensure proper workflow + design across the dashboard. Audit identified 5 hidden modules, broken cross-page navigation, muddled persona arcs, and crash-prone empty-state behavior.
+
+| PR | Phase | Feature |
+|---|---|---|
+| #80 | A | Cross-cutting helpers: `link_to_page`, `read_param`, `consume_param`, `severity_color`, `sla_band_color`, `empty_state` |
+| #81 | B-1 | SLA timer + STR-bundle download on case-facing pages (#4, #21, #17) |
+| #82 | B-2 | Effectiveness funnel on Executive Dashboard + regulation-drift panel on Audit & Evidence |
+| #83 | B-3 | FINTRAC audit-pack download on Audit & Evidence + VoP outcomes on Sanctions Screening |
+| #84 | C | Cross-page drill-downs / deep links — Alert Queue + Network Explorer + Customer 360 + Executive |
+| #85 | D | Persona workflow rebalance — every persona ≤8 pages, coherent task arcs |
+| #86 | E | Empty-state defenses on engine-side pages (#5, #10, #11) + design consistency test guards |
+| #87 | E follow-up | `risk_color()` resolver + 7 pages migrated off inline color dicts; test ALLOWED set drained |
+
+**Result**: every Round-6/7 module is now reachable from the dashboard (was the original Phase B goal). Cross-entity drill-downs eliminate the audit's worst dead-ends (~20-30s saved per drill, dozens per shift). Three pages that crashed on degenerate specs now degrade gracefully. Color/SLA palette has a single source of truth — any new inline color dict fails CI. Tests grew 1089 → 1161 across the 8 PRs.
 
 ---
 
@@ -194,7 +211,17 @@ test_performance.py               2  10k+ row engine throughput
 … plus 19 other test files       … 
 ```
 
-Total: 991 tests collected, 34 test files.
+Total (post Round 7 + dashboard plan): 1,161 tests passing, 43 test files.
+
+Dashboard-plan tests added (2026-04-27 → 2026-04-28):
+```
+test_dashboard_components_helpers.py   21  Phase A — 6 helpers + namespace tests
+test_dashboard_sla_integration.py      18  Phase B-1 — SLA on 3 pages
+test_dashboard_outcomes_panel.py       13  Phase B-2 — funnel + regwatch
+test_dashboard_audit_pack_button.py    11  Phase B-3 — FINTRAC + VoP panel
+test_dashboard_drill_downs.py          17  Phase C — deep-link wiring
+test_dashboard_design_consistency.py   10  Phase E — page_header + empty_state + resolvers
+```
 
 ---
 
@@ -212,9 +239,31 @@ See `memory/project_round5to9_plan.md` (private) for the full "three new traps" 
 
 ## Open Items
 
-- Issue #66 — closed (PR #70 mobile-responsive)
-- Issue #68 — effectively closed (PR #69 docs sweep)
+- Issue #66 — closed 2026-04-27 (PR #70 mobile-responsive)
+- Issue #68 — **still open**, due 2026-05-27. Tracking issue for a docs
+  freshness sweep + the (now moot) mobile #66 status check. The mobile
+  half is satisfied (`#66` closed); the docs-sweep half (walking
+  `getting-started.md` from a clean checkout, reconciling
+  `jurisdictions.md` against `examples/`, opening per-drift PRs) is
+  pending — `dashboard-tour.md` was partially updated in PR #85 (audience
+  filtering table only).
 - No other tracked issues open as of this snapshot
+
+## Round 8 / 9 — Remaining Planned Work
+
+The deep-research-agent's 5-round plan (in `memory/project_round5to9_plan.md`) is partially shipped — regwatch (8.3) shipped as Round 7 PR #74, FINTRAC audit-pack (9.1) as Round 7 PR #78, UK APP-fraud spec (8.1) as Round 7 PR #76. Remaining items, with the original engineer-day estimates:
+
+| Round | Item | Estimate | Status |
+|---|---|---|---|
+| 8.2 | RTP/FedNow push-fraud detector pack | 3d | not started |
+| 8.4 | Fraud-AML unified case linkage | 3d | partial (cyber_enabled_fraud spec exists) |
+| 8.5 | Beneficial Ownership (BOI) workflow page #26 | 3d | not started |
+| 9.2 | Open Compliance API draft (`api/openapi-compliance.yaml`) | 3d | not started |
+| 9.3 | Guided demo CLI (`aml demo`) | 3d | not started |
+| 9.4 | Synthetic data quality upgrade for new specs | 3d | partial |
+| 9.5 | Cross-border information-sharing sandbox (FATF R.18) | 5d | not started |
+
+~20 engineer-days of focused work remaining — each item warrants its own scope confirmation before implementation.
 
 ---
 
