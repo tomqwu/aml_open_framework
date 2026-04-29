@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AML Open Framework — Deck V2 walkthrough</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px;
+    height: 1080px;
+    background: #0a0e1a;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  iframe {
+    position: absolute;
+    inset: 0;
+    width: 1920px;
+    height: 1080px;
+    border: 0;
+    background: #0a0e1a;
+  }
+  /* Cross-fade between two iframes — A always on top until swap */
+  iframe.fade {
+    transition: opacity 480ms ease-in-out;
+  }
+  iframe[data-active="false"] { opacity: 0; pointer-events: none; }
+
+  /* Skill watermark (animation-only) */
+  .watermark {
+    position: absolute;
+    bottom: 22px;
+    right: 32px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.30);
+    letter-spacing: 0.18em;
+    font-family: 'JetBrains Mono', 'Menlo', monospace;
+    pointer-events: none;
+    z-index: 100;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+  <iframe id="frameA" class="fade" data-active="true"  src="../slides/01-cover.html"></iframe>
+  <iframe id="frameB" class="fade" data-active="false" src="about:blank"></iframe>
+
+  <div class="watermark">Created by Huashu-Design</div>
+
+  <script>
+  (() => {
+    // Per-slide dwell time (seconds) — weighted by content density.
+    //   Hero / chapter cards   → 3.5–4 s
+    //   Dense data tables      → 6 s
+    //   Narrative + CLI dual   → 4.5–5 s
+    // Sum ≈ 90 s.
+    const SLIDES = [
+      ['../slides/01-cover.html',                    3.8],
+      ['../slides/02-three-way-gap.html',            5.2],
+      ['../slides/03-cost-of-status-quo.html',       5.0],
+      ['../slides/04-one-yaml-three-reviewers.html', 5.0],
+      ['../slides/05-cli-bridge.html',               5.5],
+      ['../slides/06-morning-checklist.html',        5.0],
+      ['../slides/07-new-typology.html',             5.0],
+      ['../slides/08-propose-change.html',           5.0],
+      ['../slides/09-auditor-pack.html',             4.8],
+      ['../slides/10-curated-catalogue.html',        6.0],
+      ['../slides/11-tune-before-promote.html',      5.0],
+      ['../slides/12-audit-hash-chain.html',         4.8],
+      ['../slides/13-init-byod.html',                5.0],
+      ['../slides/14-notify-digest.html',            4.8],
+      ['../slides/15-multi-jurisdiction.html',       5.5],
+      ['../slides/16-architecture.html',             5.0],
+      ['../slides/17-cli-cheat-sheet.html',          5.5],
+      ['../slides/18-by-the-numbers.html',           4.0],
+      ['../slides/19-cta.html',                      4.0],
+    ];
+    const TOTAL_S = SLIDES.reduce((a, [, t]) => a + t, 0);
+    console.log(`Walkthrough total: ${TOTAL_S.toFixed(1)} s across ${SLIDES.length} slides`);
+
+    const A = document.getElementById('frameA');
+    const B = document.getElementById('frameB');
+
+    // Two-iframe ping-pong:
+    //   `active` is the visible iframe (opacity 1)
+    //   `next` is the hidden iframe — we set its src ahead of time so the
+    //   next slide's CSS fade-ins finish loading before the cross-fade.
+    let active = A, next = B;
+    let i = 0;
+
+    function preloadNext() {
+      const n = i + 1;
+      if (n >= SLIDES.length) return;
+      next.src = SLIDES[n][0];
+    }
+
+    function swap() {
+      // Swap which iframe is visible
+      active.dataset.active = 'false';
+      next.dataset.active = 'true';
+      [active, next] = [next, active];
+      i++;
+    }
+
+    function tick() {
+      if (i >= SLIDES.length) return;          // done
+      const [, dwell] = SLIDES[i];
+      // Preload next slide ~1.2 s before swap so its CSS animations get
+      // a head-start and aren't visibly mid-animation when revealed.
+      const preloadOffset = Math.max(0, dwell - 1.2);
+      setTimeout(preloadNext, preloadOffset * 1000);
+      setTimeout(() => {
+        if (i + 1 >= SLIDES.length) return;     // last slide — no swap
+        swap();
+        tick();
+      }, dwell * 1000);
+    }
+
+    // Wait for first slide's iframe load + its fonts to be ready
+    // before signalling __ready (render-video.js uses that as t=0 trim).
+    async function startWhenReady() {
+      try {
+        if (A.contentDocument && A.contentDocument.fonts) {
+          await A.contentDocument.fonts.ready;
+        }
+      } catch (e) { /* cross-origin or unsupported — fall through */ }
+      // Tiny grace so the slide's fade-in CSS animations are mid-flight
+      // (not at frame 0) when we signal ready — feels more alive.
+      setTimeout(() => {
+        window.__ready = true;
+        tick();
+      }, 100);
+    }
+    A.addEventListener('load', startWhenReady, { once: true });
+
+    // Safety net — kick off anyway after 1.5 s if load never fires
+    setTimeout(() => {
+      if (!window.__ready) {
+        window.__ready = true;
+        tick();
+      }
+    }, 1500);
+  })();
+  </script>
+
+</body>
+</html>
