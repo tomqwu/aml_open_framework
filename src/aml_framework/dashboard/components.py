@@ -480,3 +480,14 @@ def chart_layout(fig: Any, height: int = 380) -> Any:
         plot_bgcolor="rgba(0,0,0,0)",
     )
     return fig
+
+
+# Glossary helpers live in `dashboard/glossary.py` (a pandas/streamlit-
+# free module so unit-tests CI can import them) and are re-exported here
+# for backwards compatibility. Pages still do
+# `from aml_framework.dashboard.components import glossary_legend`.
+from aml_framework.dashboard.glossary import (  # noqa: E402,F401
+    GLOSSARY,
+    glossary_legend,
+    glossary_term,
+)
