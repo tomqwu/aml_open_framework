@@ -17,7 +17,7 @@ from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Rule Performance",
-    "Per-rule alert analytics, severity distribution, and regulation mapping.",
+    "Is each detector still earning its keep? Volume, severity mix, and the regulation each one answers.",
 )
 show_audience_context("Rule Performance")
 
