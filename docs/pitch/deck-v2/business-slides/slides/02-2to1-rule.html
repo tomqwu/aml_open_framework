@@ -15,20 +15,21 @@
     gap: 80px;
     align-items: center;
   }
-  .s2-bars { display: flex; flex-direction: column; gap: 26px; }
-  .s2-bar-row { display: grid; grid-template-columns: 220px 1fr 100px; gap: 20px; align-items: center; }
-  .s2-bar-row .name { font-size: 16px; font-weight: 600; color: var(--ink); text-align: right; }
-  .s2-bar-row .name .sub { display: block; font-size: 12px; font-weight: 400; color: var(--ink-faint); margin-top: 2px; letter-spacing: 0.04em; }
-  .s2-bar-row .bar-track { height: 38px; position: relative; background: var(--bg-soft); border-radius: 1px; }
+  .s2-bars { display: flex; flex-direction: column; gap: 32px; }
+  .s2-bar-row { display: grid; grid-template-columns: 260px 1fr 130px; gap: 24px; align-items: center; }
+  .s2-bar-row .name { font-size: 20px; font-weight: 600; color: var(--ink); text-align: right; line-height: 1.25; }
+  .s2-bar-row .name .sub { display: block; font-size: 15px; font-weight: 400; color: var(--ink-faint); margin-top: 4px; letter-spacing: 0.02em; }
+  .s2-bar-row .bar-track { height: 44px; position: relative; background: var(--bg-soft); border-radius: 1px; }
   .s2-bar-row .bar-fill { height: 100%; width: 0; transform-origin: left; }
   .s2-bar-row.process .bar-fill { background: var(--accent); }
   .s2-bar-row.data    .bar-fill { background: var(--ink); }
   .ready .s2-bar-row.process .bar-fill { animation: growBar 1.0s 0.7s cubic-bezier(0.2,0.8,0.2,1) forwards; --w: 86%; }
   .ready .s2-bar-row.data    .bar-fill { animation: growBar 1.0s 0.95s cubic-bezier(0.2,0.8,0.2,1) forwards; --w: 43%; }
   .s2-bar-row .pct {
-    font-size: 22px; font-weight: 600;
+    font-size: 32px; font-weight: 600;
     color: var(--ink); font-variant-numeric: tabular-nums;
     opacity: 0;
+    letter-spacing: -0.01em;
   }
   .ready .s2-bar-row.process .pct { animation: appear 0.5s 1.5s ease-out forwards; }
   .ready .s2-bar-row.data    .pct { animation: appear 0.5s 1.7s ease-out forwards; }
@@ -36,17 +37,17 @@
   @keyframes appear { to { opacity: 1; } }
 
   .s2-quote {
-    border-left: 3px solid var(--ink);
-    padding: 20px 32px;
+    border-left: 4px solid var(--ink);
+    padding: 24px 36px;
     background: var(--bg-soft);
   }
   .s2-quote .text {
-    font-size: 22px; font-weight: 500; line-height: 1.45;
+    font-size: 26px; font-weight: 500; line-height: 1.42;
     color: var(--ink); font-style: italic;
-    margin-bottom: 14px; text-wrap: pretty;
+    margin-bottom: 18px; text-wrap: pretty;
   }
   .s2-quote .attr {
-    font-size: 12px; letter-spacing: 0.1em;
+    font-size: 15px; letter-spacing: 0.08em;
     color: var(--ink-faint); text-transform: uppercase; font-weight: 600;
   }
   .s2-quote .attr strong { color: var(--ink-dim); }

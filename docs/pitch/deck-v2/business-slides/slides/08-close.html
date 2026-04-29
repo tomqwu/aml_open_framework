@@ -14,45 +14,50 @@
     padding: 0 96px;
   }
   .s8-eyebrow {
-    font-size: 13px; font-weight: 700;
+    font-size: 16px; font-weight: 700;
     letter-spacing: 0.28em; text-transform: uppercase;
     color: var(--accent); margin-bottom: 32px;
   }
   .s8-title {
-    font-size: 78px; font-weight: 600;
+    font-size: 96px; font-weight: 600;
     line-height: 1.05; letter-spacing: -0.022em;
     color: var(--ink);
-    margin-bottom: 56px;
-    text-wrap: balance; max-width: 1500px;
+    margin-bottom: 60px;
+    text-wrap: balance; max-width: 1600px;
   }
   .s8-title em { font-style: normal; color: var(--accent); }
 
-  .s8-paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; max-width: 1500px; }
-  .s8-path { border-top: 2px solid var(--ink); padding-top: 22px; }
+  .s8-paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; max-width: 1600px; }
+  .s8-path { border-top: 2px solid var(--ink); padding-top: 24px; }
   .s8-path .lead {
-    font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    font-size: 14px; letter-spacing: 0.22em; text-transform: uppercase;
     font-weight: 700; color: var(--accent);
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
   .s8-path h3 {
-    font-size: 24px; font-weight: 600;
-    color: var(--ink); margin-bottom: 12px;
+    font-size: 30px; font-weight: 600;
+    color: var(--ink); margin-bottom: 14px;
     line-height: 1.25;
   }
   .s8-path p {
-    font-size: 15px; color: var(--ink-dim); line-height: 1.5;
+    font-size: 19px; color: var(--ink-dim); line-height: 1.5;
   }
 
   .s8-repo {
     margin-top: 56px;
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 500;
     color: var(--ink);
     border-top: 1px solid var(--rule-strong);
-    padding-top: 22px;
-    width: 720px;
+    padding-top: 24px;
+    width: 820px;
   }
   .s8-repo .url { color: var(--accent); font-weight: 500; }
+  .s8-repo .meta {
+    color: var(--ink-faint); font-size: 15px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 600;
+    display: block; margin-bottom: 10px;
+  }
 </style>
 </head>
 <body>
@@ -82,7 +87,7 @@
     </div>
 
     <div class="s8-repo fade-up d6">
-      <span style="color:var(--ink-faint);font-size:13px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600;">Open source · MIT</span><br>
+      <span class="meta">Open source · MIT</span>
       <span class="url">github.com/tomqwu/aml_open_framework</span>
     </div>
   </div>

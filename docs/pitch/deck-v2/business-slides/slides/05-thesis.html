@@ -8,24 +8,24 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/tokens.css">
 <style>
-  .s5-exhibit { flex: 1; display: grid; grid-template-rows: auto auto auto; gap: 28px; align-content: start; }
+  .s5-exhibit { flex: 1; display: grid; grid-template-rows: auto auto auto; gap: 20px; align-content: start; }
   .source-pill {
     justify-self: center;
-    width: 360px;
-    padding: 28px 32px 24px;
+    width: 440px;
+    padding: 32px 40px 28px;
     background: var(--ink);
     color: white;
     text-align: center;
     border-radius: 2px;
   }
   .source-pill .label {
-    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
-    color: rgba(255,255,255,0.6); margin-bottom: 8px; font-weight: 500;
+    font-size: 14px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: rgba(255,255,255,0.62); margin-bottom: 10px; font-weight: 500;
   }
-  .source-pill .name { font-size: 28px; font-weight: 600; color: white; margin-bottom: 4px; }
-  .source-pill .sub { font-size: 13px; color: rgba(255,255,255,0.7); letter-spacing: 0.02em; }
+  .source-pill .name { font-size: 38px; font-weight: 600; color: white; margin-bottom: 8px; letter-spacing: -0.012em; }
+  .source-pill .sub { font-size: 16px; color: rgba(255,255,255,0.78); letter-spacing: 0.02em; }
 
-  .branches { height: 100px; position: relative; }
+  .branches { height: 80px; position: relative; }
   .branches svg { width: 100%; height: 100%; }
   .branches path {
     fill: none; stroke: var(--ink-dim); stroke-width: 1.5;
@@ -40,21 +40,21 @@
   .role-box {
     border: 1px solid var(--rule-strong);
     background: var(--bg);
-    padding: 24px 28px;
+    padding: 28px 32px;
   }
   .role-box .role {
-    font-size: 11px; font-weight: 700;
+    font-size: 14px; font-weight: 700;
     letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--accent); margin-bottom: 12px;
+    color: var(--accent); margin-bottom: 16px;
   }
-  .role-box .what { font-size: 17px; font-weight: 500; line-height: 1.4; color: var(--ink); margin-bottom: 12px; }
+  .role-box .what { font-size: 22px; font-weight: 500; line-height: 1.4; color: var(--ink); margin-bottom: 18px; }
   .role-box .quote {
-    font-size: 14px; font-weight: 400; line-height: 1.5;
+    font-size: 17px; font-weight: 400; line-height: 1.5;
     color: var(--ink-dim); font-style: italic;
-    border-top: 1px solid var(--rule); padding-top: 12px;
+    border-top: 1px solid var(--rule); padding-top: 14px;
   }
 
-  .s5-takeaway { margin-top: 40px; }
+  .s5-takeaway { margin-top: 28px; }
 </style>
 </head>
 <body>
@@ -65,9 +65,8 @@
     <h2 class="action-title fade-up" style="margin-bottom:16px;">
       One specification serves three reviewers — <em>without re-translation</em>.
     </h2>
-    <p class="dek fade-up d2" style="margin-bottom:56px;">
-      A single machine-readable file is authored by Compliance, executed unchanged by Engineering, and
-      replayed byte-for-byte by an Auditor. Three different readings of the same artifact — every quarter, every regulator visit.
+    <p class="dek fade-up d2" style="margin-bottom:40px;">
+      One machine-readable file. Authored by Compliance, executed unchanged by Engineering, replayed byte-for-byte by an Auditor — every quarter.
     </p>
 
     <div class="s5-exhibit">
@@ -104,7 +103,7 @@
 
     <div class="takeaway s5-takeaway fade-up d8">
       <span class="label">Key takeaway</span>
-      Eliminating the translation layer between three lines of defence removes the most-cited finding in 2024–26 consent orders: <em>"controls existed; the bank could not evidence they were used."</em>
+      Remove the translation layer between 1LoD / 2LoD / 3LoD — and you remove the most-cited finding of 2024–26.
     </div>
   </div>
 
