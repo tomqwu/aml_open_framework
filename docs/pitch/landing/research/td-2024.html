@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case study · 2024 BSA enforcement · AML Open Framework</title>
+<meta name="description" content="The largest BSA enforcement action of 2024 — $3.09B. Five findings mapped to specific spec clauses, demonstrating how spec-driven controls make these gap patterns visible.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_research.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="r-frame">
+    <span>Research <span class="num">·</span> 02</span>
+    <span style="margin-left:auto"><a href="../#/">← back to resource hub</a></span>
+  </div>
+
+  <div class="r-eyebrow">Case study · October 2024</div>
+  <h1 class="r-title">The largest BSA enforcement action of <em>2024</em>.</h1>
+  <p class="r-lede">
+    On 10 October 2024, two affiliated U.S. bank entities pled guilty to conspiracy to fail to maintain an adequate AML program and conspiracy to commit money laundering. Combined penalties — <strong>$3.09 billion</strong> — make this the largest BSA enforcement action in history. Five findings, mapped clause-by-clause to the framework spec.
+  </p>
+  <div class="r-meta">
+    <span><strong>Penalty</strong> · $3.09B + asset cap (~$434B)</span>
+    <span><strong>Sources</strong> · DOJ · FinCEN · OCC consent orders</span>
+    <span><strong>Filed</strong> · Oct 2024</span>
+  </div>
+
+  <h2 class="r-h2"><em>Penalty</em> breakdown</h2>
+  <table class="r-table">
+    <thead>
+      <tr><th>Agency</th><th>Amount</th><th>Instrument</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>DOJ</strong></td><td>~$1.8B</td><td>Criminal fine + forfeiture</td></tr>
+      <tr><td><strong>FinCEN</strong></td><td>~$1.3B</td><td>Civil money penalty</td></tr>
+      <tr><td><strong>OCC</strong></td><td>~$450M</td><td>Civil money penalty (AA-EC-2024-71)</td></tr>
+    </tbody>
+  </table>
+  <p class="r-p">
+    The OCC also imposed an <strong>asset cap</strong> on U.S. operations (~$434B) — only the second such restriction on a major bank since the 2018 precedent.
+  </p>
+
+  <h2 class="r-h2">Five <em>findings</em></h2>
+
+  <h3 class="r-h3">1 · Channel coverage gap (~92% unmonitored)</h3>
+  <p class="r-p">
+    The transaction-monitoring system was configured to monitor only a narrow set of transaction types — primarily international wires. Domestic ACH, cheques, and certain other channels were <strong>excluded entirely</strong>. Approximately <strong>92% of transaction volume by dollar value</strong> — over <strong>$18.3 trillion</strong> between 2018 and 2024 — was never reviewed by automated monitoring.
+  </p>
+
+  <h3 class="r-h3">2 · Pass-through / rapid movement</h3>
+  <p class="r-p">
+    Criminal networks deposited funds (often via ACH or cash) and withdrew or transferred them out within hours or days. One network moved over <strong>$470 million</strong> through bank accounts between 2019 and 2023 using this pattern. A second moved approximately <strong>$39 million</strong>.
+  </p>
+
+  <h3 class="r-h3">3 · Shell companies and nominee accounts</h3>
+  <p class="r-p">
+    Accounts were opened in the names of shell companies or entities with no apparent legitimate business purpose. CDD / KYC failures meant the bank did not identify true beneficial owners.
+  </p>
+
+  <h3 class="r-h3">4 · Internal alert failures</h3>
+  <p class="r-p">
+    Multiple employees filed internal suspicious-activity referrals that <strong>were not investigated, not escalated, or not acted upon</strong>. At least <strong>five employees</strong> were identified as facilitating or complicit in laundering schemes. Branch-level concerns went nowhere because the compliance infrastructure failed to act on referrals.
+  </p>
+
+  <h3 class="r-h3">5 · SAR filing delays</h3>
+  <p class="r-p">
+    SARs were filed months or even years late. The bank had a backlog of thousands of unreviewed alerts. Under-filing was systemic — SAR volume was inconsistent with the bank's transaction volume and risk profile.
+  </p>
+
+  <h2 class="r-h2"><em>Traceability</em>: finding to spec clause</h2>
+  <p class="r-section-dek">
+    Each finding maps to a specific clause in <code>examples/canadian_schedule_i_bank/aml.yaml</code>. This is not a claim that the framework would have prevented the enforcement — it is a traceability example showing that spec-driven controls make these gap patterns <strong>visible and measurable</strong> in production.
+  </p>
+  <table class="r-table">
+    <thead>
+      <tr><th>Finding</th><th>Spec clause</th><th>How it surfaces</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>92% unmonitored channels</strong></td>
+        <td><span class="code">metrics.channel_coverage_gap</span></td>
+        <td>Metric turns RED if any declared channel lacks a detection rule. Audience: SVP, VP, Director.</td>
+      </tr>
+      <tr>
+        <td><strong>Pass-through ($470M+)</strong></td>
+        <td><span class="code">rules.rapid_pass_through</span></td>
+        <td>Custom SQL: cash-in → e-transfer-out within 48h, ≥$30K. Fires on planted scenario C0007. Tags: <em>pass_through, layering, e_transfer</em>.</td>
+      </tr>
+      <tr>
+        <td><strong>Shell companies</strong></td>
+        <td><span class="code">rules.shell_company_indicators</span></td>
+        <td>Custom SQL: no business activity + 10+ incoming wires. Fires on planted shell C0008 (Oceanic Holdings Ltd).</td>
+      </tr>
+      <tr>
+        <td><strong>Internal alerts ignored</strong></td>
+        <td><span class="code">metrics.internal_alert_ignored</span></td>
+        <td>Repeat-alert rate: closed_no_action then re-alerted within 90d. Metric turns RED if &gt;5% of closed cases re-surface.</td>
+      </tr>
+      <tr>
+        <td><strong>SAR filing delays</strong></td>
+        <td><span class="code">metrics.str_filing_latency_p95</span></td>
+        <td>Target ≤30 days per PCMLTFR. Metric turns RED if p95 latency exceeds threshold.</td>
+      </tr>
+      <tr>
+        <td><strong>Under-filing / LCTR gaps</strong></td>
+        <td><span class="code">metrics.lctr_completeness</span></td>
+        <td>Target 100% of reportable cash transactions reported. Metric turns RED on any gap.</td>
+      </tr>
+      <tr>
+        <td><strong>CDD / EDD failures</strong></td>
+        <td><span class="code">metrics.edd_review_adherence</span></td>
+        <td>Target ≥95% of high-risk customers have current EDD. RED if &lt;80%.</td>
+      </tr>
+      <tr>
+        <td><strong>Inadequate program</strong></td>
+        <td><span class="code">metrics.typology_coverage</span></td>
+        <td>Coverage below 80% turns RED. Active rules below 4 turns RED.</td>
+      </tr>
+      <tr>
+        <td><strong>Compliance culture</strong></td>
+        <td><span class="code">workflow.queues</span></td>
+        <td>Spec-driven workflow forces every alert through a queue with a timed SLA and named owner.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="r-h2">Reports that would have <em>flagged it</em></h2>
+  <p class="r-section-dek">
+    The spec generates five audience-specific reports. Each one would have surfaced one or more of the findings above before the enforcement window closed.
+  </p>
+  <table class="r-table">
+    <thead>
+      <tr><th>Report</th><th>Audience</th><th>What it shows</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="code">cao_quarterly</span></td>
+        <td>SVP · Chief AML Officer</td>
+        <td>Channel-coverage gap, typology coverage, STR-filing latency, LCTR completeness</td>
+      </tr>
+      <tr>
+        <td><span class="code">mlro_monthly</span></td>
+        <td>VP · MLRO</td>
+        <td>Repeat-alert rate (internal alerts ignored), EDD adherence, escalation health</td>
+      </tr>
+      <tr>
+        <td><span class="code">fintrac_readiness</span></td>
+        <td>Director</td>
+        <td>Coverage controls, regulatory compliance, escalation integrity</td>
+      </tr>
+      <tr>
+        <td><span class="code">ops_daily</span></td>
+        <td>Manager</td>
+        <td>Queue load, SLA compliance, transaction volume</td>
+      </tr>
+      <tr>
+        <td><span class="code">osfi_exam_prep</span></td>
+        <td>Auditor</td>
+        <td>Full coverage + filing + escalation evidence package</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="r-h2"><em>Regulatory citations</em> in the spec</h2>
+  <p class="r-section-dek">
+    Every rule in the spec cites the regulation clause that justifies it. This is the line-by-line provability the FCA Dear-CEO Letter says is missing from most current programs.
+  </p>
+  <table class="r-table">
+    <thead>
+      <tr><th>Rule</th><th>Citations</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="code">structuring_cash_deposits</span></td><td>PCMLTFA s.11.1 · PCMLTFR s.7(1)</td></tr>
+      <tr><td><span class="code">rapid_pass_through</span></td><td>PCMLTFA s.7 · FINTRAC Operational Alert 2016-01</td></tr>
+      <tr><td><span class="code">shell_company_indicators</span></td><td>PCMLTFA s.7 · PCMLTFR s.138 · OSFI Guideline B-8 s.4</td></tr>
+      <tr><td><span class="code">high_risk_jurisdiction</span></td><td>PCMLTFA s.9.4 · FINTRAC Guideline 8A</td></tr>
+      <tr><td><span class="code">large_cash_lctr</span></td><td>PCMLTFR s.7(1) · PCMLTFR s.132</td></tr>
+      <tr><td><span class="code">unusual_volume_spike</span></td><td>PCMLTFA s.7 · PCMLTFR s.123.1</td></tr>
+      <tr><td><span class="code">dormant_account_activity</span></td><td>PCMLTFA s.7 · FINTRAC ML/TF Indicators</td></tr>
+    </tbody>
+  </table>
+
+  <div class="r-callout">
+    <span class="label">Reading note</span>
+    The traceability tables here use the <em>Canadian Schedule-I bank</em> example spec because the framework's reference jurisdiction maps cleanly to FINTRAC / OSFI obligations. Equivalent spec clauses exist in the U.S. (FinCEN), UK (FCA / POCA) and EU (EBA / AMLD6) example specs.
+  </div>
+
+  <div class="r-foot">
+    <a href="../#/">← back to resource hub</a>
+    <span class="gh">view source on <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/case-studies/td-2024.md">github</a></span>
+  </div>
+
+</div>
+
+</body>
+</html>

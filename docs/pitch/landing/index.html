@@ -564,16 +564,15 @@
         <a href="#/" class="nav-link" data-route="home">Home</a>
         <a href="#/business/deck" class="nav-link" data-audience="business">Business</a>
         <a href="#/technical/deck" class="nav-link" data-audience="technical">Technical</a>
+        <a href="#/research/process-pain" class="nav-link" data-audience="research">Research</a>
         <a href="https://github.com/tomqwu/aml_open_framework" class="nav-link" target="_blank" rel="noopener">Source <span class="ext">↗</span></a>
       </nav>
     </div>
 
-    <!-- Secondary tabs — only visible when an audience is selected -->
+    <!-- Secondary tabs — populated dynamically per-scope -->
     <div class="nav-secondary" id="navSecondary">
       <span class="scope" id="navScope">Business</span>
-      <a class="tab" data-tab="deck"  href="#">Deck <span class="meta" data-meta="deck"></span></a>
-      <a class="tab" data-tab="video" href="#">Video <span class="meta" data-meta="video"></span></a>
-      <a class="tab" data-tab="pdf"   href="#">PDF <span class="meta" data-meta="pdf"></span></a>
+      <div id="navTabs" style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;"></div>
     </div>
   </header>
 
@@ -709,23 +708,23 @@
         </p>
 
         <div class="more-grid">
-          <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md" target="_blank" rel="noopener">
-            <div class="kind">Research · Markdown</div>
+          <a class="more-card" href="#/research/process-pain">
+            <div class="kind">Research · Style guide</div>
             <h4>10 daily pain points an AML leader feels — 2026</h4>
             <p>Each pain anchored in an FCA / FinCEN / OSFI / FINTRAC publication, with the verbatim quote, role affected, cost type, and the framework capability that addresses it.</p>
-            <span class="link">docs/research/2026-04-aml-process-pain.md</span>
+            <span class="link">research/process-pain → opens in viewer</span>
           </a>
-          <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/case-studies/td-2024.md" target="_blank" rel="noopener">
-            <div class="kind">Case study · Markdown</div>
-            <h4>TD Bank 2024 — the framing case for every recent enforcement</h4>
-            <p>The largest BSA enforcement action in history ($3.09B + a $434B U.S. asset cap). Channel coverage gaps, pass-through patterns, AIU "red status" backlog.</p>
-            <span class="link">docs/case-studies/td-2024.md</span>
+          <a class="more-card" href="#/research/td-2024">
+            <div class="kind">Case study · 2024</div>
+            <h4>The largest BSA enforcement action of 2024 — $3.09B</h4>
+            <p>Five findings — channel coverage, pass-through, shell companies, internal-alert failures, SAR delays — each mapped clause-by-clause to a specific spec primitive in the framework.</p>
+            <span class="link">research/td-2024 → opens in viewer</span>
           </a>
-          <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-competitive-positioning.md" target="_blank" rel="noopener">
-            <div class="kind">Research · Markdown</div>
-            <h4>Competitive positioning vs. Actimize / Hawk:AI / Marble / Jube</h4>
-            <p>How the framework slots in against veteran rules-plus-ML platforms, AI-native challengers, graph specialists, regtech utilities, and open-source neighbours.</p>
-            <span class="link">docs/research/2026-04-competitive-positioning.md</span>
+          <a class="more-card" href="#/research/competitive">
+            <div class="kind">Research · Landscape</div>
+            <h4>Competitive positioning · 2026</h4>
+            <p>Where the framework slots in against veteran rules+ML platforms, AI-native challengers, graph specialists, OSS alternatives — and the five highest-leverage next features ranked by impact ÷ effort.</p>
+            <span class="link">research/competitive → opens in viewer</span>
           </a>
           <a class="more-card" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener">
             <div class="kind">Source · GitHub</div>
@@ -765,18 +764,43 @@
   (() => {
     // Resource registry — what each /audience/type loads, and how.
     const RESOURCES = {
-      'business/deck':  { kind: 'iframe', src: 'business/',                                 title: 'Business deck · 10 exhibits' },
-      'business/video': { kind: 'video',  src: 'business/video/board-video.mp4',            title: 'Board video · 64 s · BGM' },
-      'business/pdf':   { kind: 'iframe', src: 'business/aml-open-framework-business.pdf',  title: 'Business PDF · 10 pages' },
+      'business/deck':  { kind: 'iframe', src: 'business/',                                  title: 'Business deck · 10 exhibits' },
+      'business/video': { kind: 'video',  src: 'business/video/board-video.mp4',             title: 'Board video · 64 s · BGM' },
+      'business/pdf':   { kind: 'iframe', src: 'business/aml-open-framework-business.pdf',   title: 'Business PDF · 10 pages' },
       'technical/deck': { kind: 'iframe', src: 'technical/',                                 title: 'Technical deck · 19 slides' },
-      'technical/video':{ kind: 'video',  src: 'technical/video/walkthrough.mp4',           title: 'Walkthrough video · 92 s · BGM' },
-      'technical/pdf':  { kind: 'iframe', src: 'technical/aml-open-framework-v2.pdf',       title: 'Technical PDF · 19 pages' },
+      'technical/video':{ kind: 'video',  src: 'technical/video/walkthrough.mp4',            title: 'Walkthrough video · 92 s · BGM' },
+      'technical/pdf':  { kind: 'iframe', src: 'technical/aml-open-framework-v2.pdf',        title: 'Technical PDF · 19 pages' },
+      'research/process-pain':  { kind: 'iframe', src: 'research/process-pain.html',         title: '10 daily pain points · style guide' },
+      'research/td-2024':       { kind: 'iframe', src: 'research/td-2024.html',              title: 'Case study · $3.09B BSA enforcement (Oct 2024)' },
+      'research/competitive':   { kind: 'iframe', src: 'research/competitive-positioning.html', title: 'Competitive landscape · 2026' },
     };
 
-    // Per-audience metadata (shown in nav-secondary when audience is active)
-    const AUDIENCE_META = {
-      business: { label: 'Business', deck: '10 exhibits', video: '64 s', pdf: '10 pp' },
-      technical:{ label: 'Technical', deck: '19 slides', video: '92 s', pdf: '19 pp' },
+    // Per-scope metadata: each scope defines its own secondary tabs.
+    const SCOPES = {
+      business: {
+        label: 'Business',
+        tabs: [
+          { key: 'deck',  label: 'Deck',  meta: '10 exhibits' },
+          { key: 'video', label: 'Video', meta: '64 s' },
+          { key: 'pdf',   label: 'PDF',   meta: '10 pp' },
+        ],
+      },
+      technical: {
+        label: 'Technical',
+        tabs: [
+          { key: 'deck',  label: 'Deck',  meta: '19 slides' },
+          { key: 'video', label: 'Video', meta: '92 s' },
+          { key: 'pdf',   label: 'PDF',   meta: '19 pp' },
+        ],
+      },
+      research: {
+        label: 'Research',
+        tabs: [
+          { key: 'process-pain', label: 'Pain points', meta: '10 pains' },
+          { key: 'td-2024',      label: 'Case study',  meta: '2024' },
+          { key: 'competitive',  label: 'Landscape',   meta: '2026' },
+        ],
+      },
     };
 
     const landingView = document.getElementById('landingView');
@@ -785,12 +809,13 @@
     const viewerStatus = document.getElementById('viewerStatus');
     const navSecondary = document.getElementById('navSecondary');
     const navScope = document.getElementById('navScope');
+    const navTabs = document.getElementById('navTabs');
 
     function parseHash() {
       const h = (location.hash || '#/').slice(1).replace(/^\//, '');
       if (!h) return { route: 'home' };
       const parts = h.split('/').filter(Boolean);
-      if (parts.length >= 2 && AUDIENCE_META[parts[0]]) {
+      if (parts.length >= 2 && SCOPES[parts[0]]) {
         return { route: 'resource', audience: parts[0], type: parts[1] };
       }
       return { route: 'home' };
@@ -844,21 +869,19 @@
         a.classList.toggle('active', !!(isHome || isAud));
       });
 
-      // Secondary tabs — only show when an audience is active
-      if (state.route === 'resource' && state.audience) {
+      // Secondary tabs — render the tab set for the active scope.
+      if (state.route === 'resource' && state.audience && SCOPES[state.audience]) {
+        const scope = SCOPES[state.audience];
         navSecondary.classList.add('show');
-        const meta = AUDIENCE_META[state.audience];
-        navScope.textContent = meta.label;
-        document.querySelectorAll('.nav-secondary .tab').forEach(a => {
-          const t = a.dataset.tab;
-          a.href = `#/${state.audience}/${t}`;
-          a.classList.toggle('active', t === state.type);
-          // Update meta label inside the tab
-          const metaSpan = a.querySelector('[data-meta]');
-          if (metaSpan) metaSpan.textContent = '· ' + meta[t];
-        });
+        navScope.textContent = scope.label;
+        navTabs.innerHTML = scope.tabs.map(t => `
+          <a class="tab${t.key === state.type ? ' active' : ''}" href="#/${state.audience}/${t.key}">
+            ${t.label} <span class="meta">· ${t.meta}</span>
+          </a>
+        `).join('');
       } else {
         navSecondary.classList.remove('show');
+        navTabs.innerHTML = '';
       }
     }
 
@@ -880,9 +903,9 @@
       }
     }
 
-    // Update primary "Business" / "Technical" nav links to remember last sub-view
+    // Update primary nav links to remember last sub-view per scope
     // (so clicking "Business" again returns to whichever resource the user last viewed).
-    const lastView = { business: 'deck', technical: 'deck' };
+    const lastView = { business: 'deck', technical: 'deck', research: 'process-pain' };
     document.querySelectorAll('.nav-primary [data-audience]').forEach(a => {
       const aud = a.dataset.audience;
       a.addEventListener('click', () => { /* href already set; no-op needed */ });

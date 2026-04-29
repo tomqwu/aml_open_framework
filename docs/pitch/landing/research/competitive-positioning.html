@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Competitive landscape · 2026 · AML Open Framework</title>
+<meta name="description" content="Where this framework competes against commercial enterprise platforms, AI-native challengers, graph specialists, and OSS alternatives. Five highest-leverage features ranked.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_research.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="r-frame">
+    <span>Research <span class="num">·</span> 03</span>
+    <span style="margin-left:auto"><a href="../#/">← back to resource hub</a></span>
+  </div>
+
+  <div class="r-eyebrow">Competitive positioning · April 2026</div>
+  <h1 class="r-title">Where this framework <em>actually wins</em>.</h1>
+  <p class="r-lede">
+    Deep-research output across vendor sites, regulator notices, OSS repos, and industry analyst blogs. Four buyer archetypes, three OSS competitors, two real defensible moats — and five features ranked by impact ÷ effort against the AMLA July 2026 deadline and the FinCEN NPRM comment-period close.
+  </p>
+  <div class="r-meta">
+    <span><strong>Author</strong> · deep-research-agent</span>
+    <span><strong>Scope</strong> · post-Round 5–6 · 24 dashboard pages · 991 tests</span>
+    <span><strong>Refresh</strong> · 2026-04-27</span>
+  </div>
+
+  <h2 class="r-h2"><span class="num">1.</span> Competitive <em>landscape</em></h2>
+
+  <h3 class="r-h3">Commercial enterprise platforms</h3>
+  <p class="r-p">
+    The 2026 buyer field separates into four archetypes, and the framework competes against each differently.
+  </p>
+  <p class="r-p">
+    <strong>Veteran rules-plus-ML platforms</strong> — NICE Actimize SAM, Oracle FCCM, SymphonyAI Sensa-NetReveal, FIS / SAS AML. These dominate Tier-1 RFPs by default; veteran vendors win on enterprise-scale detection, regulator familiarity, and decades of typology libraries (<a href="https://www.symphonyai.com/resources/blog/financial-services/top-10-aml-software-banks-2026/">SymphonyAI 2026</a>, <a href="https://alessa.com/blog/top-10-transaction-monitoring-software-solutions/">Alessa 2026</a>). Differentiator: scale + audit comfort. <strong>Where the framework slots in:</strong> proof-of-concept tier at large banks (where ~18–24-month deploy costs $50M+ TCO per <a href="https://www.tookitaki.com/compliance-hub/best-aml-solution-for-banks-2025">Tookitaki 2025</a>), and as a <strong>second-line challenger model</strong> for MRM independent re-implementation under SR 26-2.
+  </p>
+  <p class="r-p">
+    <strong>AI-native challengers</strong> — ComplyAdvantage, Hawk:AI, Featurespace (Visa), Feedzai, Lucinity. Hawk:AI raised a $56M Series C in April 2025 and another $10M in Jan 2026 explicitly for "AML-as-a-service" (<a href="https://siliconangle.com/2025/04/08/hawk-secures-56-million-expand-financial-crime-detection-platform/">SiliconAngle 2025-04-08</a>). They differentiate on cloud-native deployment, claimed false-positive reduction (ComplyAdvantage cites 65–85%, <a href="https://complyadvantage.com/vendor/best-transaction-monitoring-software/">ComplyAdvantage</a>), and explainable-AI marketing. <strong>The framework slots in adjacent, not opposed</strong> — challengers win mid-market RFPs where the framework currently has no commercial sales motion; it competes for the same buyer only when the buyer specifically wants source-available code.
+  </p>
+  <p class="r-p">
+    <strong>Graph / network specialists</strong> — Quantexa, Ripjar, Sayari. Quantexa's "contextual decision intelligence" graph is the marketed differentiator for complex layering investigations. The framework's <code>network_pattern</code> rule plus Mermaid renders is <strong>functionally narrower</strong> but ships in one binary; Quantexa requires multi-quarter integration. Slot: useful for case-level visualisation, not full graph-DB workloads.
+  </p>
+  <p class="r-p">
+    <strong>Regtech utilities</strong> — Fenergo (KYC orchestration), ComplyAdvantage data, Refinitiv WorldCheck. Mostly orthogonal — they sell data and onboarding, not detection.
+  </p>
+
+  <h3 class="r-h3">Open source / neighbour OSS</h3>
+  <p class="r-p">Three projects are real competitors today:</p>
+  <ul class="r-list">
+    <li><strong>Marble</strong> (<a href="https://github.com/checkmarble/marble">checkmarble/marble</a>) — the only commercially-backed OSS competitor. AGPL / MIT split, real-time decision engine, no-code rule builder, AI investigation assistant. Strongest direct alternative; strength is the no-code UX and modern Go / TS stack. Weakness vs. AML Open Framework: no spec-as-source-of-truth, no MRM bundle, no jurisdiction-specific reporting templates, no deterministic-rerun guarantee.</li>
+    <li><strong>Jube</strong> (<a href="https://github.com/jube-home/aml-fraud-transaction-monitoring">jube-home</a>) — AGPLv3, ML-first (adaptive ANN), real-time scoring + workflow. Differentiates on built-in models. <em>Weakness:</em> ML-first design is exactly what FinCEN's NPRM and SR 26-2 push back against (model-risk surface).</li>
+    <li><strong>FINOS OpenAML</strong> (<a href="https://github.com/finos-labs/dtcch-2025-OpenAML">finos-labs/dtcch-2025-OpenAML</a>) — DTCC hackathon origin, on-chain AML focus, ML-classification of wallets. Narrow scope (crypto wallets), labs-stage, not a TM platform.</li>
+  </ul>
+  <p class="r-p">
+    Apache Fineract, OpenCRE, and Frankfurter are <em>adjacent</em> (core banking, control mappings, FX rates) — none compete on detection.
+  </p>
+
+  <h3 class="r-h3">Internal "build it yourself"</h3>
+  <p class="r-p">
+    Tier-1 / Tier-2 banks predominantly <strong>build on Databricks / Snowflake lakehouses</strong> with bespoke Spark or SQL rule libraries, plus a commercial alert manager bolted on top (<a href="https://www.databricks.com/blog/2021/07/16/aml-solutions-at-scale-using-databricks-lakehouse-platform.html">Databricks AML pattern</a>, <a href="https://www.tookitaki.com/compliance-hub/best-aml-solution-for-banks-2025">Tookitaki 2025</a>). Build-cost cited at &gt;$50M / 5y; only viable above ~5B txns/month. The framework displaces <strong>the rule-authoring + audit-trail + reporting layers</strong> of these stacks (which are the parts banks consistently underinvest in), while leaving the lakehouse storage layer untouched. The persona that lands is the <strong>second-line model-risk team</strong> that needs an independent, reproducible re-implementation to validate the production engine — not the production engine itself.
+  </p>
+
+  <h2 class="r-h2"><span class="num">2.</span> Where the framework <em>actually wins</em></h2>
+
+  <h3 class="r-h3">Defensible "every line written by a human" moat</h3>
+  <p class="r-p">
+    FinCEN's April 2026 NPRM and SR 26-2 (joint Fed / OCC / FDIC, <a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm">SR 26-2 letter</a>, effective April&nbsp;17 2026) explicitly fold BSA/AML transaction monitoring, sanctions screening, and CDD into the model-risk inventory. ML-first vendors (Hawk, Feedzai, Jube) now carry a <strong>model-validation tax on every typology</strong>; the framework's YAML rules with <code>regulation_ref</code> are not models under SR 26-2 — they are policy artefacts. <strong>Buyer that lands:</strong> second-line MRM / validation function at any Cat-2+ bank, plus FinCEN / OCC examiners.
+  </p>
+
+  <h3 class="r-h3">Deterministic re-run + hash-chained audit ledger</h3>
+  <p class="r-p">
+    Every commercial platform produces operational logs; none publish a same-spec + same-data + same-seed = identical-output guarantee. Combined with the Round-3 MRM bundle (SR 26-2 / OCC 2026-13 aligned), this makes the framework usable as the <strong>independent challenger model</strong> the new guidance now expects, without buying a second commercial license. <strong>Buyer:</strong> MRM Director / Chief Model Risk Officer.
+  </p>
+
+  <h3 class="r-h3">ISO 20022 native ingestion</h3>
+  <p class="r-p">
+    SWIFT MX-only cutover was 2025-11-22 (<a href="https://www.bny.com/assets/corporate/documents/pdf/iso-20022-end-of-coexistence_-may-2025-final.pdf">BNY end-of-coexistence note</a>); full structured-address deadline is Nov 2026. Marble, Jube, OpenAML have no ISO 20022 adapter in tree. Commercial vendors all support it but as a paid module, not a documented spec. Shipping pacs.008/009/004 + pain.001 + Travel-Rule field validator + 28-row purpose-code reference + 44-row return-reason library as one binary is currently <strong>uncontested in OSS and cheaper than any commercial module</strong>. <strong>Buyer:</strong> correspondent-banking / payments-ops team at a challenger or VASP.
+  </p>
+
+  <h3 class="r-h3">Investigation-aggregator vs. alert-centric platforms</h3>
+  <p class="r-p">
+    FinCEN's NPRM language switched to "investigation outcomes" as the unit of effectiveness; deterministic <code>INV-{sha256[:16]}</code> grouping with three explicit strategies plus auto-bundled STR ZIP (network Mermaid + narrative + goAML XML + manifest) is the right shape. Most commercial platforms still measure SAR-per-alert, not investigation-per-typology. <strong>Buyer:</strong> BSA Officer / FIU lead at challenger banks; also consultancies running pre-exam mock reviews.
+  </p>
+
+  <h3 class="r-h3">One-binary deployability + multi-jurisdiction templating</h3>
+  <p class="r-p">
+    Pip-installable, DuckDB-in-memory, Streamlit + FastAPI in the same repo. <strong>Time-to-first-alert measured in minutes vs. the 9–24-month commercial deploys.</strong> Seven example specs covering US / CA / EU / UK / VASP / cyber-fraud is unmatched in OSS and rare commercially (most vendors charge per-jurisdiction module). <strong>Buyer:</strong> regtech consultancies, fintech compliance teams, cross-border challenger banks, EMI / PI applicants needing AMLA-ready evidence.
+  </p>
+
+  <div class="r-callout">
+    <span class="label">What it does NOT win on</span>
+    Real-time sub-second scoring at billions-of-txns scale, sales / support contracts, vendor risk-management process for tier-1 procurement, brand recognition.
+  </div>
+
+  <h2 class="r-h2"><span class="num">3.</span> Five highest-leverage <em>next features</em></h2>
+  <p class="r-section-dek">
+    Re-ranked with current evidence. The AMLA July 2026 deadline (<a href="https://www.amla.europa.eu/amla-takes-major-step-toward-harmonised-eu-supervision_en">AMLA portal</a>) and the FinCEN NPRM comment-period closing June 9 2026 (<a href="https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs">Federal Register 2026-07033</a>) reshuffle the impact ÷ effort math.
+  </p>
+
+  <div class="r-feat">
+    <div class="head">
+      <span class="rank">#1</span>
+      <span class="ttl">Regulatory-change diff watcher · <em>compliance/regwatch.py</em></span>
+      <div class="badges"><span class="badge">3 days</span><span class="badge imp">IMPACT/EFFORT: HIGHEST</span></div>
+    </div>
+    <p>Hash every <code>regulation_ref</code> URL in every shipped spec; alert on drift. <strong>Why now:</strong> FinCEN BOI was narrowed in March 2025 (<a href="https://www.fincen.gov/boi">FinCEN BOI page</a>) and FinCEN's April 7 2026 NPRM materially rewrites AML program requirements with a 12-month implementation tail — every example spec's regulator reference is at risk of going stale silently. No commercial vendor ships this because they own the rule library themselves; the framework needs it precisely because it doesn't.</p>
+    <div class="risk"><strong>Risk:</strong> false positives on cosmetic page edits (mitigation: textual-diff threshold + human approval gate).</div>
+  </div>
+
+  <div class="r-feat">
+    <div class="head">
+      <span class="rank">#2</span>
+      <span class="ttl">AMLA STR / RTS effectiveness telemetry pack · <em>metrics/outcomes.py + examples/amla_rts_2026/</em></span>
+      <div class="badges"><span class="badge">6 days</span><span class="badge imp">IMPACT/EFFORT: HIGH</span></div>
+    </div>
+    <p>Alert → case → STR funnel with per-rule precision / recall, packaged against the AMLA RTS due July 10 2026 (<a href="https://blog.protiviti.com/2026/03/16/amla-readiness-starts-now-ten-practical-moves-for-2026/">Protiviti AMLA readiness</a>). FinCEN's NPRM enumerates the same metrics. <strong>One feature, two regulators, both with hard 2026 deadlines.</strong></p>
+    <div class="risk"><strong>Risk:</strong> outcome data depends on case-disposition labels the framework doesn't currently demand — needs schema additions to cases, not just metrics.</div>
+  </div>
+
+  <div class="r-feat">
+    <div class="head">
+      <span class="rank">#3</span>
+      <span class="ttl">TBML + APP-fraud spec pair · <em>examples/trade_based_ml/ + examples/uk_app_fraud/</em></span>
+      <div class="badges"><span class="badge">9 days</span><span class="badge imp">IMPACT/EFFORT: HIGH</span></div>
+    </div>
+    <p>TBML covers FATF / Egmont's continuing focus area (cited in the <a href="https://www.fatf-gafi.org/en/publications/Fatfgeneral/outcomes-FATF-plenary-february-2026.html">FATF Feb 2026 plenary outcomes</a>); APP-fraud covers the <a href="https://www.psr.org.uk/information-for-consumers/app-scams-reimbursement-dashboard/">PSR's expanding scope to CHAPS + Q2 2026 joint review</a>. Together they answer the FRAML-convergence buyer question without building a fraud engine — just demonstrating the framework can express the typologies.</p>
+    <div class="risk"><strong>Risk:</strong> spec authenticity — needs a real practitioner review or it reads as theoretical (mitigation: cite specific PSR / Egmont indicator lists).</div>
+  </div>
+
+  <div class="r-feat">
+    <div class="head">
+      <span class="rank">#4</span>
+      <span class="ttl">PSD3 / Verification-of-Payee (VoP) ingestion adapter · <em>data/psd3/</em></span>
+      <div class="badges"><span class="badge">5 days</span><span class="badge imp">IMPACT/EFFORT: MED-HIGH</span></div>
+    </div>
+    <p>PSD3 + PSR are expected in the Official Journal end-Q2 2026, with VoP / payee-name-match liability applying 24 months after entry into force (<a href="https://www.nortonrosefulbright.com/en/knowledge/publications/cedd39c6/psd3-and-psr-from-provisional-agreement-to-2026-readiness">Norton Rose Fulbright PSD3 brief</a>). Lands a payments-ops persona that today has no OSS option. <strong>Why now:</strong> the 2-year clock is the right window for a reference implementation to exist before banks have to procure one.</p>
+    <div class="risk"><strong>Risk:</strong> spec instability between Council / Parliament agreement and Official Journal publication — mark the adapter "draft" with a version pinned to the agreed text.</div>
+  </div>
+
+  <div class="r-feat">
+    <div class="head">
+      <span class="rank">#5</span>
+      <span class="ttl">FINTRAC pre-examination audit pack · <em>aml audit-pack --jurisdiction CA-FINTRAC</em></span>
+      <div class="badges"><span class="badge">4 days</span><span class="badge imp">IMPACT/EFFORT: MED-HIGH</span></div>
+    </div>
+    <p>The Canadian Schedule-I bank example spec is already in tree; FINTRAC's January 2026 examination-manual update (<a href="https://fintrac-canafe.canada.ca/guidance-directives/exam-examen/eng">FINTRAC examination guidance</a>) makes the pre-exam evidence demand explicit. Clones the SR 26-2 MRM-bundle pattern to a second jurisdiction with proven format. Aligns with the user's stated Canadian-bank focus.</p>
+    <div class="risk"><strong>Risk:</strong> small TAM (Canadian FIs only); mitigation is to use it as the template for a 3rd / 4th jurisdiction (FCA-UK, BaFin-DE) on the same skeleton.</div>
+  </div>
+
+  <h3 class="r-h3">Notable omissions, ranked by why-not</h3>
+  <ul class="r-list">
+    <li><strong>AMLA central-register sandbox.</strong> Real signal but the register isn't operational until H2 2026 and the API surface is still in <a href="https://www.step.org/industry-news/eba-issues-advice-aml-standards-ahead-amla-operational-launch">EBA advice</a>. Defer until Q3 2026.</li>
+    <li><strong>Notabene / Sumsub Travel-Rule message-bus adapters.</strong> Already covered by Round 5's Travel-Rule field validator at the spec layer; the message-bus integration is a vendor-specific runtime feature that bloats the binary.</li>
+    <li><strong>FedNow / RTP push-fraud detector pack.</strong> Genuinely valuable but requires the APP-fraud spec to land first as the shape-template; sequence after #3.</li>
+  </ul>
+
+  <div class="r-sources">
+    <h3>Sources</h3>
+    <ol>
+      <li><a href="https://www.symphonyai.com/resources/blog/financial-services/top-10-aml-software-banks-2026/">SymphonyAI: Top 10 AML software for banks in 2026</a></li>
+      <li><a href="https://alessa.com/blog/top-10-transaction-monitoring-software-solutions/">Alessa: Top 10 Transaction Monitoring Solutions 2026</a></li>
+      <li><a href="https://complyadvantage.com/vendor/best-transaction-monitoring-software/">ComplyAdvantage: Best transaction monitoring software 2026</a></li>
+      <li><a href="https://www.tookitaki.com/compliance-hub/best-aml-solution-for-banks-2025">Tookitaki: Best AML Solutions for Banks 2025</a></li>
+      <li><a href="https://siliconangle.com/2025/04/08/hawk-secures-56-million-expand-financial-crime-detection-platform/">Hawk:AI Series C, SiliconANGLE 2025-04-08</a></li>
+      <li><a href="https://github.com/checkmarble/marble">Marble (checkmarble/marble) GitHub</a></li>
+      <li><a href="https://docs.checkmarble.com/docs/welcome-to-marble">Marble docs</a></li>
+      <li><a href="https://github.com/jube-home/aml-fraud-transaction-monitoring">Jube — open source AML &amp; fraud TM</a></li>
+      <li><a href="https://github.com/finos-labs/dtcch-2025-OpenAML">FINOS Labs — OpenAML</a></li>
+      <li><a href="https://www.databricks.com/blog/2021/07/16/aml-solutions-at-scale-using-databricks-lakehouse-platform.html">Databricks lakehouse AML pattern</a></li>
+      <li><a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm">SR 26-2 Revised Model Risk Management guidance</a></li>
+      <li><a href="https://www.occ.treas.gov/news-issuances/bulletins/2026/bulletin-2026-13.html">OCC Bulletin 2026-13 — Model Risk Management</a></li>
+      <li><a href="https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs">FinCEN AML Program NPRM, Federal Register 2026-04-10</a></li>
+      <li><a href="https://www.fincen.gov/system/files/2026-04/Program-NPRM-FactSheet.pdf">FinCEN NPRM Fact Sheet (PDF)</a></li>
+      <li><a href="https://www.wilmerhale.com/en/insights/client-alerts/20260413-fincen-issues-proposed-rule-revising-the-aml-program-requirements-for-financial-institutions">WilmerHale FinCEN NPRM client alert 2026-04-13</a></li>
+      <li><a href="https://www.amla.europa.eu/amla-takes-major-step-toward-harmonised-eu-supervision_en">AMLA — major step toward harmonised EU supervision</a></li>
+      <li><a href="https://www.moodys.com/web/en/us/kyc/resources/insights/a-review-of-amla-and-amlr-2026.html">Moody's: AMLA &amp; AMLR review 2026</a></li>
+      <li><a href="https://blog.protiviti.com/2026/03/16/amla-readiness-starts-now-ten-practical-moves-for-2026/">Protiviti: AMLA Readiness Starts Now 2026-03-16</a></li>
+      <li><a href="https://www.step.org/industry-news/eba-issues-advice-aml-standards-ahead-amla-operational-launch">STEP: EBA advice on AML standards ahead of AMLA launch</a></li>
+      <li><a href="https://www.fatf-gafi.org/en/publications/Fatfgeneral/outcomes-FATF-plenary-february-2026.html">FATF Plenary outcomes, Feb 2026</a></li>
+      <li><a href="https://www.psr.org.uk/information-for-consumers/app-scams-reimbursement-dashboard/">PSR APP scams reimbursement dashboard, Q3 2025</a></li>
+      <li><a href="https://www.nortonrosefulbright.com/en/knowledge/publications/cedd39c6/psd3-and-psr-from-provisional-agreement-to-2026-readiness">Norton Rose Fulbright: PSD3 / PSR 2026 readiness</a></li>
+      <li><a href="https://financialregulation.linklaters.com/post/102lw90/psd3-breakthrough-eu-legislators-agree-payments-regulation-reforms">Linklaters: PSD3 breakthrough</a></li>
+      <li><a href="https://hawk.ai/news-press/report-us-banks-credit-unions-embracing-framl">Hawk: FRAML convergence US banks/credit unions</a></li>
+      <li><a href="https://www.bny.com/assets/corporate/documents/pdf/iso-20022-end-of-coexistence_-may-2025-final.pdf">BNY: ISO 20022 end-of-coexistence (Nov 22 2025)</a></li>
+      <li><a href="https://fintrac-canafe.canada.ca/guidance-directives/exam-examen/eng">FINTRAC examination guidance</a></li>
+      <li><a href="https://www.fincen.gov/boi">FinCEN BOI page</a></li>
+    </ol>
+  </div>
+
+  <div class="r-foot">
+    <a href="../#/">← back to resource hub</a>
+    <span class="gh">view source on <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-competitive-positioning.md">github</a></span>
+  </div>
+
+</div>
+
+</body>
+</html>
