@@ -39,6 +39,62 @@ def _resolve_run_dir(run_dir: Path | None, artifacts: Path) -> Path:
     return candidates[0]
 
 
+@app.command(name="auditor-pack")
+def auditor_pack_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Option(
+        None, "--run-dir", help="Run directory; defaults to newest under artifacts/."
+    ),
+    artifacts: Path = typer.Option(
+        Path("artifacts"), "--artifacts", help="Where engine runs are written."
+    ),
+    out: Path = typer.Option(
+        Path("auditor-pack.zip"),
+        "--out",
+        help="Where to write the bundle ZIP.",
+    ),
+    print_link: bool = typer.Option(
+        False,
+        "--print-link",
+        help="Print a dashboard deep-link the auditor can open in a browser.",
+    ),
+) -> None:
+    """One ZIP, one command, no IT call — auditor self-service bundle.
+
+    Builds a single ZIP containing the chain-verified audit ledger, the
+    regulator examination pack, the effectiveness pack (when supported),
+    the raw manifest + decisions.jsonl, and a one-page MANIFEST.txt
+    index the auditor opens first.
+
+    Use `--print-link` to also print a dashboard URL that lands the
+    auditor on the Audit & Evidence page in auditor-persona mode — for
+    when they want to drill in before downloading the ZIP.
+    """
+    from aml_framework.auditor import auditor_dashboard_url, build_auditor_pack
+
+    spec = load_spec(spec_path)
+    run = _resolve_run_dir(run_dir, artifacts)
+    result = build_auditor_pack(spec, run, out=out)
+
+    table = Table(title=f"Auditor pack · {spec.program.name}")
+    table.add_column("Component")
+    table.add_column("Status")
+    for c in result.components:
+        table.add_row(c, "[green]✓[/green]")
+    console.print(table)
+
+    if result.chain_verified:
+        console.print(f"\n[green]✓ Hash chain verified.[/green] {result.chain_message}")
+    else:
+        console.print(f"\n[red]✗ Chain integrity issue.[/red] {result.chain_message}")
+
+    console.print(f"\n[green]Auditor pack written[/green] {result.zip_path}")
+
+    if print_link:
+        url = auditor_dashboard_url(spec_path)
+        console.print(f"\n[bold]Auditor dashboard URL:[/bold]\n  {url}")
+
+
 @app.command()
 def init(
     target_dir: Path = typer.Argument(
