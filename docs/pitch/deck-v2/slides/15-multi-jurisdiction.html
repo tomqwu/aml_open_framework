@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Multi-Jurisdiction · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .juris-grid {
+    position: absolute;
+    top: 420px;
+    left: 96px;
+    right: 96px;
+    bottom: 170px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 16px;
+    z-index: 1;
+  }
+  .country {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .country .flag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .country .flag::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: var(--accent);
+  }
+  .country h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+    text-wrap: pretty;
+  }
+  .country .sub {
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+    text-wrap: pretty;
+  }
+  .country .sub code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+  }
+  .country .meta {
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+  }
+  .country .meta strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .punchline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--chapter-warm);
+    line-height: 1.5;
+    z-index: 1;
+    text-wrap: pretty;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">15 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act V · Institution-Fit</div>
+    <h1 class="fade-in d2">
+      Same engine. <em>Four regulators.</em>
+    </h1>
+  </div>
+
+  <div class="juris-grid">
+
+    <div class="country fade-in d3">
+      <div class="flag">UNITED STATES &middot; US</div>
+      <h3>FinCEN · BSA · 31 CFR 1010</h3>
+      <p class="sub">SAR via FinCEN E-File · CTR · BOI rule (Mar 2025 narrowing tracked by <code>aml regwatch</code>)</p>
+      <div class="meta">examples/community_bank · examples/us_rtp_fednow</div>
+    </div>
+
+    <div class="country fade-in d3">
+      <div class="flag">CANADA &middot; CA</div>
+      <h3>FINTRAC · OSFI · PCMLTFA / PCMLTFR</h3>
+      <p class="sub">STR · LCTR · EFTR · OSFI E-23 model risk · <code>aml export-amla-str</code> &amp; goAML</p>
+      <div class="meta">examples/canadian_schedule_i_bank</div>
+    </div>
+
+    <div class="country fade-in d4">
+      <div class="flag">UNITED KINGDOM &middot; GB</div>
+      <h3>FCA · POCA · PSR PS24/3</h3>
+      <p class="sub">SAR via NCA · APP fraud reimbursement (Oct 2024) · <code>app_fraud_first_use_payee</code> typology</p>
+      <div class="meta">examples/uk_bank · examples/uk_app_fraud</div>
+    </div>
+
+    <div class="country fade-in d4">
+      <div class="flag">EUROPEAN UNION &middot; EU</div>
+      <h3>EBA · AMLA · AMLD6 · AMLR</h3>
+      <p class="sub">AMLA RTS draft 2026-02 outcomes pack · goAML XML · cross-border sandbox per FATF R.18</p>
+      <div class="meta">examples/eu_bank</div>
+    </div>
+
+    <div class="country fade-in d5">
+      <div class="flag">FATF · INTERNATIONAL</div>
+      <h3>R.16 Travel Rule · R.18 Sharing</h3>
+      <p class="sub">Notabene + Sumsub adapters · cross-border typology sandbox · ISO 20022 ingest</p>
+      <div class="meta">src/aml_framework/integrations/</div>
+    </div>
+
+    <div class="country fade-in d5">
+      <div class="flag">DIGITAL ASSETS &middot; VASP</div>
+      <h3>VASP · MiCA · NYDFS · MAS</h3>
+      <p class="sub">Blockchain heuristics, on/off-ramp risk, mixer/sanctioned-cluster detection</p>
+      <div class="meta">examples/crypto_vasp</div>
+    </div>
+
+    <div class="country fade-in d6">
+      <div class="flag">FRAUD &middot; AML CONVERGENCE</div>
+      <h3>Cyber-enabled fraud · FATF 2026</h3>
+      <p class="sub">Pig-butchering, mule-funnel, RTP/FedNow push fraud — fraud-AML case linkage in one queue</p>
+      <div class="meta">examples/cyber_enabled_fraud</div>
+    </div>
+
+    <div class="country fade-in d6">
+      <div class="flag">TRADE-BASED ML</div>
+      <h3>FATF R.32 · WCO · BIS</h3>
+      <p class="sub">Invoice mismatch, duplicate documents, trade-finance round-tripping</p>
+      <div class="meta">examples/trade_based_ml</div>
+    </div>
+
+    <div class="country fade-in d6">
+      <div class="flag">9th SPEC SLOT &middot; 2026 H2</div>
+      <h3>Australia &middot; AUSTRAC</h3>
+      <p class="sub">Tier-2 designated services scope expansion, Q3 2026 — pre-flighted with <code>aml init --jurisdiction AU</code></p>
+      <div class="meta">examples/au_designated_services · planned</div>
+    </div>
+
+  </div>
+
+  <div class="punchline">
+    Pick a jurisdiction. <strong>Same spec shape, same CLI, same audit chain.</strong>
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>9 SPECS · 4 ACTIVE JURISDICTIONS · examples/</span>
+  </div>
+
+</body>
+</html>

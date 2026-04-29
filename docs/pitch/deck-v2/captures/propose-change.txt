@@ -1,0 +1,5 @@
+Usage: python -m aml_framework.cli propose-change [OPTIONS] SPEC_PATH
+Try 'python -m aml_framework.cli propose-change --help' for help.
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ No such option: --field Did you mean --help?                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯

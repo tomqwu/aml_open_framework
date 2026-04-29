@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Slack/Teams Digest · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .terminal { height: 100%; }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">14 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act V · Institution-Fit</div>
+    <h1 class="fade-in d2">
+      Escalations stop drowning<br>in <em>unread email</em>.
+    </h1>
+  </div>
+
+  <div class="dualpane">
+
+    <div class="narrative">
+
+      <div class="point fade-in d3">
+        <div class="num">01</div>
+        <div class="body">
+          <strong>Cron'd into your channel.</strong> Every 4-24h, a
+          rendered digest of escalated cases, breached SLAs, and
+          newly-aging queues drops into Slack or Teams.
+        </div>
+      </div>
+
+      <div class="point fade-in d4">
+        <div class="num">02</div>
+        <div class="body">
+          <strong>Suppressed when nothing fires.</strong>
+          <code style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:18px;">--suppress-empty</code>
+          skips the post when the window is clean — channels stay
+          high-signal.
+        </div>
+      </div>
+
+      <div class="point fade-in d5">
+        <div class="num">03</div>
+        <div class="body">
+          <strong>Webhook-only.</strong> No vendor connector, no SaaS
+          forwarder. Slack/Teams incoming-webhook URLs in env vars,
+          one egress destination, your perimeter.
+        </div>
+      </div>
+
+      <div class="outcome fade-in d6">
+        The supervisor finds out about a breach when it happens,
+        not at end-of-day. That alone is most of the
+        <em>"why we keep adding tools"</em> problem solved.
+      </div>
+
+    </div>
+
+    <div class="terminal fade-in d3">
+      <div class="terminal-chrome">
+        <div class="terminal-dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+        <div class="terminal-title">aml notify-digest · dry-run · canadian_schedule_i_bank</div>
+      </div>
+      <div class="terminal-body"><span class="t-prompt">$</span> <span class="t-cmd">aml notify-digest</span> spec.yaml \
+   <span class="t-flag">--since-hours</span> 24 <span class="t-flag">--dry-run</span>
+
+<span class="t-comment">────────────── Digest preview ──────────────</span>
+
+<span class="t-header">*AML Digest · schedule_i_bank_aml*</span>
+<span class="t-meta">  (24h ending 2026-05-02T23:44)</span>
+
+Total events: <span class="t-num">*1*</span>
+&middot; unknown: <span class="t-num">1</span>
+
+&middot; <span class="t-warn">*escalated*</span>
+  rule:     <span class="t-cmd">dormant_account_activity</span>
+  customer: <span class="t-meta">?</span>
+  case:     <span class="t-cmd">dormant_account_activity</span>
+            <span class="t-cmd">__C0007__2026-04-24T160811</span>
+
+<span class="t-comment">─────────────────────────────────────────────</span>
+<span class="t-meta">Dry run — not posting to webhooks.</span>
+
+<span class="t-prompt">$</span> <span class="t-cmd">SLACK_WEBHOOK_URL</span>=https://hooks.slack.com/...
+<span class="t-prompt">$</span> <span class="t-cmd">aml notify-digest</span> spec.yaml <span class="t-flag">--suppress-empty</span>
+
+<span class="t-ok">✓ Posted</span> to <span class="t-cmd">#fcc-aml-escalations</span> · 1 event in 24h.
+
+<span class="t-prompt">$</span> <span class="cursor-blink"></span></div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>F4 · PR #115 · CAPTURED 2026-04-29</span>
+  </div>
+
+</body>
+</html>

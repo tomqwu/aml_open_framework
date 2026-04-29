@@ -1,0 +1,7 @@
+# Today · ANALYST · schedule_i_bank_aml
+# Generated 2026-04-29T02:08:43.737013
+
+[1] ℹ ✅ All clear
+    No critical alerts, breaches, or aging cases in the last 24h. Routine 
+ANALYST review pages still apply, but no fires today.
+

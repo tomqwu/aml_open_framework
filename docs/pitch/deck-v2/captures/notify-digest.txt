@@ -1,0 +1,9 @@
+──────────────────────────────── Digest preview ────────────────────────────────
+*AML Digest · schedule_i_bank_aml* (24h ending 2026-05-02T23:44)
+Total events: *1*
+· unknown: 1
+
+· *escalated* · `dormant_account_activity` · customer `?` · case 
+`dormant_account_activity__C0007__2026-04-24T160811.808872`
+────────────────────────────────────────────────────────────────────────────────
+Dry run — not posting to webhooks.

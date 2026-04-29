@@ -1,0 +1,4 @@
+Installed typology structuring_cash as rule structuring_cash (line ~232) in 
+/tmp/test_spec_for_capture.yaml.
+Source: TD Bank 2024 enforcement order — finding #2
+Next: review the diff, run aml validate, then aml run to see it fire.

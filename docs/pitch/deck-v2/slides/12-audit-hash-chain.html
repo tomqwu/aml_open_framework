@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Audit & Evidence · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .chain-stage {
+    position: absolute;
+    top: 460px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .chain {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    align-items: stretch;
+  }
+  .chain .node {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 24px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chain .node .step {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .chain .node .who {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 14px;
+  }
+  .chain .node h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ink);
+    margin-bottom: 12px;
+    text-wrap: pretty;
+  }
+  .chain .node .hash {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--rule);
+    padding: 6px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+    word-break: break-all;
+  }
+  .chain .node .desc {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-dim);
+    text-wrap: pretty;
+  }
+  .chain .arrow {
+    align-self: center;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    text-align: center;
+  }
+
+  .verify {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .verify-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .verify-card .badge {
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .verify-card.ok  .badge { background: rgba(134,239,172,0.1); color: var(--rag-green); border: 1px solid var(--rag-green); }
+  .verify-card.bad .badge { background: rgba(252,165,165,0.1); color: var(--rag-red); border: 1px solid var(--rag-red); }
+  .verify-card h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .verify-card .what {
+    font-size: 18px;
+    line-height: 1.4;
+    color: var(--ink);
+    text-wrap: pretty;
+  }
+  .verify-card .what code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+  }
+
+  .punchline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--chapter-warm);
+    line-height: 1.5;
+    z-index: 1;
+    text-wrap: pretty;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">12 / 19</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act IV · The Detection Substrate</div>
+    <h1 class="fade-in d2">
+      Tamper-evident <em>by construction</em>.<br>
+      Not by promise.
+    </h1>
+  </div>
+
+  <div class="chain-stage">
+
+    <div class="chain">
+
+      <div class="node fade-in d3">
+        <div class="step">01 · Spec</div>
+        <div class="who">Compliance commits</div>
+        <h3>aml.yaml signed by source-control</h3>
+        <div class="hash">sha256:&nbsp;a73b8e2f...4cd9</div>
+        <div class="desc">SHA-256 of the exact YAML at commit time. Pinned in every audit ledger.</div>
+      </div>
+
+      <div class="arrow">→</div>
+
+      <div class="node fade-in d4">
+        <div class="step">02 · Run</div>
+        <div class="who">Engine produces</div>
+        <h3>manifest.json + decisions.jsonl</h3>
+        <div class="hash">sha256:&nbsp;0f2a17c9...ea84</div>
+        <div class="desc">Each decision (alert fired, case routed, STR drafted) gets its own record + previous-line hash.</div>
+      </div>
+
+      <div class="arrow">→</div>
+
+      <div class="node fade-in d5">
+        <div class="step">03 · Verify</div>
+        <div class="who">Auditor / 2LoD</div>
+        <h3>Replay byte-for-byte</h3>
+        <div class="hash">aml replay run-2026-04-29</div>
+        <div class="desc">Re-run the same spec on the same data with the same seed; outputs must hash-match.</div>
+      </div>
+
+    </div>
+
+    <div class="verify">
+      <div class="verify-card ok fade-in d3">
+        <div class="badge">✓</div>
+        <div>
+          <h4>Verified Run · 2026-04-29</h4>
+          <div class="what">
+            Hash chain integrity verified — <code>1,847</code> decisions
+            re-hashed, all match.
+          </div>
+        </div>
+      </div>
+      <div class="verify-card bad fade-in d4">
+        <div class="badge">✗</div>
+        <div>
+          <h4>If a single line is altered</h4>
+          <div class="what">
+            <code>HashChainBroken at line 412</code> — every downstream
+            attestation refuses to build.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="punchline fade-in d6">
+    <strong>"Cannot evidence"</strong> is the most common enforcement finding.
+    Hash-chained ledgers + replay are the answer in code, not a policy.
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · src/aml_framework/engine/audit.py</span>
+  </div>
+
+</body>
+</html>
