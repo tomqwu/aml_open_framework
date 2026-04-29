@@ -95,6 +95,211 @@ def auditor_pack_cmd(
         console.print(f"\n[bold]Auditor dashboard URL:[/bold]\n  {url}")
 
 
+@app.command(name="add-rule")
+def add_rule_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    pattern: str = typer.Option(
+        "structuring",
+        "--pattern",
+        help="structuring | velocity_burst | high_risk_jurisdiction",
+    ),
+    rule_id: str = typer.Option("", "--id", help="Rule id (lowercase a-z / 0-9 / _)."),
+    name: str = typer.Option("", "--name", help="Human-readable rule name."),
+    severity: str = typer.Option("high", "--severity", help="low/medium/high/critical."),
+    threshold: float = typer.Option(0.0, "--threshold", help="Amount threshold (structuring)."),
+    window: int = typer.Option(
+        0, "--window", help="Window in days (structuring) or hours (velocity_burst)."
+    ),
+    min_count: int = typer.Option(0, "--min-count", help="Minimum transaction count."),
+    channel: str = typer.Option("cash", "--channel", help="Channel filter (structuring)."),
+    direction: str = typer.Option("in", "--direction", help="in | out."),
+    countries: str = typer.Option(
+        "",
+        "--countries",
+        help="ISO 3166-1 alpha-2 codes (high_risk_jurisdiction), comma-separated.",
+    ),
+    citation: str = typer.Option("", "--citation", help="Regulation citation."),
+    citation_description: str = typer.Option("", "--citation-description"),
+    escalate_to: str = typer.Option("l2_review", "--escalate-to", help="Queue id."),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Take all defaults / flags; no prompts. For CI / scripts.",
+    ),
+) -> None:
+    """Add a new detection rule to an existing spec — 60 seconds, not 60 minutes.
+
+    Three patterns supported:
+      structuring             — N txns of channel X summing to ≥ A in W days
+      velocity_burst          — N txns of any kind in H hours
+      high_risk_jurisdiction  — country list × amount floor
+
+    Other patterns (python_ref, network_pattern) need a coded scorer or
+    graph-shape parameter respectively — those are out of wizard scope;
+    edit the spec by hand for now.
+    """
+    from aml_framework.add_rule_wizard import (
+        HighRiskJurisdictionConfig,
+        StructuringConfig,
+        VelocityBurstConfig,
+        render_high_risk_jurisdiction,
+        render_structuring,
+        render_velocity_burst,
+        splice_rule,
+        validate_country_codes,
+        validate_rule_id,
+    )
+
+    spec = load_spec(spec_path)
+    existing_ids = {r.id for r in spec.rules}
+    queue_ids = [q.id for q in spec.workflow.queues]
+
+    # Pick a sensible escalate_to default if the user took the literal
+    # "l2_review" default and that queue doesn't exist in this spec.
+    if escalate_to == "l2_review" and "l2_review" not in queue_ids:
+        # Prefer a queue with "l2", "investigator", or "review" in the
+        # id; else pick the second queue (typical 1LoD → 2LoD shape);
+        # else the first.
+        preferred = [q for q in queue_ids if any(k in q for k in ("l2", "investigator", "review"))]
+        if preferred:
+            escalate_to = preferred[0]
+        elif len(queue_ids) >= 2:
+            escalate_to = queue_ids[1]
+        elif queue_ids:
+            escalate_to = queue_ids[0]
+        # else leave as l2_review and let the loader fail with a clear
+        # message — this spec has no queues at all.
+
+    # Resolve rule_id (prompt if missing).
+    if not rule_id:
+        if non_interactive:
+            console.print("[red]--id is required in --non-interactive mode.[/red]")
+            raise typer.Exit(code=2)
+        rule_id = typer.prompt("Rule id (lowercase a-z / 0-9 / _)")
+    err = validate_rule_id(rule_id, existing_ids)
+    if err:
+        console.print(f"[red]{err}[/red]")
+        raise typer.Exit(code=2)
+
+    if not name:
+        name = (
+            rule_id.replace("_", " ").title()
+            if non_interactive
+            else typer.prompt("Rule name", default=rule_id.replace("_", " ").title())
+        )
+
+    if not citation and not non_interactive:
+        citation = typer.prompt("Regulation citation", default="FATF R.20")
+    citation = citation or "FATF R.20"
+    if not citation_description and not non_interactive:
+        citation_description = typer.prompt(
+            "Citation description",
+            default="Reporting suspicious activity.",
+        )
+    citation_description = citation_description or "Reporting suspicious activity."
+
+    # Build the pattern-specific config + render YAML.
+    pattern = pattern.strip().lower().replace("-", "_")
+    if pattern == "structuring":
+        if threshold == 0.0:
+            threshold = (
+                9500.0
+                if non_interactive
+                else float(typer.prompt("Sum-amount threshold", default="9500"))
+            )
+        if window == 0:
+            window = 30 if non_interactive else int(typer.prompt("Window (days)", default="30"))
+        if min_count == 0:
+            min_count = 3 if non_interactive else int(typer.prompt("Minimum count", default="3"))
+        cfg = StructuringConfig(
+            rule_id=rule_id,
+            name=name,
+            severity=severity,  # type: ignore[arg-type]
+            threshold_amount=threshold,
+            window_days=window,
+            min_count=min_count,
+            channel=channel,
+            direction=direction,  # type: ignore[arg-type]
+            citation=citation,
+            citation_description=citation_description,
+            escalate_to=escalate_to,
+        )
+        rule_yaml = render_structuring(cfg)
+    elif pattern == "velocity_burst":
+        if window == 0:
+            window = 1 if non_interactive else int(typer.prompt("Window (hours)", default="1"))
+        if min_count == 0:
+            min_count = 5 if non_interactive else int(typer.prompt("Minimum count", default="5"))
+        cfg_v = VelocityBurstConfig(
+            rule_id=rule_id,
+            name=name,
+            severity=severity,  # type: ignore[arg-type]
+            min_count=min_count,
+            window_hours=window,
+            direction=direction,  # type: ignore[arg-type]
+            citation=citation,
+            citation_description=citation_description,
+            escalate_to=escalate_to,
+        )
+        rule_yaml = render_velocity_burst(cfg_v)
+    elif pattern == "high_risk_jurisdiction":
+        if not countries and non_interactive:
+            countries = "IR,KP,RU,SY"
+        elif not countries:
+            countries = typer.prompt(
+                "High-risk countries (ISO alpha-2, comma-separated)",
+                default="IR,KP,RU,SY",
+            )
+        country_list = validate_country_codes(countries.split(","))
+        if not country_list:
+            console.print(
+                "[red]No valid ISO 3166-1 alpha-2 country codes parsed. "
+                "Pass --countries 'IR,KP,RU'.[/red]"
+            )
+            raise typer.Exit(code=2)
+        if threshold == 0.0:
+            threshold = (
+                1000.0 if non_interactive else float(typer.prompt("Amount floor", default="1000"))
+            )
+        cfg_j = HighRiskJurisdictionConfig(
+            rule_id=rule_id,
+            name=name,
+            severity=severity,  # type: ignore[arg-type]
+            countries=country_list,
+            amount_floor=threshold,
+            citation=citation,
+            citation_description=citation_description,
+            escalate_to=escalate_to,
+        )
+        rule_yaml = render_high_risk_jurisdiction(cfg_j)
+    else:
+        console.print(
+            f"[red]Unknown pattern {pattern!r}.[/red] "
+            "Choose: structuring | velocity_burst | high_risk_jurisdiction"
+        )
+        raise typer.Exit(code=2)
+
+    if not non_interactive:
+        console.print("\n[bold]About to insert this rule into[/bold] " + str(spec_path))
+        console.print(rule_yaml)
+        if not typer.confirm("Splice it in?", default=True):
+            console.print("[yellow]Aborted — spec unchanged.[/yellow]")
+            raise typer.Exit(code=0)
+
+    try:
+        result = splice_rule(spec_path, rule_yaml, rule_id)
+    except Exception as e:
+        console.print(f"[red]Splice failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    console.rule(f"[bold cyan]✓ Rule {rule_id!r} added[/bold cyan]")
+    console.print(f"  spec: {result.spec_path}")
+    console.print(f"  inserted near line {result.line_number}\n")
+    console.print("[bold]Try it now:[/bold]")
+    console.print(f"  $ aml validate {spec_path}")
+    console.print(f"  $ aml run {spec_path} --seed 42")
+
+
 @app.command(name="notify-digest")
 def notify_digest_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
