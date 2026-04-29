@@ -8,142 +8,288 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/tokens.css">
 <style>
-  .s7-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 1fr;
-    gap: 56px;
-    margin-top: 24px;
-  }
+  .s7-stage { padding-top: 4px; }
 
-  /* Left: industry-pattern callout */
-  .s7-callout {
-    border-left: 4px solid var(--accent);
+  .s7-toggle {
+    display: inline-flex;
+    align-items: center;
     background: var(--bg-soft);
-    padding: 28px 32px 26px;
-    align-self: start;
-  }
-  .s7-callout .lead {
-    font-size: 13px; letter-spacing: 0.22em;
-    text-transform: uppercase; font-weight: 700;
-    color: var(--accent); margin-bottom: 14px;
-  }
-  .s7-callout .quote {
-    font-size: 24px; font-weight: 500; line-height: 1.4;
-    color: var(--ink); font-style: italic;
-    margin-bottom: 18px; text-wrap: pretty;
-  }
-  .s7-callout .gloss {
-    font-size: 16px; color: var(--ink-dim);
-    line-height: 1.5; margin-bottom: 18px;
-    text-wrap: pretty;
-  }
-  .s7-callout .gloss strong { color: var(--ink); font-weight: 600; }
-  .s7-callout .attr {
-    font-size: 13px; letter-spacing: 0.06em;
-    color: var(--ink-faint); text-transform: uppercase;
+    border: 1px solid var(--rule-strong);
+    border-radius: 999px;
+    padding: 4px;
+    margin: 6px 0 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
     font-weight: 600;
-    border-top: 1px solid var(--rule);
-    padding-top: 12px;
+    cursor: pointer;
+    user-select: none;
   }
-  .s7-callout .attr strong { color: var(--ink-dim); font-weight: 600; }
+  .s7-toggle .opt {
+    padding: 8px 18px;
+    border-radius: 999px;
+    color: var(--ink-dim);
+    transition: background 0.18s ease, color 0.18s ease;
+    white-space: nowrap;
+  }
+  .s7-toggle .opt.active.today { background: var(--ink); color: white; }
+  .s7-toggle .opt.active.both { background: var(--ink); color: white; }
+  .s7-toggle .opt.active.after { background: var(--accent); color: white; }
+  .s7-toggle .opt:hover:not(.active) { color: var(--ink); }
 
-  /* Right: meetings list */
-  .s7-list {}
-  .s7-list-head {
-    font-size: 14px;
+  .s7-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-bottom: 14px;
+  }
+
+  .s7-panel {
+    position: relative;
+    border: 1.5px solid var(--rule-strong);
+    border-radius: 4px;
+    padding: 16px 20px 14px;
+    background: var(--bg);
+    transition: opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .s7-panel.today { border-left: 3px solid var(--ink); }
+  .s7-panel.after { border-left: 3px solid var(--accent); background: var(--accent-tint); }
+  .s7-panel .head {
+    font-size: 12px;
+    font-weight: 700;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    font-weight: 700;
-    color: var(--ink-faint);
-    border-bottom: 2px solid var(--ink);
-    padding-bottom: 14px;
-    margin-bottom: 0;
+    margin-bottom: 4px;
   }
-  .s7-row {
-    border-bottom: 1px solid var(--rule);
-    padding: 18px 0 16px;
-  }
-  .s7-row:last-child { border-bottom: none; }
-  .s7-row .meeting {
-    font-size: 19px;
+  .s7-panel.today .head { color: var(--ink-faint); }
+  .s7-panel.after .head { color: var(--accent); }
+  .s7-panel .label {
+    font-size: 18px;
     font-weight: 600;
     color: var(--ink);
-    line-height: 1.3;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
   }
-  .s7-row .meeting .arrow {
+
+  .s7-svg-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 0.50;
+    margin: 0 0 4px;
+  }
+  .s7-svg-wrap svg { width: 100%; height: 100%; display: block; }
+
+  .s7-node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    line-height: 1.15;
+  }
+  .s7-node .name {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    background: white;
+    padding: 5px 11px;
+    border: 1.5px solid var(--ink);
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .s7-node.hub .name {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    font-size: 15px;
+    padding: 9px 16px;
+    box-shadow: 0 4px 16px rgba(221,92,52,0.3);
+  }
+  .s7-node .sub {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
     color: var(--ink-faint);
-    margin: 0 12px;
-    font-weight: 400;
+    margin-top: 3px;
+    letter-spacing: 0.04em;
   }
-  .s7-row .meeting .answer {
+  .s7-node.hub .sub { color: white; opacity: 0.85; font-weight: 600; }
+
+  .s7-friction {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--accent);
+    background: white;
+    padding: 1px 6px;
+    border-radius: 2px;
+    border: 1px solid var(--accent);
+  }
+
+  /* Body data-mode dim/highlight */
+  body[data-mode="today"] .s7-panel.after { opacity: 0.22; }
+  body[data-mode="after"] .s7-panel.today { opacity: 0.22; }
+
+  /* Bottom rows: meetings → outcomes */
+  .s7-rows {
+    display: grid;
+    grid-template-rows: repeat(4, 1fr);
+    gap: 0;
+    margin-top: 4px;
+  }
+  .s7-row {
+    display: grid;
+    grid-template-columns: 1fr 30px 1fr;
+    gap: 14px;
+    align-items: center;
+    padding: 5px 0;
+    border-top: 1px solid var(--rule);
+    font-size: 14px;
+    line-height: 1.3;
+  }
+  .s7-row:first-child { border-top: none; }
+  .s7-row .from { color: var(--ink-dim); }
+  .s7-row .to { color: var(--ink); font-weight: 600; }
+  .s7-row .to em { color: var(--accent); font-style: normal; }
+  .s7-row .arr svg { width: 26px; height: 14px; display: block; margin: 0 auto; }
+  .s7-row code {
+    font-family: 'Inter', sans-serif;
+    background: var(--accent-tint);
+    color: var(--accent);
+    padding: 1px 7px;
+    border-radius: 2px;
     font-weight: 600;
   }
-  .s7-row .gloss {
-    font-size: 16px;
-    color: var(--ink-dim);
-    line-height: 1.45;
-    text-wrap: pretty;
-  }
-  .s7-row .gloss em { font-style: italic; color: var(--ink-2); }
 
-  .s7-takeaway { margin-top: 28px; }
+  .s7-takeaway { margin-top: 6px; }
 </style>
 </head>
-<body>
+<body data-mode="both">
   <div class="exhibit-label">Exhibit <span class="num">7</span> The meetings that stop happening</div>
   <div class="top-rule"></div>
 
-  <div class="stage">
-    <h2 class="action-title fade-up" style="margin-bottom:12px;">
-      The other half of the win is <em>political</em>. When the spec is the artifact, cross-team coordination collapses.
+  <div class="stage s7-stage">
+    <h2 class="action-title fade-up" style="margin-bottom:4px;">
+      The other half of the win is <em>political</em>.
     </h2>
-    <p class="dek fade-up d2" style="margin-bottom:24px;">
-      Most of an AML program's calendar is consumed by handoffs — 1LoD ⇄ 2LoD ⇄ IT ⇄ MRM ⇄ Audit. None of that produces detection.
-      It produces alignment, and only when the alignment holds.
-    </p>
 
-    <div class="s7-grid">
-      <div class="s7-callout fade-up d3">
-        <div class="lead">Why this matters</div>
-        <div class="quote">"Examiner testing only determined whether controls existed rather than if they were actually being used."</div>
-        <div class="gloss">
-          Across the largest 2024–25 enforcement actions, the same pattern recurs: <strong>the controls existed; the coordination didn't.</strong>
-          Internal alerts get filed and never escalated. Rule changes wait on a calendar. Audit prep starts at the regulator's email.
-          Removing the meetings removes the failure mode.
+    <div class="s7-toggle fade-up d2" id="s7Toggle">
+      <span class="opt today" data-mode="today">Today</span>
+      <span class="opt active both" data-mode="both">Compare</span>
+      <span class="opt after" data-mode="after">With framework</span>
+    </div>
+
+    <div class="s7-panels fade-up d3">
+      <!-- TODAY -->
+      <div class="s7-panel today">
+        <div class="head">Today · linear handoffs</div>
+        <div class="label">Months of meetings — until alignment, then ship.</div>
+
+        <div class="s7-svg-wrap">
+          <svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <defs>
+              <marker id="a-arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="#051c2c"/>
+              </marker>
+              <marker id="a-arr-r" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="#dd5c34"/>
+              </marker>
+            </defs>
+
+            <!-- Forward arrows (top arc) -->
+            <path d="M 90 110 Q 150 60 210 110" fill="none" stroke="#051c2c" stroke-width="2" marker-end="url(#a-arr)"/>
+            <path d="M 250 110 Q 310 60 370 110" fill="none" stroke="#051c2c" stroke-width="2" marker-end="url(#a-arr)"/>
+            <path d="M 410 110 Q 470 60 530 110" fill="none" stroke="#051c2c" stroke-width="2" marker-end="url(#a-arr)"/>
+
+            <!-- Backward dashed (back-and-forth) -->
+            <path d="M 210 130 Q 150 200 90 130" fill="none" stroke="#dd5c34" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#a-arr-r)" opacity="0.7"/>
+            <path d="M 370 130 Q 310 200 250 130" fill="none" stroke="#dd5c34" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#a-arr-r)" opacity="0.7"/>
+            <path d="M 530 130 Q 470 200 410 130" fill="none" stroke="#dd5c34" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#a-arr-r)" opacity="0.7"/>
+
+            <!-- Node circles -->
+            <circle cx="70" cy="120" r="22" fill="white" stroke="#051c2c" stroke-width="2"/>
+            <circle cx="230" cy="120" r="22" fill="white" stroke="#051c2c" stroke-width="2"/>
+            <circle cx="390" cy="120" r="22" fill="white" stroke="#051c2c" stroke-width="2"/>
+            <circle cx="550" cy="120" r="22" fill="white" stroke="#051c2c" stroke-width="2"/>
+
+            <text x="300" y="246" text-anchor="middle" font-family="Inter" font-size="13" font-weight="700" fill="#dd5c34" letter-spacing="0.06em">↻ ITERATE FOR MONTHS</text>
+            <text x="300" y="266" text-anchor="middle" font-family="Inter" font-size="11" fill="#5f6b78">until alignment, then ship</text>
+          </svg>
+
+          <div class="s7-node" style="left:11.7%;top:40%;"><span class="name">1LoD</span><span class="sub">Business</span></div>
+          <div class="s7-node" style="left:38.3%;top:40%;"><span class="name">2LoD</span><span class="sub">Compliance</span></div>
+          <div class="s7-node" style="left:65%;top:40%;"><span class="name">IT / MRM</span><span class="sub">Validation</span></div>
+          <div class="s7-node" style="left:91.7%;top:40%;"><span class="name">Audit</span><span class="sub">3LoD</span></div>
+
+          <div class="s7-friction" style="left:25%;top:11%;">~6 weeks</div>
+          <div class="s7-friction" style="left:51.7%;top:11%;">~8 weeks</div>
+          <div class="s7-friction" style="left:78.3%;top:11%;">~4 weeks</div>
         </div>
-        <div class="attr"><strong>K&amp;L Gates</strong> · 2024 BSA enforcement-action review · referenced in FCA Dear-CEO Mar&nbsp;2024</div>
       </div>
 
-      <div class="s7-list fade-up d4">
-        <div class="s7-list-head">Months → minutes</div>
+      <!-- AFTER -->
+      <div class="s7-panel after">
+        <div class="head">With framework · hub &amp; spoke</div>
+        <div class="label">Everyone reads the same artifact. <em>One PR.</em></div>
 
-        <div class="s7-row">
-          <div class="meeting">Rule-change approval <span class="arrow">→</span> <span class="answer">one PR with cited regulation</span></div>
-          <div class="gloss">Today: months of 1LoD ⇄ 2LoD ⇄ IT ⇄ Audit alignment. With the framework: <em>git diff,</em> reviewer signs, audit chain records the change.</div>
-        </div>
+        <div class="s7-svg-wrap">
+          <svg viewBox="0 0 600 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <line x1="300" y1="140" x2="80" y2="60"  stroke="#dd5c34" stroke-width="2.5"/>
+            <line x1="300" y1="140" x2="520" y2="60" stroke="#dd5c34" stroke-width="2.5"/>
+            <line x1="300" y1="140" x2="80" y2="220" stroke="#dd5c34" stroke-width="2.5"/>
+            <line x1="300" y1="140" x2="520" y2="220" stroke="#dd5c34" stroke-width="2.5"/>
 
-        <div class="s7-row">
-          <div class="meeting">BRA refresh <span class="arrow">→</span> <span class="answer">live render from spec</span></div>
-          <div class="gloss">Today: quarterly committee assembling spreadsheets. With the framework: the spec <em>is</em> the BRA — <em>Framework Alignment</em> dashboard shows it live.</div>
-        </div>
+            <circle cx="300" cy="140" r="50" fill="#dd5c34" opacity="0.12"/>
 
-        <div class="s7-row">
-          <div class="meeting">Annual MRM challenge <span class="arrow">→</span> <span class="answer">backtester self-serves</span></div>
-          <div class="gloss">Today: 4-week consultant engagement to validate scenarios. With the framework: per-rule precision/recall over 4 quarters, generated on demand.</div>
-        </div>
+            <circle cx="80" cy="60" r="22" fill="white" stroke="#051c2c" stroke-width="2"/>
+            <circle cx="520" cy="60" r="22" fill="white" stroke="#051c2c" stroke-width="2"/>
+            <circle cx="80" cy="220" r="22" fill="white" stroke="#051c2c" stroke-width="2"/>
+            <circle cx="520" cy="220" r="22" fill="white" stroke="#051c2c" stroke-width="2"/>
 
-        <div class="s7-row">
-          <div class="meeting">Pre-exam evidence assembly <span class="arrow">→</span> <span class="answer"><code style="background:var(--accent-tint);padding:2px 8px;border-radius:2px;font-family:'Inter',sans-serif;font-size:18px;">aml audit-pack</code></span></div>
-          <div class="gloss">Today: 8-person sprint, 6 weeks, "what did we run?" forensics. With the framework: one CLI command exports the regulator-ready ZIP.</div>
+            <text x="300" y="278" text-anchor="middle" font-family="Inter" font-size="13" font-weight="700" fill="#2f6f3a" letter-spacing="0.04em">⌁ git diff · review · merge</text>
+            <text x="300" y="295" text-anchor="middle" font-family="Inter" font-size="11" fill="#5f6b78">audit chain records the change</text>
+          </svg>
+
+          <div class="s7-node hub" style="left:50%;top:46.7%;"><span class="name">aml.yaml</span><span class="sub">source of truth</span></div>
+          <div class="s7-node" style="left:13.3%;top:20%;"><span class="name">1LoD</span></div>
+          <div class="s7-node" style="left:86.7%;top:20%;"><span class="name">2LoD</span></div>
+          <div class="s7-node" style="left:13.3%;top:73.3%;"><span class="name">IT / MRM</span></div>
+          <div class="s7-node" style="left:86.7%;top:73.3%;"><span class="name">Audit</span></div>
         </div>
+      </div>
+    </div>
+
+    <div class="s7-rows fade-up d4">
+      <div class="s7-row">
+        <span class="from">Rule-change approval — months of 1LoD ⇄ 2LoD ⇄ IT alignment</span>
+        <span class="arr"><svg viewBox="0 0 26 14"><path d="M 1 7 L 20 7 M 16 3 L 22 7 L 16 11" fill="none" stroke="#dd5c34" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="to"><em>One PR</em>. Audit chain records the change.</span>
+      </div>
+      <div class="s7-row">
+        <span class="from">BRA refresh — quarterly committee assembling spreadsheets</span>
+        <span class="arr"><svg viewBox="0 0 26 14"><path d="M 1 7 L 20 7 M 16 3 L 22 7 L 16 11" fill="none" stroke="#dd5c34" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="to">Live render from spec. <em>Framework Alignment</em> page.</span>
+      </div>
+      <div class="s7-row">
+        <span class="from">Annual MRM challenge — 4-week consultant engagement</span>
+        <span class="arr"><svg viewBox="0 0 26 14"><path d="M 1 7 L 20 7 M 16 3 L 22 7 L 16 11" fill="none" stroke="#dd5c34" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="to">Backtester self-serves. <em>Per-rule precision/recall</em>.</span>
+      </div>
+      <div class="s7-row">
+        <span class="from">Pre-exam evidence — 8-person sprint, 6 weeks of forensics</span>
+        <span class="arr"><svg viewBox="0 0 26 14"><path d="M 1 7 L 20 7 M 16 3 L 22 7 L 16 11" fill="none" stroke="#dd5c34" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="to"><code>aml audit-pack</code> CLI exports the regulator-ready ZIP.</span>
       </div>
     </div>
 
     <div class="takeaway s7-takeaway fade-up d5">
       <span class="label">Key takeaway</span>
-      Detection vendors sell better alerts. The framework removes the <em>meetings about the alerts</em> — and that is where the AML program's calendar actually lives.
+      Detection vendors sell better alerts. The framework removes the <em>meetings about the alerts</em> — and that is where the program's calendar actually lives.
     </div>
   </div>
 
@@ -153,6 +299,14 @@
   </div>
 
   <script>
+    const t = document.getElementById('s7Toggle');
+    t.addEventListener('click', e => {
+      const opt = e.target.closest('.opt');
+      if (!opt) return;
+      const mode = opt.dataset.mode;
+      document.body.dataset.mode = mode;
+      t.querySelectorAll('.opt').forEach(o => o.classList.toggle('active', o.dataset.mode === mode));
+    });
     document.fonts.ready.then(() => {
       document.body.classList.add('ready');
       window.__ready = true;

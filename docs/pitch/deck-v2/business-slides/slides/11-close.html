@@ -8,55 +8,163 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/tokens.css">
 <style>
-  .s8-stage {
+  .s11-stage {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; justify-content: center;
     padding: 0 96px;
   }
-  .s8-eyebrow {
+  .s11-eyebrow {
     font-size: 16px; font-weight: 700;
     letter-spacing: 0.28em; text-transform: uppercase;
-    color: var(--accent); margin-bottom: 32px;
+    color: var(--accent); margin-bottom: 24px;
   }
-  .s8-title {
-    font-size: 96px; font-weight: 600;
+  .s11-title {
+    font-size: 88px; font-weight: 600;
     line-height: 1.05; letter-spacing: -0.022em;
     color: var(--ink);
-    margin-bottom: 60px;
+    margin-bottom: 36px;
     text-wrap: balance; max-width: 1600px;
   }
-  .s8-title em { font-style: normal; color: var(--accent); }
+  .s11-title em { font-style: normal; color: var(--accent); }
 
-  .s8-paths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; max-width: 1600px; }
-  .s8-path { border-top: 2px solid var(--ink); padding-top: 24px; }
-  .s8-path .lead {
-    font-size: 14px; letter-spacing: 0.22em; text-transform: uppercase;
-    font-weight: 700; color: var(--accent);
+  /* 3-branch diagram */
+  .s11-diagram {
+    position: relative;
+    flex: 1;
+    max-height: 540px;
+    max-width: 1620px;
+    margin: 0;
+  }
+
+  .s11-svg {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  /* Hub node */
+  .s11-hub {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+    background: var(--ink);
+    color: white;
+    padding: 18px 32px;
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(5,28,44,0.18);
+    z-index: 3;
+    text-align: center;
+  }
+  .s11-hub .lab {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 4px;
+  }
+  .s11-hub .ttl {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.012em;
+  }
+
+  /* Branches container */
+  .s11-branches {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 56px;
+    margin-top: 200px;
+    max-width: 1620px;
+    z-index: 2;
+    position: relative;
+  }
+
+  .s11-branch {
+    border: 2px solid var(--rule-strong);
+    border-radius: 6px;
+    padding: 24px 28px 26px;
+    background: var(--bg);
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+    cursor: default;
+    position: relative;
+  }
+  .s11-branch:hover {
+    border-color: var(--accent);
+    box-shadow: 0 12px 32px rgba(221,92,52,0.14);
+    transform: translateY(-3px);
+  }
+
+  .s11-branch .icon-bar {
+    display: flex; align-items: center; gap: 12px;
     margin-bottom: 16px;
   }
-  .s8-path h3 {
-    font-size: 30px; font-weight: 600;
-    color: var(--ink); margin-bottom: 14px;
-    line-height: 1.25;
+  .s11-branch .icon-bar .glyph {
+    width: 44px; height: 44px;
+    border-radius: 6px;
+    background: var(--accent-tint);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
   }
-  .s8-path p {
-    font-size: 19px; color: var(--ink-dim); line-height: 1.5;
+  .s11-branch .icon-bar .time {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-tint);
+    padding: 6px 12px;
+    border-radius: 999px;
   }
 
-  .s8-repo {
-    margin-top: 56px;
-    font-size: 26px;
+  .s11-branch h3 {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 12px;
+    letter-spacing: -0.012em;
+  }
+  .s11-branch p {
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+    margin-bottom: 16px;
+    text-wrap: pretty;
+  }
+  .s11-branch .cta {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border-top: 1px solid var(--rule);
+    padding-top: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .s11-branch .cta .arr { font-size: 18px; transition: transform 0.2s ease; }
+  .s11-branch:hover .cta .arr { transform: translateX(4px); }
+
+  .s11-repo {
+    margin-top: 32px;
+    font-size: 22px;
     font-weight: 500;
     color: var(--ink);
     border-top: 1px solid var(--rule-strong);
-    padding-top: 24px;
+    padding-top: 20px;
     width: 820px;
   }
-  .s8-repo .url { color: var(--accent); font-weight: 500; }
-  .s8-repo .meta {
-    color: var(--ink-faint); font-size: 15px; letter-spacing: 0.18em;
+  .s11-repo .url { color: var(--accent); font-weight: 500; }
+  .s11-repo .meta {
+    color: var(--ink-faint); font-size: 14px; letter-spacing: 0.18em;
     text-transform: uppercase; font-weight: 600;
-    display: block; margin-bottom: 10px;
+    display: block; margin-bottom: 8px;
   }
 </style>
 </head>
@@ -64,30 +172,59 @@
   <div class="exhibit-label">AML Open Framework <span class="num">·</span> Engagement</div>
   <div class="top-rule"></div>
 
-  <div class="s8-stage">
-    <div class="s8-eyebrow fade-up">Three paths from here</div>
-    <h1 class="s8-title fade-up d2">The next step takes <em>five minutes</em>.</h1>
+  <div class="s11-stage">
+    <div class="s11-eyebrow fade-up">Three paths from here</div>
+    <h1 class="s11-title fade-up d2">The next step takes <em>five minutes</em>.</h1>
 
-    <div class="s8-paths">
-      <div class="s8-path fade-up d3">
-        <div class="lead">Read · 15 min</div>
-        <h3>Show me the research.</h3>
-        <p>Open the 10-pain-point doc with primary regulator citations plus a 2024 enforcement case study. Frame is unbranded.</p>
+    <div class="s11-diagram">
+      <!-- SVG branching arrows from hub to 3 branches -->
+      <svg class="s11-svg" viewBox="0 0 1620 200" preserveAspectRatio="none" aria-hidden="true">
+        <!-- Center hub anchor approx x=810, y=70. 3 branches anchored at x=270, 810, 1350, y=200 (top of branch cards) -->
+        <path d="M 810 60 Q 810 130, 270 200" fill="none" stroke="#dd5c34" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M 810 60 L 810 200" fill="none" stroke="#dd5c34" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M 810 60 Q 810 130, 1350 200" fill="none" stroke="#dd5c34" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+
+      <div class="s11-hub fade-up d2">
+        <div class="lab">Where you are</div>
+        <div class="ttl">Curious</div>
       </div>
-      <div class="s8-path fade-up d4">
-        <div class="lead">Try · 5 min</div>
-        <h3>Run it on my desk.</h3>
-        <p>Clone, install, run a real audit pack against the canonical spec. No vendor demo cycle.</p>
-      </div>
-      <div class="s8-path fade-up d5">
-        <div class="lead">Talk · 30 min</div>
-        <h3>Walk me through it.</h3>
-        <p>Bring your spec or pain — pull-request a typology, open a Discussion, or tag the maintainer.</p>
+
+      <div class="s11-branches">
+        <div class="s11-branch fade-up d3">
+          <div class="icon-bar">
+            <div class="glyph">①</div>
+            <span class="time">Read · 15 min</span>
+          </div>
+          <h3>Show me the research.</h3>
+          <p>Open the 10-pain-point doc with primary regulator citations + a 2024 enforcement case study. Unbranded frame, citable sources.</p>
+          <div class="cta">/research/process-pain <span class="arr">→</span></div>
+        </div>
+
+        <div class="s11-branch fade-up d4">
+          <div class="icon-bar">
+            <div class="glyph">②</div>
+            <span class="time">Try · 5 min</span>
+          </div>
+          <h3>Run it on my desk.</h3>
+          <p>Clone, install, run a real audit pack against the canonical spec. <code style="font-family:Inter;background:var(--accent-tint);color:var(--accent);padding:1px 6px;border-radius:2px;font-weight:600;">aml audit-pack</code> — no vendor demo cycle.</p>
+          <div class="cta">github.com/tomqwu/aml_open_framework <span class="arr">→</span></div>
+        </div>
+
+        <div class="s11-branch fade-up d5">
+          <div class="icon-bar">
+            <div class="glyph">③</div>
+            <span class="time">Talk · 30 min</span>
+          </div>
+          <h3>Walk me through it.</h3>
+          <p>Bring your spec or pain — open a GitHub Discussion, pull-request a typology, or tag the maintainer in an issue.</p>
+          <div class="cta">github.com/.../discussions <span class="arr">→</span></div>
+        </div>
       </div>
     </div>
 
-    <div class="s8-repo fade-up d6">
-      <span class="meta">Open source · MIT</span>
+    <div class="s11-repo fade-up d6">
+      <span class="meta">Open source · MIT · runs in your perimeter</span>
       <span class="url">github.com/tomqwu/aml_open_framework</span>
     </div>
   </div>

@@ -41,6 +41,13 @@
     border: 1px solid var(--rule-strong);
     background: var(--bg);
     padding: 28px 32px;
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+    cursor: default;
+  }
+  .role-box:hover {
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(221,92,52,0.14);
+    transform: translateY(-3px);
   }
   .role-box .role {
     font-size: 14px; font-weight: 700;

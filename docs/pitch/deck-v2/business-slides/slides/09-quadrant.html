@@ -42,6 +42,60 @@
   .qcorner.bl { bottom: 36px; left: 16px; }
   .qcorner.br { bottom: 36px; right: 16px; text-align: right; }
 
+  /* Hoverable dot hotspots — invisible circles over each dot for hover targets */
+  .qdot-hot {
+    position: absolute;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 5;
+  }
+  .qdot-hot:hover ~ .qdot-tip[data-i] { display: none; }
+  .qdot-hot:hover { background: rgba(221,92,52,0.10); }
+
+  /* Tooltip cards (anchored via inline style) */
+  .qdot-tip {
+    position: absolute;
+    transform: translate(-50%, calc(-100% - 14px));
+    background: var(--ink);
+    color: white;
+    padding: 10px 14px 11px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.45;
+    width: 220px;
+    box-shadow: 0 8px 24px rgba(5,28,44,0.32);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+  }
+  .qdot-tip::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px; height: 12px;
+    background: var(--ink);
+  }
+  .qdot-tip .ttl {
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+  .qdot-tip .vendors {
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .qdot-tip .body { color: rgba(255,255,255,0.85); }
+  .qdot-hot:hover + .qdot-tip { opacity: 1; }
+
   /* Vendor dot labels (HTML overlay positioned by inline left/top %) */
   .qdot-label {
     position: absolute;
@@ -211,11 +265,55 @@
         <!-- Vendor labels (positioned in % of wrapper for responsiveness) -->
         <div class="qdot-label" style="left:45.6%;top:36%;"><span class="name">Veteran rules + ML</span><span class="sub">Actimize · Oracle FCCM · SAS</span></div>
         <div class="qdot-label" style="left:59.2%;top:55%;"><span class="name">AI-native challengers</span><span class="sub">Hawk:AI · ComplyAdvantage · Feedzai</span></div>
-        <div class="qdot-label" style="left:56.7%;top:50%;text-align:left;left:62%;"><span class="name">Graph specialists</span><span class="sub">Quantexa · Ripjar</span></div>
+        <div class="qdot-label" style="left:62%;top:50%;"><span class="name">Graph specialists</span><span class="sub">Quantexa · Ripjar</span></div>
         <div class="qdot-label" style="left:50.7%;top:43%;"><span class="name">Build-it-yourself</span><span class="sub">Lakehouse pattern</span></div>
         <div class="qdot-label" style="left:54.2%;top:69.5%;"><span class="name">Marble</span><span class="sub">OSS-commercial</span></div>
         <div class="qdot-label" style="left:38.9%;top:79.6%;"><span class="name">Jube · FINOS OpenAML</span><span class="sub">OSS pure</span></div>
         <div class="qdot-label us" style="left:79.7%;top:71.8%;"><span class="name">AML Open Framework</span><span class="sub">Apache 2.0 · MIT-compatible</span></div>
+
+        <!-- Hover hot-spots + tooltips (positioned at dot centres) -->
+        <div class="qdot-hot" style="left:45.6%;top:32.4%;"></div>
+        <div class="qdot-tip" style="left:45.6%;top:32.4%;">
+          <div class="ttl">Veteran rules + ML</div>
+          <div class="vendors">Actimize · Oracle FCCM · SAS · FIS</div>
+          <div class="body"><strong>Strength:</strong> enterprise scale, audit comfort. <strong>Caution:</strong> 18–24-mo deploy, $50M+ TCO, ML model-validation tax under SR 26-2.</div>
+        </div>
+        <div class="qdot-hot" style="left:59.2%;top:51.4%;"></div>
+        <div class="qdot-tip" style="left:59.2%;top:51.4%;">
+          <div class="ttl">AI-native challengers</div>
+          <div class="vendors">Hawk:AI · ComplyAdvantage · Feedzai · Lucinity</div>
+          <div class="body"><strong>Strength:</strong> cloud-native, claimed 65–85% FP reduction. <strong>Caution:</strong> ML-first design carries the full SR 26-2 model surface.</div>
+        </div>
+        <div class="qdot-hot" style="left:56.7%;top:46.6%;"></div>
+        <div class="qdot-tip" style="left:56.7%;top:46.6%;">
+          <div class="ttl">Graph specialists</div>
+          <div class="vendors">Quantexa · Ripjar · Sayari</div>
+          <div class="body"><strong>Strength:</strong> entity-resolution at scale for layering investigations. <strong>Caution:</strong> multi-quarter integration, narrow purchase rationale.</div>
+        </div>
+        <div class="qdot-hot" style="left:50.7%;top:38.5%;"></div>
+        <div class="qdot-tip" style="left:50.7%;top:38.5%;">
+          <div class="ttl">Build-it-yourself</div>
+          <div class="vendors">Databricks / Snowflake lakehouse pattern</div>
+          <div class="body"><strong>Strength:</strong> full control, no vendor lock-in. <strong>Caution:</strong> &gt;$50M / 5y, only viable above ~5B txns/month.</div>
+        </div>
+        <div class="qdot-hot" style="left:54.2%;top:65.4%;"></div>
+        <div class="qdot-tip" style="left:54.2%;top:65.4%;">
+          <div class="ttl">Marble (OSS-commercial)</div>
+          <div class="vendors">checkmarble/marble · AGPL/MIT split</div>
+          <div class="body"><strong>Strength:</strong> modern Go/TS stack, no-code UX, commercial backing. <strong>Caution:</strong> no spec-as-source, no MRM bundle, no jurisdiction templates.</div>
+        </div>
+        <div class="qdot-hot" style="left:38.9%;top:74.7%;"></div>
+        <div class="qdot-tip" style="left:38.9%;top:74.7%;">
+          <div class="ttl">Jube · FINOS OpenAML</div>
+          <div class="vendors">jube-home · finos-labs/dtcch-2025-OpenAML</div>
+          <div class="body"><strong>Strength:</strong> built-in ML scoring (Jube); DTCC pedigree (FINOS). <strong>Caution:</strong> ML-first; or labs-stage with narrow on-chain scope.</div>
+        </div>
+        <div class="qdot-hot" style="left:79.7%;top:66.8%;"></div>
+        <div class="qdot-tip" style="left:79.7%;top:66.8%;">
+          <div class="ttl">AML Open Framework</div>
+          <div class="vendors">Apache 2.0 / MIT · this project</div>
+          <div class="body"><strong>Strength:</strong> spec-as-source-of-truth, deterministic replay, hash-chained audit, ISO 20022 native, multi-jurisdiction. <strong>Slot:</strong> 2LoD MRM challenger model under SR 26-2.</div>
+        </div>
       </div>
 
       <div class="s9-key">
