@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,6 +37,128 @@ def _resolve_run_dir(run_dir: Path | None, artifacts: Path) -> Path:
         console.print("[red]No run directories found.[/red] Run `aml run` first.")
         raise typer.Exit(code=1)
     return candidates[0]
+
+
+@app.command()
+def init(
+    target_dir: Path = typer.Argument(
+        Path("."), help="Where to write aml.yaml + README.md. Defaults to current directory."
+    ),
+    program_name: str = typer.Option(
+        "", "--program", help="Program name (lowercase a-z / 0-9 / _). Prompted if empty."
+    ),
+    jurisdiction: str = typer.Option(
+        "", "--jurisdiction", help="US / CA / GB / EU / AU / SG. Prompted if empty."
+    ),
+    archetype: str = typer.Option(
+        "", "--archetype", help="community_bank / schedule_i_bank / vasp / fintech."
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Take all defaults; no prompts. For CI / scripts.",
+    ),
+    overwrite: bool = typer.Option(
+        False, "--overwrite", help="Replace an existing aml.yaml in target_dir."
+    ),
+) -> None:
+    """Scaffold a working starter AML spec in <60 seconds.
+
+    Five questions → one validated aml.yaml + a README that tells a
+    developer exactly what to run next. Non-interactive mode takes
+    every default so CI / scripts can wrap the wizard.
+
+    The output is a complete spec the engine accepts on day one:
+    program metadata, two data contracts (txn + customer), three
+    starter rules (structuring, velocity, high-risk jurisdiction), a
+    four-queue workflow, and a STR reporting form. Every detector
+    cites the FATF recommendation that justifies it — same shape the
+    rest of the framework's example specs use.
+    """
+    from aml_framework.init_wizard import (
+        JURISDICTION_DEFAULTS,
+        InitConfig,
+        normalise_archetype,
+        normalise_jurisdiction,
+        validate_program_name,
+        write_scaffold,
+    )
+
+    target_dir = target_dir.resolve()
+
+    # --- Question 1: program name ---
+    if not program_name:
+        default_name = re.sub(r"[^a-z0-9_]", "_", target_dir.name.lower()) + "_aml"
+        if not non_interactive:
+            program_name = typer.prompt("Program name", default=default_name)
+        else:
+            program_name = default_name
+    err = validate_program_name(program_name)
+    if err:
+        console.print(f"[red]{err}[/red]")
+        raise typer.Exit(code=2)
+
+    # --- Question 2: jurisdiction ---
+    if not jurisdiction:
+        if non_interactive:
+            jurisdiction = "US"
+        else:
+            jurisdiction = typer.prompt(
+                "Jurisdiction (US / CA / GB / EU / AU / SG / OTHER)",
+                default="US",
+            )
+    jurisdiction = normalise_jurisdiction(jurisdiction)
+    regulator, currency = JURISDICTION_DEFAULTS[jurisdiction]
+
+    # --- Question 3: archetype ---
+    if not archetype:
+        if non_interactive:
+            archetype = "community_bank"
+        else:
+            archetype = typer.prompt(
+                "Bank type (community_bank / schedule_i_bank / vasp / fintech)",
+                default="community_bank",
+            )
+    archetype_norm = normalise_archetype(archetype)
+
+    # --- Question 4: confirm + write ---
+    config = InitConfig(
+        program_name=program_name,
+        jurisdiction=jurisdiction,
+        regulator=regulator,
+        archetype=archetype_norm,
+        target_dir=target_dir,
+        currency=currency,
+    )
+    if not non_interactive:
+        console.print("\n[bold]About to write:[/bold]")
+        console.print(f"  program     : {config.program_name}")
+        console.print(f"  jurisdiction: {config.jurisdiction}  (regulator: {config.regulator})")
+        console.print(
+            f"  archetype   : {config.archetype}  (channels: {', '.join(config.channels)})"
+        )
+        console.print(f"  target_dir  : {config.target_dir}\n")
+        if not typer.confirm("Proceed?", default=True):
+            console.print("[yellow]Aborted.[/yellow]")
+            raise typer.Exit(code=0)
+
+    try:
+        scaffold = write_scaffold(config, overwrite=overwrite)
+    except FileExistsError as e:
+        console.print(f"[red]{e}[/red]\nRe-run with [bold]--overwrite[/bold] to replace.")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]Spec validation failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    # --- Next-step narration ---
+    console.rule(f"[bold cyan]✓ Scaffold written to {scaffold.spec_path.parent}[/bold cyan]")
+    console.print(f"\n  [green]→[/green] {scaffold.spec_path}")
+    console.print(f"  [green]→[/green] {scaffold.readme_path}\n")
+    console.print("[bold]Try it now:[/bold]")
+    console.print(f"  [dim]$[/dim] aml validate {scaffold.spec_path}")
+    console.print(f"  [dim]$[/dim] aml run {scaffold.spec_path} --seed 42")
+    console.print(f"  [dim]$[/dim] aml dashboard {scaffold.spec_path}\n")
 
 
 @app.command()
