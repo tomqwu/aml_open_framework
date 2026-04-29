@@ -176,7 +176,9 @@ def _status_style(val: str) -> str:
     return f"color: {c}; font-weight: 700;" if c else ""
 
 
-styled = display_df[available].style.map(_highlight_severity, subset=["severity"])
+styled = (
+    display_df[available].style.format(na_rep="—").map(_highlight_severity, subset=["severity"])
+)
 if "status" in available:
     styled = styled.map(_status_style, subset=["status"])
 st.dataframe(styled, use_container_width=True, hide_index=True, height=400)

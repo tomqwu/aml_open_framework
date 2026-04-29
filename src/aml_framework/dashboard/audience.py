@@ -145,6 +145,8 @@ AUDIENCE_PAGES = {
     "manager": [
         # Dropped Case Investigation (overlaps Investigations); flow is
         # triage → investigate → tune. Reordered to match daily arc.
+        # Typology Catalogue added — calibrating detection thresholds
+        # against typology library is part of the manager's tuning loop.
         "Alert Queue",
         "Investigations",
         "My Queue",
@@ -152,6 +154,7 @@ AUDIENCE_PAGES = {
         "Risk Assessment",
         "Live Monitor",
         "Tuning Lab",
+        "Typology Catalogue",
     ],
     "analyst": [
         "Alert Queue",
@@ -166,6 +169,8 @@ AUDIENCE_PAGES = {
     "pm": [
         # Added Risk Assessment + Case Investigation — exposure +
         # impact analysis when planning roadmap items.
+        # Typology Catalogue added — typology research drives roadmap
+        # priorities (which detection patterns to invest in next).
         "Rule Performance",
         "Program Maturity",
         "Transformation Roadmap",
@@ -173,6 +178,7 @@ AUDIENCE_PAGES = {
         "Risk Assessment",
         "Case Investigation",
         "Tuning Lab",
+        "Typology Catalogue",
     ],
     "developer": [
         # Added Spec Editor + Rule Tuning + Analyst Review Queue +
@@ -186,7 +192,16 @@ AUDIENCE_PAGES = {
         "Analyst Review Queue",
         "Run History",
     ],
-    "business": ["Executive Dashboard", "Risk Assessment"],
+    "business": [
+        # Business owner / CCO-equivalent at smaller institutions.
+        # Per docs/personas.md, the business owner reads program-level
+        # KPIs, the control matrix (Framework Alignment), and the
+        # evidence bundle when an audit is on the calendar.
+        "Executive Dashboard",
+        "Risk Assessment",
+        "Framework Alignment",
+        "Audit & Evidence",
+    ],
     "auditor": [
         # Added Investigations + Case Investigation — auditor reviews
         # specific cases, not just aggregate evidence.
