@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture · AML Open Framework</title>
+<meta name="description" content="The spec is the source of truth. Four layers — Policy / Generation / Runtime / Evidence — that turn one YAML file into the entire program.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_research.css">
+<style>
+  /* ── Architecture stack diagram ── */
+  .arch-stack {
+    margin: 40px 0 56px;
+    display: grid;
+    grid-template-columns: 200px 1fr 200px;
+    gap: 20px;
+    align-items: stretch;
+  }
+
+  /* Left + right persona columns */
+  .arch-personas {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 8px;
+  }
+  .arch-persona {
+    flex: 1;
+    border-radius: 4px;
+    padding: 14px 16px;
+    background: var(--bg);
+    border: 1px solid var(--rule-strong);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .arch-persona:hover { border-color: var(--accent); transform: translateX(2px); }
+  .arch-personas.right .arch-persona:hover { transform: translateX(-2px); }
+  .arch-persona .role {
+    font-family: var(--mono);
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 6px;
+  }
+  .arch-persona .what {
+    font-size: 14px; line-height: 1.35;
+    color: var(--ink-2);
+  }
+  .arch-persona .what strong { color: var(--ink); font-weight: 600; }
+
+  /* Center stack of 4 layers */
+  .arch-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+  }
+  .arch-layer {
+    border: 1.5px solid var(--ink);
+    border-radius: 4px;
+    padding: 18px 22px 16px;
+    background: var(--bg);
+    position: relative;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .arch-layer:hover { box-shadow: 0 6px 20px rgba(5,28,44,0.08); transform: translateY(-1px); }
+  .arch-layer .head {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 12px;
+  }
+  .arch-layer .head .icon {
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .arch-layer .head .name {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .arch-layer .head .sub {
+    font-size: 14px;
+    color: var(--ink-dim);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .arch-layer .items {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px 14px;
+  }
+  .arch-layer .item {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-2);
+    padding: 7px 10px;
+    background: var(--bg-soft);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 2px 2px 0;
+  }
+  .arch-layer .item strong {
+    display: block;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  /* Layer-specific accents */
+  .arch-layer.policy   { background: linear-gradient(180deg, #fdf6f1 0%, #ffffff 100%); }
+  .arch-layer.policy   .head .icon { color: var(--accent); }
+  .arch-layer.gen      { background: var(--bg); }
+  .arch-layer.runtime  { background: var(--bg); }
+  .arch-layer.evidence { background: linear-gradient(180deg, #f6f7f9 0%, #ffffff 100%); }
+  .arch-layer.evidence .head .icon { color: var(--ink); }
+
+  /* Down-arrows between layers */
+  .arch-flow {
+    height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin: -4px 0;
+  }
+  .arch-flow svg { width: 22px; height: 18px; }
+
+  @media (max-width: 900px) {
+    .arch-stack { grid-template-columns: 1fr; }
+    .arch-personas { flex-direction: row; flex-wrap: wrap; }
+    .arch-personas.right .arch-persona:hover { transform: translateX(2px); }
+    .arch-layer .items { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    .arch-layer .items { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="r-frame">
+    <span>Research <span class="num">·</span> 04</span>
+    <span style="margin-left:auto"><a href="../#/">← back to resource hub</a></span>
+  </div>
+
+  <div class="r-eyebrow">Architecture · design rationale</div>
+  <h1 class="r-title">One spec. <em>Four layers</em>. No drift.</h1>
+  <p class="r-lede">
+    Policy, data contracts, detection rules, case workflow, and regulator mapping live in one versioned YAML file. Every runtime artifact — SQL, DAGs, data-quality tests, dashboards, alert payloads, audit ledger entries — is <strong>generated</strong> from the spec, never hand-written in parallel. This is what kills the drift that causes AML enforcement actions.
+  </p>
+  <div class="r-meta">
+    <span><strong>Pattern</strong> · spec-as-source-of-truth (cf. Terraform / dbt / Kubernetes)</span>
+    <span><strong>License</strong> · Apache 2.0 / MIT-compatible</span>
+    <span><strong>Runtime</strong> · pip-installable · DuckDB + FastAPI + Streamlit</span>
+  </div>
+
+  <h2 class="r-h2">The <em>stack</em>.</h2>
+  <p class="r-section-dek">
+    Read top-down for "where things live." Read left/right for "who reads which layer." The whole thing fits in one binary; no separate orchestrator, no separate alert manager.
+  </p>
+
+  <div class="arch-stack">
+    <!-- Left persona column: who AUTHORS each layer -->
+    <div class="arch-personas left">
+      <div class="arch-persona">
+        <div class="role">Authored by</div>
+        <div class="what"><strong>CCO / MLRO</strong> — writes the spec; signs the decision log.</div>
+      </div>
+      <div class="arch-persona">
+        <div class="role">Operated by</div>
+        <div class="what"><strong>Engineer / 1LoD</strong> — runs the generators + the engine.</div>
+      </div>
+      <div class="arch-persona">
+        <div class="role">Operated by</div>
+        <div class="what"><strong>Engineer / 1LoD</strong> — manages the alert + case stream.</div>
+      </div>
+      <div class="arch-persona">
+        <div class="role">Verified by</div>
+        <div class="what"><strong>Audit / Regulator</strong> — replays history byte-for-byte.</div>
+      </div>
+    </div>
+
+    <!-- Center: 4 stacked layers -->
+    <div class="arch-layers">
+      <div class="arch-layer policy">
+        <div class="head">
+          <span class="icon">📜</span>
+          <span class="name">Policy</span>
+          <span class="sub">aml.yaml · plain YAML · reviewed via PR</span>
+        </div>
+        <div class="items">
+          <div class="item"><strong>program</strong>jurisdiction · regulator · owner</div>
+          <div class="item"><strong>data_contracts</strong>tables · columns · SLAs · PII</div>
+          <div class="item"><strong>rules</strong>logic + regulation_refs</div>
+          <div class="item"><strong>workflow</strong>queues · SLAs · escalations</div>
+          <div class="item"><strong>reporting</strong>SAR · CTR · STR forms</div>
+          <div class="item"><strong>boi · mrm</strong>BOI refresh · model risk</div>
+        </div>
+      </div>
+
+      <div class="arch-flow" aria-hidden="true">
+        <svg viewBox="0 0 22 18"><path d="M 11 2 L 11 14 M 5 9 L 11 15 L 17 9" fill="none" stroke="#dd5c34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <div class="arch-layer gen">
+        <div class="head">
+          <span class="icon">⚙️</span>
+          <span class="name">Generation</span>
+          <span class="sub">spec → artifacts · deterministic, reproducible</span>
+        </div>
+        <div class="items">
+          <div class="item"><strong>sql_generator</strong>rule SQL · DuckDB · Snowflake</div>
+          <div class="item"><strong>dag_generator</strong>Airflow · Dagster stubs</div>
+          <div class="item"><strong>tests_generator</strong>data-quality + fixtures</div>
+          <div class="item"><strong>docs_generator</strong>persona-specific markdown</div>
+          <div class="item"><strong>control_matrix</strong>auditor-facing mapping</div>
+          <div class="item"><strong>mrm_dossier</strong>per-rule MRM bundle</div>
+        </div>
+      </div>
+
+      <div class="arch-flow" aria-hidden="true">
+        <svg viewBox="0 0 22 18"><path d="M 11 2 L 11 14 M 5 9 L 11 15 L 17 9" fill="none" stroke="#dd5c34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <div class="arch-layer runtime">
+        <div class="head">
+          <span class="icon">⚡</span>
+          <span class="name">Runtime</span>
+          <span class="sub">execute rules · produce alerts + cases</span>
+        </div>
+        <div class="items">
+          <div class="item"><strong>ingest</strong>data contract enforced · ISO 20022 native</div>
+          <div class="item"><strong>rule engine</strong>windowed aggregations · joins · network</div>
+          <div class="item"><strong>case manager</strong>queues · SLAs · reviewer notes</div>
+          <div class="item"><strong>boi workflow</strong>beneficial-owner refresh</div>
+          <div class="item"><strong>tuning lab</strong>backtester + threshold sweeps</div>
+          <div class="item"><strong>regulator export</strong>SAR bundle · audit-pack CLI</div>
+        </div>
+      </div>
+
+      <div class="arch-flow" aria-hidden="true">
+        <svg viewBox="0 0 22 18"><path d="M 11 2 L 11 14 M 5 9 L 11 15 L 17 9" fill="none" stroke="#dd5c34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+
+      <div class="arch-layer evidence">
+        <div class="head">
+          <span class="icon">🔒</span>
+          <span class="name">Evidence</span>
+          <span class="sub">immutable audit ledger · signed manifests · hash-chained</span>
+        </div>
+        <div class="items">
+          <div class="item"><strong>spec_version_hash</strong>git SHA + content hash</div>
+          <div class="item"><strong>input_hash</strong>data snapshot hash</div>
+          <div class="item"><strong>output_hash</strong>deterministic-rerun proof</div>
+          <div class="item"><strong>decision_log</strong>reviewer actions + reason</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right persona column: who VERIFIES each layer -->
+    <div class="arch-personas right">
+      <div class="arch-persona">
+        <div class="role">Verified by</div>
+        <div class="what"><strong>2LoD</strong> — challenges the spec quarterly.</div>
+      </div>
+      <div class="arch-persona">
+        <div class="role">Validated by</div>
+        <div class="what"><strong>MRM</strong> — independent re-implementation under SR&nbsp;26-2.</div>
+      </div>
+      <div class="arch-persona">
+        <div class="role">Reviewed by</div>
+        <div class="what"><strong>2LoD / Audit</strong> — sample-checks alerts, reads decision log.</div>
+      </div>
+      <div class="arch-persona">
+        <div class="role">Replayed by</div>
+        <div class="what"><strong>Internal Audit</strong> — re-runs any historical execution byte-for-byte.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="r-h2"><em>Determinism</em> &amp; reproducibility.</h2>
+  <p class="r-p">
+    Every rule execution records four hashes:
+  </p>
+  <ol class="r-rules">
+    <li><strong>spec_version</strong> — git SHA of <code>aml.yaml</code> plus a content hash. <em>What policy ran?</em></li>
+    <li><strong>input_hash</strong> — hash of the ordered input rows (or a snapshot ID). <em>What data did it see?</em></li>
+    <li><strong>output_hash</strong> — hash of the alert set. <em>What did it produce?</em></li>
+    <li><strong>engine_version</strong> — version of this framework. <em>What code executed?</em></li>
+  </ol>
+  <p class="r-p">
+    An auditor can re-run any historical execution and verify the output hash matches. If it doesn't, the chain of custody is broken and the run is flagged. This is what FCA's Dear-CEO Letter Mar 2024 asked for and almost no commercial platform delivers as a published guarantee.
+  </p>
+
+  <h2 class="r-h2">Why <em>not</em> a rules engine in application code?</h2>
+  <p class="r-p">
+    A pure Python or Java rules engine lets any developer tweak detection logic in a Monday-morning hotfix, and the CCO only hears about it three audits later. Declarative specs with PR-based review force a control point: <strong>policy changes go through compliance sign-off before they change pipeline behaviour</strong>. The same argument is why Terraform, dbt, and Kubernetes manifests won — spec &gt; code for regulated change.
+  </p>
+
+  <h2 class="r-h2"><em>Extensibility</em>: two escape hatches.</h2>
+  <p class="r-p">
+    Spec-as-source-of-truth is strict. Two intentional escape hatches preserve the audit trail:
+  </p>
+  <ul class="r-list">
+    <li><strong>custom_sql</strong> on a rule — engineer drops in handwritten SQL when declarative primitives aren't expressive enough. The spec still carries the regulation citation, severity, workflow, and evidence list.</li>
+    <li><strong>python_ref</strong> on a rule — points at a Python callable (e.g. an ML scorer) that returns an alert set. The spec captures the model id and version so model risk management can validate it.</li>
+  </ul>
+  <p class="r-p">
+    Both escape hatches mean some generation properties weaken (e.g. the control matrix can't auto-extract thresholds from custom SQL), but the policy layer is preserved and the audit trail still works.
+  </p>
+
+  <h2 class="r-h2">What this framework is <em>not</em>.</h2>
+  <ul class="r-list">
+    <li><strong>Not a replacement for a core banking system or transaction store.</strong> It reads from whatever warehouse you already have.</li>
+    <li><strong>Not a certified detection-model catalogue.</strong> Rules in the example specs are illustrative starting points, not validated typologies — every Tier-1 deployment will tune them for its own risk model.</li>
+    <li><strong>Not a SAR filing service.</strong> It produces a well-formed regulator bundle; the actual submission step is institution-specific.</li>
+  </ul>
+
+  <div class="r-callout">
+    <span class="label">Reading note</span>
+    For the role-by-role interaction model see <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/personas.md">personas.md</a>; for jurisdiction-specific notes see <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/regulator-mapping.md">regulator-mapping.md</a>.
+  </div>
+
+  <div class="r-foot">
+    <a href="../#/">← back to resource hub</a>
+    <span class="gh">view source on <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/architecture.md">github</a></span>
+  </div>
+
+</div>
+
+</body>
+</html>

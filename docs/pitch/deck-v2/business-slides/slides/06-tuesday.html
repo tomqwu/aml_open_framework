@@ -8,124 +8,284 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/tokens.css">
 <style>
-  .s6-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 40px;
-    margin-top: 8px;
-  }
-  .s6-col-head {
-    font-size: 14px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    font-weight: 700;
-    color: var(--ink-faint);
-    border-bottom: 2px solid var(--ink);
-    padding-bottom: 14px;
-    margin-bottom: 0;
-  }
-  .s6-col-head .lhs { color: var(--ink); }
-  .s6-col-head .rhs { color: var(--accent); }
+  .s6-stage { padding-top: 4px; }
 
-  .s6-row {
-    display: grid;
-    grid-template-columns: 1fr;
-    border-bottom: 1px solid var(--rule);
-    padding: 14px 0 13px;
+  /* Toggle */
+  .s6-toggle {
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-soft);
+    border: 1px solid var(--rule-strong);
+    border-radius: 999px;
+    padding: 4px;
+    margin: 8px 0 24px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    user-select: none;
   }
-  .s6-row:last-child { border-bottom: none; }
-  .s6-row .activity {
+  .s6-toggle .opt {
+    padding: 8px 18px;
+    border-radius: 999px;
+    color: var(--ink-dim);
+    transition: background 0.18s ease, color 0.18s ease;
+    white-space: nowrap;
+  }
+  .s6-toggle .opt.active.today  { background: var(--ink); color: white; }
+  .s6-toggle .opt.active.both   { background: var(--ink); color: white; }
+  .s6-toggle .opt.active.after  { background: var(--accent); color: white; }
+  .s6-toggle .opt:hover:not(.active) { color: var(--ink); }
+
+  /* Day-in-life timeline */
+  .s6-day {
+    position: relative;
+    flex: 1;
+    margin: 0 0 18px;
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 24px;
+  }
+
+  .s6-axis {
+    position: relative;
+    border-right: 2px solid var(--ink);
+  }
+  .s6-axis .hour {
+    position: absolute;
+    right: 14px;
     font-family: 'Inter', sans-serif;
     font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 8px;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
+    transform: translateY(-50%);
+    text-align: right;
   }
-  .s6-row .body {
-    font-size: 20px;
-    line-height: 1.4;
-    color: var(--ink-2);
+
+  .s6-track {
+    position: relative;
+    display: grid;
+    grid-template-rows: repeat(5, 1fr);
+    gap: 0;
+  }
+
+  .s6-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.05fr 60px 1.05fr;
+    gap: 16px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .s6-row:last-child { border-bottom: none; }
+
+  .s6-card {
+    padding: 12px 18px;
+    border-radius: 4px;
+    transition: background 0.25s ease, border-color 0.25s ease, opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .s6-card .lab {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .s6-card .body {
+    font-size: 17px; line-height: 1.35;
     text-wrap: pretty;
   }
-  .s6-row .body strong { color: var(--ink); font-weight: 600; }
-  .s6-row.before .body { color: var(--ink-dim); }
-  .s6-row.before .body em { font-style: italic; color: var(--ink-2); }
-  .s6-row.after .body em { font-style: normal; color: var(--accent); font-weight: 500; }
+  .s6-card .body strong { font-weight: 600; }
+  .s6-card .body em { font-style: italic; }
 
-  .s6-takeaway { margin-top: 18px; }
+  /* Today card */
+  .s6-card.today {
+    background: var(--bg-soft);
+    border-left: 3px solid var(--ink-faint);
+    color: var(--ink-dim);
+  }
+  .s6-card.today .lab  { color: var(--ink-faint); }
+  .s6-card.today .body strong { color: var(--ink); }
+
+  /* After card */
+  .s6-card.after {
+    background: var(--accent-tint);
+    border-left: 3px solid var(--accent);
+    color: var(--ink-2);
+  }
+  .s6-card.after .lab { color: var(--accent); }
+  .s6-card.after .body strong { color: var(--ink); }
+  .s6-card.after .body em { color: var(--accent); font-style: normal; font-weight: 500; }
+
+  .s6-arrow {
+    position: relative;
+    height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .s6-arrow svg { width: 60px; height: 28px; }
+  .s6-arrow .num {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, calc(-50% - 24px));
+    font-family: 'Inter', sans-serif;
+    font-size: 11px; font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    background: white;
+    padding: 1px 6px;
+  }
+
+  /* Toggled states */
+  body[data-mode="today"] .s6-card.after  { opacity: 0.22; }
+  body[data-mode="today"] .s6-card.today  { background: white; border-left-color: var(--ink); color: var(--ink); }
+  body[data-mode="today"] .s6-arrow svg path { stroke: var(--ink-faint); }
+  body[data-mode="today"] .s6-arrow .num { color: var(--ink-dim); }
+
+  body[data-mode="after"] .s6-card.today  { opacity: 0.22; }
+  body[data-mode="after"] .s6-card.after  { box-shadow: 0 4px 16px rgba(221,92,52,0.12); }
+
+  /* Hover row → both cards lift */
+  .s6-row:hover .s6-card { transform: translateY(-1px); }
+  .s6-row:hover .s6-card.today  { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .s6-row:hover .s6-card.after  { box-shadow: 0 2px 12px rgba(221,92,52,0.18); }
+
+  .s6-takeaway { margin-top: 0; }
+
+  /* Header bar above grid */
+  .s6-headers {
+    display: grid;
+    grid-template-columns: 96px 1.05fr 60px 1.05fr;
+    gap: 16px;
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+  }
+  .s6-headers .h {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding-left: 18px;
+    padding-bottom: 6px;
+  }
+  .s6-headers .h.today { color: var(--ink-faint); border-bottom: 2px solid var(--ink); }
+  .s6-headers .h.after { color: var(--accent); border-bottom: 2px solid var(--accent); }
 </style>
 </head>
-<body>
+<body data-mode="both">
   <div class="exhibit-label">Exhibit <span class="num">6</span> A Tuesday on the AML floor</div>
   <div class="top-rule"></div>
 
-  <div class="stage">
-    <h2 class="action-title fade-up" style="margin-bottom:12px;">
-      Same workflow, two days. The unmeasured win is the <em>analyst hours</em> the framework gives back.
+  <div class="stage s6-stage">
+    <h2 class="action-title fade-up" style="margin-bottom:6px;">
+      Same Tuesday, two days. The unmeasured win is <em>analyst hours</em>.
     </h2>
-    <p class="dek fade-up d2" style="margin-bottom:18px;">
-      Detection accuracy gets the headline; the line item that drains the floor is what an analyst does <em>between</em> alerts.
-    </p>
 
-    <div class="s6-grid">
-      <!-- Today column -->
-      <div class="fade-up d3">
-        <div class="s6-col-head"><span class="lhs">Today · without the framework</span></div>
+    <div class="s6-toggle fade-up d2" id="s6Toggle" role="tablist" aria-label="Toggle today vs framework view">
+      <span class="opt today" data-mode="today">Today</span>
+      <span class="opt active both" data-mode="both">Compare</span>
+      <span class="opt after" data-mode="after">With framework</span>
+    </div>
 
-        <div class="s6-row before">
-          <div class="activity">Alert triage</div>
-          <div class="body">Open <strong>8 systems</strong> for one alert — TM, KYC, sanctions, CRM, transactions, prior cases — and copy-paste into a Word file. <em>~95% close as legitimate.</em></div>
-        </div>
-        <div class="s6-row before">
-          <div class="activity">KYC / periodic review</div>
-          <div class="body">Pull the customer dossier from 3 systems, attach screenshots, justify the risk rating in a free-text box. Annual review backlog grows by month-end.</div>
-        </div>
-        <div class="s6-row before">
-          <div class="activity">STR drafting</div>
-          <div class="body">Hunt the customer history, the transaction trail, the typology citation. Re-type the narrative in goAML. The investigation is in the analyst's head.</div>
-        </div>
-        <div class="s6-row before">
-          <div class="activity">BOI refresh</div>
-          <div class="body">Email the relationship manager, chase a beneficial-ownership form, attach to the case file. Stale-BOI list is in someone's spreadsheet.</div>
-        </div>
-        <div class="s6-row before">
-          <div class="activity">Backlog status</div>
-          <div class="body">"How many alerts are over SLA?" — <em>"I'll ask the team."</em> Dashboard shows last week's red. Board approves the program anyway.</div>
-        </div>
+    <div class="s6-headers fade-up d2">
+      <div></div>
+      <div class="h today">Today · without the framework</div>
+      <div></div>
+      <div class="h after">Same Tuesday · with the framework</div>
+    </div>
+
+    <div class="s6-day fade-up d3">
+      <div class="s6-axis">
+        <div class="hour" style="top: 10%;">9 AM</div>
+        <div class="hour" style="top: 30%;">11 AM</div>
+        <div class="hour" style="top: 50%;">1 PM</div>
+        <div class="hour" style="top: 70%;">3 PM</div>
+        <div class="hour" style="top: 90%;">5 PM</div>
       </div>
 
-      <!-- With framework column -->
-      <div class="fade-up d4">
-        <div class="s6-col-head"><span class="rhs">With this framework · same Tuesday</span></div>
+      <div class="s6-track">
+        <div class="s6-row">
+          <div class="s6-card today">
+            <div class="lab">Alert triage</div>
+            <div class="body">Open <strong>8 systems</strong> for one alert. Copy-paste evidence into Word.</div>
+          </div>
+          <div class="s6-arrow" aria-hidden="true">
+            <span class="num">01</span>
+            <svg viewBox="0 0 60 28" preserveAspectRatio="none"><path d="M 4 14 L 50 14 M 44 8 L 52 14 L 44 20" fill="none" stroke="#dd5c34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="s6-card after">
+            <div class="lab">Alert triage</div>
+            <div class="body"><em>One evidence bundle.</em> Customer, transactions, prior alerts, network neighbours, regulator citation — all on one screen.</div>
+          </div>
+        </div>
 
-        <div class="s6-row after">
-          <div class="activity">Alert triage</div>
-          <div class="body"><em>One evidence bundle.</em> Customer record, transactions, prior alerts, network neighbours, regulator citation — all chained, hash-verified, on one screen.</div>
+        <div class="s6-row">
+          <div class="s6-card today">
+            <div class="lab">KYC review</div>
+            <div class="body">Pull dossier from 3 systems. Justify risk in a free-text box. Annual-review backlog grows by month-end.</div>
+          </div>
+          <div class="s6-arrow" aria-hidden="true">
+            <span class="num">02</span>
+            <svg viewBox="0 0 60 28" preserveAspectRatio="none"><path d="M 4 14 L 50 14 M 44 8 L 52 14 L 44 20" fill="none" stroke="#dd5c34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="s6-card after">
+            <div class="lab">KYC review</div>
+            <div class="body">Risk-rating <em>computed from the spec</em>. Dossier auto-assembled. Reviews stop being a backlog.</div>
+          </div>
         </div>
-        <div class="s6-row after">
-          <div class="activity">KYC / periodic review</div>
-          <div class="body">Risk-rating <em>computed from the spec</em>, dossier auto-assembled, EDD-due list rendered live from <em>Customer Risk</em> page. Reviews stop being a backlog.</div>
+
+        <div class="s6-row">
+          <div class="s6-card today">
+            <div class="lab">STR drafting</div>
+            <div class="body">Hunt customer history + transaction trail + typology citation. Re-type the narrative in goAML.</div>
+          </div>
+          <div class="s6-arrow" aria-hidden="true">
+            <span class="num">03</span>
+            <svg viewBox="0 0 60 28" preserveAspectRatio="none"><path d="M 4 14 L 50 14 M 44 8 L 52 14 L 44 20" fill="none" stroke="#dd5c34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="s6-card after">
+            <div class="lab">STR drafting</div>
+            <div class="body">Narrative <em>auto-drafted</em> from the alert evidence chain. Analyst reviews and signs.</div>
+          </div>
         </div>
-        <div class="s6-row after">
-          <div class="activity">STR drafting</div>
-          <div class="body">Narrative <em>auto-drafted</em> from the alert evidence chain. Analyst reviews and signs — doesn't re-type. Filing-latency p95 is a live metric.</div>
+
+        <div class="s6-row">
+          <div class="s6-card today">
+            <div class="lab">BOI refresh</div>
+            <div class="body">Email RM, chase a BO form, attach to the case. Stale list lives in someone's spreadsheet.</div>
+          </div>
+          <div class="s6-arrow" aria-hidden="true">
+            <span class="num">04</span>
+            <svg viewBox="0 0 60 28" preserveAspectRatio="none"><path d="M 4 14 L 50 14 M 44 8 L 52 14 L 44 20" fill="none" stroke="#dd5c34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="s6-card after">
+            <div class="lab">BOI refresh</div>
+            <div class="body"><em>BOI Workflow</em> page shows every reporting-company customer + freshness state. Stale BOI is an alert.</div>
+          </div>
         </div>
-        <div class="s6-row after">
-          <div class="activity">BOI refresh</div>
-          <div class="body"><em>BOI Workflow</em> page shows every reporting-company customer + freshness state. Stale BOI surfaces as an alert, not as someone's spreadsheet.</div>
-        </div>
-        <div class="s6-row after">
-          <div class="activity">Backlog status</div>
-          <div class="body"><em>SLA timer + escalation engine.</em> Per-queue breach-rate badges. Red queues become loud, not slide-decoration. CCO sees real status first.</div>
+
+        <div class="s6-row">
+          <div class="s6-card today">
+            <div class="lab">Backlog status</div>
+            <div class="body">"How many alerts are over SLA?" — <em>"I'll ask the team."</em> Dashboard shows last week's red.</div>
+          </div>
+          <div class="s6-arrow" aria-hidden="true">
+            <span class="num">05</span>
+            <svg viewBox="0 0 60 28" preserveAspectRatio="none"><path d="M 4 14 L 50 14 M 44 8 L 52 14 L 44 20" fill="none" stroke="#dd5c34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="s6-card after">
+            <div class="lab">Backlog status</div>
+            <div class="body"><em>SLA timer + escalation engine.</em> Per-queue breach-rate badges. CCO sees real status first.</div>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="takeaway s6-takeaway fade-up d5">
       <span class="label">Key takeaway</span>
-      The unmeasured win isn't accuracy — it's the <em>analyst hours</em> the team gets back. Multiply across 100 analysts, 50 weeks: same dollars, signal instead of motion.
+      The unmeasured win isn't accuracy — it's <em>analyst hours</em>. Multiply across 100 analysts, 50 weeks: same dollars, signal instead of motion.
     </div>
   </div>
 
@@ -135,6 +295,14 @@
   </div>
 
   <script>
+    const t = document.getElementById('s6Toggle');
+    t.addEventListener('click', e => {
+      const opt = e.target.closest('.opt');
+      if (!opt) return;
+      const mode = opt.dataset.mode;
+      document.body.dataset.mode = mode;
+      t.querySelectorAll('.opt').forEach(o => o.classList.toggle('active', o.dataset.mode === mode));
+    });
     document.fonts.ready.then(() => {
       document.body.classList.add('ready');
       window.__ready = true;
