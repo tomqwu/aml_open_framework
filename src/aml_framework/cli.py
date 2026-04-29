@@ -1115,6 +1115,340 @@ def dashboard(
     )
 
 
+@app.command()
+def backtest(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    rule_id: str = typer.Option(..., "--rule", help="Which rule to backtest."),
+    quarters: int = typer.Option(
+        4, "--quarters", help="Number of 90-day windows ending at --as-of."
+    ),
+    as_of: str | None = typer.Option(
+        None, "--as-of", help="ISO timestamp of the most-recent window. Defaults to now."
+    ),
+    seed: int = typer.Option(42, "--seed", help="Synthetic data seed."),
+    labels_csv: Path | None = typer.Option(
+        None,
+        "--labels",
+        help="CSV with header 'customer_id,is_true_positive,period' (period optional). "
+        "When 'period' is present, rows are filtered to the matching period label.",
+    ),
+    out: Path = typer.Option(
+        Path(".artifacts/backtest_report.json"),
+        "--out",
+        help="Where to write the BacktestReport JSON.",
+    ),
+) -> None:
+    """Backtest one rule across N historical quarters.
+
+    Built for 2LoD model-risk: answers "is rule X still earning its
+    keep, or is precision/recall trending down?" without commissioning
+    a vendor study. The output JSON drops straight into a per-rule
+    SR 26-2 / OCC 2026-13 dossier.
+
+    The default quarter generator steps back 90 days from --as-of; pass
+    your own period list via the Python API when your fiscal calendar
+    is non-standard.
+    """
+    import csv as _csv
+    import json as _json
+
+    from aml_framework.engine.backtest import (
+        BacktestPeriod,
+        backtest_rule,
+        quarters as _quarters_helper,
+    )
+
+    spec = load_spec(spec_path)
+    end_dt = _parse_as_of(as_of)
+    periods: list[BacktestPeriod] = [
+        BacktestPeriod(label=p.label, as_of=p.as_of, seed=seed)
+        for p in _quarters_helper(end=end_dt, n=quarters)
+    ]
+
+    labels_loader = None
+    if labels_csv is not None:
+        per_period_labels: dict[str | None, dict[str, bool]] = {}
+        with labels_csv.open(encoding="utf-8") as f:
+            for row in _csv.DictReader(f):
+                period_key = row.get("period") or None
+                bucket = per_period_labels.setdefault(period_key, {})
+                bucket[row["customer_id"]] = row.get("is_true_positive", "0") in (
+                    "1",
+                    "true",
+                    "True",
+                    "yes",
+                )
+
+        def labels_loader(period: BacktestPeriod) -> dict[str, bool] | None:
+            if period.label in per_period_labels:
+                return per_period_labels[period.label]
+            return per_period_labels.get(None)
+
+    report = backtest_rule(spec, rule_id, periods, labels_loader=labels_loader)
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(_json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+
+    table = Table(title=f"Backtest · {rule_id}")
+    table.add_column("Period")
+    table.add_column("As-of")
+    table.add_column("Alerts", justify="right")
+    table.add_column("Precision", justify="right")
+    table.add_column("Recall", justify="right")
+    table.add_column("F1", justify="right")
+    for p in report.periods:
+        table.add_row(
+            p.period,
+            p.as_of[:10],
+            str(p.alert_count),
+            f"{p.precision:.2%}" if p.precision is not None else "—",
+            f"{p.recall:.2%}" if p.recall is not None else "—",
+            f"{p.f1:.2%}" if p.f1 is not None else "—",
+        )
+    console.print(table)
+
+    if report.drift_summary:
+        console.print("\n[bold]Drift summary:[/bold]")
+        for k, v in report.drift_summary.items():
+            colour = "green"
+            if any(metric in k for metric in ("precision", "recall", "f1")):
+                colour = "red" if (isinstance(v, (int, float)) and v < 0) else "green"
+            console.print(f"  [{colour}]{k}[/{colour}] = {v}")
+    console.print(f"\n[green]Backtest written[/green] {out}")
+
+
+_DEMO_PERSONA_NEXT_STEPS: dict[str, list[tuple[str, str, str]]] = {
+    "cco": [
+        (
+            "See the audit pack you'd hand a regulator.",
+            "open {artifacts}/audit-pack.zip",
+            "audit-pack.zip",
+        ),
+        (
+            "Walk the dashboard at the CCO landing page.",
+            "aml dashboard {spec}",
+            "",
+        ),
+        (
+            "Read the FinCEN-aligned effectiveness pack.",
+            "open {artifacts}/effectiveness.json",
+            "effectiveness.json",
+        ),
+    ],
+    "mlro": [
+        (
+            "Open the spec — every rule, every threshold, every regulation citation.",
+            "less {spec}",
+            "",
+        ),
+        (
+            "Inspect the per-rule MRM dossier (SR 26-2 / OCC 2026-13).",
+            "aml mrm-bundle {spec} --out {artifacts}/mrm",
+            "",
+        ),
+        (
+            "Tune a threshold and see the precision/recall trade-off.",
+            "aml dashboard {spec}   # → Tuning Lab",
+            "",
+        ),
+    ],
+    "analyst": [
+        (
+            "Open the alert queue with pre-attached evidence.",
+            "aml dashboard {spec}   # → Alert Queue",
+            "",
+        ),
+        (
+            "Draft a STR narrative from any alert.",
+            "aml draft-narrative {spec} --alert-id <id>",
+            "",
+        ),
+        (
+            "Export alerts as CSV for offline review.",
+            "aml export-alerts {spec}",
+            "",
+        ),
+    ],
+    "auditor": [
+        (
+            "Verify the SHA-256 hash chain — tampering is reportable.",
+            "ls {artifacts}/run-*/decisions.jsonl",
+            "",
+        ),
+        (
+            "Replay this run and prove byte-for-byte determinism.",
+            "aml replay {spec} {artifacts}/run-*",
+            "",
+        ),
+        (
+            "Pull the FINTRAC examination ZIP.",
+            "open {artifacts}/audit-pack.zip",
+            "audit-pack.zip",
+        ),
+    ],
+}
+
+
+@app.command()
+def demo(
+    spec_path: Path = typer.Argument(
+        Path("examples/canadian_schedule_i_bank/aml.yaml"),
+        exists=True,
+        readable=True,
+        help="Spec to demo. Defaults to the Canadian Schedule-I bank example.",
+    ),
+    persona: str = typer.Option(
+        "cco",
+        "--persona",
+        help="Whose first 5 minutes is this? cco | mlro | analyst | auditor.",
+    ),
+    artifacts: Path = typer.Option(
+        Path(".artifacts/demo"),
+        "--artifacts",
+        help="Where to write demo outputs (separate from real runs).",
+    ),
+    seed: int = typer.Option(42, "--seed", help="Synthetic data seed."),
+    launch: bool = typer.Option(
+        False,
+        "--launch/--no-launch",
+        help="If set, start the dashboard at the end. Otherwise, print the command.",
+    ),
+) -> None:
+    """Five-minute guided demo for a non-technical buyer.
+
+    Runs validate → engine → audit pack → effectiveness pack against the
+    canonical example spec, narrated for a chosen persona. Designed so a
+    CCO who has 5 minutes between meetings can self-serve a real audit
+    pack without booking a vendor demo.
+
+    The story we tell:
+      1. The spec exists and is valid.
+      2. The engine ran. Here are the alerts and cases.
+      3. The audit chain is intact. Here's the proof.
+      4. Here's the regulator-ready ZIP. Open it.
+      5. Here's where to look next, tailored to who you are.
+    """
+    persona = persona.lower().strip()
+    if persona not in _DEMO_PERSONA_NEXT_STEPS:
+        console.print(
+            f"[red]Unknown persona '{persona}'.[/red] "
+            f"Choose one of: {', '.join(sorted(_DEMO_PERSONA_NEXT_STEPS))}"
+        )
+        raise typer.Exit(code=1)
+
+    artifacts.mkdir(parents=True, exist_ok=True)
+
+    console.rule("[bold cyan]AML Open Framework — 5-minute demo[/bold cyan]")
+    console.print(
+        f"Persona: [bold]{persona.upper()}[/bold]    "
+        f"Spec: [dim]{spec_path}[/dim]    "
+        f"Artifacts: [dim]{artifacts}/[/dim]\n"
+    )
+
+    # Step 1 — validate.
+    console.print("[bold]1.[/bold] Reading the spec…")
+    spec = load_spec(spec_path)
+    console.print(
+        f"   [green]✓[/green] {len(spec.rules)} detection rule(s), "
+        f"{len(spec.data_contracts)} data contract(s), "
+        f"{len(spec.workflow.queues)} queue(s). "
+        f"Plain YAML — readable by 1LoD, 2LoD, and the regulator."
+    )
+
+    # Step 2 — run engine.
+    console.print("\n[bold]2.[/bold] Running the engine on synthetic data…")
+    as_of_dt = _parse_as_of(None)
+    data = generate_dataset(as_of=as_of_dt, seed=seed)
+    result = run_spec(
+        spec=spec,
+        spec_path=spec_path,
+        data=data,
+        as_of=as_of_dt,
+        artifacts_root=artifacts,
+    )
+    console.print(
+        f"   [green]✓[/green] {result.total_alerts} alert(s) across "
+        f"{len(spec.rules)} rule(s); "
+        f"{len(result.case_ids)} case(s) opened; "
+        f"{len(result.metrics)} metric(s) computed."
+    )
+
+    # Step 3 — audit chain.
+    run_dir = Path(result.manifest["run_dir"])
+    decisions_path = run_dir / "decisions.jsonl"
+    if decisions_path.exists():
+        n_decisions = sum(1 for _ in decisions_path.open(encoding="utf-8"))
+    else:
+        n_decisions = 0
+    console.print("\n[bold]3.[/bold] Sealing the audit chain…")
+    console.print(
+        f"   [green]✓[/green] {n_decisions} decision(s) hash-chained in "
+        f"[dim]{decisions_path.relative_to(artifacts.parent) if decisions_path.exists() else 'decisions.jsonl'}[/dim]. "
+        f"Tampering would break verify_decisions()."
+    )
+
+    # Step 4 — audit pack.
+    console.print("\n[bold]4.[/bold] Building the regulator pack (FINTRAC-aligned)…")
+    from aml_framework.generators.audit_pack import build_audit_pack_from_run_dir
+
+    audit_zip = artifacts / "audit-pack.zip"
+    payload = build_audit_pack_from_run_dir(spec, run_dir, jurisdiction="CA-FINTRAC")
+    audit_zip.write_bytes(payload)
+    console.print(
+        f"   [green]✓[/green] {audit_zip} ({len(payload):,} bytes). "
+        f"This is what an examiner would receive on day one of an exam."
+    )
+
+    # Step 4b — effectiveness pack (optional, only if rules carry aml_priority).
+    has_priority = any(getattr(r, "aml_priority", None) for r in spec.rules)
+    if has_priority:
+        console.print("\n[bold]4b.[/bold] Building the FinCEN effectiveness pack…")
+        from aml_framework.generators.effectiveness import (
+            export_pack_from_run_dir as _export_eff_pack,
+        )
+
+        eff_path = artifacts / "effectiveness.json"
+        eff_path.write_bytes(_export_eff_pack(spec, run_dir))
+        console.print(f"   [green]✓[/green] {eff_path} — mapped to the four FinCEN NPRM pillars.")
+    else:
+        console.print("\n[dim]4b. (skipped — this spec has no aml_priority fields yet)[/dim]")
+
+    # Step 5 — persona-specific next steps. Skip steps whose target file
+    # was not produced by this run (e.g. effectiveness pack on a spec
+    # without aml_priority).
+    console.rule(f"[bold]Next 5 minutes for a {persona.upper()}[/bold]")
+    for human, command, requires in _DEMO_PERSONA_NEXT_STEPS[persona]:
+        if requires and not (artifacts / requires).exists():
+            continue
+        console.print(f"  [cyan]▸[/cyan] {human}")
+        rendered = command.format(spec=spec_path, artifacts=artifacts)
+        console.print(f"    [dim]$ {rendered}[/dim]\n")
+
+    if launch:
+        console.print("[bold]Launching dashboard…[/bold]\n")
+        import subprocess
+        import sys
+
+        dashboard_app = Path(__file__).parent / "dashboard" / "app.py"
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "streamlit",
+                "run",
+                str(dashboard_app),
+                "--server.headless",
+                "true",
+                "--",
+                str(spec_path.resolve()),
+                str(seed),
+            ],
+            check=False,
+        )
+    else:
+        console.print("[dim]Add [/dim][bold]--launch[/bold][dim] to open the dashboard now.[/dim]")
+
+
 @app.command(name="export-alerts")
 def export_alerts(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

@@ -25,6 +25,13 @@ from aml_framework.cases.sla import (
     compute_sla_status,
     summarise_backlog,
 )
+from aml_framework.cases.linkage import (
+    LinkedCustomer,
+    build_rule_domain_map,
+    classify_rule_domain,
+    find_linked_customers,
+    linkage_summary,
+)
 from aml_framework.cases.str_bundle import (
     BUNDLE_VERSION,
     bundle_hash,
@@ -44,4 +51,9 @@ __all__ = [
     "BUNDLE_VERSION",
     "bundle_hash",
     "bundle_investigation_to_str",
+    "LinkedCustomer",
+    "build_rule_domain_map",
+    "classify_rule_domain",
+    "find_linked_customers",
+    "linkage_summary",
 ]

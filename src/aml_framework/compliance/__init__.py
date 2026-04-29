@@ -8,6 +8,17 @@ Future modules will follow the same pattern: defensive layers that sit
 *above* the spec, not inside it.
 """
 
+from aml_framework.compliance.boi import (
+    DEFAULT_FRESHNESS_DAYS,
+    BeneficialOwner,
+    BOIRecord,
+    boi_summary,
+    derive_boi_status,
+    derive_boi_status_for_all,
+    export_fincen_boi,
+    is_reporting_company,
+    synthesise_owners_from_customer,
+)
 from aml_framework.compliance.regwatch import (
     DriftReport,
     RegwatchEntry,
@@ -26,4 +37,13 @@ __all__ = [
     "load_baseline",
     "save_baseline",
     "scan_spec",
+    "BeneficialOwner",
+    "BOIRecord",
+    "DEFAULT_FRESHNESS_DAYS",
+    "boi_summary",
+    "derive_boi_status",
+    "derive_boi_status_for_all",
+    "export_fincen_boi",
+    "is_reporting_company",
+    "synthesise_owners_from_customer",
 ]

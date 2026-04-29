@@ -10,8 +10,7 @@ from aml_framework.dashboard.data_layer import MATURITY_LEVELS, compute_maturity
 
 page_header(
     "Program Maturity Assessment",
-    "12-dimension maturity model based on leading consulting firm methodologies "
-    "(Level 1: Ad-Hoc to Level 5: Optimized).",
+    "Where the program sits today — and the concrete gaps to close before the next exam.",
 )
 
 st.caption(

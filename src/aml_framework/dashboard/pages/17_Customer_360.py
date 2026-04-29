@@ -12,6 +12,8 @@ from aml_framework.dashboard.components import (
     link_to_page,
     page_header,
     risk_color,
+    tooltip_banner,
+    tour_panel,
 )
 from aml_framework.dashboard.query_params import read_param
 
@@ -27,13 +29,13 @@ df_alerts = st.session_state.df_alerts
 df_cases = st.session_state.df_cases
 spec = st.session_state.spec
 
-if st.session_state.get("guided_demo"):
-    st.info(
-        "**Guided Demo -- Customer 360**\n\n"
-        "Select a customer to see their complete profile: KYC data, "
-        "transaction history, alerts triggered, open cases, and risk "
-        "indicators. This is the view an analyst uses for investigation."
-    )
+tour_panel("Customer 360")
+tooltip_banner(
+    "Customer 360",
+    "Select a customer to see their complete profile: KYC data, "
+    "transaction history, alerts triggered, open cases, and risk "
+    "indicators. This is the view an analyst uses for investigation.",
+)
 
 # --- Customer selector ---
 # Pre-select via deep link from Alert Queue / Network Explorer / Executive
