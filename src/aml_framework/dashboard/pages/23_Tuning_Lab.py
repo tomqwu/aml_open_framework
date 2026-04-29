@@ -20,7 +20,12 @@ import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import (
+    chart_layout,
+    glossary_legend,
+    kpi_card,
+    page_header,
+)
 from aml_framework.dashboard.tuning_state import (
     best_scenario,
     parse_labels_csv,
@@ -243,3 +248,10 @@ with st.expander("📉 Backtest this rule across historical quarters", expanded=
             file_name=f"{rule_id}_backtest.json",
             mime="application/json",
         )
+
+# Acronyms used on this page — model-validation context terms expanded
+# so a non-MRM-resident leader can read along.
+st.markdown(
+    glossary_legend(["MRM", "2LoD", "RAG"]),
+    unsafe_allow_html=True,
+)

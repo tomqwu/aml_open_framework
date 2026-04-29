@@ -28,7 +28,7 @@ from __future__ import annotations
 import streamlit as st
 
 from aml_framework.dashboard.audience import persona_description
-from aml_framework.dashboard.components import page_header
+from aml_framework.dashboard.components import glossary_legend, page_header
 
 PAGE_TITLE = "Welcome"
 
@@ -284,4 +284,11 @@ st.caption(
     "**Want the 10 daily pain points behind every page on this dashboard?** "
     "Read the [process-pain research doc]"
     "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md)."
+)
+
+# Acronyms used on this page — expanded in plain English so a leader who
+# doesn't know all of them sees a definition without leaving the screen.
+st.markdown(
+    glossary_legend(["1LoD", "2LoD", "KYC", "STR", "SLA"]),
+    unsafe_allow_html=True,
 )

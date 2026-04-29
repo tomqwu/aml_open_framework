@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aml_framework.dashboard.components import kpi_card, page_header, tooltip_banner, tour_panel
+from aml_framework.dashboard.components import (
+    glossary_legend,
+    kpi_card,
+    page_header,
+    tooltip_banner,
+    tour_panel,
+)
 from aml_framework.engine.audit import AuditLedger
 
 page_header(
@@ -316,3 +322,10 @@ else:
         "Future rounds will add UK FCA / EU AMLA / US FinCEN templates "
         "using the same generator skeleton."
     )
+
+# Acronyms used on this page — leader-friendly expansions so the
+# regulator-facing terminology stays visible without losing readers.
+st.markdown(
+    glossary_legend(["STR", "SAR", "FINTRAC", "OSFI", "FCA", "AMLA", "FinCEN", "MRM"]),
+    unsafe_allow_html=True,
+)
