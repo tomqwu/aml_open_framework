@@ -162,6 +162,83 @@ def init(
 
 
 @app.command()
+def byod(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    data_dir: Path = typer.Argument(..., exists=True, file_okay=False, dir_okay=True),
+    out: Path = typer.Option(
+        Path("data_mapping.yaml"),
+        "--out",
+        help="Where to write the mapping YAML the developer edits.",
+    ),
+) -> None:
+    """Bring-your-own-data wizard — map a real warehouse to spec contracts.
+
+    Walks every data contract in `aml.yaml`, finds the matching CSV in
+    `data_dir` (by contract id), profiles each column (type + nullness +
+    sample values), and suggests a likely mapping for every column the
+    spec declares. Output is a `data_mapping.yaml` the developer
+    reviews + edits — then `aml validate-data` checks completeness.
+
+    Decision order for each suggestion (highest-confidence first):
+      1. Exact name match (confidence 1.00)
+      2. Known alias (e.g. `cust_id` ↔ `customer_id`) — confidence 0.85
+      3. Substring match — confidence 0.60
+      4. Single matching declared type, no name signal — confidence 0.30
+         (flagged for human review)
+      5. No suggestion — fill in manually
+    """
+    from aml_framework.byod import map_spec_to_data_dir, render_mapping_yaml
+
+    spec = load_spec(spec_path)
+    reports = map_spec_to_data_dir(spec, data_dir)
+    out.write_text(render_mapping_yaml(reports), encoding="utf-8")
+
+    table = Table(title=f"Mapping report · {spec_path.name}")
+    table.add_column("Contract")
+    table.add_column("Source")
+    table.add_column("Total", justify="right")
+    table.add_column("Mapped", justify="right")
+    table.add_column("Low conf", justify="right")
+    table.add_column("Unmapped", justify="right")
+    n_mapped = 0
+    n_low = 0
+    n_unmapped = 0
+    for r in reports:
+        mapped = sum(1 for m in r.mappings if m.suggested_source_column is not None)
+        low = len(r.low_confidence)
+        unmapped = len(r.unmapped_required)
+        n_mapped += mapped
+        n_low += low
+        n_unmapped += unmapped
+        table.add_row(
+            r.contract_id,
+            r.source_file.name,
+            str(len(r.mappings)),
+            str(mapped),
+            str(low),
+            str(unmapped),
+        )
+    console.print(table)
+
+    if n_unmapped:
+        console.print(
+            f"\n[yellow]⚠ {n_unmapped} column(s) have no suggestion — "
+            "fill them in manually.[/yellow]"
+        )
+    if n_low:
+        console.print(
+            f"[yellow]⚠ {n_low} column(s) are low-confidence — please verify "
+            "before running the engine.[/yellow]"
+        )
+
+    console.print(f"\n[green]Mapping written[/green] {out}")
+    console.print(
+        f"\n[bold]Try it next:[/bold]\n  $ {out}  # review + edit\n"
+        f"  $ aml validate-data {spec_path} --data-dir {data_dir}"
+    )
+
+
+@app.command()
 def validate(spec_path: Path = typer.Argument(..., exists=True, readable=True)) -> None:
     """Validate aml.yaml against the JSON Schema and cross-reference checks."""
     spec = load_spec(spec_path)
