@@ -9,7 +9,7 @@ from aml_framework.engine.audit import AuditLedger
 
 page_header(
     "Audit & Evidence",
-    "Immutable audit trail with hash verification, decision log, and evidence bundle.",
+    "What you'd hand a regulator if they walked in tomorrow.",
 )
 
 result = st.session_state.result

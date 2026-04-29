@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aml_framework.dashboard.audience import AUDIENCE_PAGES
+from aml_framework.dashboard.audience import (
+    AUDIENCE_PAGES,
+    PERSONA_LABELS,
+    persona_description,
+)
 from aml_framework.dashboard.components import apply_theme
 from aml_framework.dashboard.state import initialize_session
 
@@ -75,29 +79,33 @@ with st.sidebar:
 
     st.divider()
 
+    # Persona codes carry a human-readable title rendered in the dropdown
+    # so a leader can self-identify ("Chief Compliance Officer") rather
+    # than guess what `cco` means. The selectbox value stays the bare
+    # code so existing `selected_audience` lookups continue to work.
+    _persona_options = ["all"] + list(PERSONA_LABELS.keys())
+
+    def _persona_format(code: str) -> str:
+        if code == "all":
+            return "All pages"
+        title = PERSONA_LABELS.get(code, (code.upper(), ""))[0]
+        return f"{title}"
+
     audience = st.selectbox(
-        "Audience view",
-        options=[
-            "all",
-            "svp",
-            "cto",
-            "cco",
-            "vp",
-            "director",
-            "manager",
-            "analyst",
-            "auditor",
-            "pm",
-            "developer",
-            "business",
-        ],
+        "I am a…",
+        options=_persona_options,
         index=0,
+        format_func=_persona_format,
         help=(
-            "Filter pages + scale fonts by audience role. "
-            "Executive personas (SVP/CTO/CCO/VP/Director) get a larger "
-            "font scale for meeting-room readability."
+            "Pick your role to filter the sidebar to the pages most relevant "
+            "to you. Executive personas (SVP/CTO/CCO/VP/Director) also get a "
+            "larger font scale for meeting-room readability."
         ),
     )
+    if audience != "all":
+        # One-line description grounds the selection so a leader knows
+        # they picked the right persona before the page list updates.
+        st.caption(persona_description(audience))
     st.session_state["selected_audience"] = audience if audience != "all" else None
 
     guided = st.toggle("Guided demo", value=False, help="Show narrative walkthrough.")
