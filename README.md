@@ -2,7 +2,7 @@
 
 **An anti-money-laundering program you can show to your regulator without a six-week reconstruction.**
 
-The hard part of AML at a bank is not detection. It's proving — months later — that the right rule fired, was reviewed, was acted on, and that nothing was quietly turned off. *(See [PAIN-1, PAIN-2 in the leader pain doc](docs/research/2026-04-aml-process-pain.md) — across recent enforcement orders, regulators rarely allege missed typologies; they allege the bank cannot evidence what it did.)*
+The hard part of AML at a bank is not detection. It's proving — months later — that the right rule fired, was reviewed, was acted on, and that nothing was quietly turned off. *(See [PAIN-1, PAIN-2 in the leader pain doc](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) — across recent enforcement orders, regulators rarely allege missed typologies; they allege the bank cannot evidence what it did.)*
 
 This framework gives the AML org one source of truth that compliance can read, engineering can ship, and an auditor can replay byte-for-byte. The day-to-day result: analysts stop hunting across eight tabs, supervisors see real status not Excel rumours, and when the regulator walks in, the examination ZIP is already on the shelf.
 
@@ -18,7 +18,7 @@ This framework gives the AML org one source of truth that compliance can read, e
 | **Auditor** | Replay any historical run; verify the hash chain; pull the FINTRAC / OSFI / FinCEN exam pack in 60 seconds |
 | **CRO / CFO** | Apache 2.0 — runs in your perimeter, no per-seat licence. Effectiveness pack quantifies what the spend bought |
 
-A live multi-audience pitch deck walking the framework slide by slide is at [`docs/pitch/deck/index.html`](docs/pitch/deck/index.html) — start there if you have 5 minutes.
+A live multi-audience pitch deck walking the framework slide by slide is at [`docs/pitch/deck/index.html`](https://github.com/tomqwu/aml_open_framework/blob/docs/pitch-deck/docs/pitch/deck/index.html) — start there if you have 5 minutes.
 
 ---
 
@@ -46,7 +46,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 📖 [Getting Started](docs/getting-started.md) | First install through your first audit bundle (15 min) |
 | 👥 [Personas & Workflows](docs/personas.md) | Map your role (CCO / MLRO / Analyst / Auditor / Developer) to the framework |
 | 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 26 pages with screenshots + audience filtering |
-| 🤔 [10 Daily Pain Points](docs/research/2026-04-aml-process-pain.md) | The real reasons AML leaders feel stuck — primary-source quotes only |
+| 🤔 [10 Daily Pain Points](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) | The real reasons AML leaders feel stuck — primary-source quotes only |
 
 ### How it works
 
