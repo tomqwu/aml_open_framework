@@ -300,6 +300,65 @@ def add_rule_cmd(
     console.print(f"  $ aml run {spec_path} --seed 42")
 
 
+@app.command(name="today")
+def today_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    persona: str = typer.Option(
+        "cco",
+        "--persona",
+        help="cco | mlro | director | manager | analyst | auditor | cto | svp",
+    ),
+    run_dir: Path = typer.Option(
+        None, "--run-dir", help="Run dir; defaults to newest under artifacts/."
+    ),
+    artifacts: Path = typer.Option(
+        Path("artifacts"), "--artifacts", help="Where engine runs are written."
+    ),
+    no_run: bool = typer.Option(
+        False,
+        "--no-run",
+        help="Skip the run-dir lookup; show only always-applicable hints.",
+    ),
+) -> None:
+    """Per-persona morning checklist — what needs your attention today.
+
+    Walks the latest run's audit ledger + cases and produces a one-page
+    checklist tailored to the asker's role. CCO sees board-relevant
+    signal; MLRO sees model-challenge work; analyst sees their own
+    queue. Quiet defaults: when nothing's on fire, the checklist is a
+    one-line "all clear" rather than empty.
+
+    Process problem: leaders read 4 dashboards every morning to assemble
+    a unified picture. This is that unified picture in 1 command.
+    """
+    from aml_framework.today_checklist import (
+        PERSONA_SIGNALS,
+        build_checklist,
+        render_checklist_text,
+    )
+
+    persona = persona.strip().lower()
+    if persona not in PERSONA_SIGNALS:
+        console.print(
+            f"[red]Unknown persona {persona!r}.[/red] Choose: {', '.join(sorted(PERSONA_SIGNALS))}"
+        )
+        raise typer.Exit(code=2)
+
+    spec = load_spec(spec_path)
+    if no_run:
+        run = None
+    else:
+        try:
+            run = _resolve_run_dir(run_dir, artifacts)
+        except typer.Exit:
+            # No run dir → silently fall back to "no-run" mode rather than
+            # crashing the new-bank case.
+            run = None
+
+    checklist = build_checklist(persona=persona, spec=spec, run_dir=run)
+    console.print(render_checklist_text(checklist))
+
+
 @app.command(name="notify-digest")
 def notify_digest_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
