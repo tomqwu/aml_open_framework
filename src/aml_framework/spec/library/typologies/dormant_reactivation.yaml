@@ -1,0 +1,52 @@
+# Curated typology — installable via `aml typology-import dormant_reactivation`.
+# Field-level definitions in src/aml_framework/typology_library.py
+
+metadata:
+  id: dormant_reactivation
+  name: "Dormant account suddenly active"
+  description: |
+    Account inactive for 180+ days suddenly receives or sends > $10k
+    in a 7-day window. Cited in TD Bank's 2024 enforcement order
+    (finding #5) as a control the institution should have shipped.
+    Useful both for sleeper-mule detection and stolen-credentials
+    fraud overlap.
+  jurisdictions: ["US", "CA", "GB", "EU"]
+  regulations:
+    - "FFIEC BSA/AML Manual — dormant account monitoring"
+    - "TD Bank 2024 enforcement order, finding #5"
+  source: "TD Bank 2024 enforcement order — finding #5"
+  recommended_severity: medium
+  dependencies: []
+
+rule:
+  id: dormant_reactivation
+  name: Dormant account suddenly active
+  severity: medium
+  regulation_refs:
+    - citation: "FFIEC BSA/AML Manual"
+      description: "Dormant account reactivation — risk-based monitoring."
+    - citation: "TD Bank 2024 enforcement order"
+      description: "Finding #5 — dormant-account control gap."
+  logic:
+    type: custom_sql
+    sql: |
+      WITH dormant AS (
+        SELECT customer_id
+        FROM   txn
+        WHERE  txn_ts BETWEEN '{dormant_cutoff}' AND '{window_start}'
+        GROUP  BY customer_id
+        HAVING COUNT(*) = 0
+      ),
+      reactivated AS (
+        SELECT t.customer_id, SUM(t.amount) AS recent_total, COUNT(*) AS recent_count
+        FROM   txn t
+        WHERE  t.txn_ts BETWEEN '{recent_start}' AND '{as_of}'
+        GROUP  BY t.customer_id
+        HAVING SUM(t.amount) >= 10000
+      )
+      SELECT r.customer_id, r.recent_total, r.recent_count
+      FROM   reactivated r
+      JOIN   dormant d USING (customer_id)
+  escalate_to: l1_aml_analyst
+  evidence: [matching_txns, account_age_days, prior_alerts_90d, customer_contact_log]
+  tags: [dormant, td_2024_finding_5, mule_funnel]

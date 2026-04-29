@@ -1,0 +1,45 @@
+# Curated typology — installable via `aml typology-import pig_butchering_outbound_fan`.
+# Field-level definitions in src/aml_framework/typology_library.py
+
+metadata:
+  id: pig_butchering_outbound_fan
+  name: "Pig-butchering — outbound fan-out to fresh payees"
+  description: |
+    Romance/investment-scam pattern: a victim makes 5+ outbound payments
+    to first-use payees within 14 days, totals exceed $20k, and most go
+    to crypto on/off-ramps. FATF 2026 thematic paper on cyber-enabled
+    fraud calls this the dominant retail loss driver of the decade.
+  jurisdictions: ["US", "CA", "GB", "EU", "AU", "SG"]
+  regulations:
+    - "FATF (2026) Cyber-enabled fraud thematic paper, finding 4"
+    - "PSR (UK) APP-fraud reimbursement code (Oct 2024)"
+    - "FinCEN FIN-2023-Alert005 (pig butchering advisory)"
+  source: "FATF 2026 cyber-enabled fraud thematic paper"
+  recommended_severity: critical
+  dependencies: []
+
+rule:
+  id: pig_butchering_outbound_fan
+  name: Pig-butchering — outbound fan-out to fresh payees
+  severity: critical
+  regulation_refs:
+    - citation: "FATF (2026) cyber-enabled fraud paper"
+      description: "Thematic risk indicators for romance + investment scams."
+    - citation: "FinCEN FIN-2023-Alert005"
+      description: "Pig butchering scams — supplemental advisory."
+  logic:
+    type: aggregation_window
+    source: txn
+    filter:
+      direction: out
+      payee_first_seen_days: { lte: 30 }
+    group_by: [customer_id]
+    window: 14d
+    having:
+      count: { gte: 5 }
+      sum_amount: { gte: 20000 }
+      distinct_payee_count: { gte: 4 }
+  escalate_to: l2_investigator
+  evidence: [matching_txns, payee_first_seen, prior_alerts_90d, customer_contact_log]
+  tags: [pig_butchering, fraud_aml_convergence, fatf_2026]
+  aml_priority: fraud

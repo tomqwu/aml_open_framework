@@ -1,0 +1,44 @@
+# Curated typology — installable via `aml typology-import app_fraud_first_use_payee`.
+# Field-level definitions in src/aml_framework/typology_library.py
+
+metadata:
+  id: app_fraud_first_use_payee
+  name: "APP fraud — first-use payee, high-value push"
+  description: |
+    Authorised Push Payment fraud trigger required by the UK PSR's
+    October 2024 reimbursement regime: a customer initiates a single
+    push payment ≥ £1k to a payee they have never paid before. Sending
+    PSPs that fail to detect this lose mandatory reimbursement defenses.
+  jurisdictions: ["GB", "EU"]
+  regulations:
+    - "PSR (UK) PS24/3 — APP-fraud reimbursement requirement"
+    - "FCA FG24/4 — Strengthening protection for victims of APP fraud"
+  source: "UK PSR PS24/3 (Oct 2024)"
+  recommended_severity: high
+  dependencies: []
+
+rule:
+  id: app_fraud_first_use_payee
+  name: APP fraud — first-use payee, high-value push
+  severity: high
+  regulation_refs:
+    - citation: "PSR (UK) PS24/3"
+      description: "APP fraud reimbursement — sending-PSP detection duty."
+    - citation: "FCA FG24/4"
+      description: "Strengthening protection for victims of APP fraud."
+  logic:
+    type: aggregation_window
+    source: txn
+    filter:
+      direction: out
+      channel: faster_payments
+      payee_first_seen_days: { lte: 1 }
+      amount: { gte: 1000 }
+    group_by: [customer_id, payee_id]
+    window: 1d
+    having:
+      count: { gte: 1 }
+  escalate_to: l1_fraud_analyst
+  evidence: [matching_txns, payee_first_seen, customer_contact_log]
+  tags: [app_fraud, psr_ps24_3, fraud_aml_convergence]
+  aml_priority: fraud

@@ -2350,5 +2350,111 @@ def email_digest(
         console.print(markdown)
 
 
+@app.command(name="typology-list")
+def typology_list_cmd(
+    jurisdiction: str | None = typer.Option(
+        None,
+        "--jurisdiction",
+        help="Filter to typologies that apply in this jurisdiction (e.g. US, CA, GB).",
+    ),
+) -> None:
+    """List curated typologies available for `aml typology-import`."""
+    from aml_framework.typology_library import list_typologies
+
+    items = list_typologies()
+    if jurisdiction:
+        juris_upper = jurisdiction.upper()
+        items = [t for t in items if juris_upper in {j.upper() for j in t.jurisdictions}]
+
+    if not items:
+        console.print(
+            "[yellow]No typologies match.[/yellow] "
+            "Drop a YAML file into src/aml_framework/spec/library/typologies/."
+        )
+        return
+
+    table = Table(title="Curated typology catalogue", show_lines=False)
+    table.add_column("id", style="cyan", no_wrap=True)
+    table.add_column("severity", style="magenta")
+    table.add_column("jurisdictions", style="green")
+    table.add_column("source", style="dim")
+    table.add_column("description")
+
+    for t in items:
+        table.add_row(
+            t.id,
+            t.recommended_severity,
+            ", ".join(t.jurisdictions),
+            t.source,
+            t.description_short,
+        )
+
+    console.print(table)
+    console.print(
+        f"\n[dim]{len(items)} typolog{'y' if len(items) == 1 else 'ies'} listed. "
+        "Install with `aml typology-import <id> <spec-path>`.[/dim]"
+    )
+
+
+@app.command(name="typology-import")
+def typology_import_cmd(
+    typology_id: str = typer.Argument(..., help="Typology id (see `aml typology-list`)."),
+    spec_path: Path = typer.Argument(
+        ...,
+        exists=True,
+        readable=True,
+        writable=True,
+        help="Path to the aml.yaml spec to splice the typology into.",
+    ),
+    allow_duplicate: bool = typer.Option(
+        False,
+        "--allow-duplicate",
+        help="Skip the rule-id collision check (advanced).",
+    ),
+    escalate_to: str | None = typer.Option(
+        None,
+        "--escalate-to",
+        help="Override the typology's preferred escalation queue id.",
+    ),
+) -> None:
+    """Splice a curated typology rule into an existing aml.yaml.
+
+    Atomic: validates the post-splice spec; rolls back on any failure.
+    """
+    from aml_framework.typology_library import import_typology
+
+    try:
+        result = import_typology(
+            typology_id=typology_id,
+            spec_path=spec_path,
+            allow_duplicate_rule_id=allow_duplicate,
+            escalate_to_override=escalate_to,
+        )
+    except KeyError as e:
+        console.print(f"[red]Typology not found:[/red] {e}")
+        raise typer.Exit(code=1) from e
+    except ValueError as e:
+        console.print(f"[red]Install failed:[/red] {e}")
+        raise typer.Exit(code=1) from e
+
+    console.print(
+        f"[green]Installed[/green] typology [cyan]{result.typology_id}[/cyan] "
+        f"as rule [cyan]{result.rule_id}[/cyan] "
+        f"(line ~{result.line_number}) in {result.spec_path}."
+    )
+    if result.escalate_to_remapped_from:
+        console.print(
+            f"[yellow]Note:[/yellow] escalate_to remapped from "
+            f"[cyan]{result.escalate_to_remapped_from}[/cyan] "
+            f"to [cyan]{result.escalate_to}[/cyan] (queue does not exist in your spec)."
+        )
+    if result.source:
+        console.print(f"[dim]Source: {result.source}[/dim]")
+    console.print(
+        "[dim]Next:[/dim] review the diff, run [cyan]aml validate[/cyan], "
+        "then [cyan]aml run[/cyan] to see it fire."
+    )
+
+
 if __name__ == "__main__":
     app()

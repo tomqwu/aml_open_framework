@@ -1,0 +1,46 @@
+# Curated typology — installable via `aml typology-import wire_to_high_risk_juris`.
+# Field-level definitions in src/aml_framework/typology_library.py
+
+metadata:
+  id: wire_to_high_risk_juris
+  name: "Wire to high-risk jurisdiction (FATF grey/black list)"
+  description: |
+    Outbound wire (any amount over $3k) to a country on FATF's
+    public statements (grey or black list). FATF Recommendation 19
+    requires enhanced due diligence; FinCEN repeats the obligation in
+    every National Priorities reaffirmation. Single-transaction rule —
+    no aggregation needed — but mandatory in every Tier-1 program.
+  jurisdictions: ["US", "CA", "GB", "EU", "AU", "SG", "HK", "JP"]
+  regulations:
+    - "FATF Recommendation 19 — high-risk countries"
+    - "31 CFR 1010.610 (US correspondent due diligence)"
+    - "FinCEN AML/CFT National Priorities (June 2021, reaffirmed 2026)"
+  source: "FATF public statements (refreshed Feb/Jun/Oct annually)"
+  recommended_severity: high
+  dependencies: []
+
+rule:
+  id: wire_to_high_risk_juris
+  name: Wire to high-risk jurisdiction (FATF grey/black list)
+  severity: high
+  regulation_refs:
+    - citation: "FATF Recommendation 19"
+      description: "Enhanced due diligence on high-risk jurisdictions."
+    - citation: "31 CFR 1010.610"
+      description: "Correspondent account due diligence — high-risk jurisdictions."
+  logic:
+    type: aggregation_window
+    source: txn
+    filter:
+      direction: out
+      channel: wire
+      counterparty_country: { in_list: fatf_high_risk_jurisdictions }
+      amount: { gte: 3000 }
+    group_by: [customer_id]
+    window: 1d
+    having:
+      count: { gte: 1 }
+  escalate_to: l1_aml_analyst
+  evidence: [matching_txns, customer_kyc, sanctions_screen_history]
+  tags: [high_risk_jurisdiction, fatf_r19, edd_required]
+  aml_priority: corruption

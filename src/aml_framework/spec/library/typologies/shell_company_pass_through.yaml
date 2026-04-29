@@ -1,0 +1,63 @@
+# Curated typology — installable via `aml typology-import shell_company_pass_through`.
+# Field-level definitions in src/aml_framework/typology_library.py
+
+metadata:
+  id: shell_company_pass_through
+  name: "Shell-company pass-through — same-day in/out balance churn"
+  description: |
+    A business customer receives ≥ $50k inbound and pays out ≥ 90% of
+    it within the same business day, with end-of-day balance < 5% of
+    daily turnover. Classic layering — also one of the patterns TD
+    Bank's 2024 enforcement order identifies as missed (finding #3).
+    Custom SQL because pass-through ratio + EoD balance need a join.
+  jurisdictions: ["US", "CA", "GB", "EU", "SG", "HK"]
+  regulations:
+    - "FATF Recommendation 24 — beneficial ownership"
+    - "FinCEN BOI Reporting Rule (31 CFR 1010.380)"
+    - "TD Bank 2024 enforcement order, finding #3"
+  source: "TD Bank 2024 enforcement order — finding #3"
+  recommended_severity: high
+  dependencies: []
+
+rule:
+  id: shell_company_pass_through
+  name: Shell-company pass-through — same-day in/out balance churn
+  severity: high
+  regulation_refs:
+    - citation: "FATF Recommendation 24"
+      description: "Transparency and beneficial ownership of legal persons."
+    - citation: "TD Bank 2024 enforcement order"
+      description: "Finding #3 — pass-through pattern not detected."
+  logic:
+    type: custom_sql
+    sql: |
+      WITH daily_flow AS (
+        SELECT t.customer_id,
+               DATE(t.txn_ts) AS flow_date,
+               SUM(CASE WHEN t.direction = 'in'  THEN t.amount ELSE 0 END) AS inbound,
+               SUM(CASE WHEN t.direction = 'out' THEN t.amount ELSE 0 END) AS outbound
+        FROM   txn t
+        JOIN   customer c USING (customer_id)
+        WHERE  c.customer_type = 'business'
+          AND  t.txn_ts BETWEEN '{recent_start}' AND '{as_of}'
+        GROUP  BY t.customer_id, DATE(t.txn_ts)
+      ),
+      eod AS (
+        SELECT customer_id, as_of_date, balance_amount
+        FROM   account_balance_daily
+        WHERE  as_of_date BETWEEN '{recent_start}' AND '{as_of}'
+      )
+      SELECT df.customer_id,
+             df.flow_date,
+             df.inbound,
+             df.outbound,
+             e.balance_amount AS eod_balance
+      FROM   daily_flow df
+      JOIN   eod e ON e.customer_id = df.customer_id AND e.as_of_date = df.flow_date
+      WHERE  df.inbound >= 50000
+        AND  df.outbound >= 0.9 * df.inbound
+        AND  e.balance_amount < 0.05 * df.inbound
+  escalate_to: l2_investigator
+  evidence: [matching_txns, account_balance_history, customer_kyc, beneficial_owners]
+  tags: [shell_company, layering, td_2024_finding_3, fatf_r24]
+  aml_priority: corruption

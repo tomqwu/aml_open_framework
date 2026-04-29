@@ -1,0 +1,42 @@
+# Curated typology — installable via `aml typology-import structuring_cash`.
+# Field-level definitions in src/aml_framework/typology_library.py
+
+metadata:
+  id: structuring_cash
+  name: "Cash structuring — just-below-threshold deposits"
+  description: |
+    Classic structuring: ≥ 3 cash deposits totaling > $25k within 30 days,
+    each below the LCTR/CTR reporting floor (CAD 10k / USD 10k). Catches
+    deposit-fragmenting designed to evade reporting thresholds.
+  jurisdictions: ["US", "CA", "GB", "EU"]
+  regulations:
+    - "31 CFR 1010.314 (US prohibition on structuring)"
+    - "PCMLTFR s.7(1) (Canada LCTR threshold)"
+  source: "TD Bank 2024 enforcement order — finding #2"
+  recommended_severity: high
+  dependencies: []
+
+rule:
+  id: structuring_cash
+  name: Cash structuring — just-below-threshold deposits
+  severity: high
+  regulation_refs:
+    - citation: "31 CFR 1010.314"
+      description: "Prohibition on structuring transactions to evade reporting."
+    - citation: "PCMLTFR s.7(1)"
+      description: "Large Cash Transaction Report threshold (CAD 10k)."
+  logic:
+    type: aggregation_window
+    source: txn
+    filter:
+      direction: in
+      channel: cash
+      amount: { gte: 8500, lt: 10000 }
+    group_by: [customer_id]
+    window: 30d
+    having:
+      count: { gte: 3 }
+      sum_amount: { gte: 25000 }
+  escalate_to: l2_investigator
+  evidence: [matching_txns, customer_kyc, prior_alerts_90d]
+  tags: [structuring, cash, fatf_r20]
