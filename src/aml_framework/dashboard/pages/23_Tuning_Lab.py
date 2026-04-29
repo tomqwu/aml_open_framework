@@ -14,6 +14,8 @@ consideration is part of the audit trail.
 
 from __future__ import annotations
 
+import json
+
 import plotly.express as px
 import streamlit as st
 
@@ -32,8 +34,7 @@ PAGE_TITLE = "Tuning Lab"
 
 page_header(
     PAGE_TITLE,
-    "Sweep rule thresholds, preview alert deltas + precision/recall, "
-    "download a YAML spec patch to promote a candidate scenario.",
+    "Test a threshold change before it goes live. See exactly which alerts you'd add or remove.",
 )
 show_audience_context(PAGE_TITLE)
 
@@ -169,3 +170,76 @@ st.download_button(
     file_name=f"{rule_id}_tuned_patch.yaml",
     mime="text/yaml",
 )
+
+# ---------------------------------------------------------------------------
+# Time-series backtest — sister to the threshold sweep above.
+#
+# Process problem: 2LoD MLRO has to challenge "is this rule still earning
+# its keep?". Tuning answers "best threshold today"; backtest answers
+# "is precision/recall trending down across the last N quarters?". Both
+# live on this page so the model-challenge workflow is one screen.
+# ---------------------------------------------------------------------------
+
+with st.expander("📉 Backtest this rule across historical quarters", expanded=False):
+    st.markdown(
+        "Replay the **current spec's thresholds** across N quarters. "
+        "Use this for the SR 26-2 / OCC 2026-13 question: *is rule "
+        f"`{rule_id}` precision/recall trending down over time?*"
+    )
+
+    bt_col1, bt_col2 = st.columns([1, 1])
+    with bt_col1:
+        n_quarters = st.slider("Quarters to replay", min_value=2, max_value=8, value=4, step=1)
+    with bt_col2:
+        use_labels_for_backtest = st.checkbox(
+            "Use the labels CSV above for scoring",
+            value=False,
+            help="When checked, applies the same labels to every period. "
+            "Use a per-period labels CSV via the CLI for time-varying labels.",
+        )
+
+    if st.button("Run backtest", key="run_backtest"):
+        from aml_framework.engine.backtest import backtest_rule, quarters
+
+        bt_periods = quarters(end=as_of, n=n_quarters)
+        bt_labels = None
+        if use_labels_for_backtest and "tuning_labels" in st.session_state:
+            tl = st.session_state["tuning_labels"]
+            bt_labels = lambda _p: tl  # noqa: E731 — same labels for each period
+
+        with st.spinner(f"Replaying `{rule_id}` across {n_quarters} quarters…"):
+            report = backtest_rule(spec, rule_id, bt_periods, labels_loader=bt_labels)
+
+        st.session_state["backtest_report"] = report
+
+    if "backtest_report" in st.session_state:
+        report = st.session_state["backtest_report"]
+        rows = [
+            {
+                "period": p.period,
+                "as_of": p.as_of[:10],
+                "alerts": p.alert_count,
+                "precision": p.precision,
+                "recall": p.recall,
+                "f1": p.f1,
+            }
+            for p in report.periods
+        ]
+        st.dataframe(rows, use_container_width=True)
+
+        if report.drift_summary:
+            st.markdown("**Drift summary** (slope = per-period change):")
+            st.json(report.drift_summary)
+
+        # Quick chart: alert volume over periods.
+        chart_df = [{"period": p.period, "alerts": p.alert_count} for p in report.periods]
+        fig = px.line(chart_df, x="period", y="alerts", markers=True)
+        fig.update_layout(**chart_layout())
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.download_button(
+            "Download backtest_report.json",
+            data=json.dumps(report.to_dict(), indent=2),
+            file_name=f"{rule_id}_backtest.json",
+            mime="application/json",
+        )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header
+from aml_framework.dashboard.components import page_header, tooltip_banner, tour_panel
 from aml_framework.dashboard.data_layer import get_framework_tabs
 
 spec = st.session_state.spec
@@ -14,7 +14,7 @@ regulator = spec.program.regulator
 
 page_header(
     "Framework Alignment",
-    f"Mapping spec primitives to regulatory standards for {jurisdiction} ({regulator}).",
+    f"How this program maps to {regulator}'s expectations — section by section.",
 )
 
 st.caption(
@@ -22,27 +22,49 @@ st.caption(
     "initial mapping assessment. Confirm with compliance and legal counsel."
 )
 
-if st.session_state.get("guided_demo"):
-    if jurisdiction == "CA":
-        st.info(
-            "**Guided Demo — Framework Alignment (Canada)**\n\n"
-            "This view maps the spec to FATF Recommendations, PCMLTFA's 5 pillars "
-            "(PCMLTFR s.71), and OSFI Guideline B-8 expectations for federally "
-            "regulated financial institutions. Green = fully mapped, yellow = "
-            "partially mapped, red = gap requiring remediation."
-        )
-    else:
-        st.info(
-            "**Guided Demo — Framework Alignment**\n\n"
-            "This view maps the spec to international and domestic regulatory "
-            "standards. Green = fully mapped, yellow = partially mapped, red = gap."
-        )
 
-STATUS_COLORS = {
-    "mapped": "\U0001f7e2",
-    "partial": "\U0001f7e1",
-    "gap": "\U0001f534",
+tour_panel("Framework Alignment")
+if jurisdiction == "CA":
+    tooltip_banner(
+        "Framework Alignment (Canada)",
+        "This view maps the spec to FATF Recommendations, PCMLTFA's 5 pillars "
+        "(PCMLTFR s.71), and OSFI Guideline B-8 expectations for federally "
+        "regulated financial institutions. Green = fully mapped, yellow = "
+        "partially mapped, red = gap requiring remediation.",
+    )
+else:
+    tooltip_banner(
+        "Framework Alignment",
+        "This view maps the spec to international and domestic regulatory "
+        "standards. Green = fully mapped, yellow = partially mapped, red = gap.",
+    )
+
+STATUS_LABELS = {
+    "mapped": "✓ Mapped",
+    "partial": "∼ Partial",
+    "gap": "✗ Gap",
 }
+
+_STATUS_TEXT_COLORS = {
+    "✓ Mapped": "#16a34a",
+    "∼ Partial": "#d97706",
+    "✗ Gap": "#dc2626",
+}
+
+
+def _status_style(val: str) -> str:
+    color = _STATUS_TEXT_COLORS.get(val, "")
+    return f"color: {color}; font-weight: 700;" if color else ""
+
+
+def _render_table(rows: list[dict]) -> None:
+    df = pd.DataFrame(rows)
+    if "Status" in df.columns:
+        styled = df.style.map(_status_style, subset=["Status"])
+        st.dataframe(styled, use_container_width=True, hide_index=True)
+    else:
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
 
 framework_tabs = get_framework_tabs(jurisdiction)
 tabs = st.tabs([t["label"] for t in framework_tabs])
@@ -61,14 +83,14 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
             for m in data:
                 rows.append(
                     {
-                        "Status": STATUS_COLORS.get(m["status"], "\u26aa"),
+                        "Status": STATUS_LABELS.get(m["status"], "? Unknown"),
                         "Rec": m["rec"],
                         "Title": m["title"],
                         "Spec Element": m["spec_element"],
                         "Notes": m.get("notes", ""),
                     }
                 )
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            _render_table(rows)
 
         elif tab_def["type"] == "pillars":
             if jurisdiction == "CA":
@@ -85,14 +107,14 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
             for p in data:
                 rows.append(
                     {
-                        "Status": STATUS_COLORS.get(p["status"], "\u26aa"),
+                        "Status": STATUS_LABELS.get(p["status"], "? Unknown"),
                         "Pillar": p.get("pillar", ""),
                         "Name": p["name"],
                         "Spec Element": p["spec_element"],
                         "Notes": p.get("notes", ""),
                     }
                 )
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            _render_table(rows)
 
         elif tab_def["type"] == "principles":
             if "OSFI" in tab_def["label"]:
@@ -109,14 +131,14 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
             rows = []
             for w in data:
                 row: dict = {
-                    "Status": STATUS_COLORS.get(w["status"], "\u26aa"),
+                    "Status": STATUS_LABELS.get(w["status"], "? Unknown"),
                     "Principle": w.get("principle", ""),
                     "Spec Element": w["spec_element"],
                 }
                 if "notes" in w:
                     row["Notes"] = w["notes"]
                 rows.append(row)
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            _render_table(rows)
 
         # Summary stats for all tab types.
         mapped = sum(1 for item in data if item["status"] == "mapped")

@@ -194,13 +194,18 @@ class TestExecutiveFontScale:
 
 class TestAudienceSelector:
     def test_selectbox_exposes_every_mapped_persona(self):
-        body = APP_FILE.read_text(encoding="utf-8")
-        # Every key in AUDIENCE_PAGES should appear in the selectbox
-        # options list — otherwise the user can't choose that persona.
+        # The selectbox now derives its options from `PERSONA_LABELS.keys()`
+        # rather than a hardcoded list (PR-3 plain-English layer), so the
+        # invariant we care about is: every persona mapped in
+        # AUDIENCE_PAGES has a label entry. If a code is in the page map
+        # but missing from PERSONA_LABELS, it would silently disappear
+        # from the dropdown.
+        from aml_framework.dashboard.audience import PERSONA_LABELS
+
         for persona in AUDIENCE_PAGES.keys():
-            assert f'"{persona}"' in body, (
-                f"persona {persona!r} mapped in audience.py but missing "
-                f"from app.py selectbox options"
+            assert persona in PERSONA_LABELS, (
+                f"persona {persona!r} mapped in AUDIENCE_PAGES but missing "
+                f"from PERSONA_LABELS — would not appear in the sidebar dropdown"
             )
 
 

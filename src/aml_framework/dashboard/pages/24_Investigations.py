@@ -25,6 +25,8 @@ from aml_framework.cases import (
     aggregate_investigations,
     apply_escalation,
     compute_sla_status,
+    find_linked_customers,
+    linkage_summary,
     summarise_backlog,
 )
 from aml_framework.dashboard.components import page_header
@@ -36,9 +38,8 @@ from aml_framework.dashboard.components import page_header
 page_header(
     title="Investigations",
     description=(
-        "Aggregated investigations across alerts, with live SLA tracking. "
-        "Replaces the per-alert case view for the FinCEN effectiveness-rule "
-        "and FCA SAR-backlog metrics."
+        "Active investigations across teams, ranked by SLA urgency. "
+        "One row per subject — the unit of analyst work — with live time-in-queue."
     ),
 )
 
@@ -219,3 +220,51 @@ st.caption(
     "Investigation aggregator (PR #61), SLA timer (PR #63), and escalation policy "
     "(PR #63) compose into this single review surface."
 )
+
+# ---------------------------------------------------------------------------
+# Linked across domains — fraud cases on customers also under AML review.
+#
+# Process problem: fraud team and AML team open separate cases on the
+# same customer; neither analyst sees the other's evidence; customer
+# gets two contradictory letters. This panel makes the overlap visible
+# so the next analyst opening a case on the customer knows to talk to
+# the other team first.
+# ---------------------------------------------------------------------------
+
+st.markdown("---")
+st.subheader("⚠️ Linked across domains")
+st.caption(
+    "Customers with cases in **both** fraud-domain and AML-domain rules. "
+    "If a row appears here, two teams may be working the same subject blind to each other."
+)
+
+linked = find_linked_customers(cases, st.session_state.spec)
+summary = linkage_summary(linked)
+
+lc1, lc2, lc3 = st.columns(3)
+with lc1:
+    st.metric("Linked customers", summary["linked_customer_count"])
+with lc2:
+    st.metric("Linked cases (total)", summary["total_linked_cases"])
+with lc3:
+    st.metric("Highest severity", summary["highest_severity"])
+
+if linked:
+    linked_rows = [
+        {
+            "customer_id": lc.customer_id,
+            "severity": lc.severity,
+            "fraud_cases": len(lc.fraud_case_ids),
+            "aml_cases": len(lc.aml_case_ids),
+            "fraud_rules": ", ".join(lc.fraud_rule_ids),
+            "aml_rules": ", ".join(lc.aml_rule_ids),
+        }
+        for lc in linked
+    ]
+    st.dataframe(pd.DataFrame(linked_rows), use_container_width=True, hide_index=True)
+else:
+    st.info(
+        "No cross-domain links in this run. To exercise the panel, mark a rule's "
+        "`aml_priority` as `fraud` in the spec, or run against the UK APP-fraud or "
+        "Cyber-enabled fraud example specs."
+    )

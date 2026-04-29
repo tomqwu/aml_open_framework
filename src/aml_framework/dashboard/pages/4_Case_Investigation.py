@@ -18,6 +18,8 @@ from aml_framework.dashboard.components import (
     risk_color,
     severity_color,
     sla_band_color,
+    tooltip_banner,
+    tour_panel,
 )
 from aml_framework.dashboard.query_params import consume_param
 from aml_framework.engine.constants import Event, Queue
@@ -84,13 +86,13 @@ df_cases = st.session_state.df_cases
 df_customers = st.session_state.df_customers
 df_txns = st.session_state.df_txns
 
-if st.session_state.get("guided_demo"):
-    st.info(
-        "**Guided Demo -- Case Investigation**\n\n"
-        "Select a case to see the full investigation package: entity profile, "
-        "triggering transactions highlighted on a timeline, regulation citations, "
-        "and evidence requested."
-    )
+tour_panel("Case Investigation")
+tooltip_banner(
+    "Case Investigation",
+    "Select a case to see the full investigation package: entity profile, "
+    "triggering transactions highlighted on a timeline, regulation citations, "
+    "and evidence requested.",
+)
 
 if df_cases.empty:
     empty_state(

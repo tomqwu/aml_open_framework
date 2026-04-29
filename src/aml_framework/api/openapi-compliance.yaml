@@ -1,0 +1,269 @@
+openapi: 3.0.3
+info:
+  title: Open Compliance API — Cross-Bank Investigation Handoff
+  description: |
+    Standard interface for Bank A to hand off an STR-track investigation
+    to Bank B when their customer is the counterparty. Today this happens
+    by email + spreadsheet + 48-hour turnaround. With this contract,
+    receiving FIs auto-ingest the handoff into their case queue and the
+    sending FI gets a structured acknowledgement.
+
+    Aligned to the schemas being discussed in the FINOS AML working group
+    (Feb 2026). This draft is the framework's contribution; intentionally
+    small (4 endpoints + 3 schemas) so adoption isn't gated on a
+    multi-month spec process.
+
+    Process invariant: the receiving institution does *not* have to
+    re-collect evidence the sending institution already has. The
+    `/evidence` endpoint returns a deterministic bundle; the
+    receiving institution stores it under its own audit ledger so the
+    chain of custody is reproducible by either side.
+  version: 0.1.0-draft
+  contact:
+    name: AML Open Framework
+    url: https://github.com/tomqwu/aml_open_framework
+  license:
+    name: Apache-2.0
+servers:
+  - url: https://compliance.example-bank.com
+    description: Reference deployment
+
+security:
+  - mtls: []
+  - bearerAuth: []
+
+paths:
+  /v1/cases/handoff:
+    post:
+      summary: Initiate a cross-bank investigation handoff
+      operationId: createHandoff
+      description: |
+        Sending FI posts a handoff envelope. The receiving FI's system
+        responds with a tracking ID and ingests the evidence into its
+        own case queue under SLA.
+
+        The request shape is intentionally a thin envelope. Heavy
+        evidence (transaction detail, narrative, network export) is
+        fetched by the receiving FI from `/v1/cases/handoff/{id}/evidence`
+        on its own schedule — keeps the synchronous request small and
+        pushes egress cost to the right side.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoffRequest'
+      responses:
+        '201':
+          description: Handoff accepted into receiving FI's queue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoffAck'
+        '400':
+          description: Malformed envelope (schema validation failure)
+        '401':
+          description: Mutual-TLS or bearer-token auth failed
+        '409':
+          description: Handoff with same `external_handoff_id` already exists
+
+  /v1/cases/handoff/{handoff_id}:
+    get:
+      summary: Retrieve current status of a handoff
+      operationId: getHandoffStatus
+      parameters:
+        - in: path
+          name: handoff_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Current state + history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandoffStatus'
+        '404':
+          description: Handoff not found
+
+  /v1/cases/handoff/{handoff_id}/evidence:
+    get:
+      summary: Pull the deterministic evidence bundle
+      operationId: getHandoffEvidence
+      description: |
+        Returns the bundle the sending FI built when the handoff was
+        created. Contents must be byte-stable so the receiving FI can
+        verify the SHA-256 from the envelope. Suggested format: a ZIP
+        with case.json, alerts/*.jsonl, decisions.jsonl, and the
+        STR-narrative draft.
+      parameters:
+        - in: path
+          name: handoff_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Evidence bundle
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+
+  /v1/cases/handoff/{handoff_id}/acknowledge:
+    post:
+      summary: Receiving FI acknowledges and reports outcome
+      operationId: acknowledgeHandoff
+      description: |
+        Closes the loop. Receiving FI tells the sending FI what they
+        did with the handoff (filed STR, no action, escalated). Goes
+        on the sending FI's audit ledger as an outcome event — the
+        kind of evidence FinCEN's effectiveness rule asks for.
+      parameters:
+        - in: path
+          name: handoff_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoffOutcome'
+      responses:
+        '200':
+          description: Outcome recorded
+        '404':
+          description: Handoff not found
+
+components:
+  securitySchemes:
+    mtls:
+      type: mutualTLS
+      description: Bank-to-bank mTLS pinned to the partner FI's certificate
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Federated identity via the FI's existing OIDC provider
+
+  schemas:
+    HandoffRequest:
+      type: object
+      required:
+        - external_handoff_id
+        - sending_fi
+        - receiving_fi
+        - subject
+        - typology
+        - urgency
+        - evidence_sha256
+      properties:
+        external_handoff_id:
+          type: string
+          description: Sending FI's internal handoff ref — must be unique per (sender, receiver) pair
+          example: H-2026-04-28-0001
+        sending_fi:
+          $ref: '#/components/schemas/InstitutionRef'
+        receiving_fi:
+          $ref: '#/components/schemas/InstitutionRef'
+        subject:
+          type: object
+          description: The counterparty under suspicion (the receiving FI's customer)
+          required: [identifier_type, identifier_value]
+          properties:
+            identifier_type:
+              type: string
+              enum: [account_number, iban, customer_id, bic_account, opaque]
+            identifier_value:
+              type: string
+              example: ACCT-123456
+            display_name:
+              type: string
+              description: Display name for the analyst — never used for matching
+        typology:
+          type: string
+          description: Detector that fired (free-text; mapped to receiving FI's taxonomy on ingest)
+          example: ramp_up_then_drain_rtp
+        urgency:
+          type: string
+          enum: [routine, elevated, immediate]
+          description: |
+            routine = next-business-day SLA · elevated = 4h · immediate = 1h
+        evidence_sha256:
+          type: string
+          description: SHA-256 of the ZIP returned by /evidence — receiving FI must verify after download
+          example: 5f1a2c3d4e...
+        regulator_filed:
+          type: boolean
+          default: false
+          description: Whether the sending FI has already filed a STR/SAR with their regulator
+        notes:
+          type: string
+          description: Free-text analyst note for the receiving FI's L2; PII-minimised
+
+    InstitutionRef:
+      type: object
+      required: [name, country]
+      properties:
+        lei:
+          type: string
+          description: Legal Entity Identifier (20 chars, ISO 17442). Preferred identifier.
+        bic:
+          type: string
+          description: SWIFT BIC fallback when LEI is not available
+        name:
+          type: string
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2
+
+    HandoffAck:
+      type: object
+      required: [handoff_id, status, sla_deadline]
+      properties:
+        handoff_id:
+          type: string
+          description: Receiving FI's internal handoff id (do not assume same as external_handoff_id)
+        status:
+          type: string
+          enum: [accepted, queued]
+        sla_deadline:
+          type: string
+          format: date-time
+          description: When the receiving FI commits to first review
+
+    HandoffStatus:
+      type: object
+      required: [handoff_id, state, history]
+      properties:
+        handoff_id: { type: string }
+        state:
+          type: string
+          enum: [queued, in_review, escalated, str_filed, no_action, withdrawn]
+        history:
+          type: array
+          items:
+            type: object
+            required: [at, state]
+            properties:
+              at: { type: string, format: date-time }
+              state: { type: string }
+              note: { type: string }
+
+    HandoffOutcome:
+      type: object
+      required: [outcome, decided_at]
+      properties:
+        outcome:
+          type: string
+          enum: [str_filed, no_action_documented, escalated_to_law_enforcement, withdrawn]
+        decided_at:
+          type: string
+          format: date-time
+        regulator_reference:
+          type: string
+          description: STR/SAR reference issued by the receiving FI's regulator (when applicable)
+        narrative_summary:
+          type: string
+          description: Brief outcome narrative — the kind of evidence FinCEN's effectiveness rule asks for
