@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header
+from aml_framework.dashboard.components import page_header, tooltip_banner, tour_panel
 from aml_framework.dashboard.data_layer import get_framework_tabs
 
 spec = st.session_state.spec
@@ -22,21 +22,22 @@ st.caption(
     "initial mapping assessment. Confirm with compliance and legal counsel."
 )
 
-if st.session_state.get("guided_demo"):
-    if jurisdiction == "CA":
-        st.info(
-            "**Guided Demo — Framework Alignment (Canada)**\n\n"
-            "This view maps the spec to FATF Recommendations, PCMLTFA's 5 pillars "
-            "(PCMLTFR s.71), and OSFI Guideline B-8 expectations for federally "
-            "regulated financial institutions. Green = fully mapped, yellow = "
-            "partially mapped, red = gap requiring remediation."
-        )
-    else:
-        st.info(
-            "**Guided Demo — Framework Alignment**\n\n"
-            "This view maps the spec to international and domestic regulatory "
-            "standards. Green = fully mapped, yellow = partially mapped, red = gap."
-        )
+
+tour_panel("Framework Alignment")
+if jurisdiction == "CA":
+    tooltip_banner(
+        "Framework Alignment (Canada)",
+        "This view maps the spec to FATF Recommendations, PCMLTFA's 5 pillars "
+        "(PCMLTFR s.71), and OSFI Guideline B-8 expectations for federally "
+        "regulated financial institutions. Green = fully mapped, yellow = "
+        "partially mapped, red = gap requiring remediation.",
+    )
+else:
+    tooltip_banner(
+        "Framework Alignment",
+        "This view maps the spec to international and domestic regulatory "
+        "standards. Green = fully mapped, yellow = partially mapped, red = gap.",
+    )
 
 STATUS_LABELS = {
     "mapped": "✓ Mapped",

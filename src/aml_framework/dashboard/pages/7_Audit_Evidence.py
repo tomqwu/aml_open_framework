@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.components import kpi_card, page_header, tooltip_banner, tour_panel
 from aml_framework.engine.audit import AuditLedger
 
 page_header(
@@ -17,13 +17,14 @@ run_dir = st.session_state.run_dir
 df_decisions = st.session_state.df_decisions
 manifest = result.manifest
 
-if st.session_state.get("guided_demo"):
-    st.info(
-        "**Guided Demo -- Audit & Evidence**\n\n"
-        "Every rule execution records a content hash so the same spec + "
-        "same data + same engine = same output. The decision log is "
-        "append-only. This is the regulator and auditor view."
-    )
+
+tour_panel("Audit & Evidence")
+tooltip_banner(
+    "Audit & Evidence",
+    "Every rule execution records a content hash so the same spec + "
+    "same data + same engine = same output. The decision log is "
+    "append-only. This is the regulator and auditor view.",
+)
 
 # --- KPI row ---
 rule_outputs = manifest.get("rule_outputs", {})
