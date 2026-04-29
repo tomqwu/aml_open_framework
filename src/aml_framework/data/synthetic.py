@@ -514,4 +514,98 @@ def generate_dataset(
                 }
             )
 
+    # ---------------------------------------------------------------------
+    # Round-8/9 planted positives — RTP/FedNow + BOI workflow
+    # ---------------------------------------------------------------------
+    # These exist so the new specs (us_rtp_fednow, BOI page) ship with
+    # ground-truth signal in the synthetic dataset. Without these, tuning
+    # and backtest scores against the new rules read as 0/0 — the very
+    # MRM-trustability problem PR-G is meant to fix.
+    #
+    # All planted RTP customers carry a `typical_send_window_*_hour`
+    # so the unusual-time-for-customer rule has a baseline to compare
+    # against. Their flagged transactions are deliberately outside
+    # that window.
+
+    # --- C0012: RTP first-use-payee large amount (push-fraud drain) ---
+    if n_customers > 12:
+        customers[12] = _customer_row(
+            fake,
+            "C0012",
+            as_of - timedelta(days=600),
+            country="US",
+            risk_rating="medium",
+            full_name="Daniel Park",
+        )
+        customers[12]["typical_send_window_start_hour"] = 9
+        customers[12]["typical_send_window_end_hour"] = 17
+        # Single $7,500 RTP send to a never-before-paid counterparty,
+        # at 23:00 (outside typical window) — fires both
+        # first_use_payee_large_amount_rtp and unusual_send_hour.
+        txns.append(
+            _make_txn(
+                tid,
+                "C0012",
+                7500,
+                as_of - timedelta(days=1, hours=1),  # 23:00 the day before
+                channel="rtp",
+                direction="out",
+                counterparty_country="US",
+                debtor_country="US",
+            )
+        )
+        tid += 1
+
+    # --- C0013: RTP velocity spike on receive (mule pattern) ---
+    if n_customers > 13:
+        customers[13] = _customer_row(
+            fake,
+            "C0013",
+            as_of - timedelta(days=20),  # newish account, classic mule signal
+            country="US",
+            risk_rating="medium",
+            full_name="Mule Ventures LLC",
+            business_activity="financial_services",  # also makes BOI relevant
+        )
+        # 6 small inbound RTP credits inside one hour — velocity_spike_on_receive_rtp
+        burst_start = as_of - timedelta(days=1, hours=14)
+        for i, amt in enumerate([400, 350, 480, 410, 390, 460]):
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0013",
+                    amt,
+                    burst_start + timedelta(minutes=i * 8),
+                    channel="rtp",
+                    direction="in",
+                )
+            )
+            tid += 1
+
+    # --- C0014: BOI missing — entity customer with no review on file ---
+    if n_customers > 14:
+        customers[14] = _customer_row(
+            fake,
+            "C0014",
+            as_of - timedelta(days=200),
+            country="US",
+            risk_rating="medium",
+            full_name="Cresent Holdings Inc",
+            business_activity="real_estate_holding",
+            edd_last_review=None,  # explicitly missing — drives BOI status=missing
+        )
+
+    # --- C0015: BOI stale — entity reviewed long ago ---
+    if n_customers > 15:
+        customers[15] = _customer_row(
+            fake,
+            "C0015",
+            as_of - timedelta(days=900),
+            country="US",
+            risk_rating="medium",
+            full_name="Northway Imports Inc",
+            business_activity="import_export",
+            edd_last_review=as_of - timedelta(days=500),  # past 365-day default
+        )
+
     return {"customer": customers, "txn": txns, "txn_return": txn_returns}
