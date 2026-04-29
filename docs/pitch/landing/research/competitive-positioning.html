@@ -27,7 +27,7 @@
   <div class="r-meta">
     <span><strong>Author</strong> · deep-research-agent</span>
     <span><strong>Scope</strong> · post-Round 5–6 · 24 dashboard pages · 991 tests</span>
-    <span><strong>Refresh</strong> · 2026-04-27</span>
+    <span><strong>Refresh</strong> · 2026-04-27 (revised 2026-04-29)</span>
   </div>
 
   <h2 class="r-h2">Where the <em>2026 field</em> sits.</h2>
@@ -81,7 +81,7 @@
 
   <div class="r-spa">
     <div class="lead">Strategic Planning Assumption · #1</div>
-    By <strong>April 2026</strong>, SR&nbsp;26-2 (joint Fed/OCC/FDIC, effective Apr 17) folds AML transaction monitoring, sanctions screening and CDD into the model-risk inventory — every <strong>ML-first vendor carries a model-validation tax</strong> on every typology. YAML rules with cited <code>regulation_ref</code> are not models under SR&nbsp;26-2; they are policy artefacts.
+    By <strong>April 2026</strong>, SR&nbsp;26-2 (joint Fed/OCC/FDIC, effective Apr 17) folds AML transaction monitoring, sanctions screening and CDD into the model-risk inventory — every <strong>ML-first vendor carries a model-validation tax</strong> on every typology. Manifest entries with cited <code>regulation_ref</code> are not models under SR&nbsp;26-2; they are policy artefacts.
   </div>
 
   <div class="r-spa">
@@ -181,7 +181,7 @@
       <div class="col cautions">
         <h4>! Cautions</h4>
         <ul>
-          <li><strong>Marble.</strong> No spec-as-source-of-truth; no MRM bundle; no jurisdiction-specific reports; no deterministic-rerun guarantee.</li>
+          <li><strong>Marble.</strong> No Compliance Manifest as source-of-truth; no MRM bundle; no jurisdiction-specific reports; no deterministic-rerun guarantee.</li>
           <li><strong>Jube.</strong> ML-first design is exactly what FinCEN NPRM + SR 26-2 push back against.</li>
           <li><strong>FINOS OpenAML.</strong> Narrow scope (crypto wallets), labs-stage, not a TM platform.</li>
         </ul>
@@ -215,12 +215,25 @@
 
   <h3 class="r-h3">Defensible "every line written by a human" moat</h3>
   <p class="r-p">
-    FinCEN's April 2026 NPRM and SR 26-2 (joint Fed / OCC / FDIC, <a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm">SR 26-2 letter</a>, effective April&nbsp;17 2026) explicitly fold BSA/AML transaction monitoring, sanctions screening, and CDD into the model-risk inventory. ML-first vendors (Hawk, Feedzai, Jube) now carry a <strong>model-validation tax on every typology</strong>; the framework's YAML rules with <code>regulation_ref</code> are not models under SR 26-2 — they are policy artefacts. <strong>Buyer that lands:</strong> second-line MRM / validation function at any Cat-2+ bank, plus FinCEN / OCC examiners.
+    FinCEN's April 2026 NPRM and SR 26-2 (joint Fed / OCC / FDIC, <a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm">SR 26-2 letter</a>, effective April&nbsp;17 2026) explicitly fold BSA/AML transaction monitoring, sanctions screening, and CDD into the model-risk inventory. ML-first vendors (Hawk, Feedzai, Jube) now carry a <strong>model-validation tax on every typology</strong>; the framework's Manifest entries with <code>regulation_ref</code> are not models under SR 26-2 — they are policy artefacts. <strong>Buyer that lands:</strong> second-line MRM / validation function at any Cat-2+ bank, plus FinCEN / OCC examiners.
+  </p>
+
+  <h3 class="r-h3">SR 26-2 effective-date implications · 12 days old</h3>
+  <p class="r-p">
+    SR 26-2 went live <strong>2026-04-17</strong>, meaning every Cat-2+ examination cycle from now through end-2026 will test against the new joint framework rather than the 2011 SR 11-7 baseline. The change is not theoretical — three concrete effects:
+  </p>
+  <ol class="r-rules">
+    <li>Every TM scenario, sanctions screening rule, and customer-risk-rating model is now <em>named</em> model risk and must carry SR-26-2-aligned documentation (validation, ongoing monitoring, change control).</li>
+    <li>Examiner Q&amp;A from the FRB and OCC published in the same April 2026 window emphasises <em>independent</em> re-implementation as one of three acceptable validation methods — the exact slot the framework's deterministic re-run + hash-chained audit ledger fills.</li>
+    <li>The 12-month implementation tail closes <strong>April 2027</strong>, so any buyer planning to ship a SR-26-2-aligned program before that deadline starts the procurement decision in Q3-Q4 2026.</li>
+  </ol>
+  <p class="r-p">
+    <strong>What this changes for positioning:</strong> the second-line model-risk team isn't an <em>adjacent</em> persona — they're the natural early-2026 champion. Marble, Jube and the commercial AI-natives all add validation surface; the framework subtracts it.
   </p>
 
   <h3 class="r-h3">Deterministic re-run + hash-chained audit ledger</h3>
   <p class="r-p">
-    Every commercial platform produces operational logs; none publish a same-spec + same-data + same-seed = identical-output guarantee. Combined with the Round-3 MRM bundle (SR 26-2 / OCC 2026-13 aligned), this makes the framework usable as the <strong>independent challenger model</strong> the new guidance now expects, without buying a second commercial license. <strong>Buyer:</strong> MRM Director / Chief Model Risk Officer.
+    Every commercial platform produces operational logs; none publish a same-Manifest + same-data + same-seed = identical-output guarantee. Combined with the Round-3 MRM bundle (SR 26-2 / OCC 2026-13 aligned), this makes the framework usable as the <strong>independent challenger model</strong> the new guidance now expects, without buying a second commercial license. <strong>Buyer:</strong> MRM Director / Chief Model Risk Officer.
   </p>
 
   <h3 class="r-h3">ISO 20022 native ingestion</h3>
@@ -242,6 +255,76 @@
     <span class="label">What it does NOT win on</span>
     Real-time sub-second scoring at billions-of-txns scale, sales / support contracts, vendor risk-management process for tier-1 procurement, brand recognition.
   </div>
+
+  <h2 class="r-h2">Where the framework lands by <em>buyer archetype</em></h2>
+  <p class="r-section-dek">
+    The 2026-04-29 landing-quadrant maps four named personas against team size and program complexity. This table maps each persona to the subset of wins they actually care about — so positioning matches the buyer in front of you, not the average.
+  </p>
+
+  <table class="r-archetype">
+    <thead>
+      <tr>
+        <th class="who">Archetype</th>
+        <th class="size">Team size · program</th>
+        <th class="wins">Top-3 wins they care about</th>
+        <th class="meh">Wins that don't move the meter</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="primary">
+        <td class="who"><strong>★ FinTech / EMI applicant</strong><br><span class="role">Primary platform · landing default</span></td>
+        <td class="size">1 MLRO · ≤5 FTE compliance · single jurisdiction · single product</td>
+        <td class="wins">
+          <ol>
+            <li><strong>Time-to-first-alert in minutes</strong>, not 9-24 months — beats every commercial deploy benchmark</li>
+            <li><strong>Examiner-pack via one CLI command</strong> — investor-DD answer in 5 minutes</li>
+            <li><strong>Sponsor-bank cure-notice survival</strong> — all controls reproducible, no consultant dependency</li>
+          </ol>
+        </td>
+        <td class="meh">MRM dossier (no 2LoD yet); multi-jurisdiction templating (one regime); sub-second scoring (volume too low)</td>
+      </tr>
+      <tr>
+        <td class="who"><strong>Mid-tier bank</strong><br><span class="role">Pilot + 2LoD challenger</span></td>
+        <td class="size">5-25 FTE compliance · 2-3 jurisdictions · retail + commercial</td>
+        <td class="wins">
+          <ol>
+            <li><strong>Independent challenger model under SR 26-2</strong> — no second commercial license</li>
+            <li><strong>Per-rule MRM dossier + 4-quarter backtester</strong> — answers "is rule X earning its keep" without vendor study</li>
+            <li><strong>ISO 20022 native ingestion</strong> — faster than commercial paid module</li>
+          </ol>
+        </td>
+        <td class="meh">Cost compression (already have the commercial license sunk); investor-DD packet (not a fundraising motion)</td>
+      </tr>
+      <tr>
+        <td class="who"><strong>Tier-1 bank</strong><br><span class="role">MRM challenger model</span></td>
+        <td class="size">50+ FTE compliance · 5+ jurisdictions · complex product mix</td>
+        <td class="wins">
+          <ol>
+            <li><strong>Deterministic re-run + hash-chained audit ledger</strong> — only OSS that publishes this guarantee</li>
+            <li><strong>SR 26-2 / OCC 2026-13 aligned MRM bundle</strong> — drops into existing 3LoD attestation flow</li>
+            <li><strong>Multi-jurisdiction templating</strong> — 7 example specs, AMLA-ready evidence</li>
+          </ol>
+        </td>
+        <td class="meh">Full production engine displacement (Tier-1s won't displace Actimize); no-code UX (have analysts who write SQL)</td>
+      </tr>
+      <tr>
+        <td class="who"><strong>Scaling fintech / VASP</strong><br><span class="role">Cross-border platform</span></td>
+        <td class="size">5-15 FTE compliance · 3+ jurisdictions · payments + crypto</td>
+        <td class="wins">
+          <ol>
+            <li><strong>ISO 20022 + Travel-Rule field validator</strong> — uncontested in OSS, paid module elsewhere</li>
+            <li><strong>Investigation-aggregator</strong> (INV-grouping + goAML XML export) — matches FinCEN NPRM "investigation outcomes" language</li>
+            <li><strong>Multi-jurisdiction templating</strong> — same Manifest scales as the firm enters new geographies</li>
+          </ol>
+        </td>
+        <td class="meh">Sub-second real-time scoring (volume not yet there); brand-recognition signalling for procurement</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="r-p">
+    <strong>Reading guide:</strong> The same Manifest, the same engine, the same audit ledger serve all four. What differs is which capabilities are <em>load-bearing</em> in each pitch. A FinTech buyer doesn't care about the MRM dossier yet (no 2LoD); a Tier-1 MRM team doesn't care about time-to-first-alert (procurement runs 18 months regardless). Match the message to the meter.
+  </p>
 
   <h2 class="r-h2"><span class="num">3.</span> Five highest-leverage <em>next features</em></h2>
   <p class="r-section-dek">
@@ -301,7 +384,7 @@
   <h3 class="r-h3">Notable omissions, ranked by why-not</h3>
   <ul class="r-list">
     <li><strong>AMLA central-register sandbox.</strong> Real signal but the register isn't operational until H2 2026 and the API surface is still in <a href="https://www.step.org/industry-news/eba-issues-advice-aml-standards-ahead-amla-operational-launch">EBA advice</a>. Defer until Q3 2026.</li>
-    <li><strong>Notabene / Sumsub Travel-Rule message-bus adapters.</strong> Already covered by Round 5's Travel-Rule field validator at the spec layer; the message-bus integration is a vendor-specific runtime feature that bloats the binary.</li>
+    <li><strong>Notabene / Sumsub Travel-Rule message-bus adapters.</strong> Already covered by Round 5's Travel-Rule field validator at the Manifest layer; the message-bus integration is a vendor-specific runtime feature that bloats the binary.</li>
     <li><strong>FedNow / RTP push-fraud detector pack.</strong> Genuinely valuable but requires the APP-fraud spec to land first as the shape-template; sequence after #3.</li>
   </ul>
 

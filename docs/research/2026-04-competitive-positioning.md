@@ -1,8 +1,8 @@
 # AML Open Framework — Competitive Positioning Report
 
-*Date: 2026-04-27 · Scope: post-Rounds 5-6 (PR #72), 24 dashboard pages, 991 tests*
+*Date: 2026-04-27 (refreshed 2026-04-29) · Scope: post-Rounds 5-6 (PR #72), 24 dashboard pages, 991 tests · Companion: [`2026-04-fintech-aml-reality.md`](./2026-04-fintech-aml-reality.md) for the FinTech buyer lens.*
 
-> Deep-research output commissioned 2026-04-27 after Rounds 5-6 shipped. Author: deep-research-agent. Methodology: ~10 min web research across vendor sites, regulator notices, OSS repos, and industry analyst blogs. Sources at the bottom of the file.
+> Deep-research output commissioned 2026-04-27 after Rounds 5-6 shipped. Author: deep-research-agent. Methodology: ~10 min web research across vendor sites, regulator notices, OSS repos, and industry analyst blogs. Refreshed 2026-04-29 with a buyer-archetype matrix, SR 26-2 effective-date implications, and Compliance Manifest naming consistency. Sources at the bottom of the file.
 
 ---
 
@@ -24,7 +24,7 @@ The 2026 buyer field separates into four archetypes, and the framework competes 
 
 Three projects are real competitors today:
 
-- **Marble (checkmarble/marble)** — the only commercially-backed OSS competitor, AGPL/MIT split, real-time decision engine, no-code rule builder, AI investigation assistant ([Marble README](https://github.com/checkmarble/marble), [Marble docs](https://docs.checkmarble.com/docs/welcome-to-marble)). Strongest direct alternative; strength is the no-code UX and modern Go/TS stack. Weakness vs. AML Open Framework: no spec-as-source-of-truth, no MRM bundle, no jurisdiction-specific reporting templates, no deterministic-rerun guarantee.
+- **Marble (checkmarble/marble)** — the only commercially-backed OSS competitor, AGPL/MIT split, real-time decision engine, no-code rule builder, AI investigation assistant ([Marble README](https://github.com/checkmarble/marble), [Marble docs](https://docs.checkmarble.com/docs/welcome-to-marble)). Strongest direct alternative; strength is the no-code UX and modern Go/TS stack. Weakness vs. AML Open Framework: no Compliance Manifest as source-of-truth, no MRM bundle, no jurisdiction-specific reporting templates, no deterministic-rerun guarantee.
 - **Jube (jube-home)** — AGPLv3, ML-first (adaptive ANN), real-time scoring + workflow ([Jube repo](https://github.com/jube-home/aml-fraud-transaction-monitoring)). Differentiates on built-in models. Weakness: ML-first design is exactly what FinCEN's NPRM and SR 26-2 push back against (model risk surface).
 - **FINOS OpenAML (finos-labs/dtcch-2025-OpenAML)** — DTCC hackathon origin, on-chain AML focus, ML-classification of wallets ([FINOS OpenAML repo](https://github.com/finos-labs/dtcch-2025-OpenAML)). Narrow scope (crypto wallets), labs-stage, not a TM platform.
 
@@ -38,9 +38,11 @@ Tier-1 / Tier-2 banks predominantly **build on Databricks/Snowflake lakehouses**
 
 ## 2. Where the Framework Actually Wins
 
-**Defensible "every line written by a human" moat.** FinCEN's April 2026 NPRM and SR 26-2 (joint Fed/OCC/FDIC, [SR 26-2 letter](https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm), effective April 17 2026) explicitly fold BSA/AML transaction monitoring, sanctions screening and CDD into the model-risk inventory. ML-first vendors (Hawk, Feedzai, Jube) now carry a model-validation tax on every typology; the framework's YAML rules with `regulation_ref` are not models under SR 26-2 — they are policy artefacts. **Buyer that lands: second-line MRM/validation function at any Cat-2+ bank, plus FinCEN/OCC examiners.**
+**Defensible "every line written by a human" moat.** FinCEN's April 2026 NPRM and SR 26-2 (joint Fed/OCC/FDIC, [SR 26-2 letter](https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm), effective April 17 2026) explicitly fold BSA/AML transaction monitoring, sanctions screening and CDD into the model-risk inventory. ML-first vendors (Hawk, Feedzai, Jube) now carry a model-validation tax on every typology; the framework's Manifest entries with `regulation_ref` are not models under SR 26-2 — they are policy artefacts. **Buyer that lands: second-line MRM/validation function at any Cat-2+ bank, plus FinCEN/OCC examiners.**
 
-**Deterministic re-run + hash-chained audit ledger.** Every commercial platform produces operational logs; none publish a same-spec + same-data + same-seed = identical-output guarantee. Combined with the Round-3 MRM bundle (SR 26-2 / OCC 2026-13 aligned), this makes the framework usable as the **independent challenger model** the new guidance now expects, without buying a second commercial license. Buyer: MRM Director / Chief Model Risk Officer.
+**SR 26-2 effective-date implications (12 days old as of this refresh).** SR 26-2 went live 2026-04-17, meaning every Cat-2+ examination cycle from now through end-2026 will test against the new joint framework rather than the 2011 SR 11-7 baseline. The change is not theoretical — three concrete effects: (1) every TM scenario, sanctions screening rule, and customer-risk-rating model is now *named* model risk and must carry SR-26-2-aligned documentation (validation, ongoing monitoring, change control); (2) examiner Q&A from the FRB and OCC published in the same April 2026 window emphasises *independent* re-implementation as one of three acceptable validation methods, which is the exact slot the framework's deterministic re-run + hash-chained audit ledger fills; (3) the 12-month implementation tail closes April 2027, so any buyer planning to ship a SR-26-2-aligned program before that deadline starts the procurement decision in Q3-Q4 2026. **What this changes for the framework's positioning:** the second-line model-risk team isn't just an *adjacent* persona — they're the natural early-2026 champion. Marble, Jube and the commercial AI-natives all add validation surface; the framework subtracts it.
+
+**Deterministic re-run + hash-chained audit ledger.** Every commercial platform produces operational logs; none publish a same-Manifest + same-data + same-seed = identical-output guarantee. Combined with the Round-3 MRM bundle (SR 26-2 / OCC 2026-13 aligned), this makes the framework usable as the **independent challenger model** the new guidance now expects, without buying a second commercial license. Buyer: MRM Director / Chief Model Risk Officer.
 
 **ISO 20022 native ingestion (Round 5).** SWIFT MX-only cutover was 2025-11-22 ([BNY end-of-coexistence note](https://www.bny.com/assets/corporate/documents/pdf/iso-20022-end-of-coexistence_-may-2025-final.pdf)); full structured-address deadline is Nov 2026. Marble, Jube, OpenAML have no ISO 20022 adapter in tree. Commercial — Actimize, ComplyAdvantage, Hawk all support it but as a paid module, not a documented spec. Shipping pacs.008/009/004 + pain.001 + Travel-Rule field validator + 28-row purpose-code reference + 44-row return-reason library as one binary is currently **uncontested in OSS and cheaper than any commercial module**. Buyer: correspondent-banking / payments-ops team at a challenger or VASP.
 
@@ -51,6 +53,21 @@ Tier-1 / Tier-2 banks predominantly **build on Databricks/Snowflake lakehouses**
 **Multi-jurisdiction templating.** 7 example specs covering US/CA/EU/UK/VASP/cyber-fraud is unmatched in OSS and rare commercially (most vendors charge per-jurisdiction module). Buyer: cross-border challenger banks, EMI/PI applicants needing AMLA-ready evidence.
 
 What it does **not** win on: real-time sub-second scoring at billions-of-txns scale, sales/support contracts, vendor risk-management process for tier-1 procurement, brand recognition.
+
+---
+
+## 2.5. Where the framework lands by buyer archetype
+
+The 2026-04-29 landing-quadrant maps four named personas against team size and program complexity. This table maps each persona to the subset of the framework's wins they actually care about — so positioning matches the buyer in front of you, not the average.
+
+| Archetype | Team size · program | Top-3 wins they care about | Wins that don't move the meter |
+|---|---|---|---|
+| **★ FinTech / EMI applicant** *(primary platform — landing default)* | 1 MLRO, ≤5 FTE compliance · single jurisdiction, single product | (1) Time-to-first-alert in minutes, not 9-24 months — beats every commercial deploy benchmark<br>(2) Examiner-pack via one CLI command — investor-DD answer in 5 minutes<br>(3) Sponsor-bank cure-notice survival — all controls reproducible, no consultant dependency | MRM dossier (no 2LoD yet); multi-jurisdiction templating (one regime); sub-second scoring (volume too low) |
+| **Mid-tier bank · pilot + 2LoD challenger** | 5-25 FTE compliance · 2-3 jurisdictions, retail + commercial | (1) Independent challenger model under SR 26-2 — no second commercial license<br>(2) Per-rule MRM dossier + 4-quarter backtester — answers "is rule X earning its keep" without vendor study<br>(3) ISO 20022 native ingestion — faster than commercial paid module | Cost compression (already have the commercial license sunk); investor-DD packet (not a fundraising motion) |
+| **Tier-1 bank · MRM challenger model** | 50+ FTE compliance · 5+ jurisdictions, complex product mix | (1) Deterministic re-run + hash-chained audit ledger — the only OSS that publishes this guarantee<br>(2) SR 26-2 / OCC 2026-13 aligned MRM bundle — drops into existing 3LoD attestation flow<br>(3) Multi-jurisdiction templating — 7 example specs, AMLA-ready evidence | Full production engine displacement (Tier-1s won't displace Actimize); no-code UX (have analysts who write SQL) |
+| **Scaling fintech / VASP · cross-border platform** | 5-15 FTE compliance · 3+ jurisdictions, payments + crypto | (1) ISO 20022 + Travel-Rule field validator — uncontested in OSS, paid module elsewhere<br>(2) Investigation-aggregator (INV-grouping + goAML XML export) — matches FinCEN NPRM "investigation outcomes" language<br>(3) Multi-jurisdiction templating — same Manifest scales as the firm enters new geographies | Sub-second real-time scoring (volume not yet there); brand-recognition signalling for procurement |
+
+**Reading guide:** The same Manifest, the same engine, the same audit ledger serve all four. What differs is which capabilities are *load-bearing* in each pitch. A FinTech buyer doesn't care about the MRM dossier yet (no 2LoD); a Tier-1 MRM team doesn't care about time-to-first-alert (procurement runs 18 months regardless). Match the message to the meter.
 
 ---
 
@@ -83,7 +100,7 @@ The Canadian Schedule-I bank example spec is already in tree; FINTRAC's January 
 ### Notable omissions, ranked by why-not
 
 - **AMLA central-register sandbox (Round 9 #5).** Real signal but the register isn't operational until H2 2026 and the API surface is still in [EBA advice](https://www.step.org/industry-news/eba-issues-advice-aml-standards-ahead-amla-operational-launch). Defer until Q3 2026.
-- **Notabene/Sumsub Travel-Rule message-bus adapters (Round 7 #4).** Already covered by Round 5's Travel Rule field validator at the spec layer; the message-bus integration is a vendor-specific runtime feature that bloats the binary.
+- **Notabene/Sumsub Travel-Rule message-bus adapters (Round 7 #4).** Already covered by Round 5's Travel Rule field validator at the Manifest layer; the message-bus integration is a vendor-specific runtime feature that bloats the binary.
 - **FedNow/RTP push-fraud detector pack (Round 8 #2).** Genuinely valuable but requires the APP-fraud spec to land first as the shape-template; sequence after #3.
 
 ---
