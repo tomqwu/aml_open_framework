@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The thesis · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s5-exhibit { flex: 1; display: grid; grid-template-rows: auto auto auto; gap: 28px; align-content: start; }
+  .source-pill {
+    justify-self: center;
+    width: 360px;
+    padding: 28px 32px 24px;
+    background: var(--ink);
+    color: white;
+    text-align: center;
+    border-radius: 2px;
+  }
+  .source-pill .label {
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: rgba(255,255,255,0.6); margin-bottom: 8px; font-weight: 500;
+  }
+  .source-pill .name { font-size: 28px; font-weight: 600; color: white; margin-bottom: 4px; }
+  .source-pill .sub { font-size: 13px; color: rgba(255,255,255,0.7); letter-spacing: 0.02em; }
+
+  .branches { height: 100px; position: relative; }
+  .branches svg { width: 100%; height: 100%; }
+  .branches path {
+    fill: none; stroke: var(--ink-dim); stroke-width: 1.5;
+    stroke-dasharray: 700; stroke-dashoffset: 700;
+  }
+  .ready .branches path.b1 { animation: drawLine 0.9s 0.9s ease-out forwards; }
+  .ready .branches path.b2 { animation: drawLine 0.9s 1.0s ease-out forwards; }
+  .ready .branches path.b3 { animation: drawLine 0.9s 1.1s ease-out forwards; }
+  @keyframes drawLine { to { stroke-dashoffset: 0; } }
+
+  .role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  .role-box {
+    border: 1px solid var(--rule-strong);
+    background: var(--bg);
+    padding: 24px 28px;
+  }
+  .role-box .role {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 12px;
+  }
+  .role-box .what { font-size: 17px; font-weight: 500; line-height: 1.4; color: var(--ink); margin-bottom: 12px; }
+  .role-box .quote {
+    font-size: 14px; font-weight: 400; line-height: 1.5;
+    color: var(--ink-dim); font-style: italic;
+    border-top: 1px solid var(--rule); padding-top: 12px;
+  }
+
+  .s5-takeaway { margin-top: 40px; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">5</span> The thesis</div>
+  <div class="top-rule"></div>
+
+  <div class="stage">
+    <h2 class="action-title fade-up" style="margin-bottom:16px;">
+      One specification serves three reviewers — <em>without re-translation</em>.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:56px;">
+      A single machine-readable file is authored by Compliance, executed unchanged by Engineering, and
+      replayed byte-for-byte by an Auditor. Three different readings of the same artifact — every quarter, every regulator visit.
+    </p>
+
+    <div class="s5-exhibit">
+      <div class="source-pill fade-up d3">
+        <div class="label">Source of truth</div>
+        <div class="name">aml.yaml</div>
+        <div class="sub">written once · committed to version control</div>
+      </div>
+      <div class="branches">
+        <svg viewBox="0 0 1740 100" preserveAspectRatio="none">
+          <path class="b1" d="M 870 0 L 290 100" />
+          <path class="b2" d="M 870 0 L 870 100" />
+          <path class="b3" d="M 870 0 L 1450 100" />
+        </svg>
+      </div>
+      <div class="role-grid">
+        <div class="role-box fade-up d5">
+          <div class="role">First line · Compliance</div>
+          <div class="what">The risk policy in machine-readable form, in our own language.</div>
+          <div class="quote">"Our scenarios, our thresholds, every line cited to a regulation."</div>
+        </div>
+        <div class="role-box fade-up d6">
+          <div class="role">Engineering</div>
+          <div class="what">The schema we build from. The data the engine consumes.</div>
+          <div class="quote">"Compiles deterministically — same spec, same data, same answer."</div>
+        </div>
+        <div class="role-box fade-up d7">
+          <div class="role">Auditor · 2LoD</div>
+          <div class="what">The artifact I can replay any quarter, byte-for-byte.</div>
+          <div class="quote">"When the regulator asks 'who decided?' — the answer is in the file."</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="takeaway s5-takeaway fade-up d8">
+      <span class="label">Key takeaway</span>
+      Eliminating the translation layer between three lines of defence removes the most-cited finding in 2024–26 consent orders: <em>"controls existed; the bank could not evidence they were used."</em>
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> AML Open Framework specification model · primary-source quotes from FCA Dear-CEO 2024 + K&amp;L Gates 2024 BSA review</span>
+    <span>5 OF 8</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>

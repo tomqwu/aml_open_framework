@@ -1,0 +1,140 @@
+/* AML Open Framework — Business Deck (McKinsey board pack)
+ * Shared design tokens for all 8 slides.
+ * 1920×1080 canvas. Inter sans throughout. Single warm-orange accent.
+ *
+ * Each slide HTML imports this file and adds its own per-scene styles.
+ */
+
+:root {
+  --bg:        #ffffff;          /* clean white board-pack background */
+  --bg-soft:   #f6f7f9;          /* exhibit / quote callout fill */
+  --ink:       #051c2c;          /* deep navy — primary ink */
+  --ink-2:     #2b3641;          /* secondary text */
+  --ink-dim:   #5f6b78;
+  --ink-faint: #9aa3ad;
+  --accent:    #dd5c34;          /* warm orange — single accent */
+  --accent-tint: #fdeee5;
+  --rule:      #e6eaef;
+  --rule-strong: #c8cfd6;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 1920px; height: 1080px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern", "liga", "ss01", "tnum";
+  text-rendering: optimizeLegibility;
+}
+
+/* ─────────────────────────────── Frame chrome ─────────────────────────────── */
+
+.exhibit-label {
+  position: absolute;
+  top: 60px; left: 96px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.exhibit-label .num { color: var(--accent); margin: 0 6px; }
+
+.top-rule {
+  position: absolute;
+  top: 96px;
+  left: 96px; right: 96px;
+  height: 2px;
+  background: var(--ink);
+}
+
+.source-line {
+  position: absolute;
+  bottom: 60px;
+  left: 96px; right: 96px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+}
+.source-line strong { color: var(--ink-dim); font-weight: 600; }
+
+/* Action title — every slide opens with a complete thesis sentence */
+.action-title {
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1.20;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+  text-wrap: balance;
+  max-width: 1500px;
+}
+.action-title em { font-style: normal; color: var(--accent); }
+
+.dek {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  max-width: 1300px;
+  text-wrap: pretty;
+}
+
+/* Key takeaway right rail / bottom callout */
+.takeaway {
+  background: var(--accent-tint);
+  border-left: 3px solid var(--accent);
+  padding: 18px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.takeaway .label {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 10px;
+}
+
+/* Universal stage region — between top-rule and source-line */
+.stage {
+  position: absolute;
+  top: 130px;
+  bottom: 110px;
+  left: 96px;
+  right: 96px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Subtle entrance animation kept consistent — used by every slide.
+ * Each slide HTML adds .ready to <body> on load to trigger. */
+.fade-up { transform: translateY(8px); opacity: 0; }
+.ready .fade-up { animation: fadeUp 0.6s 0.05s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.ready .fade-up.d2 { animation-delay: 0.18s; }
+.ready .fade-up.d3 { animation-delay: 0.32s; }
+.ready .fade-up.d4 { animation-delay: 0.46s; }
+.ready .fade-up.d5 { animation-delay: 0.60s; }
+.ready .fade-up.d6 { animation-delay: 0.74s; }
+.ready .fade-up.d7 { animation-delay: 0.88s; }
+.ready .fade-up.d8 { animation-delay: 1.02s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Tiny boot script every slide reuses: marks ready immediately
+   so video-export and PDF-export both see the final frame. */

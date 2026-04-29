@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The 2:1 rule · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s2-chart {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 540px 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+  .s2-bars { display: flex; flex-direction: column; gap: 26px; }
+  .s2-bar-row { display: grid; grid-template-columns: 220px 1fr 100px; gap: 20px; align-items: center; }
+  .s2-bar-row .name { font-size: 16px; font-weight: 600; color: var(--ink); text-align: right; }
+  .s2-bar-row .name .sub { display: block; font-size: 12px; font-weight: 400; color: var(--ink-faint); margin-top: 2px; letter-spacing: 0.04em; }
+  .s2-bar-row .bar-track { height: 38px; position: relative; background: var(--bg-soft); border-radius: 1px; }
+  .s2-bar-row .bar-fill { height: 100%; width: 0; transform-origin: left; }
+  .s2-bar-row.process .bar-fill { background: var(--accent); }
+  .s2-bar-row.data    .bar-fill { background: var(--ink); }
+  .ready .s2-bar-row.process .bar-fill { animation: growBar 1.0s 0.7s cubic-bezier(0.2,0.8,0.2,1) forwards; --w: 86%; }
+  .ready .s2-bar-row.data    .bar-fill { animation: growBar 1.0s 0.95s cubic-bezier(0.2,0.8,0.2,1) forwards; --w: 43%; }
+  .s2-bar-row .pct {
+    font-size: 22px; font-weight: 600;
+    color: var(--ink); font-variant-numeric: tabular-nums;
+    opacity: 0;
+  }
+  .ready .s2-bar-row.process .pct { animation: appear 0.5s 1.5s ease-out forwards; }
+  .ready .s2-bar-row.data    .pct { animation: appear 0.5s 1.7s ease-out forwards; }
+  @keyframes growBar { from { width: 0; } to { width: var(--w); } }
+  @keyframes appear { to { opacity: 1; } }
+
+  .s2-quote {
+    border-left: 3px solid var(--ink);
+    padding: 20px 32px;
+    background: var(--bg-soft);
+  }
+  .s2-quote .text {
+    font-size: 22px; font-weight: 500; line-height: 1.45;
+    color: var(--ink); font-style: italic;
+    margin-bottom: 14px; text-wrap: pretty;
+  }
+  .s2-quote .attr {
+    font-size: 12px; letter-spacing: 0.1em;
+    color: var(--ink-faint); text-transform: uppercase; font-weight: 600;
+  }
+  .s2-quote .attr strong { color: var(--ink-dim); }
+
+  .s2-takeaway { margin-top: 36px; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">2</span> The 2:1 rule</div>
+  <div class="top-rule"></div>
+
+  <div class="stage">
+    <h2 class="action-title fade-up" style="margin-bottom:12px;">
+      Process and governance gaps account for <em>~2:1</em> of every consent-order finding — not detection failures.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:56px;">
+      Five of the largest 2024–25 enforcement actions surveyed (TD, RBC, Wells&nbsp;Fargo, NatWest, Citibank).
+      Regulators rarely allege the bank missed a typology. They allege the bank cannot evidence what it did.
+    </p>
+
+    <div class="s2-chart">
+      <div class="s2-bars fade-up d3">
+        <div class="s2-bar-row process">
+          <div class="name">Process &amp; governance<span class="sub">audit trail · roles · accountability</span></div>
+          <div class="bar-track"><div class="bar-fill"></div></div>
+          <div class="pct">~67%</div>
+        </div>
+        <div class="s2-bar-row data">
+          <div class="name">Data &amp; model<span class="sub">scenarios · thresholds · coverage</span></div>
+          <div class="bar-track"><div class="bar-fill"></div></div>
+          <div class="pct">~33%</div>
+        </div>
+      </div>
+
+      <div class="s2-quote fade-up d4">
+        <div class="text">"Decisions made in relation to financial crime were not supported by evidence or an audit trail of debate and challenge."</div>
+        <div class="attr"><strong>FCA Dear-CEO Letter to Annex 1 firms</strong> · March 2024 · still operative in 2026</div>
+      </div>
+    </div>
+
+    <div class="takeaway s2-takeaway fade-up d5">
+      <span class="label">Key takeaway</span>
+      Lead with proof, not detection. The single highest-leverage place to spend a compliance dollar in 2026 is on <em>provability</em>.
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> Synthesis of TD&nbsp;Bank, RBC, Wells&nbsp;Fargo, NatWest, Citibank consent orders 2024–25 · FCA Dear-CEO 2024 · K&amp;L Gates 2024 BSA review</span>
+    <span>2 OF 8</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>

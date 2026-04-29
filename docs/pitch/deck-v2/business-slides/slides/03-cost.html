@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The cost in three sizes · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s3-stats {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 56px;
+    align-content: center;
+  }
+  .s3-stat {
+    border-top: 2px solid var(--ink);
+    padding-top: 28px;
+  }
+  .s3-stat .label {
+    font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600; margin-bottom: 18px;
+  }
+  .s3-stat .number {
+    font-size: 92px; font-weight: 600;
+    line-height: 1.0; letter-spacing: -0.03em;
+    color: var(--ink); margin-bottom: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .s3-stat .number .accent { color: var(--accent); }
+  .s3-stat .desc {
+    font-size: 16px; line-height: 1.5; color: var(--ink-2);
+    margin-bottom: 14px; text-wrap: pretty;
+  }
+  .s3-stat .src {
+    font-size: 11px; color: var(--ink-faint); letter-spacing: 0.04em;
+    border-top: 1px solid var(--rule); padding-top: 10px;
+  }
+
+  .s3-takeaway { margin-top: 48px; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">3</span> The cost in three sizes</div>
+  <div class="top-rule"></div>
+
+  <div class="stage">
+    <h2 class="action-title fade-up" style="margin-bottom:12px;">
+      The bill arrives in three sizes — and the largest is <em>still growing</em>.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:64px;">
+      A single record-breaking penalty in 2024, an industry-wide annual run-rate, and a daily-process tax —
+      the same dollars that buy detection also buy poor evidence and poor signal.
+    </p>
+
+    <div class="s3-stats">
+      <div class="s3-stat fade-up d3">
+        <div class="label">Single-bank penalty · 2024</div>
+        <div class="number"><span class="accent">$3.09</span>B</div>
+        <div class="desc">TD Bank's Oct&nbsp;2024 plea — the largest BSA enforcement action in history. Includes a U.S. asset cap (~$434B), only the 2nd ever on a major bank.</div>
+        <div class="src">FinCEN · DOJ · OCC consent order</div>
+      </div>
+      <div class="s3-stat fade-up d4">
+        <div class="label">Annual industry spend · US + CA</div>
+        <div class="number"><span class="accent">$61</span>B</div>
+        <div class="desc">Annual cost of financial-crime compliance. The CCO's recurring board question — <em>"is the juice worth the squeeze?"</em> — is now FinCEN's literal RFI title.</div>
+        <div class="src">LexisNexis Risk Solutions Feb 2024 · FinCEN Sep 2025 RFI</div>
+      </div>
+      <div class="s3-stat fade-up d5">
+        <div class="label">Industry false-positive baseline</div>
+        <div class="number"><span class="accent">95</span>%</div>
+        <div class="desc">Of every 100 alerts, 95 close as legitimate. Analyst attention is the scarce resource — and most of it is spent on noise, not signal.</div>
+        <div class="src">Flagright industry analysis · NICE Actimize 2026</div>
+      </div>
+    </div>
+
+    <div class="takeaway s3-takeaway fade-up d6">
+      <span class="label">Key takeaway</span>
+      The visible cost is the fine. The invisible cost is the analyst hour spent on the 95th false positive — every day, every quarter, every year.
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> FinCEN release Oct&nbsp;2024 · LexisNexis True&nbsp;Cost of FCC Feb&nbsp;2024 · FinCEN AML-cost RFI Sep&nbsp;2025 · Flagright TM industry analysis</span>
+    <span>3 OF 8</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>
