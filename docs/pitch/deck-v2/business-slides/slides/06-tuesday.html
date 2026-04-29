@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>A Tuesday on the AML floor · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s6-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    margin-top: 8px;
+  }
+  .s6-col-head {
+    font-size: 14px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--ink-faint);
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 0;
+  }
+  .s6-col-head .lhs { color: var(--ink); }
+  .s6-col-head .rhs { color: var(--accent); }
+
+  .s6-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0 13px;
+  }
+  .s6-row:last-child { border-bottom: none; }
+  .s6-row .activity {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .s6-row .body {
+    font-size: 20px;
+    line-height: 1.4;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+  .s6-row .body strong { color: var(--ink); font-weight: 600; }
+  .s6-row.before .body { color: var(--ink-dim); }
+  .s6-row.before .body em { font-style: italic; color: var(--ink-2); }
+  .s6-row.after .body em { font-style: normal; color: var(--accent); font-weight: 500; }
+
+  .s6-takeaway { margin-top: 18px; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">6</span> A Tuesday on the AML floor</div>
+  <div class="top-rule"></div>
+
+  <div class="stage">
+    <h2 class="action-title fade-up" style="margin-bottom:12px;">
+      Same workflow, two days. The unmeasured win is the <em>analyst hours</em> the framework gives back.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:18px;">
+      Detection accuracy gets the headline; the line item that drains the floor is what an analyst does <em>between</em> alerts.
+    </p>
+
+    <div class="s6-grid">
+      <!-- Today column -->
+      <div class="fade-up d3">
+        <div class="s6-col-head"><span class="lhs">Today · without the framework</span></div>
+
+        <div class="s6-row before">
+          <div class="activity">Alert triage</div>
+          <div class="body">Open <strong>8 systems</strong> for one alert — TM, KYC, sanctions, CRM, transactions, prior cases — and copy-paste into a Word file. <em>~95% close as legitimate.</em></div>
+        </div>
+        <div class="s6-row before">
+          <div class="activity">KYC / periodic review</div>
+          <div class="body">Pull the customer dossier from 3 systems, attach screenshots, justify the risk rating in a free-text box. Annual review backlog grows by month-end.</div>
+        </div>
+        <div class="s6-row before">
+          <div class="activity">STR drafting</div>
+          <div class="body">Hunt the customer history, the transaction trail, the typology citation. Re-type the narrative in goAML. The investigation is in the analyst's head.</div>
+        </div>
+        <div class="s6-row before">
+          <div class="activity">BOI refresh</div>
+          <div class="body">Email the relationship manager, chase a beneficial-ownership form, attach to the case file. Stale-BOI list is in someone's spreadsheet.</div>
+        </div>
+        <div class="s6-row before">
+          <div class="activity">Backlog status</div>
+          <div class="body">"How many alerts are over SLA?" — <em>"I'll ask the team."</em> Dashboard shows last week's red. Board approves the program anyway.</div>
+        </div>
+      </div>
+
+      <!-- With framework column -->
+      <div class="fade-up d4">
+        <div class="s6-col-head"><span class="rhs">With this framework · same Tuesday</span></div>
+
+        <div class="s6-row after">
+          <div class="activity">Alert triage</div>
+          <div class="body"><em>One evidence bundle.</em> Customer record, transactions, prior alerts, network neighbours, regulator citation — all chained, hash-verified, on one screen.</div>
+        </div>
+        <div class="s6-row after">
+          <div class="activity">KYC / periodic review</div>
+          <div class="body">Risk-rating <em>computed from the spec</em>, dossier auto-assembled, EDD-due list rendered live from <em>Customer Risk</em> page. Reviews stop being a backlog.</div>
+        </div>
+        <div class="s6-row after">
+          <div class="activity">STR drafting</div>
+          <div class="body">Narrative <em>auto-drafted</em> from the alert evidence chain. Analyst reviews and signs — doesn't re-type. Filing-latency p95 is a live metric.</div>
+        </div>
+        <div class="s6-row after">
+          <div class="activity">BOI refresh</div>
+          <div class="body"><em>BOI Workflow</em> page shows every reporting-company customer + freshness state. Stale BOI surfaces as an alert, not as someone's spreadsheet.</div>
+        </div>
+        <div class="s6-row after">
+          <div class="activity">Backlog status</div>
+          <div class="body"><em>SLA timer + escalation engine.</em> Per-queue breach-rate badges. Red queues become loud, not slide-decoration. CCO sees real status first.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="takeaway s6-takeaway fade-up d5">
+      <span class="label">Key takeaway</span>
+      The unmeasured win isn't accuracy — it's the <em>analyst hours</em> the team gets back. Multiply across 100 analysts, 50 weeks: same dollars, signal instead of motion.
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> Industry false-positive baseline · Flagright + NICE Actimize 2026 · STR-filing-latency p95 cited in 2024 BSA consent orders · framework workflows in <em>Investigations</em>, <em>BOI Workflow</em>, <em>Tuning Lab</em>, <em>Audit&nbsp;&amp;&nbsp;Evidence</em> dashboard pages</span>
+    <span>6 OF 10</span>
+  </div>
+
+  <script>
+    document.fonts.ready.then(() => {
+      document.body.classList.add('ready');
+      window.__ready = true;
+    });
+  </script>
+</body>
+</html>

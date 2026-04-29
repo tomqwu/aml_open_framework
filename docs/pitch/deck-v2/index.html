@@ -361,7 +361,6 @@
     counter.innerHTML =
       `${idx + 1} / ${deck.length} <span class="label">${deck[idx].label || ''}</span>` +
       '<span class="menu-icon">⌘</span>';
-    try { localStorage.setItem(storageKey, String(idx)); } catch (_) {}
     if (location.hash !== '#' + (idx + 1)) {
       history.replaceState(null, '', '#' + (idx + 1));
     }
@@ -443,13 +442,12 @@
     if (m) show(parseInt(m[1], 10) - 1);
   });
 
-  // Initial: hash > localStorage > 0
+  // Initial: hash takes precedence; otherwise always start at slide 1.
+  // (Cold opens should not resume a previous session — a pitch deck always
+  // begins at the beginning. Direct deep-links via #N still work.)
   const hashMatch = location.hash.match(/^#(\d+)$/);
   if (hashMatch) current = Math.min(parseInt(hashMatch[1], 10) - 1, deck.length - 1);
-  else try {
-    const v = parseInt(localStorage.getItem(storageKey), 10);
-    if (!isNaN(v) && v >= 0 && v < deck.length) current = v;
-  } catch (_) {}
+  else current = 0;
   fit();
   buildPicker();
   show(current);

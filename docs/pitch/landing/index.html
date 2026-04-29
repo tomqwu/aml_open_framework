@@ -574,7 +574,6 @@
       <a class="tab" data-tab="deck"  href="#">Deck <span class="meta" data-meta="deck"></span></a>
       <a class="tab" data-tab="video" href="#">Video <span class="meta" data-meta="video"></span></a>
       <a class="tab" data-tab="pdf"   href="#">PDF <span class="meta" data-meta="pdf"></span></a>
-      <a class="tab" data-tab="gif"   href="#">GIF <span class="meta" data-meta="gif"></span></a>
     </div>
   </header>
 
@@ -618,9 +617,9 @@
       <section class="block" id="picker">
         <h2 class="section-h">Pick your <em>audience</em>.</h2>
         <p class="section-dek">
-          Same project, two faithful narrations. Each side has a deck, a video, a PDF, and an
-          animated GIF for sharing. Click any artifact — it opens in the viewer with the
-          top-nav still available, so switching sides is one click.
+          Same project, two faithful narrations. Each side has a live deck, a narrated video,
+          and a printable PDF. Click any artifact — it opens in the viewer with the top nav
+          still available, so switching sides is one click.
         </p>
 
         <div class="picker">
@@ -638,7 +637,7 @@
                 <span class="icon">DECK</span>
                 <span class="label">
                   <a href="#/business/deck">Live HTML deck</a>
-                  <span class="meta">8 exhibits · keyboard nav</span>
+                  <span class="meta">10 exhibits · keyboard nav</span>
                 </span>
                 <span class="arrow">→</span>
               </li>
@@ -654,15 +653,7 @@
                 <span class="icon">PDF</span>
                 <span class="label">
                   <a href="#/business/pdf">Printable PDF</a>
-                  <span class="meta">Vector · 8 pages · 0.8 MB</span>
-                </span>
-                <span class="arrow">→</span>
-              </li>
-              <li>
-                <span class="icon">GIF</span>
-                <span class="label">
-                  <a href="#/business/gif">Animated GIF preview</a>
-                  <span class="meta">23 s · 720 wide · 2.2 MB</span>
+                  <span class="meta">Vector · 10 pages · 1.1 MB</span>
                 </span>
                 <span class="arrow">→</span>
               </li>
@@ -700,14 +691,6 @@
                 <span class="label">
                   <a href="#/technical/pdf">Printable PDF</a>
                   <span class="meta">Vector · 19 pages · 3.6 MB</span>
-                </span>
-                <span class="arrow">→</span>
-              </li>
-              <li>
-                <span class="icon">GIF</span>
-                <span class="label">
-                  <a href="#/technical/gif">Animated GIF preview</a>
-                  <span class="meta">~22 s · 720 wide · 4.7 MB</span>
                 </span>
                 <span class="arrow">→</span>
               </li>
@@ -782,20 +765,18 @@
   (() => {
     // Resource registry — what each /audience/type loads, and how.
     const RESOURCES = {
-      'business/deck':  { kind: 'iframe', src: 'business/',                                 title: 'Business deck · 8 exhibits' },
+      'business/deck':  { kind: 'iframe', src: 'business/',                                 title: 'Business deck · 10 exhibits' },
       'business/video': { kind: 'video',  src: 'business/video/board-video.mp4',            title: 'Board video · 64 s · BGM' },
-      'business/pdf':   { kind: 'iframe', src: 'business/aml-open-framework-business.pdf',  title: 'Business PDF · 8 pages' },
-      'business/gif':   { kind: 'image',  src: 'business/video/board-video-preview.gif',    title: 'Business GIF preview · 23 s' },
+      'business/pdf':   { kind: 'iframe', src: 'business/aml-open-framework-business.pdf',  title: 'Business PDF · 10 pages' },
       'technical/deck': { kind: 'iframe', src: 'technical/',                                 title: 'Technical deck · 19 slides' },
       'technical/video':{ kind: 'video',  src: 'technical/video/walkthrough.mp4',           title: 'Walkthrough video · 92 s · BGM' },
       'technical/pdf':  { kind: 'iframe', src: 'technical/aml-open-framework-v2.pdf',       title: 'Technical PDF · 19 pages' },
-      'technical/gif':  { kind: 'image',  src: 'technical/video/walkthrough-preview.gif',   title: 'Technical GIF preview · ~22 s' },
     };
 
     // Per-audience metadata (shown in nav-secondary when audience is active)
     const AUDIENCE_META = {
-      business: { label: 'Business', deck: '8 exhibits', video: '64 s', pdf: '8 pp', gif: '23 s' },
-      technical:{ label: 'Technical', deck: '19 slides', video: '92 s', pdf: '19 pp', gif: '~22 s' },
+      business: { label: 'Business', deck: '10 exhibits', video: '64 s', pdf: '10 pp' },
+      technical:{ label: 'Technical', deck: '19 slides', video: '92 s', pdf: '19 pp' },
     };
 
     const landingView = document.getElementById('landingView');
