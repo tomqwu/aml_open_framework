@@ -1,0 +1,45 @@
+# Curated typology — installable via `aml typology-import mule_burst_inbound`.
+# Field-level definitions in src/aml_framework/typology_library.py
+
+metadata:
+  id: mule_burst_inbound
+  name: "Money mule — inbound burst from many remitters"
+  description: |
+    Classic mule funnel: ≥ 8 inbound payments from distinct remitters
+    within 7 days totalling > $15k, often immediately followed by a
+    same-day large outbound (paired with `ramp_up_then_drain`). High-
+    yield post-RTP/FedNow because payments settle in seconds and
+    chargebacks are unavailable.
+  jurisdictions: ["US", "CA", "GB", "EU"]
+  regulations:
+    - "FFIEC BSA/AML Manual — money-mule schemes"
+    - "FinCEN FIN-2020-A003 (money-mule advisory)"
+  source: "FinCEN FIN-2020-A003 + 2026 RTP fraud telemetry"
+  recommended_severity: high
+  dependencies: []
+
+rule:
+  id: mule_burst_inbound
+  name: Money mule — inbound burst from many remitters
+  severity: high
+  regulation_refs:
+    - citation: "FinCEN FIN-2020-A003"
+      description: "Money-mule advisory — typology indicators."
+    - citation: "FFIEC BSA/AML Manual"
+      description: "Risk-based examination — fund-funnelling patterns."
+  logic:
+    type: aggregation_window
+    source: txn
+    filter:
+      direction: in
+      channel: instant_payment
+    group_by: [customer_id]
+    window: 7d
+    having:
+      count: { gte: 8 }
+      sum_amount: { gte: 15000 }
+      distinct_counterparty_count: { gte: 5 }
+  escalate_to: l2_investigator
+  evidence: [matching_txns, customer_kyc, prior_alerts_90d, account_age_days]
+  tags: [money_mule, rtp_fednow, fatf_r20]
+  aml_priority: fraud

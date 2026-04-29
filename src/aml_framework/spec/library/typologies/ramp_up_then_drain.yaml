@@ -1,0 +1,70 @@
+# Curated typology — installable via `aml typology-import ramp_up_then_drain`.
+# Field-level definitions in src/aml_framework/typology_library.py
+
+metadata:
+  id: ramp_up_then_drain
+  name: "Ramp-up then drain — pig-butchering closeout"
+  description: |
+    Pig-butchering exit pattern: an account previously inactive (<$500
+    balance for 60+ days) receives ≥ $20k inbound, then drains it via
+    crypto on-ramp or wire within 72 hours. Custom SQL because the
+    join across the deposit + payout + balance-history requires a
+    multi-step CTE; pure aggregation_window cannot express it.
+  jurisdictions: ["US", "CA", "GB", "EU", "AU", "SG"]
+  regulations:
+    - "FATF (2026) Cyber-enabled fraud thematic paper, finding 5"
+    - "FinCEN FIN-2023-Alert005 (pig butchering)"
+  source: "FATF 2026 cyber-enabled fraud thematic paper"
+  recommended_severity: critical
+  dependencies: []
+
+rule:
+  id: ramp_up_then_drain
+  name: Ramp-up then drain — pig-butchering closeout
+  severity: critical
+  regulation_refs:
+    - citation: "FATF (2026) cyber-enabled fraud paper"
+      description: "Closeout pattern — staged ramp then high-velocity exit."
+    - citation: "FinCEN FIN-2023-Alert005"
+      description: "Pig butchering — staged victim contact + payout phases."
+  logic:
+    type: custom_sql
+    sql: |
+      WITH dormant AS (
+        SELECT customer_id
+        FROM   account_balance_daily
+        WHERE  as_of_date BETWEEN '{baseline_start}' AND '{window_start}'
+        GROUP  BY customer_id
+        HAVING MAX(balance_amount) < 500
+      ),
+      ramp AS (
+        SELECT t.customer_id, MIN(t.txn_ts) AS first_inbound_ts, SUM(t.amount) AS inbound_total
+        FROM   txn t
+        JOIN   dormant d USING (customer_id)
+        WHERE  t.txn_ts BETWEEN '{recent_start}' AND '{as_of}'
+          AND  t.direction = 'in'
+        GROUP  BY t.customer_id
+        HAVING SUM(t.amount) >= 20000
+      ),
+      drain AS (
+        SELECT t.customer_id, MIN(t.txn_ts) AS drain_ts, SUM(t.amount) AS drain_total
+        FROM   txn t
+        WHERE  t.direction = 'out'
+          AND  t.channel IN ('wire', 'crypto_onramp')
+          AND  t.txn_ts BETWEEN '{recent_start}' AND '{as_of}'
+        GROUP  BY t.customer_id
+      )
+      SELECT r.customer_id,
+             r.inbound_total,
+             d.drain_total,
+             r.first_inbound_ts,
+             d.drain_ts
+      FROM   ramp r
+      JOIN   drain d USING (customer_id)
+      WHERE  d.drain_ts > r.first_inbound_ts
+        AND  EXTRACT(EPOCH FROM (d.drain_ts - r.first_inbound_ts)) <= 72 * 3600
+        AND  d.drain_total >= 0.7 * r.inbound_total
+  escalate_to: l2_investigator
+  evidence: [matching_txns, account_balance_history, customer_kyc, prior_alerts_90d]
+  tags: [pig_butchering, fraud_aml_convergence, fatf_2026, exit_scam]
+  aml_priority: fraud

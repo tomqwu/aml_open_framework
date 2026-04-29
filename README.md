@@ -85,6 +85,8 @@ aml dashboard examples/community_bank/aml.yaml
 aml dashboard spec.yaml                              # launch web UI (start here)
 aml validate spec.yaml                               # check the spec is internally consistent
 aml run spec.yaml [--data-source csv --data-dir ./]  # execute detectors on data
+aml typology-list                                    # browse the curated typology catalogue
+aml typology-import structuring_cash spec.yaml       # install a vetted, regulation-cited rule
 aml audit-pack spec.yaml --jurisdiction CA-FINTRAC   # build the regulator examination ZIP
 aml backtest spec.yaml --rule X --quarters 4         # is rule X still earning its keep?
 aml replay spec.yaml run-dir/                        # prove a historical run replays byte-for-byte
