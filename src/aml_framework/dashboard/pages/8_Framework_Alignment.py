@@ -5,7 +5,13 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header, tooltip_banner, tour_panel
+from aml_framework.dashboard.components import (
+    page_header,
+    research_link,
+    see_also_footer,
+    tooltip_banner,
+    tour_panel,
+)
 from aml_framework.dashboard.data_layer import get_framework_tabs
 
 spec = st.session_state.spec
@@ -152,3 +158,18 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
             st.metric("Partially Mapped", partial)
         with c3:
             st.metric("Gaps", gaps)
+
+
+# --- See also (cross-page nav + research) ---
+see_also_footer(
+    [
+        "[Spec Editor — propose changes that close gaps](./20_Spec_Editor)",
+        "[Transformation Roadmap — phased plan](./9_Transformation_Roadmap)",
+        "[Regulator Pulse — FinCEN AML Effectiveness NPRM](./27_Regulator_Pulse)",
+        research_link(
+            "PAIN-3 — gaps you found 6 months ago, still uncovered",
+            "2026-04-aml-process-pain.md",
+            "pain-3--gaps-you-found-six-months-ago-still-uncovered",
+        ),
+    ]
+)

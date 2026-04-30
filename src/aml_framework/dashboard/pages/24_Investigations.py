@@ -33,6 +33,8 @@ from aml_framework.dashboard.components import (
     glossary_legend,
     page_header,
     rag_cell_style,
+    research_link,
+    see_also_footer,
     selectable_dataframe,
     severity_cell_style,
 )
@@ -328,4 +330,18 @@ else:
 st.markdown(
     glossary_legend(["SLA", "STR", "SAR", "MLRO", "1LoD", "2LoD"]),
     unsafe_allow_html=True,
+)
+
+
+# --- See also (cross-page nav + research) ---
+see_also_footer(
+    [
+        "[Case Investigation — open one case in detail](./4_Case_Investigation)",
+        "[My Queue — your assigned slice](./21_My_Queue)",
+        research_link(
+            "FINTECH-4 — backlog drift when no one owns the queue",
+            "2026-04-fintech-aml-reality.md",
+            "fintech-4--backlog-drift-when-no-one-owns-the-queue",
+        ),
+    ]
 )

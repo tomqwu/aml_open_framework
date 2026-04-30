@@ -10,6 +10,7 @@ from aml_framework.dashboard.components import (
     metric_gradient_style,
     page_header,
     rag_cell_style,
+    see_also_footer,
 )
 from aml_framework.dashboard.audience import show_audience_context
 
@@ -109,3 +110,12 @@ else:
 st.markdown("<br>", unsafe_allow_html=True)
 with st.expander("Current Run Manifest"):
     st.json(result.manifest)
+
+
+# --- See also (cross-page nav) ---
+see_also_footer(
+    [
+        "[Comparative Analytics — run-over-run trend deltas](./19_Comparative_Analytics)",
+        "[Audit & Evidence — hash-chain provenance per run](./7_Audit_Evidence)",
+    ]
+)
