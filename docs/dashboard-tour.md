@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **24 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **28 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.)
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -177,6 +177,38 @@ Pareto-frontier exploration of rule threshold combinations. Loads labelled histo
 
 ---
 
+## Compliance Workflow Pages
+
+### BOI Workflow
+
+Beneficial-Ownership status across reporting-company customers. Single source of truth — Customer 360 + pKYC + freshness window — with one-click FinCEN BOIR-shaped JSON export. Per-customer table sorted worst-first (missing → stale → current); KPI buttons filter the table by status. Stops the re-keying-into-three-systems failure mode the KYC operator hits today.
+
+_Screenshot: pending — see follow-up._
+
+### FinTech Cockpit
+
+1-MLRO operating surface for FinTech / EMI / VASP programs. Sponsor-bank cure-notice timer, the 8 FinTech AML realities (research-doc anchored), and a one-button evidence pack. Built for the persona that IS all three lines of defence — no separate validation team to delegate to.
+
+_Screenshot: pending — see follow-up._
+
+### Regulator Pulse
+
+What's moved in the last 90 days across FinCEN / OCC / FRB / FCA / EBA / AMLA / FINTRAC / FATF. Filterable by jurisdiction, regulator, severity, and event type. Every event cites the regulator's primary source — no industry briefings, no vendor analysis as the load-bearing citation.
+
+_Screenshot: pending — see follow-up._
+
+---
+
+## Reference Pages
+
+### Metrics Taxonomy
+
+Browseable catalogue of every metric the spec declares. KPI strip (total / categories used / with-targets / owners assigned), category × audience × formula filters, per-category accordion of metric cards with live RAG accent + current-run value strip, formula-as-YAML expander per metric, see-also footer cross-linking Executive Dashboard / Comparative Analytics / Spec Editor. Sister page to the Typology Catalogue — what the program *measures* vs what it *detects*.
+
+_Screenshot: pending — see follow-up._
+
+---
+
 ## Export Surface
 
 ### Board PDF Export
@@ -187,19 +219,21 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The same 24 pages serve 10 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 8 pages):
+The same 28 pages serve 12 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 9 pages):
 
 | Persona | Primary pages |
 |---|---|
 | **SVP** | Executive Dashboard → Program Maturity → Framework Alignment → Transformation Roadmap |
-| **CCO** | Executive Dashboard → Program Maturity → Framework Alignment → Risk Assessment → Audit & Evidence → Investigations → Transformation Roadmap |
+| **CCO** | Executive Dashboard → Program Maturity → Framework Alignment → Risk Assessment → Audit & Evidence → Investigations → Regulator Pulse → Transformation Roadmap → Metrics Taxonomy |
 | **CTO** | Executive Dashboard → Program Maturity → Framework Alignment → Model Performance → Run History → Transformation Roadmap |
-| **VP** | Executive Dashboard → Rule Performance → Framework Alignment → Sanctions Screening → Comparative Analytics |
-| **Director** | Executive Dashboard → Alert Queue → Investigations → Risk Assessment → Data Quality → Audit & Evidence → Comparative Analytics |
-| **Operations Manager** | Alert Queue → Investigations → My Queue → Analyst Review Queue → Risk Assessment → Live Monitor → Tuning Lab |
+| **VP / MLRO** | Executive Dashboard → Rule Performance → Framework Alignment → Sanctions Screening → Comparative Analytics → Regulator Pulse → Metrics Taxonomy |
+| **Director** | Executive Dashboard → Alert Queue → Investigations → Risk Assessment → Data Quality → Audit & Evidence → Comparative Analytics → Metrics Taxonomy |
+| **Operations Manager** | Alert Queue → Investigations → My Queue → Analyst Review Queue → Risk Assessment → Live Monitor → Tuning Lab → Typology Catalogue → Metrics Taxonomy |
 | **L1 Analyst** | Alert Queue → Case Investigation → Investigations → Network Explorer → Sanctions Screening → Customer 360 → My Queue → Analyst Review Queue |
-| **Product Manager** | Rule Performance → Program Maturity → Transformation Roadmap → Model Performance → Risk Assessment → Case Investigation → Tuning Lab |
+| **Product Manager** | Rule Performance → Program Maturity → Transformation Roadmap → Model Performance → Risk Assessment → Case Investigation → Tuning Lab → Typology Catalogue → Metrics Taxonomy |
 | **Developer** | Spec Editor → Rule Performance → Rule Tuning → Tuning Lab → Model Performance → Data Quality → Analyst Review Queue → Run History |
-| **Auditor** | Audit & Evidence → Investigations → Case Investigation → Data Quality → Framework Alignment → Run History |
+| **Auditor** | Audit & Evidence → Investigations → Case Investigation → Data Quality → Framework Alignment → Regulator Pulse → Run History → Metrics Taxonomy |
+| **Business Owner** | Executive Dashboard → Risk Assessment → Framework Alignment → Audit & Evidence |
+| **FinTech MLRO** | FinTech Cockpit → Audit & Evidence → Investigations → Tuning Lab → Regulator Pulse → Framework Alignment → Spec Editor → Metrics Taxonomy |
 
 See [`personas.md`](personas.md) for the full role-based workflows.
