@@ -27,7 +27,15 @@ program:
   regulator: FinCEN                   # primary supervisor
   owner: chief_compliance_officer     # human owner of the program
   effective_date: 2026-01-01          # YYYY-MM-DD, when this version takes effect
+  ai_audit_log: hash_only             # what the GenAI assistant writes to ai_interactions.jsonl
 ```
+
+**`ai_audit_log`** (default `hash_only`) controls what the dashboard's GenAI assistant retains in the run's append-only `ai_interactions.jsonl` file:
+
+- `hash_only` — logs SHA-256 of every reply text. Bounds PII transit to disk; the full reply lives only in the operator's session and disappears on refresh. Privacy-safe default.
+- `full_text` — logs the entire reply for forensic recall. Institutions opt into this only after clearing it against their privacy posture; the spec change is itself the paper trail.
+
+Other audit fields (`ts`, `page`, `persona`, `backend`, `citations`, `confidence`, `referenced_metric_ids`, `referenced_case_ids`, `question`) are always logged regardless of mode.
 
 ## `data_contracts`
 
