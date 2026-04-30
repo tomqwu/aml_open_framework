@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Four rule shapes · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .layout {
+    position: absolute;
+    top: 440px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 22px;
+    z-index: 1;
+  }
+
+  .rule-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.25s ease, transform 0.25s ease;
+  }
+  .rule-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .rule-card .head {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--panel-border);
+    background: linear-gradient(180deg,#131c34 0%, #0f172a 100%);
+  }
+  .rule-card .head .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .rule-card .head .name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.005em;
+  }
+  .rule-card .head .when {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--chapter-warm);
+    margin-top: 10px;
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  .rule-card .yaml {
+    flex: 1;
+    padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--ink);
+    white-space: pre;
+    overflow: hidden;
+  }
+  .rule-card .yaml .yk { color: var(--accent); }
+  .rule-card .yaml .ys { color: var(--rag-green); }
+  .rule-card .yaml .yn { color: var(--rag-amber); }
+  .rule-card .yaml .yc { color: var(--ink-faint); font-style: italic; }
+
+  .rule-card .ex {
+    padding: 14px 20px 18px;
+    border-top: 1px solid var(--panel-border);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-dim);
+    text-wrap: pretty;
+  }
+  .rule-card .ex strong { color: var(--ink); font-weight: 600; }
+
+  .punchline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--chapter-warm);
+    line-height: 1.5;
+    z-index: 1;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+  .punchline code {
+    font-family: 'JetBrains Mono', monospace;
+    font-style: normal;
+    font-size: 22px;
+    color: var(--accent);
+    background: rgba(103,232,249,0.06);
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">05 / 22</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act II · The Spec Is The Contract</div>
+    <h1 class="fade-in d2">
+      Four <em>rule shapes</em>, one discriminator.
+    </h1>
+    <p style="margin-top:14px;font-family:Inter,sans-serif;font-size:18px;color:var(--ink-dim);max-width:1180px;line-height:1.5;">
+      Every rule's <code style="color:var(--accent);font-family:JetBrains Mono,monospace;font-size:16px;">logic.type</code> picks one of four shapes. Pydantic v2's discriminated union enforces it; the engine compiles each shape into the same alert contract.
+    </p>
+  </div>
+
+  <div class="layout">
+
+    <div class="rule-card fade-in d3">
+      <div class="head">
+        <div class="num">Type · 01</div>
+        <div class="name">aggregation_window</div>
+        <div class="when">Count or sum thresholds over a sliding time window — the workhorse type.</div>
+      </div>
+      <div class="yaml"><span class="yc"># structuring</span>
+<span class="yk">type:</span>    <span class="ys">aggregation_window</span>
+<span class="yk">window:</span>  <span class="ys">30d</span>
+<span class="yk">group_by:</span> [<span class="ys">customer_id</span>]
+<span class="yk">having:</span>
+  <span class="yk">count:</span>      { gte: <span class="yn">3</span> }
+  <span class="yk">sum_amount:</span> { gte: <span class="yn">20000</span> }</div>
+      <div class="ex"><strong>Use when:</strong> structuring · velocity · burst patterns · "N transactions totalling X within Y days."</div>
+    </div>
+
+    <div class="rule-card fade-in d4">
+      <div class="head">
+        <div class="num">Type · 02</div>
+        <div class="name">custom_sql</div>
+        <div class="when">Hand-written SQL for joins, sub-queries, or graph traversals the declarative form can't express.</div>
+      </div>
+      <div class="yaml"><span class="yc"># pass-through layering</span>
+<span class="yk">type:</span> <span class="ys">custom_sql</span>
+<span class="yk">sql:</span> |
+  SELECT customer_id
+  FROM txns t1
+  JOIN txns t2 USING (counterparty_id)
+  WHERE t1.window = <span class="ys">'{window_start}'</span>
+    AND ABS(t1.amount - t2.amount) &lt; <span class="yn">100</span>
+  GROUP BY 1 HAVING COUNT(*) &gt;= <span class="yn">3</span></div>
+      <div class="ex"><strong>Use when:</strong> complex joins · network traversal · placeholder substitution (<code style="color:var(--accent);font-family:JetBrains Mono,monospace">{as_of}</code>, <code style="color:var(--accent);font-family:JetBrains Mono,monospace">{window_start}</code>).</div>
+    </div>
+
+    <div class="rule-card fade-in d5">
+      <div class="head">
+        <div class="num">Type · 03</div>
+        <div class="name">python_ref</div>
+        <div class="when">Pluggable Python callable — escape hatch for ML scorers, anomaly models, custom logic.</div>
+      </div>
+      <div class="yaml"><span class="yc"># anomaly score</span>
+<span class="yk">type:</span>    <span class="ys">python_ref</span>
+<span class="yk">module:</span>  <span class="ys">scorers.iforest</span>
+<span class="yk">callable:</span> <span class="ys">score_anomaly</span>
+<span class="yk">model:</span>
+  <span class="yk">id:</span>      <span class="ys">iforest_v3.2</span>
+  <span class="yk">version:</span> <span class="ys">2026.04</span>
+<span class="yk">threshold:</span> <span class="yn">0.85</span></div>
+      <div class="ex"><strong>Use when:</strong> ML scoring · custom features · the spec captures <strong>model_id + version</strong> for MRM under SR&nbsp;26-2.</div>
+    </div>
+
+    <div class="rule-card fade-in d6">
+      <div class="head">
+        <div class="num">Type · 04</div>
+        <div class="name">list_match</div>
+        <div class="when">Customer or transaction is on a list — sanctions, PEP, internal watch, BOI control list.</div>
+      </div>
+      <div class="yaml"><span class="yc"># sanctions screening</span>
+<span class="yk">type:</span>   <span class="ys">list_match</span>
+<span class="yk">list:</span>   <span class="ys">ofac_sdn</span>
+<span class="yk">field:</span>  <span class="ys">counterparty.name</span>
+<span class="yk">match:</span>  <span class="ys">fuzzy</span>
+<span class="yk">threshold:</span> <span class="yn">0.92</span>
+<span class="yk">refresh:</span> <span class="ys">daily</span></div>
+      <div class="ex"><strong>Use when:</strong> sanctions / PEP / OFAC / EU consolidated · internal watchlists · BOI ownership-percent breaches.</div>
+    </div>
+
+  </div>
+
+  <div class="punchline">
+    One <code>logic.type</code> field. One Pydantic discriminator. <strong>One escape hatch</strong> when the abstraction isn't enough.
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · spec/models.py · RuleLogic discriminated union</span>
+  </div>
+
+</body>
+</html>

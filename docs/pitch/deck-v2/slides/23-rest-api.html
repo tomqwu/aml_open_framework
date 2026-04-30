@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>REST API surface · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .layout {
+    position: absolute;
+    top: 440px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 56px;
+    z-index: 1;
+  }
+
+  /* Endpoint table */
+  .api-table {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 64px rgba(0,0,0,0.5), 0 0 96px var(--terminal-glow);
+  }
+  .api-table .file-bar {
+    height: 38px;
+    background: linear-gradient(180deg,#131c34 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .api-table .file-bar .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    margin-right: 6px;
+  }
+  .api-table .endpoints {
+    flex: 1;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+  }
+  .ep {
+    display: grid;
+    grid-template-columns: 70px 1fr 200px;
+    gap: 16px;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .ep:last-child { border-bottom: none; }
+  .ep .verb {
+    font-weight: 700;
+    text-align: right;
+  }
+  .ep .verb.get    { color: var(--rag-green); }
+  .ep .verb.post   { color: var(--rag-amber); }
+  .ep .verb.put    { color: var(--accent); }
+  .ep .verb.delete { color: var(--rag-red); }
+  .ep .path {
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ep .path .param { color: var(--accent); }
+  .ep .desc {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--ink-dim);
+    text-align: right;
+    text-wrap: pretty;
+  }
+
+  .ep-section-h {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 12px 0 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .ep-section-h:first-child { margin-top: 0; }
+
+  /* Right · auth + isolation */
+  .api-side {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding-top: 4px;
+  }
+  .api-block {
+    border-left: 2px solid var(--accent);
+    padding: 4px 0 4px 18px;
+  }
+  .api-block .h {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .api-block .body {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 17px;
+    line-height: 1.45;
+    color: var(--chapter-warm);
+    text-wrap: pretty;
+  }
+  .api-block .body strong {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .api-block .body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-style: normal;
+    font-size: 14px;
+    color: var(--accent);
+    background: rgba(103,232,249,0.06);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  .punchline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--chapter-warm);
+    line-height: 1.5;
+    z-index: 1;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">19 / 22</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act VI · The Tech Substrate</div>
+    <h1 class="fade-in d2">
+      <em>REST</em> + JWT + multi-tenant.
+    </h1>
+    <p style="margin-top:14px;font-family:Inter,sans-serif;font-size:18px;color:var(--ink-dim);max-width:1180px;line-height:1.5;">
+      Same Manifest, same engine — exposed over an OpenAPI surface for institutions that want programmatic access alongside the dashboard.
+    </p>
+  </div>
+
+  <div class="layout">
+
+    <div class="api-table fade-in d3">
+      <div class="file-bar">
+        <span class="dot"></span>FastAPI · <code style="color:var(--ink)">src/aml_framework/api/main.py</code> · OpenAPI at <code style="color:var(--accent)">/docs</code>
+      </div>
+      <div class="endpoints">
+        <div class="ep-section-h">Runs · execute the engine</div>
+        <div class="ep">
+          <span class="verb post">POST</span>
+          <span class="path">/runs</span>
+          <span class="desc">trigger run · returns run_id</span>
+        </div>
+        <div class="ep">
+          <span class="verb get">GET</span>
+          <span class="path">/runs/<span class="param">{run_id}</span></span>
+          <span class="desc">status + output_hash + alerts</span>
+        </div>
+        <div class="ep">
+          <span class="verb post">POST</span>
+          <span class="path">/runs/<span class="param">{run_id}</span>/replay</span>
+          <span class="desc">verify byte-for-byte</span>
+        </div>
+
+        <div class="ep-section-h">Cases · investigations + decisions</div>
+        <div class="ep">
+          <span class="verb get">GET</span>
+          <span class="path">/cases?queue=<span class="param">{queue}</span></span>
+          <span class="desc">list by SLA urgency</span>
+        </div>
+        <div class="ep">
+          <span class="verb get">GET</span>
+          <span class="path">/cases/<span class="param">{case_id}</span></span>
+          <span class="desc">full case + evidence chain</span>
+        </div>
+        <div class="ep">
+          <span class="verb post">POST</span>
+          <span class="path">/cases/<span class="param">{case_id}</span>/decisions</span>
+          <span class="desc">append to audit ledger</span>
+        </div>
+
+        <div class="ep-section-h">Audit · evidence + replay</div>
+        <div class="ep">
+          <span class="verb get">GET</span>
+          <span class="path">/audit/chain</span>
+          <span class="desc">verify hash chain integrity</span>
+        </div>
+        <div class="ep">
+          <span class="verb get">GET</span>
+          <span class="path">/audit/pack?juris=<span class="param">CA-FINTRAC</span></span>
+          <span class="desc">examiner ZIP · stream</span>
+        </div>
+
+        <div class="ep-section-h">Specs · the Compliance Manifest</div>
+        <div class="ep">
+          <span class="verb get">GET</span>
+          <span class="path">/specs/<span class="param">{program_id}</span></span>
+          <span class="desc">live Manifest · validated</span>
+        </div>
+        <div class="ep">
+          <span class="verb post">POST</span>
+          <span class="path">/specs/<span class="param">{program_id}</span>/propose-change</span>
+          <span class="desc">2LoD sign-off packet</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="api-side">
+      <div class="api-block fade-in d4">
+        <div class="h">Authentication</div>
+        <div class="body">
+          <strong>JWT</strong> on every request. <strong>OIDC</strong> for the issuer trust chain — paste in your IdP's <code>discovery_url</code> and the API picks up keys, issuer, audience automatically.
+        </div>
+      </div>
+      <div class="api-block fade-in d5">
+        <div class="h">Multi-tenant isolation</div>
+        <div class="body">
+          The JWT's <code>sub</code> claim resolves to a <code>tenant_id</code>. <strong>Every query carries it</strong> — DuckDB views are scoped, audit ledger entries are scoped, examiner packs are scoped. <strong>Tenant A cannot see tenant B</strong>, even at the audit-trail layer.
+        </div>
+      </div>
+      <div class="api-block fade-in d6">
+        <div class="h">Same answers, two surfaces</div>
+        <div class="body">
+          <strong>Dashboard and API share one engine.</strong> <code>POST /runs</code> produces the same alerts the dashboard shows, with the same <code>output_hash</code>. No drift between programmatic access and human review.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="punchline">
+    Same Manifest. Same engine. <strong>API or CLI</strong> — same answer, same hash.
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · src/aml_framework/api/main.py · OpenAPI at /docs</span>
+  </div>
+
+</body>
+</html>

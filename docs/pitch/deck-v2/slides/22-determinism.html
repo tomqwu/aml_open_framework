@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Determinism · same in, same out · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .layout {
+    position: absolute;
+    top: 460px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 56px;
+    z-index: 1;
+  }
+
+  /* Left · the contract */
+  .det-contract {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding-top: 12px;
+  }
+  .det-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    align-items: baseline;
+  }
+  .det-row .key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    text-transform: lowercase;
+  }
+  .det-row .val {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    color: var(--ink-dim);
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+  .det-row .val strong { color: var(--ink); font-weight: 600; }
+
+  .det-equation {
+    margin: 12px 0 4px;
+    padding: 22px 24px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--ink);
+    text-align: center;
+    box-shadow: 0 0 96px var(--terminal-glow);
+  }
+  .det-equation .op { color: var(--ink-faint); margin: 0 6px; }
+  .det-equation .arr { color: var(--accent); margin: 0 12px; }
+  .det-equation .out { color: var(--rag-green); }
+
+  .det-note {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 16px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+  .det-note strong { color: var(--chapter-warm); font-style: normal; font-weight: 600; }
+
+  /* Right · the test */
+  .det-code {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 64px rgba(0,0,0,0.5), 0 0 96px var(--terminal-glow);
+  }
+  .det-code .file-bar {
+    height: 38px;
+    background: linear-gradient(180deg,#131c34 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .det-code .file-bar .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--rag-green);
+    box-shadow: 0 0 8px rgba(134,239,172,0.4);
+    margin-right: 8px;
+  }
+  .det-code .py-body {
+    flex: 1;
+    padding: 22px 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--ink);
+    white-space: pre;
+    overflow: hidden;
+  }
+  .py-kw   { color: var(--accent); font-weight: 600; }
+  .py-fn   { color: var(--rag-green); }
+  .py-str  { color: var(--rag-green); }
+  .py-num  { color: var(--rag-amber); }
+  .py-comm { color: var(--ink-faint); font-style: italic; }
+  .py-cls  { color: var(--rag-amber); }
+
+  .punchline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--chapter-warm);
+    line-height: 1.5;
+    z-index: 1;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">14 / 22</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act IV · The Detection Substrate</div>
+    <h1 class="fade-in d2">
+      Same in, <em>same out</em> — published as a contract.
+    </h1>
+    <p style="margin-top:14px;font-family:Inter,sans-serif;font-size:18px;color:var(--ink-dim);max-width:1180px;line-height:1.5;">
+      Every commercial platform produces operational logs. <strong style="color:var(--ink)">None publish a same-Manifest + same-data + same-seed = identical-output guarantee.</strong> Ours is enforced by a test that runs in CI on every commit.
+    </p>
+  </div>
+
+  <div class="layout">
+
+    <div class="det-contract fade-in d3">
+      <div class="det-row">
+        <div class="key">spec_hash</div>
+        <div class="val"><strong>SHA-256 of the Compliance Manifest</strong> — git SHA + content hash, captured at run start.</div>
+      </div>
+      <div class="det-row">
+        <div class="key">input_hash</div>
+        <div class="val"><strong>Hash of the ordered input rows.</strong> The contract names which data snapshot was used.</div>
+      </div>
+      <div class="det-row">
+        <div class="key">engine_version</div>
+        <div class="val"><strong>Pinned framework version</strong> — same engine commit replays produce the same answers.</div>
+      </div>
+      <div class="det-row">
+        <div class="key">seed</div>
+        <div class="val"><strong>Deterministic seed</strong> — synthetic data and any randomised order is reproducible.</div>
+      </div>
+
+      <div class="det-equation">
+        spec_hash <span class="op">+</span> input_hash <span class="op">+</span> engine_version <span class="op">+</span> seed <span class="arr">→</span> <span class="out">output_hash</span>
+      </div>
+
+      <div class="det-note">
+        An auditor re-runs any historical execution and verifies the output hash matches. <strong>If it doesn't, the chain of custody is broken</strong> and the run is flagged.
+      </div>
+    </div>
+
+    <div class="det-code fade-in d4">
+      <div class="file-bar">
+        <span class="dot"></span>tests/test_run_reproducibility.py &nbsp;·&nbsp; runs in CI on every commit
+      </div>
+      <div class="py-body"><span class="py-comm"># tests/test_run_reproducibility.py</span>
+
+<span class="py-kw">def</span> <span class="py-fn">test_run_is_reproducible</span>(tmp_path):
+    <span class="py-comm"># Same Manifest, same data, same seed.</span>
+    spec  = <span class="py-fn">load_spec</span>(<span class="py-str">"examples/canadian_schedule_i_bank/aml.yaml"</span>)
+    data  = <span class="py-fn">synthetic_dataset</span>(seed=<span class="py-num">42</span>)
+
+    out_a = <span class="py-fn">Engine</span>(spec).<span class="py-fn">run</span>(data, seed=<span class="py-num">42</span>)
+    out_b = <span class="py-fn">Engine</span>(spec).<span class="py-fn">run</span>(data, seed=<span class="py-num">42</span>)
+
+    <span class="py-kw">assert</span> out_a.<span class="py-fn">output_hash</span>      == out_b.<span class="py-fn">output_hash</span>
+    <span class="py-kw">assert</span> out_a.<span class="py-fn">decision_log_hash</span> == out_b.<span class="py-fn">decision_log_hash</span>
+    <span class="py-kw">assert</span> out_a.<span class="py-fn">alerts</span>           == out_b.<span class="py-fn">alerts</span>
+
+    <span class="py-comm"># Mutation detection · change one byte in the spec</span>
+    spec_v2 = <span class="py-fn">load_spec</span>(<span class="py-str">"...mutated.yaml"</span>)
+    out_c   = <span class="py-fn">Engine</span>(spec_v2).<span class="py-fn">run</span>(data, seed=<span class="py-num">42</span>)
+
+    <span class="py-kw">assert</span> out_c.<span class="py-fn">spec_hash</span>   != out_a.<span class="py-fn">spec_hash</span>
+    <span class="py-kw">assert</span> out_c.<span class="py-fn">output_hash</span> != out_a.<span class="py-fn">output_hash</span>  <span class="py-comm"># tampering caught</span></div>
+    </div>
+
+  </div>
+
+  <div class="punchline">
+    What a <strong>regulator can verify</strong> without trusting us — re-run the spec, compare the hash.
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · engine/runner.py · tests/test_run_reproducibility.py</span>
+  </div>
+
+</body>
+</html>
