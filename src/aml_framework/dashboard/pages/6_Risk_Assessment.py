@@ -10,7 +10,9 @@ from aml_framework.dashboard.components import (
     chart_layout,
     kpi_card_rag,
     page_header,
+    research_link,
     risk_color,
+    see_also_footer,
 )
 from aml_framework.dashboard.audience import show_audience_context
 
@@ -194,3 +196,17 @@ if not df_alerts.empty and "customer_id" in df_alerts.columns:
     st.dataframe(styled, use_container_width=True, hide_index=True)
 else:
     st.caption("No alerts with customer data.")
+
+# --- See also (cross-page nav + research) ---
+see_also_footer(
+    [
+        "[Customer 360 — drill into a high-risk customer](./17_Customer_360)",
+        "[Network Explorer — relationship graph view](./10_Network_Explorer)",
+        "[Regulator Pulse — FATF grey-list events](./27_Regulator_Pulse)",
+        research_link(
+            "PAIN-2 — risk that drifts because data is split across systems",
+            "2026-04-aml-process-pain.md",
+            "pain-2--risk-that-drifts-because-data-is-split-across-systems",
+        ),
+    ]
+)

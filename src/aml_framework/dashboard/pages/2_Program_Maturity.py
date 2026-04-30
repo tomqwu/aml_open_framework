@@ -5,7 +5,14 @@ from __future__ import annotations
 import plotly.graph_objects as go
 import streamlit as st
 
-from aml_framework.dashboard.components import RAG_COLORS, chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import (
+    RAG_COLORS,
+    chart_layout,
+    kpi_card,
+    page_header,
+    research_link,
+    see_also_footer,
+)
 from aml_framework.dashboard.data_layer import MATURITY_LEVELS, compute_maturity_scores
 
 page_header(
@@ -127,3 +134,17 @@ for s in scores:
             st.markdown("**Recommendations:**")
             for rec in s["recommendations"]:
                 st.markdown(f"- {rec}")
+
+
+# --- See also (cross-page nav + research) ---
+see_also_footer(
+    [
+        "[Framework Alignment — controls per regulation](./8_Framework_Alignment)",
+        "[Transformation Roadmap — phased plan to close gaps](./9_Transformation_Roadmap)",
+        research_link(
+            "PAIN-4 — process-debt blocking maturity progress",
+            "2026-04-aml-process-pain.md",
+            "pain-4--every-control-is-a-detective-after-the-loss",
+        ),
+    ]
+)

@@ -394,6 +394,23 @@ def research_link(label: str, doc_path: str, anchor: str | None = None) -> str:
     return f"[{label}]({href})"
 
 
+def see_also_footer(items: list[str]) -> None:
+    """Render the standard 'See also · ' footer block.
+
+    Used on every page that has cross-references (other dashboard pages,
+    research docs, regulator-pulse events). Each item is a pre-formatted
+    markdown link string — typically a mix of ``research_link(...)``
+    output and bare ``[label](url)`` for in-app pages.
+
+    Renders a divider above so the block reads as a footer, not as
+    in-flow content.
+    """
+    if not items:
+        return
+    st.markdown("---")
+    st.caption("**See also** · " + " · ".join(items))
+
+
 def tooltip_banner(page_title: str, body: str) -> None:
     """Render the legacy "Guided demo" tooltip-style banner.
 

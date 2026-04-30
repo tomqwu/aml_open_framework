@@ -6,7 +6,12 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import (
+    chart_layout,
+    kpi_card,
+    page_header,
+    see_also_footer,
+)
 from aml_framework.dashboard.data_layer import get_roadmap_phases
 
 spec = st.session_state.spec
@@ -125,3 +130,13 @@ for phase in ROADMAP_PHASES:
             st.markdown("**Deliverables**")
             for d in phase["deliverables"]:
                 st.markdown(f"- {d}")
+
+
+# --- See also (cross-page nav) ---
+see_also_footer(
+    [
+        "[Program Maturity — current vs. target by dimension](./2_Program_Maturity)",
+        "[Audit & Evidence — phase deliverables become audit pack](./7_Audit_Evidence)",
+        "[Framework Alignment — gap-to-roadmap traceability](./8_Framework_Alignment)",
+    ]
+)
