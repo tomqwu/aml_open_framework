@@ -8,6 +8,7 @@ import streamlit as st
 
 from aml_framework.dashboard.components import (
     chart_layout,
+    empty_state,
     kpi_card,
     page_header,
     rag_cell_style,
@@ -175,9 +176,21 @@ try:
                 styled_runs = styled_runs.map(rag_cell_style, subset=[col])
         st.dataframe(styled_runs, use_container_width=True, hide_index=True)
     else:
-        st.caption(
-            "No historical runs stored. Use `aml api` or Docker Compose to enable "
-            "run persistence for trend analysis."
+        empty_state(
+            "No historical runs stored yet.",
+            icon="📈",
+            detail=(
+                "Trend analytics need persisted runs. Enable the API "
+                "(`aml api` or Docker Compose) so each engine execution "
+                "writes to the runs table — this view will then chart deltas."
+            ),
         )
 except Exception:
-    st.caption("Run history not available (API persistence not configured).")
+    empty_state(
+        "Run history not available.",
+        icon="🔌",
+        detail=(
+            "API persistence is not configured. Run `aml api` to start the "
+            "FastAPI service that persists each `aml run` for trend analysis."
+        ),
+    )

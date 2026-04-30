@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.components import empty_state, kpi_card, page_header
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -24,6 +24,19 @@ if st.session_state.get("guided_demo"):
         "Each data contract declares columns, types, freshness SLAs, and quality "
         "checks (not_null, unique). This page executes those checks against the "
         "actual data and reports violations."
+    )
+
+# --- Empty-state guard: no contracts means there's nothing to assess ---
+if not spec.data_contracts:
+    empty_state(
+        "No data contracts defined.",
+        icon="📋",
+        detail=(
+            "Add `data_contracts` to your spec to surface freshness SLAs, "
+            "column types, and quality checks here. See "
+            "`docs/specs/data-contracts.md` for the schema."
+        ),
+        stop=True,
     )
 
 # --- Execute quality checks ---
