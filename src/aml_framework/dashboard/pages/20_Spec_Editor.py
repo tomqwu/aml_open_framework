@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 import yaml
 
-from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.components import empty_state, kpi_card, page_header
 
 page_header(
     "Spec Editor",
@@ -27,7 +27,17 @@ if st.session_state.get("guided_demo"):
 try:
     current_yaml = spec_path.read_text(encoding="utf-8")
 except Exception:
-    current_yaml = "# Could not load spec file"
+    empty_state(
+        "Could not load spec file from disk.",
+        icon="📄",
+        detail=(
+            f"Tried to read `{spec_path}`. The file may have been moved, "
+            "or the dashboard process lacks read permission. Inspect the "
+            "path in `state.py` or relaunch with `aml dashboard <path>`."
+        ),
+        stop=True,
+    )
+    current_yaml = ""  # unreachable — empty_state(stop=True) halts the script
 
 # --- Interactive Rule Builder ---
 with st.expander("Rule Builder — create a new rule interactively"):

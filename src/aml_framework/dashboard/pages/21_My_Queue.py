@@ -156,7 +156,15 @@ if not open_cases.empty:
         "Computed live from `cases/sla.py`."
     )
 else:
-    st.success("No open cases — queue is clear.")
+    empty_state(
+        "No open cases — queue is clear.",
+        icon="✅",
+        detail=(
+            "All cases assigned to this queue have been resolved or "
+            "escalated. Pick another queue from the selector above to "
+            "see its workload."
+        ),
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 

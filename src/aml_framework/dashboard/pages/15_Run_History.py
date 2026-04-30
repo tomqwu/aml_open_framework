@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    empty_state,
     kpi_card,
     metric_gradient_style,
     page_header,
@@ -99,11 +100,20 @@ if runs:
         )
     st.dataframe(styled_runs, use_container_width=True, hide_index=True)
 else:
-    st.caption(
-        "No stored runs yet. Runs are persisted when using the API "
-        "(`aml api` or Docker Compose). Try: "
-        '`curl -X POST localhost:8000/api/v1/login -d \'{"username":"admin","password":"admin"}\'` '
-        "then `curl -X POST localhost:8000/api/v1/runs -H 'Authorization: Bearer <token>'`"
+    empty_state(
+        "No stored runs yet.",
+        icon="📦",
+        detail=(
+            "Runs are persisted when the API is running (`aml api` or Docker "
+            "Compose). Once a run lands, it shows here with spec hashes, "
+            "alert counts, and metric snapshots. Quick start:\n\n"
+            "```bash\n"
+            "curl -X POST localhost:8000/api/v1/login \\\n"
+            '  -d \'{"username":"admin","password":"admin"}\'\n'
+            "curl -X POST localhost:8000/api/v1/runs \\\n"
+            "  -H 'Authorization: Bearer <token>'\n"
+            "```"
+        ),
     )
 
 # Manifest from current run.

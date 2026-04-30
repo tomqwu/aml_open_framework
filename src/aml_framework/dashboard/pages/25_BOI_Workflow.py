@@ -30,7 +30,11 @@ from aml_framework.compliance.boi import (
     export_fincen_boi,
     synthesise_owners_from_customer,
 )
-from aml_framework.dashboard.components import page_header, selectable_dataframe
+from aml_framework.dashboard.components import (
+    empty_state,
+    page_header,
+    selectable_dataframe,
+)
 
 page_header(
     title="BOI Workflow",
@@ -103,11 +107,17 @@ selectable_dataframe(
 st.subheader("Drill-down + FinCEN BOIR export")
 reporting_records = [r for r in records if r.status != "not_required"]
 if not reporting_records:
-    st.info(
-        "No reporting-company customers in this run. Try a spec whose "
-        "customer data carries `business_activity` (e.g. uk_bank, eu_bank)."
+    empty_state(
+        "No reporting-company customers in this run.",
+        icon="🏢",
+        detail=(
+            "FinCEN BOI requirements only apply to entities with a "
+            "`business_activity` field on the customer record. Try a spec "
+            "that exercises the workflow — e.g. `examples/uk_bank/aml.yaml` "
+            "or `examples/eu_bank/aml.yaml`."
+        ),
+        stop=True,
     )
-    st.stop()
 
 selected_id = st.selectbox(
     "Customer",
