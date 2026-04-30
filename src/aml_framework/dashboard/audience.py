@@ -22,8 +22,12 @@ Notable rebalances:
 from __future__ import annotations
 
 # Page-count cap per persona — the workflow audit found anything past
-# 8 pages becomes hard to navigate from the sidebar without scrolling.
-MAX_PAGES_PER_PERSONA = 8
+# ~9 pages becomes hard to navigate from the sidebar without scrolling.
+# Bumped 8 → 9 in PR-I so the new Metrics Taxonomy reference page can
+# join the senior personas (CCO / Manager / PM) without forcing a
+# Phase-D commitment to be dropped. 9 is the practical ceiling — past
+# that, the sidebar genuinely overflows on a laptop without scrolling.
+MAX_PAGES_PER_PERSONA = 9
 
 
 # Persona labels + one-line descriptions in business language. Surfaces
@@ -118,6 +122,8 @@ AUDIENCE_PAGES = {
         "Transformation Roadmap",
     ],
     "cco": [
+        # Metrics Taxonomy added (PR-I) — defendable view of what
+        # the program measures.
         "Executive Dashboard",
         "Program Maturity",
         "Framework Alignment",
@@ -126,21 +132,27 @@ AUDIENCE_PAGES = {
         "Investigations",
         "Regulator Pulse",
         "Transformation Roadmap",
+        "Metrics Taxonomy",
     ],
     "vp": [
         # Tuning Lab dropped — VP consumes tuning outcomes via
         # Comparative Analytics, doesn't tune themselves.
         # Regulator Pulse added — MLRO needs to see what's moved.
+        # Metrics Taxonomy added — 2LoD MLRO needs to defend what
+        # the program measures for effectiveness.
         "Executive Dashboard",
         "Rule Performance",
         "Framework Alignment",
         "Sanctions Screening",
         "Comparative Analytics",
         "Regulator Pulse",
+        "Metrics Taxonomy",
     ],
     "director": [
         # Added Investigations (drill-down when KPIs spike).
         # Tuning Lab dropped (consumes via Comparative Analytics).
+        # Metrics Taxonomy added — director owns the metric program
+        # and needs the catalogue when adjusting SLA targets.
         "Executive Dashboard",
         "Alert Queue",
         "Investigations",
@@ -148,12 +160,15 @@ AUDIENCE_PAGES = {
         "Data Quality",
         "Audit & Evidence",
         "Comparative Analytics",
+        "Metrics Taxonomy",
     ],
     "manager": [
         # Dropped Case Investigation (overlaps Investigations); flow is
         # triage → investigate → tune. Reordered to match daily arc.
         # Typology Catalogue added — calibrating detection thresholds
         # against typology library is part of the manager's tuning loop.
+        # Metrics Taxonomy added (PR-I) — needed when tuning thresholds
+        # against the metric the rule is supposed to move.
         "Alert Queue",
         "Investigations",
         "My Queue",
@@ -162,6 +177,7 @@ AUDIENCE_PAGES = {
         "Live Monitor",
         "Tuning Lab",
         "Typology Catalogue",
+        "Metrics Taxonomy",
     ],
     "analyst": [
         "Alert Queue",
@@ -178,6 +194,8 @@ AUDIENCE_PAGES = {
         # impact analysis when planning roadmap items.
         # Typology Catalogue added — typology research drives roadmap
         # priorities (which detection patterns to invest in next).
+        # Metrics Taxonomy added (PR-I) — coverage gaps drive what
+        # gets added to the roadmap next quarter.
         "Rule Performance",
         "Program Maturity",
         "Transformation Roadmap",
@@ -186,6 +204,7 @@ AUDIENCE_PAGES = {
         "Case Investigation",
         "Tuning Lab",
         "Typology Catalogue",
+        "Metrics Taxonomy",
     ],
     "developer": [
         # Added Spec Editor + Rule Tuning + Analyst Review Queue +
@@ -213,6 +232,8 @@ AUDIENCE_PAGES = {
         # Added Investigations + Case Investigation — auditor reviews
         # specific cases, not just aggregate evidence.
         # Regulator Pulse added — auditors track regulator-side movement.
+        # Metrics Taxonomy added — auditors verify what's measured
+        # matches what the program claims to measure.
         "Audit & Evidence",
         "Investigations",
         "Case Investigation",
@@ -220,6 +241,7 @@ AUDIENCE_PAGES = {
         "Framework Alignment",
         "Regulator Pulse",
         "Run History",
+        "Metrics Taxonomy",
     ],
     "fintech_mlro": [
         # FinTech / EMI / VASP MLRO — 1-person program. Operates from
@@ -227,6 +249,8 @@ AUDIENCE_PAGES = {
         # pack) and only opens the wider dashboard when an alert needs
         # triage or a regulator asks. Page list deliberately tight per
         # the persona's reality: no 2LoD, no separate validation team.
+        # Metrics Taxonomy added — the 1-person MLRO IS the metric
+        # program owner; the catalogue is their reference.
         "FinTech Cockpit",
         "Audit & Evidence",
         "Investigations",
@@ -234,6 +258,7 @@ AUDIENCE_PAGES = {
         "Regulator Pulse",
         "Framework Alignment",
         "Spec Editor",
+        "Metrics Taxonomy",
     ],
 }
 
