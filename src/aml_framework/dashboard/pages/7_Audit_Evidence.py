@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    event_type_cell_style,
     glossary_legend,
     kpi_card_rag,
     page_header,
@@ -166,8 +167,13 @@ if not df_decisions.empty:
         )
         filtered_decisions = filtered_decisions[mask]
 
+    # Colour the event-type column so analysts scanning the decision log
+    # can distinguish escalations (red) from closures (green) at a glance.
+    styled_decisions = filtered_decisions.style
+    if "event" in filtered_decisions.columns:
+        styled_decisions = styled_decisions.map(event_type_cell_style, subset=["event"])
     st.dataframe(
-        filtered_decisions,
+        styled_decisions,
         use_container_width=True,
         hide_index=True,
         height=300,

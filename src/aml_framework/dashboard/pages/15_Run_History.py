@@ -5,7 +5,12 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.components import (
+    kpi_card,
+    metric_gradient_style,
+    page_header,
+    rag_cell_style,
+)
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -70,7 +75,28 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("### Stored Runs")
 if runs:
     df = pd.DataFrame(runs)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    styled_runs = df.style
+    # RAG column when persisted by the API — glanceable severity.
+    for col in ("rag", "RAG", "rag_band"):
+        if col in df.columns:
+            styled_runs = styled_runs.map(rag_cell_style, subset=[col])
+    # `total_alerts` carries an implicit RAG: 0 alerts is fine, a sudden
+    # 10× spike is an incident. Threshold the gradient against a band
+    # tied to the typical (non-zero) volume rather than absolute counts.
+    if "total_alerts" in df.columns and df["total_alerts"].max():
+        median_alerts = float(df["total_alerts"].median()) or 1.0
+        styled_runs = styled_runs.map(
+            metric_gradient_style(
+                # Inverted: lower=green (good), higher=red (incident shape).
+                low_color="#16a34a",
+                mid_color="#d97706",
+                high_color="#dc2626",
+                low_threshold=median_alerts,
+                high_threshold=median_alerts * 3,
+            ),
+            subset=["total_alerts"],
+        )
+    st.dataframe(styled_runs, use_container_width=True, hide_index=True)
 else:
     st.caption(
         "No stored runs yet. Runs are persisted when using the API "

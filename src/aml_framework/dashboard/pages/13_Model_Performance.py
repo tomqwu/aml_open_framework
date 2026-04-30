@@ -6,7 +6,13 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import (
+    chart_layout,
+    kpi_card,
+    metric_gradient_style,
+    page_header,
+    severity_cell_style,
+)
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -51,7 +57,11 @@ for rule in ml_rules:
             "Alerts": alert_count,
         }
     )
-st.dataframe(pd.DataFrame(inventory_rows), use_container_width=True, hide_index=True)
+_inventory_df = pd.DataFrame(inventory_rows)
+styled_inventory = _inventory_df.style
+if "Severity" in _inventory_df.columns:
+    styled_inventory = styled_inventory.map(severity_cell_style, subset=["Severity"])
+st.dataframe(styled_inventory, use_container_width=True, hide_index=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -104,7 +114,20 @@ for rule in ml_rules:
         alert_df = pd.DataFrame(alerts)
         show_cols = ["customer_id", "risk_score", "sum_amount", "count"]
         available = [c for c in show_cols if c in alert_df.columns]
-        st.dataframe(alert_df[available], use_container_width=True, hide_index=True)
+        styled_alerts = alert_df[available].style
+        if "risk_score" in available:
+            # Higher risk_score = more suspicious → trend toward red.
+            styled_alerts = styled_alerts.map(
+                metric_gradient_style(
+                    low_color="#16a34a",
+                    mid_color="#d97706",
+                    high_color="#dc2626",
+                    low_threshold=0.65,
+                    high_threshold=0.85,
+                ),
+                subset=["risk_score"],
+            )
+        st.dataframe(styled_alerts, use_container_width=True, hide_index=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
