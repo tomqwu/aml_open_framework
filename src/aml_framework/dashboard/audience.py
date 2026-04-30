@@ -108,15 +108,21 @@ def persona_description(code: str) -> str:
 # Which pages are most relevant per audience.
 AUDIENCE_PAGES = {
     "svp": [
+        # "Audit & Evidence" is required because the executive Today
+        # cards link to it ("0 open findings" → Audit & Evidence). PR-R.
         "Executive Dashboard",
         "Program Maturity",
         "Framework Alignment",
+        "Audit & Evidence",
         "Transformation Roadmap",
     ],
     "cto": [
+        # "Audit & Evidence" required for the executive Today cards
+        # (replay verification is in the CTO's bailiwick). PR-R.
         "Executive Dashboard",
         "Program Maturity",
         "Framework Alignment",
+        "Audit & Evidence",
         "Model Performance",
         "Run History",
         "Transformation Roadmap",
@@ -145,9 +151,12 @@ AUDIENCE_PAGES = {
         # Metrics Taxonomy added — 2LoD MLRO needs to defend what
         # the program measures for effectiveness.
         # AI Assistant added (PR-K) — 2LoD signs off on AI provenance.
+        # Audit & Evidence added (PR-R) — the executive Today cards
+        # link there; without it "Verify chain" crashed for VP users.
         "Executive Dashboard",
         "Rule Performance",
         "Framework Alignment",
+        "Audit & Evidence",
         "Sanctions Screening",
         "Comparative Analytics",
         "Regulator Pulse",
@@ -159,9 +168,12 @@ AUDIENCE_PAGES = {
         # Tuning Lab dropped (consumes via Comparative Analytics).
         # Metrics Taxonomy added — director owns the metric program
         # and needs the catalogue when adjusting SLA targets.
+        # Framework Alignment added (PR-R) — executive Today cards
+        # reference it; without it Director's gap card crashed.
         "Executive Dashboard",
         "Alert Queue",
         "Investigations",
+        "Framework Alignment",
         "Risk Assessment",
         "Data Quality",
         "Audit & Evidence",
@@ -213,17 +225,21 @@ AUDIENCE_PAGES = {
         "Metrics Taxonomy",
     ],
     "developer": [
-        # Added Spec Editor + Rule Tuning + Analyst Review Queue +
-        # Tuning Lab — spec authoring + model perf + tuning arc.
+        # Added Spec Editor + Rule Tuning + Tuning Lab — spec authoring
+        # + tuning arc. Analyst Review Queue dropped (PR-R) to make
+        # room for Audit & Evidence within the 9-page cap; analyst
+        # queue review is manager/analyst territory anyway.
         # AI Assistant added (PR-K) — devs configure the LLM backend
         # and need a place to see whether the wiring works.
+        # Audit & Evidence added (PR-R) — developer Today cards link
+        # there for the determinism/replay check.
         "Spec Editor",
         "Rule Performance",
         "Rule Tuning",
         "Tuning Lab",
         "Model Performance",
         "Data Quality",
-        "Analyst Review Queue",
+        "Audit & Evidence",
         "Run History",
         "AI Assistant",
     ],
@@ -266,7 +282,10 @@ AUDIENCE_PAGES = {
         # program owner; the catalogue is their reference.
         # AI Assistant added (PR-K) — 1-person program leans hardest
         # on the co-pilot; needs the audit + provenance view.
+        # Alert Queue added (PR-R) — generic Today cards (which the
+        # 1-MLRO falls through to) link there.
         "FinTech Cockpit",
+        "Alert Queue",
         "Audit & Evidence",
         "Investigations",
         "Tuning Lab",

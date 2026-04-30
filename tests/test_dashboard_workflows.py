@@ -91,8 +91,12 @@ class TestAudienceMapCoverage:
         # single drill point.
         assert "Case Investigation" not in AUDIENCE_PAGES["manager"]
         assert "Investigations" in AUDIENCE_PAGES["manager"]
-        # Developer: gains spec authoring + tuning surface.
-        for page in ("Spec Editor", "Rule Tuning", "Tuning Lab", "Analyst Review Queue"):
+        # Developer: gains spec authoring + tuning surface. PR-R dropped
+        # "Analyst Review Queue" to keep developer at the 9-page cap
+        # after Audit & Evidence was added (Today cards link there for
+        # the determinism/replay check); analyst-queue review is
+        # manager/analyst territory anyway.
+        for page in ("Spec Editor", "Rule Tuning", "Tuning Lab", "Audit & Evidence"):
             assert page in AUDIENCE_PAGES["developer"], f"developer missing {page!r}"
         # PM: gains exposure (Risk) + impact (Case Investigation).
         for page in ("Risk Assessment", "Case Investigation"):
