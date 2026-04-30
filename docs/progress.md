@@ -1,20 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-04-29. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-04-30. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
 ---
 
 ## At a Glance
 
-| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) |
-|---|---|---|---|
-| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC (compliance/, metrics/outcomes, generators/audit_pack, data/psd3) | + ~700 LOC (dashboard helpers + integrations) |
-| Tests | 991 | + ~110 | 1,161 passing |
-| Test files | 34 | 39 | 43 |
-| Example specs | 7 | 9 (+ trade_based_ml + uk_app_fraud) | 9 |
-| Unique regulation citations | 61+ | ~75+ | ~75+ |
-| Dashboard pages | 24 | 24 (integration deferred) | 24 (every Round-6/7 module surfaced) |
-| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 (8-PR dashboard plan) |
+| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) | Dashboard UX + GenAI push (2026-04-30) |
+|---|---|---|---|---|
+| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC | + ~700 LOC | + ~3,500 LOC (PR-A → PR-L) |
+| Tests | 991 | + ~110 | 1,161 passing | **1,750 passing** |
+| Test files | 34 | 39 | 43 | 56 |
+| Example specs | 7 | 9 | 9 | 9 |
+| Unique regulation citations | 61+ | ~75+ | ~75+ | ~75+ |
+| Dashboard pages | 24 | 24 | 24 | **29** (+ Metrics Taxonomy, AI Assistant, screenshots-pending) |
+| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 | + #150–#161 (PR-A → PR-L) |
 
 ---
 
@@ -24,7 +24,8 @@ Snapshot of where the AML Open Framework is as of 2026-04-29. This document is a
 src/aml_framework/
 ├── api/              FastAPI REST layer (JWT auth, multi-tenant DB, rate limiting)
 ├── cases/            Investigation aggregator, SLA timer, STR bundling (Round 6)
-├── dashboard/        24-page Streamlit web app (mobile-responsive, multi-tenant)
+├── assistant/        GenAI co-pilot (template/ollama/openai backends, sidebar on every page)
+├── dashboard/        29-page Streamlit web app (mobile-responsive, multi-tenant, GenAI panel)
 ├── data/             Synthetic generator + 8 source loaders + ISO 20022 parser
 │   ├── iso20022/     pacs.008, pacs.009, pain.001, pacs.004 ingestion (Round 5)
 │   └── lists/        Sanctions, adverse media, sanctioned wallets, purpose codes
@@ -122,6 +123,27 @@ Goal: ensure proper workflow + design across the dashboard. Audit identified 5 h
 
 **Result**: every Round-6/7 module is now reachable from the dashboard (was the original Phase B goal). Cross-entity drill-downs eliminate the audit's worst dead-ends (~20-30s saved per drill, dozens per shift). Three pages that crashed on degenerate specs now degrade gracefully. Color/SLA palette has a single source of truth — any new inline color dict fails CI. Tests grew 1089 → 1161 across the 8 PRs.
 
+### Dashboard UX + GenAI push (12 PRs, 2026-04-30)
+
+Goal: close the remaining clickability/colour/cross-link gaps from a fresh page-by-page audit, then surface the dashboard's existing GenAI substrate as a co-pilot on every page. Single day, 12 PRs auto-merging on green per the project memory rule.
+
+| PR | Workstream |
+|---|---|
+| #150 | PR-A · Row-click drill-through across 5 triage tables (Alert Queue, Customer 360, My Queue, Investigations, BOI Workflow) |
+| #151 | PR-B · Severity + RAG cell colouring on 6 read-only tables (centralised Styler helpers — `severity_cell_style`, `rag_cell_style`, `metric_gradient_style`, `event_type_cell_style`) |
+| #152 | PR-C · Cross-page navigation + research-link sweep — `see_also_footer` on 6 pages |
+| #154 | PR-D · Empty-state polish — `empty_state()` helper applied across 6 pages |
+| #153 | PR-E · Chart palette + tooltips + SLA-band shading + best-F1 annotation |
+| #155 | PR-F · Regulation citation hyperlinks via new `citation_link()` helper |
+| #156 | PR-G · KPI card drill-through on My Queue / BOI Workflow / Alert Queue |
+| #157 | PR-H · ID-linking sweep + Tuning Lab `rule_id` deep-link reader |
+| #158 | PR-I · **Metrics Taxonomy** catalogue page (#28) — sister to Typology Catalogue, browseable definitional view of every metric the spec declares |
+| #159 | PR-J · `dashboard-tour.md` drift fix + `test_dashboard_tour_coverage.py` prevention pattern. Closed Issue #68. |
+| #160 | PR-K · **GenAI Assistant MVP** — sidebar panel on every dashboard page via a single line in `page_header()`. New `assistant/` sibling module to `narratives/` with template/ollama/openai backends. Spec-configurable audit log via `program.ai_audit_log: hash_only \| full_text`. New page #29 for backend status + transcript + run-level audit trail. |
+| #161 | PR-L · Docs sync (this snapshot, README, spec-reference) |
+
+**Result**: dashboard now ships with click-everywhere navigation, a coherent colour discipline (RAG / severity / SLA from centralised tokens, no inline hex), an audit-doc-defendable Metrics Taxonomy reference, and a GenAI co-pilot that mounts on every page without per-page edits. The `narratives/` substrate that previously powered only the Case Investigation STR drafter is now reused for the assistant — same Citation model, same backend factory, same audit-log discipline. Tests grew 1,646 → 1,750 (+104) across the 12 PRs.
+
 ---
 
 ## What the Framework Does Today
@@ -139,11 +161,13 @@ Goal: ensure proper workflow + design across the dashboard. Audit identified 5 h
 - Schema validation at load time
 
 ### For the analyst (L1/L2)
-- 24-page web dashboard with persona-filtered navigation
+- 29-page web dashboard with persona-filtered navigation
+- Row-click drill-through on every triage table (no more selectbox-below-table)
 - Investigation-level review (not just alerts)
 - Per-case live SLA + escalation recommendations
 - Network-pattern explainability with Mermaid diagrams
 - One-click STR submission bundle
+- GenAI co-pilot in the sidebar — auto-scoped to current page + run, with citation chips linking back into the dashboard
 
 ### For the auditor / regulator
 - Append-only decisions ledger with SHA-256 hash chain
@@ -229,7 +253,7 @@ test_dashboard_design_consistency.py   10  Phase E — page_header + empty_state
 
 These are documented "won't ship" decisions, not gaps:
 
-- **Generative AI rule-authoring** (English → YAML rule). Would destroy the "human-readable spec written by a human" moat that's the framework's whole differentiation.
+- **Generative AI rule-*authoring*** (English → YAML rule). Would destroy the "human-readable spec written by a human" moat that's the framework's whole differentiation. *The dashboard's GenAI assistant (PR-K) is read-only — it answers questions about the spec + run, it does not propose rule edits. Rules stay human-authored.*
 - **Native graph DB backend** (Neo4j / TigerGraph). DuckDB-with-graph-views is fast enough for FI-scale datasets, and "one binary, one DuckDB file" deployability is the moat.
 - **Alert-scoring ML model in-tree**. Would erode the deterministic re-run guarantee that the MRM bundle (PR #53) builds on. We document the `python_ref` seam; institutions ship their own model.
 
@@ -240,13 +264,7 @@ See `memory/project_round5to9_plan.md` (private) for the full "three new traps" 
 ## Open Items
 
 - Issue #66 — closed 2026-04-27 (PR #70 mobile-responsive)
-- Issue #68 — **in progress** (2026-04-29 docs-sweep PR open). The mobile half
-  was satisfied by `#66` closed (PR #70). The docs-sweep half is now in progress:
-  static site stats corrected (test count, competitive-positioning scope/date),
-  Round&nbsp;7 features marked as shipped in competitive-positioning.html, and
-  unshipped PR references removed from process-pain.html. Remaining: walk
-  `getting-started.md` from a clean checkout, reconcile `jurisdictions.md`
-  against `examples/`, open per-drift PRs.
+- Issue #68 — closed 2026-04-30 (PR #159 / PR-J). Docs-sweep half: only `dashboard-tour.md` had drifted; fixed + added `test_dashboard_tour_coverage.py` so future drift fails CI immediately rather than waiting 30 days for a manual sweep ticket. Mobile half: confirmed already satisfied by `#66` / PR #70.
 - No other tracked issues open as of this snapshot
 
 ## Round 8 / 9 — Remaining Planned Work
@@ -274,7 +292,7 @@ Every doc has a single-line "use when" hook in [`README.md`](../README.md). The 
 - `README.md` — hub-style entry point with documentation map
 - `docs/getting-started.md` — 15-min onboarding path
 - `docs/architecture.md` — reference design
-- `docs/dashboard-tour.md` — all 24 pages organized by workflow
+- `docs/dashboard-tour.md` — all 29 pages organized by workflow (drift-protected by `test_dashboard_tour_coverage.py`)
 - `docs/jurisdictions.md` — US / CA / EU / UK / crypto / cyber-fraud specs
 - `docs/personas.md` — role-based workflows
 - `docs/spec-reference.md` — field-by-field `aml.yaml` guide
