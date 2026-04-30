@@ -633,6 +633,126 @@
     .fit-grid { grid-template-columns: 1fr; gap: 32px; }
   }
 
+  /* Problem section · 3 regulator-cited pains */
+  .problem-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 8px;
+  }
+  .problem-card {
+    border-left: 3px solid var(--accent);
+    padding: 4px 0 4px 20px;
+    background: transparent;
+  }
+  .problem-card .src {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+    margin-bottom: 12px;
+  }
+  .problem-card blockquote {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 19px;
+    line-height: 1.45;
+    color: var(--ink);
+    font-style: italic;
+    margin: 0 0 14px 0;
+    text-wrap: pretty;
+  }
+  .problem-card blockquote strong { color: var(--accent-deep); font-style: normal; font-weight: 600; }
+  .problem-card .tail {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    text-wrap: pretty;
+  }
+  .problem-card .tail a { color: var(--accent); border-bottom: 1px solid currentColor; }
+  .problem-card .tail a:hover { color: var(--accent-deep); }
+  @media (max-width: 900px) {
+    .problem-grid { grid-template-columns: 1fr; gap: 24px; }
+  }
+
+  /* Built section · architecture diagram embed */
+  .built-figure {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    gap: 36px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .built-figure img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+  }
+  .built-caption {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+  .built-caption span { padding-left: 14px; border-left: 2px solid var(--accent-tint); }
+  .built-caption strong { color: var(--ink); font-weight: 600; }
+  .built-caption .more-link {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    border-bottom: 1px solid currentColor;
+    align-self: flex-start;
+    margin-top: 6px;
+    padding-left: 0;
+    border-left: none;
+  }
+  .built-caption .more-link:hover { color: var(--accent-deep); }
+  @media (max-width: 900px) {
+    .built-figure { grid-template-columns: 1fr; gap: 24px; }
+  }
+
+  /* Built On · tech-stack pills */
+  .tech-stack .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 8px;
+  }
+  .tech-stack .stack-pill {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 14px 16px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.18s ease, transform 0.18s ease;
+  }
+  .tech-stack .stack-pill:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .tech-stack .stack-pill strong {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .tech-stack .stack-pill span {
+    font-size: 12px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+  }
+  @media (max-width: 900px) {
+    .tech-stack .stack-grid { grid-template-columns: 1fr; }
+  }
+
   /* Section heading */
   h2.section-h {
     font-family: 'Source Serif 4', Georgia, serif;
@@ -924,18 +1044,13 @@
     <div class="wrap">
 
       <header class="hero">
-        <div class="eyebrow">AML Open Framework · Resource hub · 2026</div>
-        <h1 class="title">Two views of the same framework — <em>choose your audience</em>.</h1>
+        <div class="eyebrow">AML Open Framework · 2026</div>
+        <h1 class="title">An AML program your regulator can <em>replay</em>.</h1>
         <p class="lede">
-          An anti-money-laundering program you can show to your regulator without a six-week
-          reconstruction. Process and governance gaps outnumber data and model gaps roughly
-          2:1 in every recent consent order — so we lead with proof, not detection.
-        </p>
-        <p class="lede-cite">
-          Grounded in primary-source research: <em>FCA Dear-CEO Letter (Mar 2024)</em> ·
-          <em>FinCEN TD Bank consent order (Oct 2024 · $3.09B)</em> ·
-          <em>LexisNexis True Cost of Compliance (Feb 2024)</em> ·
-          <em>FinCEN AML-Compliance-Cost RFI (Sep 2025)</em>.
+          One <strong>Compliance Manifest</strong> defines the program. The engine generates
+          SQL, dashboards, MRM dossiers, and the examiner pack from it. An immutable hash-chained
+          audit ledger lets any historical run replay byte-for-byte. Apache 2.0, runs in your
+          perimeter, no per-seat licence.
         </p>
         <div class="stat-strip">
           <span><strong>9</strong>example specs</span>
@@ -947,6 +1062,49 @@
           <span><strong>MIT</strong>licence</span>
         </div>
       </header>
+
+      <section class="fit-section problem-section">
+        <div class="heading">
+          <h2>The problem regulators <em>actually find</em>.</h2>
+          <p class="sub">Across recent enforcement orders, regulators rarely allege the bank missed a typology. They allege the bank cannot evidence what it did. Process and governance gaps outnumber data and model gaps roughly <strong>2:1</strong> in the consent orders surveyed.</p>
+        </div>
+
+        <div class="problem-grid">
+          <div class="problem-card">
+            <div class="src">FCA Dear-CEO Letter · Mar 2024</div>
+            <blockquote>"Decisions made in relation to financial crime were not supported by evidence or an audit trail of debate and challenge."</blockquote>
+            <div class="tail">UK retail banks + Annex 1 firms · still operative in 2026 · <a href="#/research/process-pain">PAIN-1 in research</a></div>
+          </div>
+          <div class="problem-card">
+            <div class="src">FinCEN TD Bank consent order · Oct 2024 · $3.09B</div>
+            <blockquote>"Trillions of dollars in transactions annually [went] unmonitored." The detection queue was in <strong>"red status"</strong> in board reporting <strong>for years</strong>.</blockquote>
+            <div class="tail">Largest BSA enforcement of 2024 · framing case for 2025-26 · <a href="#/research/td-2024">case study</a></div>
+          </div>
+          <div class="problem-card">
+            <div class="src">LexisNexis True Cost · Feb 2024</div>
+            <blockquote>"Annual cost of financial crime compliance totals <strong>$61 billion</strong> in the United States and Canada." 57% labour, 40% tech, 3% other.</blockquote>
+            <div class="tail">FinCEN Sep 2025 RFI framed it: <em>"is the juice worth the squeeze?"</em> · <a href="#/research/process-pain">PAIN-8 in research</a></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="fit-section built-section">
+        <div class="heading">
+          <h2>What we built — <em>one Manifest, four layers</em>.</h2>
+          <p class="sub">Policy, data contracts, detection rules, case workflow and regulator mapping live in one versioned document — the <strong>Compliance Manifest</strong> (an <code>aml.yaml</code> file, for engineers). Every runtime artifact is generated from it; an immutable hash-chained audit ledger records every decision so any historical run can replay byte-for-byte. <em>This is what kills the drift that causes AML enforcement actions.</em></p>
+        </div>
+
+        <div class="built-figure">
+          <img src="research/architecture-diagram.png" alt="Architecture · 4-layer stack: Policy → Generation → Runtime → Evidence, with persona arrows showing who authors and who verifies each layer" loading="lazy">
+          <div class="built-caption">
+            <span><strong>Policy</strong> · authored by CCO / MLRO · verified by 2LoD</span>
+            <span><strong>Generation</strong> · operated by Engineering · validated by MRM under SR 26-2</span>
+            <span><strong>Runtime</strong> · reviewed by 2LoD on every alert</span>
+            <span><strong>Evidence</strong> · replayed by Internal Audit byte-for-byte</span>
+            <a class="more-link" href="#/research/architecture">Full design rationale →</a>
+          </div>
+        </div>
+      </section>
 
       <section class="flow-hero">
         <div class="heading">
@@ -993,6 +1151,94 @@
             <span><strong>same Manifest + same data + same seed</strong> = identical output hashes</span>
           </div>
           <div class="cite">FCA Mar 2024 · FinCEN Apr 2026 NPRM · SR 26-2 effective Apr 2026</div>
+        </div>
+      </section>
+
+      <section class="block" id="picker">
+        <h2 class="section-h">Pick your <em>deck</em>.</h2>
+        <p class="section-dek">
+          Same framework, two faithful narrations — a McKinsey-style board pack for executives,
+          and a dual-pane architecture deck for engineering and 2LoD. Each side has a live HTML
+          deck, a narrated video, and a printable PDF. Click any artifact — it opens in the
+          viewer with the top nav still available, so switching sides is one click.
+        </p>
+
+        <div class="picker">
+
+          <div class="pick biz">
+            <div class="for-tag">For executives</div>
+            <h3>Board briefing</h3>
+            <div class="roles">CCO · MLRO · Audit Committee · CRO · CFO</div>
+            <p class="desc">
+              McKinsey-style board pack. Action titles, exhibit numbers, primary-source
+              citations on every page. White-paper aesthetic — print-ready, email-able.
+            </p>
+            <ul class="res-list">
+              <li>
+                <span class="icon">DECK</span>
+                <span class="label">
+                  <a href="#/business/deck">Live HTML deck</a>
+                  <span class="meta">12 exhibits · keyboard nav</span>
+                </span>
+                <span class="arrow">→</span>
+              </li>
+              <li>
+                <span class="icon">▶</span>
+                <span class="label">
+                  <a href="#/business/video">64-second board video</a>
+                  <span class="meta">MP4 · BGM · 7.5 MB</span>
+                </span>
+                <span class="arrow">→</span>
+              </li>
+              <li>
+                <span class="icon">PDF</span>
+                <span class="label">
+                  <a href="#/business/pdf">Printable PDF</a>
+                  <span class="meta">Vector · 12 pages · 1.4 MB</span>
+                </span>
+                <span class="arrow">→</span>
+              </li>
+            </ul>
+            <a class="primary-cta" href="#/business/deck">Open the board deck →</a>
+          </div>
+
+          <div class="pick tech">
+            <div class="for-tag">For engineering &amp; 2LoD</div>
+            <h3>Technical deck</h3>
+            <div class="roles">Head of Eng · CTO · 2LoD validation · Internal Audit</div>
+            <p class="desc">
+              Dual-pane architecture deck. CCO question on the left, real CLI output on the
+              right. 7-act narrative covering audit chain, backtester, multi-jurisdiction.
+            </p>
+            <ul class="res-list">
+              <li>
+                <span class="icon">DECK</span>
+                <span class="label">
+                  <a href="#/technical/deck">Live HTML deck</a>
+                  <span class="meta">19 slides · keyboard nav</span>
+                </span>
+                <span class="arrow">→</span>
+              </li>
+              <li>
+                <span class="icon">▶</span>
+                <span class="label">
+                  <a href="#/technical/video">92-second walkthrough video</a>
+                  <span class="meta">MP4 · BGM · 21 MB</span>
+                </span>
+                <span class="arrow">→</span>
+              </li>
+              <li>
+                <span class="icon">PDF</span>
+                <span class="label">
+                  <a href="#/technical/pdf">Printable PDF</a>
+                  <span class="meta">Vector · 19 pages · 3.6 MB</span>
+                </span>
+                <span class="arrow">→</span>
+              </li>
+            </ul>
+            <a class="primary-cta" href="#/technical/deck">Open the technical deck →</a>
+          </div>
+
         </div>
       </section>
 
@@ -1149,90 +1395,23 @@
         </div>
       </section>
 
-      <section class="block" id="picker">
-        <h2 class="section-h">Pick your <em>audience</em>.</h2>
+      <section class="block tech-stack">
+        <h2 class="section-h">Built <em>on</em>.</h2>
         <p class="section-dek">
-          Same project, two faithful narrations. Each side has a live deck, a narrated video,
-          and a printable PDF. Click any artifact — it opens in the viewer with the top nav
-          still available, so switching sides is one click.
+          Honest tech stack. Pip-installable, runs in your perimeter, no cloud dependencies. The
+          dashboard, the REST API and the engine all share one codebase — same Manifest in,
+          same answers out.
         </p>
-
-        <div class="picker">
-
-          <div class="pick biz">
-            <div class="for-tag">For executives</div>
-            <h3>Board briefing</h3>
-            <div class="roles">CCO · MLRO · Audit Committee · CRO · CFO</div>
-            <p class="desc">
-              McKinsey-style board pack. Action titles, exhibit numbers, primary-source
-              citations on every page. White-paper aesthetic — print-ready, email-able.
-            </p>
-            <ul class="res-list">
-              <li>
-                <span class="icon">DECK</span>
-                <span class="label">
-                  <a href="#/business/deck">Live HTML deck</a>
-                  <span class="meta">12 exhibits · keyboard nav</span>
-                </span>
-                <span class="arrow">→</span>
-              </li>
-              <li>
-                <span class="icon">▶</span>
-                <span class="label">
-                  <a href="#/business/video">64-second board video</a>
-                  <span class="meta">MP4 · BGM · 7.5 MB</span>
-                </span>
-                <span class="arrow">→</span>
-              </li>
-              <li>
-                <span class="icon">PDF</span>
-                <span class="label">
-                  <a href="#/business/pdf">Printable PDF</a>
-                  <span class="meta">Vector · 12 pages · 1.4 MB</span>
-                </span>
-                <span class="arrow">→</span>
-              </li>
-            </ul>
-            <a class="primary-cta" href="#/business/deck">Open the board deck →</a>
-          </div>
-
-          <div class="pick tech">
-            <div class="for-tag">For engineering &amp; 2LoD</div>
-            <h3>Technical deck</h3>
-            <div class="roles">Head of Eng · CTO · 2LoD validation · Internal Audit</div>
-            <p class="desc">
-              Dual-pane architecture deck. CCO question on the left, real CLI output on the
-              right. 7-act narrative covering audit chain, backtester, multi-jurisdiction.
-            </p>
-            <ul class="res-list">
-              <li>
-                <span class="icon">DECK</span>
-                <span class="label">
-                  <a href="#/technical/deck">Live HTML deck</a>
-                  <span class="meta">19 slides · keyboard nav</span>
-                </span>
-                <span class="arrow">→</span>
-              </li>
-              <li>
-                <span class="icon">▶</span>
-                <span class="label">
-                  <a href="#/technical/video">92-second walkthrough video</a>
-                  <span class="meta">MP4 · BGM · 21 MB</span>
-                </span>
-                <span class="arrow">→</span>
-              </li>
-              <li>
-                <span class="icon">PDF</span>
-                <span class="label">
-                  <a href="#/technical/pdf">Printable PDF</a>
-                  <span class="meta">Vector · 19 pages · 3.6 MB</span>
-                </span>
-                <span class="arrow">→</span>
-              </li>
-            </ul>
-            <a class="primary-cta" href="#/technical/deck">Open the technical deck →</a>
-          </div>
-
+        <div class="stack-grid">
+          <div class="stack-pill"><strong>Python ≥3.10</strong><span>engine + CLI + generators</span></div>
+          <div class="stack-pill"><strong>Pydantic v2</strong><span>strict spec validation</span></div>
+          <div class="stack-pill"><strong>DuckDB</strong><span>in-process columnar SQL</span></div>
+          <div class="stack-pill"><strong>FastAPI</strong><span>REST + JWT/OIDC + multi-tenant</span></div>
+          <div class="stack-pill"><strong>Streamlit</strong><span>26 dashboard pages</span></div>
+          <div class="stack-pill"><strong>ISO 20022 native</strong><span>pacs.008/009/004 + Travel Rule</span></div>
+          <div class="stack-pill"><strong>Hash-chained audit ledger</strong><span>SHA-256 · deterministic re-run</span></div>
+          <div class="stack-pill"><strong>goAML XML</strong><span>STR / SAR export · Mermaid networks</span></div>
+          <div class="stack-pill"><strong>Apache 2.0 / MIT</strong><span>your perimeter, your control</span></div>
         </div>
       </section>
 
