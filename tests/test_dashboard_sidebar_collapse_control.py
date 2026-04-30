@@ -72,6 +72,17 @@ class TestSidebarCollapseControlVisible:
         # belt-and-braces so it can never be hidden by future regressions.
         assert '[data-testid="stSidebarCollapseButton"]' in body
 
+    def test_expand_button_explicit_safeguard(self):
+        body = _css()
+        # Modern Streamlit (≥1.50) renders the floating "open sidebar"
+        # control as [data-testid="stExpandSidebarButton"] instead of the
+        # older stSidebarCollapsedControl. Both must be in the safeguard.
+        assert '[data-testid="stExpandSidebarButton"]' in body, (
+            "Modern Streamlit's expand-sidebar button (stExpandSidebarButton) "
+            "must be in the visibility safeguard — verified live on "
+            "Streamlit 1.56."
+        )
+
     def test_safeguards_force_visible(self):
         body = _css()
         # The safeguard block must declare display + visibility + opacity

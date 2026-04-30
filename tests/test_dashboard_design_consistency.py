@@ -31,16 +31,31 @@ EMPTY_STATE_GUARDED_PAGES = {
 }
 
 
+# Pages that intentionally render their own hero block instead of the
+# generic `page_header(...)`. Today is the dashboard's entrance and uses
+# the landing-style `dna-hero` grammar (PR-P) so the first frame matches
+# the marketing site, not a generic page chrome.
+PAGES_WITH_CUSTOM_HERO = {"0_Today.py"}
+
+
 class TestEveryPageHasHeader:
     def test_every_page_calls_page_header(self):
         missing: list[str] = []
         for f in sorted(PAGES_DIR.glob("*.py")):
-            if f.name == "__init__.py":
+            if f.name == "__init__.py" or f.name in PAGES_WITH_CUSTOM_HERO:
                 continue
             body = f.read_text(encoding="utf-8")
             if "page_header(" not in body:
                 missing.append(f.name)
         assert not missing, "Pages missing `page_header(...)`:\n  " + "\n  ".join(missing)
+
+    def test_today_uses_dna_hero_block(self):
+        # Today opted out of the generic page_header (above) — assert it
+        # actually replaces it with the landing-style hero, otherwise the
+        # opt-out becomes a silent gap.
+        body = (PAGES_DIR / "0_Today.py").read_text(encoding="utf-8")
+        assert 'class="dna-hero"' in body
+        assert 'class="dna-hero-title"' in body
 
 
 class TestEmptyStateDefenses:

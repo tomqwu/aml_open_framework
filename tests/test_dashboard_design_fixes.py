@@ -38,8 +38,15 @@ FRAMEWORK_FILE = DASHBOARD / "pages" / "8_Framework_Alignment.py"
 class TestStreamlitChromeHidden:
     def test_deploy_button_hidden(self):
         body = COMPONENTS_FILE.read_text(encoding="utf-8")
+        # Modern Streamlit (≥1.50) uses [data-testid="stAppDeployButton"];
+        # older versions used .stDeployButton. Both must be in the rule
+        # so the button stays hidden across Streamlit upgrades.
+        assert '[data-testid="stAppDeployButton"]' in body, (
+            "stAppDeployButton (modern Streamlit) must be hidden — "
+            "looks unprofessional in compliance UIs"
+        )
         assert ".stDeployButton" in body, (
-            "Streamlit Deploy button must be hidden — looks unprofessional in compliance UIs"
+            "Legacy stDeployButton selector must remain for older Streamlit"
         )
 
     def test_toolbar_hidden(self):

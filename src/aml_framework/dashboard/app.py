@@ -24,6 +24,22 @@ st.set_page_config(
 apply_theme()
 initialize_session()
 
+# ---------------------------------------------------------------------------
+# Global topbar — wordmark anchored top-left of the viewport, mirroring
+# the landing site's sticky navbar. Renders once at app start; the CSS
+# (in components.py) pushes the main view + sidebar below it. PR-P.
+# ---------------------------------------------------------------------------
+st.markdown(
+    '<div class="dna-topbar">'
+    '<div class="dna-topbar-brand">'
+    '<span class="dna-topbar-dot"></span>'
+    '<span class="dna-topbar-name">AML Open Framework</span>'
+    '<span class="dna-topbar-tag">Spec-driven · Audit-ready</span>'
+    "</div>"
+    "</div>",
+    unsafe_allow_html=True,
+)
+
 spec = st.session_state.spec
 result = st.session_state.result
 
@@ -31,19 +47,6 @@ result = st.session_state.result
 # Sidebar
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    # Brand wordmark — mirrors the static-site landing header
-    # (docs/pitch/landing/index.html .brand selector). Orange dot
-    # + Source Serif name + mono uppercase tag. PR-N.
-    st.markdown(
-        '<div class="dna-brand">'
-        '<span class="dna-brand-dot"></span>'
-        '<span class="dna-brand-name">AML Open Framework</span>'
-        "</div>"
-        '<div class="dna-brand-tag">Spec-driven · Audit-ready</div>',
-        unsafe_allow_html=True,
-    )
-    st.divider()
-
     # Tenant selector — only shown when multiple tenants are configured AND
     # the dashboard wasn't launched with an explicit CLI spec path. Single-
     # tenant deployments and `aml dashboard <spec>` invocations see no
