@@ -221,10 +221,17 @@ class TestBusinessPersonaExpanded:
 
 
 class TestPersonaCapInvariant:
-    def test_no_persona_exceeds_eight_pages(self):
+    def test_no_persona_exceeds_page_cap(self):
+        # PR-I bumped the cap 8 → 9 so the Metrics Taxonomy reference
+        # page could join senior personas without forcing a Phase-D
+        # commitment to be dropped. Stays in lock-step with
+        # audience.MAX_PAGES_PER_PERSONA — that's the canonical knob.
+        from aml_framework.dashboard.audience import MAX_PAGES_PER_PERSONA
+
         pages = _audience_pages()
-        offenders = {p: len(t) for p, t in pages.items() if len(t) > 8}
+        offenders = {p: len(t) for p, t in pages.items() if len(t) > MAX_PAGES_PER_PERSONA}
         assert not offenders, (
-            f"Personas exceeding the 8-page cognitive cap: {offenders}. "
-            "Either drop a page or raise MAX_PAGES_PER_PERSONA in audience.py."
+            f"Personas exceeding the {MAX_PAGES_PER_PERSONA}-page cognitive cap: "
+            f"{offenders}. Either drop a page or raise MAX_PAGES_PER_PERSONA "
+            "in audience.py."
         )
