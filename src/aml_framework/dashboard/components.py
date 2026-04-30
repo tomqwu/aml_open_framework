@@ -57,8 +57,51 @@ RISK_RATING_COLORS = {
 # ---------------------------------------------------------------------------
 CUSTOM_CSS = """
 <style>
+/* Load deck fonts via @import inside <style> — Streamlit's markdown
+ * parser treats top-level <link> tags as unsafe HTML and breaks
+ * rendering. @import works reliably inside the style block. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ---- Deck DNA tokens (PR-M) ----
+ * Lifted from docs/pitch/landing/index.html so the dashboard reads as a
+ * sibling to the deck + research site instead of a separate product. */
+:root {
+    --dna-display: 'Source Serif 4', Georgia, serif;
+    --dna-body:    'Inter', -apple-system, system-ui, sans-serif;
+    --dna-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --dna-ink:     #0f172a;
+    --dna-ink-2:   #475569;
+    --dna-ink-faint: #94a3b8;
+    --dna-rule:    rgba(15, 23, 42, 0.10);
+    --dna-tech-bg: #0a0e1a;
+    --dna-tech-panel: #0f172a;
+    --dna-cyan:    #67e8f9;
+}
+
 /* ---- Global ---- */
 .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
+/* Apply Inter narrowly. Two hard constraints learned the wrong way
+ * (PR-M iteration):
+ *  1. Don't touch the sidebar — Streamlit's nav uses Material Symbols
+ *     icon font; if our font-family wins on icon spans, icon NAMES
+ *     render as text ("today" "dashboard" "speed" etc.).
+ *  2. Don't use wildcards like `[class*="st-"]` — same problem,
+ *     plus they trample widget chrome.
+ * Target the main panel's text containers explicitly. */
+body { font-family: var(--dna-body); }
+[data-testid="stAppViewContainer"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stAppViewContainer"] [data-testid="stMarkdownContainer"] li,
+[data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"],
+[data-testid="stAppViewContainer"] .stTextInput input,
+[data-testid="stAppViewContainer"] .stTextArea textarea,
+[data-testid="stAppViewContainer"] .stSelectbox div[role="combobox"],
+[data-testid="stAppViewContainer"] .stButton button {
+    font-family: var(--dna-body) !important;
+}
+code, pre, .terminal-block, [data-testid="stCode"] code,
+[data-testid="stMarkdownContainer"] code {
+    font-family: var(--dna-mono) !important;
+}
 
 /* ---- Hide Streamlit Cloud chrome ----
  * Compliance dashboards are shipped through tenants' own infrastructure;
@@ -69,9 +112,10 @@ CUSTOM_CSS = """
 [data-testid="stToolbar"],
 [data-testid="stStatusWidget"] { display: none !important; }
 
-/* ---- Sidebar ---- */
+/* ---- Sidebar (deck DNA: tech panel) ---- */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    background: var(--dna-tech-bg);
+    border-right: 1px solid rgba(148, 163, 184, 0.15);
 }
 section[data-testid="stSidebar"] * {
     color: #e2e8f0 !important;
@@ -81,7 +125,17 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
     line-height: 1.5;
 }
 section[data-testid="stSidebar"] hr {
-    border-color: rgba(255,255,255,0.12) !important;
+    border-color: rgba(148, 163, 184, 0.15) !important;
+}
+/* Cyan accent dot above the sidebar header — deck signature.
+ * Pure CSS, no per-page wiring needed. */
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]::before {
+    content: '';
+    display: block;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dna-cyan);
+    box-shadow: 0 0 8px var(--dna-cyan);
+    margin: 0 0 14px 4px;
 }
 
 /* ---- KPI metric cards ---- */
@@ -109,10 +163,54 @@ div[data-testid="stMetric"] {
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-/* ---- Page headers ---- */
-h1 { font-weight: 700 !important; color: #0f172a !important; }
-h2 { font-weight: 600 !important; color: #1e293b !important; }
-h3 { font-weight: 600 !important; color: #334155 !important; }
+/* ---- Page headers (deck DNA: serif h1, tighter scale) ---- */
+.main h1, [data-testid="stAppViewContainer"] h1 {
+    font-family: var(--dna-display) !important;
+    font-weight: 600 !important;
+    color: var(--dna-ink) !important;
+    font-size: clamp(28px, 3.4vw, 44px) !important;
+    line-height: 1.15 !important;
+    letter-spacing: -0.01em !important;
+    text-wrap: pretty;
+}
+h2 {
+    font-family: var(--dna-display) !important;
+    font-weight: 500 !important;
+    color: #1e293b !important;
+    letter-spacing: -0.005em;
+}
+h3 {
+    font-family: var(--dna-body) !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+}
+
+/* Eyebrow + 32px rule pattern — rendered by page_header() (PR-M).
+ * Mono uppercase label with a horizontal accent line under it, the
+ * same signature the deck uses on every section break. */
+.dna-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--dna-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dna-ink-faint);
+    margin: 4px 0 8px 0;
+}
+.dna-eyebrow::after {
+    content: '';
+    flex: 0 0 32px;
+    height: 1px;
+    background: var(--dna-ink-faint);
+    opacity: 0.55;
+}
+.dna-eyebrow .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--dna-cyan);
+    box-shadow: 0 0 6px var(--dna-cyan);
+}
 
 /* ---- Tables ---- */
 [data-testid="stDataFrame"] {
@@ -369,19 +467,37 @@ def responsive_plotly_config() -> dict[str, Any]:
 
 
 def page_header(title: str, description: str | None = None) -> None:
-    """Consistent page header.
+    """Consistent page header — deck DNA (PR-M).
 
-    Also mounts the GenAI assistant panel in the sidebar so every page
-    in the dashboard inherits it without per-page edits (PR-K). The
-    helper bails out cleanly when session state isn't populated (e.g.
-    in tests that import a page module without running the engine).
+    Renders the static-site / pitch-deck signature pattern on every
+    dashboard page: small uppercase mono eyebrow + horizontal accent
+    line + Source Serif h1 + Inter caption. The whole dashboard reads
+    as a sibling to docs/pitch/ instead of a separate product.
+
+    Also mounts the GenAI assistant panel in the sidebar (PR-K). The
+    assistant call is wrapped in try/except so a misconfigured backend
+    never crashes a page render.
     """
+    # Eyebrow: persona context if a persona is selected, else "Dashboard".
+    eyebrow_label = (
+        f"Dashboard · {st.session_state.get('selected_audience', '').replace('_', ' ').title()}".strip(
+            " ·"
+        )
+        if st.session_state.get("selected_audience")
+        else "Dashboard"
+    )
+    st.markdown(
+        f'<div class="dna-eyebrow"><span class="dot"></span>{eyebrow_label}</div>',
+        unsafe_allow_html=True,
+    )
     st.markdown(f"# {title}")
     if description:
         st.caption(description)
-    st.divider()
-    # The single wire-up that satisfies "AI assistant on every menu" —
-    # all 29 pages already call page_header(), so no per-page edits.
+    st.markdown(
+        '<hr style="border:none; border-top:1px solid var(--dna-rule); margin:10px 0 18px 0;">',
+        unsafe_allow_html=True,
+    )
+    # AI assistant — present on every page via this single wire-up (PR-K).
     try:
         ai_panel(page=title)
     except Exception:  # noqa: BLE001 — assistant must NEVER crash a page render
