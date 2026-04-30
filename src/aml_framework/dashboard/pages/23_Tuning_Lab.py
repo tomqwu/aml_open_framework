@@ -27,6 +27,7 @@ from aml_framework.dashboard.components import (
     kpi_card,
     metric_gradient_style,
     page_header,
+    responsive_plotly_config,
 )
 from aml_framework.dashboard.tuning_state import (
     best_scenario,
@@ -163,12 +164,49 @@ if labels is not None and any(s.precision is not None for s in run.scenarios):
         size="alerts",
         color="f1",
         hover_data=["params"],
-        color_continuous_scale="Viridis",
+        # Red→amber→green tied to F1: low F1 stands out as red rather
+        # than the Viridis purple-yellow gradient (which doesn't carry
+        # semantic "this is bad" / "this is good" connotation).
+        color_continuous_scale=[
+            (0.0, "#dc2626"),  # red — F1 ≤ 0.5 is poor
+            (0.5, "#d97706"),  # amber — middling
+            (0.8, "#16a34a"),  # green — F1 ≥ 0.8 is strong
+            (1.0, "#16a34a"),
+        ],
+        range_color=[0.0, 1.0],
         range_x=[0, 1.05],
         range_y=[0, 1.05],
     )
+    # Annotate the best-F1 point so the reader's eye lands there first.
+    best_idx = max(
+        range(len(pr_rows)),
+        key=lambda i: pr_rows[i]["f1"] if pr_rows[i]["f1"] is not None else -1,
+    )
+    best_row = pr_rows[best_idx]
+    if best_row["f1"] is not None:
+        fig.add_annotation(
+            x=best_row["recall"],
+            y=best_row["precision"],
+            text=f"★ best F1 = {best_row['f1']:.3f}",
+            showarrow=True,
+            arrowhead=2,
+            arrowcolor="#0f172a",
+            ax=30,
+            ay=-30,
+            font=dict(size=12, color="#0f172a", weight=700),
+        )
+    fig.update_traces(
+        hovertemplate=(
+            "Recall: %{x:.3f}<br>Precision: %{y:.3f}<br>"
+            "F1: %{marker.color:.3f}<br>Params: %{customdata[0]}<extra></extra>"
+        )
+    )
     fig.update_layout(xaxis_title="Recall", yaxis_title="Precision")
-    st.plotly_chart(chart_layout(fig, 360), use_container_width=True)
+    st.plotly_chart(
+        chart_layout(fig, 360),
+        use_container_width=True,
+        config=responsive_plotly_config(),
+    )
 
 # --- Promote a scenario ---
 st.markdown("##### Promote a scenario to a spec patch")
