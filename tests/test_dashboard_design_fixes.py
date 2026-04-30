@@ -44,7 +44,18 @@ class TestStreamlitChromeHidden:
 
     def test_toolbar_hidden(self):
         body = COMPONENTS_FILE.read_text(encoding="utf-8")
-        assert '[data-testid="stToolbar"]' in body, "Streamlit 3-dot toolbar must be hidden"
+        # The 3-dot menu in Streamlit's top-right header uses stMainMenu in
+        # current releases. We do NOT suppress the whole stToolbar wrapper
+        # any more — that selector also wraps the sidebar collapse/expand
+        # control and stranded users who collapsed the sidebar (issue #69).
+        assert '[data-testid="stMainMenu"]' in body, (
+            "Streamlit 3-dot menu (stMainMenu) must be hidden — but suppress "
+            "it directly, not via the wider stToolbar wrapper"
+        )
+        assert '[data-testid="stToolbar"]' not in body, (
+            "stToolbar must NOT be hidden wholesale — it contains the sidebar "
+            "collapse/expand control. Use stMainMenu + stDeployButton instead."
+        )
 
     def test_chrome_uses_display_none(self):
         body = COMPONENTS_FILE.read_text(encoding="utf-8")

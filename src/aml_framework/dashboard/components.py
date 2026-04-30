@@ -126,10 +126,30 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
  * Compliance dashboards are shipped through tenants' own infrastructure;
  * the public "Deploy" button + 3-dot menu look unprofessional in that
  * context and confuse non-technical users (e.g. CCOs reviewing on tablets).
+ *
+ * Scope narrowly to the deploy/menu/status widgets — NOT the whole
+ * stToolbar, which also contains the sidebar collapse/expand control.
+ * Hiding the toolbar wholesale leaves users stranded once they collapse
+ * the sidebar, with no way to re-open it (issue #69).
  */
 .stDeployButton,
-[data-testid="stToolbar"],
+[data-testid="stDeployButton"],
+[data-testid="stMainMenu"],
 [data-testid="stStatusWidget"] { display: none !important; }
+
+/* ---- Always-visible sidebar collapse/expand controls ----
+ * Belt-and-braces: explicitly force the collapse-expand chevron to
+ * stay visible even if a future Streamlit release nests it under a
+ * parent we accidentally suppress. Covers historical + current testids.
+ */
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarHeader"] button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
 
 /* ---- Main canvas: cream from landing site ---- */
 [data-testid="stAppViewContainer"] > .main,
