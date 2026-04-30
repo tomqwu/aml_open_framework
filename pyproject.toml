@@ -29,6 +29,13 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.4",
 ]
+ai = [
+    # PR-K MVP. Both optional — the assistant module's `template`
+    # backend works with zero deps and is the default. Operators
+    # opt into ollama / openai via `AML_AI_BACKEND`.
+    "openai>=1.0",
+    "ollama>=0.1",
+]
 dashboard = [
     "streamlit>=1.35",
     "plotly>=5.22",

@@ -46,12 +46,21 @@ class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+AiAuditLogMode = Literal["hash_only", "full_text"]
+
+
 class Program(_Base):
     name: str
     jurisdiction: str
     regulator: str
     owner: str
     effective_date: date
+    # Controls what the GenAI assistant logs to `ai_interactions.jsonl`.
+    # `hash_only` (default) writes a SHA-256 of the reply text — bounds
+    # PII transit to disk. `full_text` logs the entire reply for forensic
+    # recall; institutions opt into this only after clearing it against
+    # their privacy posture (the spec change is itself the paper trail).
+    ai_audit_log: AiAuditLogMode = "hash_only"
 
 
 class Column(_Base):

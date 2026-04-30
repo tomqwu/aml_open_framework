@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **28 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.)
+The Streamlit dashboard runs the full engine on startup and surfaces results across **29 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -207,6 +207,12 @@ Browseable catalogue of every metric the spec declares. KPI strip (total / categ
 
 _Screenshot: pending — see follow-up._
 
+### AI Assistant
+
+Where the dashboard's GenAI co-pilot lives (PR-K). Three sections: (1) backend status — which provider is configured (`template` / `ollama` / `openai`), is the API key set, what's the spec's `program.ai_audit_log` mode; (2) this session's transcript — every Q&A from the sidebar panel, page-tagged; (3) run-level audit trail — tail of `ai_interactions.jsonl` for forensic review. The sidebar panel that appears on every page is for asking; this page is for accountability.
+
+_Screenshot: pending — see follow-up._
+
 ---
 
 ## Export Surface
@@ -219,21 +225,21 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The same 28 pages serve 12 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 9 pages):
+The same 29 pages serve 12 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 9 pages):
 
 | Persona | Primary pages |
 |---|---|
 | **SVP** | Executive Dashboard → Program Maturity → Framework Alignment → Transformation Roadmap |
-| **CCO** | Executive Dashboard → Program Maturity → Framework Alignment → Risk Assessment → Audit & Evidence → Investigations → Regulator Pulse → Transformation Roadmap → Metrics Taxonomy |
+| **CCO** | Executive Dashboard → Program Maturity → Framework Alignment → Risk Assessment → Audit & Evidence → Investigations → Regulator Pulse → Metrics Taxonomy → AI Assistant |
 | **CTO** | Executive Dashboard → Program Maturity → Framework Alignment → Model Performance → Run History → Transformation Roadmap |
-| **VP / MLRO** | Executive Dashboard → Rule Performance → Framework Alignment → Sanctions Screening → Comparative Analytics → Regulator Pulse → Metrics Taxonomy |
+| **VP / MLRO** | Executive Dashboard → Rule Performance → Framework Alignment → Sanctions Screening → Comparative Analytics → Regulator Pulse → Metrics Taxonomy → AI Assistant |
 | **Director** | Executive Dashboard → Alert Queue → Investigations → Risk Assessment → Data Quality → Audit & Evidence → Comparative Analytics → Metrics Taxonomy |
 | **Operations Manager** | Alert Queue → Investigations → My Queue → Analyst Review Queue → Risk Assessment → Live Monitor → Tuning Lab → Typology Catalogue → Metrics Taxonomy |
 | **L1 Analyst** | Alert Queue → Case Investigation → Investigations → Network Explorer → Sanctions Screening → Customer 360 → My Queue → Analyst Review Queue |
 | **Product Manager** | Rule Performance → Program Maturity → Transformation Roadmap → Model Performance → Risk Assessment → Case Investigation → Tuning Lab → Typology Catalogue → Metrics Taxonomy |
-| **Developer** | Spec Editor → Rule Performance → Rule Tuning → Tuning Lab → Model Performance → Data Quality → Analyst Review Queue → Run History |
-| **Auditor** | Audit & Evidence → Investigations → Case Investigation → Data Quality → Framework Alignment → Regulator Pulse → Run History → Metrics Taxonomy |
+| **Developer** | Spec Editor → Rule Performance → Rule Tuning → Tuning Lab → Model Performance → Data Quality → Analyst Review Queue → Run History → AI Assistant |
+| **Auditor** | Audit & Evidence → Investigations → Case Investigation → Data Quality → Framework Alignment → Regulator Pulse → Metrics Taxonomy → AI Assistant |
 | **Business Owner** | Executive Dashboard → Risk Assessment → Framework Alignment → Audit & Evidence |
-| **FinTech MLRO** | FinTech Cockpit → Audit & Evidence → Investigations → Tuning Lab → Regulator Pulse → Framework Alignment → Spec Editor → Metrics Taxonomy |
+| **FinTech MLRO** | FinTech Cockpit → Audit & Evidence → Investigations → Tuning Lab → Regulator Pulse → Spec Editor → Metrics Taxonomy → AI Assistant |
 
 See [`personas.md`](personas.md) for the full role-based workflows.

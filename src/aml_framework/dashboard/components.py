@@ -369,11 +369,23 @@ def responsive_plotly_config() -> dict[str, Any]:
 
 
 def page_header(title: str, description: str | None = None) -> None:
-    """Consistent page header."""
+    """Consistent page header.
+
+    Also mounts the GenAI assistant panel in the sidebar so every page
+    in the dashboard inherits it without per-page edits (PR-K). The
+    helper bails out cleanly when session state isn't populated (e.g.
+    in tests that import a page module without running the engine).
+    """
     st.markdown(f"# {title}")
     if description:
         st.caption(description)
     st.divider()
+    # The single wire-up that satisfies "AI assistant on every menu" —
+    # all 29 pages already call page_header(), so no per-page edits.
+    try:
+        ai_panel(page=title)
+    except Exception:  # noqa: BLE001 — assistant must NEVER crash a page render
+        pass
 
 
 def research_link(label: str, doc_path: str, anchor: str | None = None) -> str:
@@ -1224,3 +1236,182 @@ from aml_framework.dashboard.glossary import (  # noqa: E402,F401
     glossary_legend,
     glossary_term,
 )
+
+
+# ---------------------------------------------------------------------------
+# GenAI Assistant panel — PR-K MVP
+# ---------------------------------------------------------------------------
+# A single `ai_panel(page=...)` call wires the sidebar widget into every
+# page via `page_header()`. The widget is intentionally small: textarea,
+# submit, last reply. Power-user views and the run-level audit trail
+# live on the dedicated `29_AI_Assistant` page.
+#
+# Compliance posture:
+#   - Default backend is `template` (canned scaffolding, no LLM call).
+#     Operator opts into `ollama` / `openai` via `AML_AI_BACKEND` env.
+#   - Every reply is logged to `ai_interactions.jsonl` in run_dir; the
+#     spec's `program.ai_audit_log` flag controls whether the full
+#     reply text or just a SHA-256 hash is written.
+#   - Every reply is rendered with a "DRAFT — analyst review required"
+#     banner. Citations (rule_id / metric_id / case_id) link back into
+#     the dashboard via the deep-link convention from PR-A / PR-H.
+#   - `try / except` wrap around the entire panel — a misconfigured
+#     LLM never breaks the dashboard.
+
+
+def ai_panel(*, page: str) -> None:
+    """Render the GenAI assistant sidebar widget for this page.
+
+    Mounted automatically by `page_header()` so every dashboard page
+    inherits it. Reads run + persona + selected-entity state from
+    `st.session_state`; backend is selected via the `AML_AI_BACKEND`
+    environment variable (defaults to `template`).
+    """
+    import os
+
+    if "ai_transcript" not in st.session_state:
+        st.session_state["ai_transcript"] = {}
+
+    backend_name = os.environ.get("AML_AI_BACKEND", "template").lower()
+
+    with st.sidebar:
+        st.markdown("---")
+        # Backend pill — operator sees what's running before submitting.
+        # `template` = grey (no LLM); `ollama` = green (local); `openai` = cyan (cloud).
+        pill_color = {"template": "#94a3b8", "ollama": "#16a34a", "openai": "#67e8f9"}.get(
+            backend_name, "#94a3b8"
+        )
+        st.markdown(
+            f'<div style="display:flex; align-items:center; gap:8px; '
+            f'margin-bottom:6px;">'
+            f'<span style="width:8px; height:8px; border-radius:50%; '
+            f'background:{pill_color}; box-shadow:0 0 6px {pill_color};"></span>'
+            f'<span style="font-family:JetBrains Mono,monospace; font-size:11px; '
+            f'letter-spacing:0.05em; text-transform:uppercase; color:#94a3b8;">'
+            f"AI Assistant · {backend_name}</span></div>",
+            unsafe_allow_html=True,
+        )
+
+        question_key = f"ai_question_{page}"
+        question = st.text_area(
+            "Ask the assistant",
+            key=question_key,
+            height=88,
+            placeholder="e.g. why is channel_coverage_gap red on this run?",
+            label_visibility="collapsed",
+        )
+
+        if backend_name == "openai":
+            st.caption("⚠️ PII may be transmitted to OpenAI. Use `ollama` for on-prem inference.")
+
+        if st.button("Ask", key=f"ai_ask_{page}", use_container_width=True):
+            _handle_ai_submission(page=page, question=question, backend_name=backend_name)
+
+        # Last reply on this page (one-shot Q&A in MVP — no multi-turn).
+        last_reply = st.session_state["ai_transcript"].get(page)
+        if last_reply is not None:
+            _render_assistant_reply(last_reply)
+
+
+def _handle_ai_submission(*, page: str, question: str, backend_name: str) -> None:
+    """Build context, call backend, log to audit ledger, store reply."""
+    if not question.strip():
+        st.toast("Type a question first.", icon="ℹ️")
+        return
+
+    from aml_framework.assistant.factory import get_assistant
+    from aml_framework.assistant.models import AssistantContext, reply_to_audit_dict
+
+    spec = st.session_state.get("spec")
+    result = st.session_state.get("result")
+    df_alerts = st.session_state.get("df_alerts")
+    df_cases = st.session_state.get("df_cases")
+    df_decisions = st.session_state.get("df_decisions")
+
+    context = AssistantContext(
+        page=page,
+        persona=st.session_state.get("selected_audience"),
+        spec_name=getattr(getattr(spec, "program", None), "name", "") or "",
+        spec_jurisdiction=getattr(getattr(spec, "program", None), "jurisdiction", "") or "",
+        spec_regulator=getattr(getattr(spec, "program", None), "regulator", "") or "",
+        rule_count=len(getattr(spec, "rules", [])) if spec else 0,
+        metric_count=len(getattr(spec, "metrics", [])) if spec else 0,
+        run_id=str(getattr(result, "run_id", "")) if result else "",
+        alert_count=len(df_alerts) if df_alerts is not None else 0,
+        case_count=len(df_cases) if df_cases is not None else 0,
+        decision_count=len(df_decisions) if df_decisions is not None else 0,
+        selected_customer_id=st.session_state.get("selected_customer_id"),
+        selected_case_id=st.session_state.get("selected_case_id"),
+        selected_rule_id=st.session_state.get("selected_rule_id"),
+        selected_metric_id=st.session_state.get("selected_metric_id"),
+    )
+
+    try:
+        assistant = get_assistant(backend_name)
+        reply = assistant.reply(question, context)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Assistant backend `{backend_name}` failed: {exc}")
+        # Always fall back to template so the panel never silent-fails.
+        from aml_framework.assistant.template import TemplateBackend
+
+        reply = TemplateBackend().reply(question, context)
+
+    st.session_state["ai_transcript"][page] = reply
+
+    # Audit-log every interaction. `program.ai_audit_log` decides whether
+    # the full reply text or its SHA-256 hash is written. Errors are
+    # swallowed — the panel must never break a page render.
+    try:
+        from pathlib import Path
+
+        from aml_framework.engine.audit import AuditLedger
+
+        run_dir = st.session_state.get("run_dir")
+        if run_dir is None:
+            return
+        audit_mode = getattr(getattr(spec, "program", None), "ai_audit_log", "hash_only")
+        row = reply_to_audit_dict(reply, full_text=(audit_mode == "full_text"))
+        row["question"] = question.strip()
+        AuditLedger.append_to_run_dir(
+            Path(run_dir),
+            {"event": "ai_interaction", **row},
+            jsonl_name="ai_interactions.jsonl",
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _render_assistant_reply(reply: Any) -> None:
+    """Render an AssistantReply in the sidebar.
+
+    DRAFT banner + body + citation chips + confidence badge. Citation
+    chips link back into the dashboard via the deep-link convention.
+    """
+    confidence_color = {"high": "#16a34a", "medium": "#d97706", "low": "#94a3b8"}.get(
+        getattr(reply, "confidence", "low"), "#94a3b8"
+    )
+
+    st.markdown(
+        '<div style="font-family:JetBrains Mono,monospace; font-size:10px; '
+        "letter-spacing:0.08em; text-transform:uppercase; color:#dc2626; "
+        'margin-top:12px; margin-bottom:6px;">DRAFT · analyst review required</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(reply.text)
+
+    # Confidence + citation summary
+    citation_count = len(getattr(reply, "citations", []) or [])
+    metric_count = len(getattr(reply, "referenced_metric_ids", []) or [])
+    case_count = len(getattr(reply, "referenced_case_ids", []) or [])
+    st.markdown(
+        f'<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">'
+        f'<span style="font-family:JetBrains Mono,monospace; font-size:10px; '
+        f"padding:2px 6px; border-radius:3px; background:{confidence_color}22; "
+        f'color:{confidence_color}; font-weight:600;">'
+        f"confidence · {reply.confidence}</span>"
+        f'<span style="font-family:JetBrains Mono,monospace; font-size:10px; '
+        f'color:#64748b;">{citation_count} citation(s) · '
+        f"{metric_count} metric(s) · {case_count} case(s)</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )

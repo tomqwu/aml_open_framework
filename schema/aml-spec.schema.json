@@ -41,7 +41,8 @@
         "jurisdiction":   { "type": "string", "minLength": 2 },
         "regulator":      { "type": "string", "minLength": 2 },
         "owner":          { "type": "string", "minLength": 1 },
-        "effective_date": { "type": "string", "format": "date" }
+        "effective_date": { "type": "string", "format": "date" },
+        "ai_audit_log":   { "type": "string", "enum": ["hash_only", "full_text"], "default": "hash_only" }
       }
     },
     "data_contract": {
