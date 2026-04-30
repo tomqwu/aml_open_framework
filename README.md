@@ -9,8 +9,6 @@ The hard part of AML at a bank is not detection. It's proving — months later �
 
 This framework gives the AML org one source of truth that compliance can read, engineering can ship, and an auditor can replay byte-for-byte. The day-to-day result: analysts stop hunting across eight tabs, supervisors see real status not Excel rumours, and when the regulator walks in, the examination ZIP is already on the shelf.
 
-![Framework Overview](docs/pitch/03-framework-overview.png)
-
 ## What changes for each role
 
 | If you are a… | What changes |
