@@ -104,8 +104,16 @@ class TestExecutiveDashboardMigrated:
         body = EXEC_PAGE.read_text(encoding="utf-8")
         # The typology_coverage MetricResult has a real .rag band — it
         # must be threaded through, not replaced with a static color.
+        # 2026-04-30 visual upgrade: page now uses kpi_card_with_trend
+        # for trend-bearing KPIs and kpi_card_rag for facts. Either is
+        # accepted as long as `rag=tc.rag` (or metrics_by_id) is bound.
+        # NB: the call may wrap across multiple lines with nested parens
+        # (e.g., `trend_values=numeric_only(hist_coverage)`), so we
+        # match by a lookahead window of ~600 chars after "Typology
+        # Coverage" rather than a `[^)]*` segment that stops at the
+        # first inner `)`.
         m = re.search(
-            r'kpi_card_rag\(\s*"Typology Coverage"[^)]*rag=(?:tc\.rag|metrics_by_id)',
+            r'kpi_card(?:_rag|_with_trend)\(\s*"Typology Coverage".{0,600}?rag=(?:tc\.rag|metrics_by_id)',
             body,
             flags=re.DOTALL,
         )

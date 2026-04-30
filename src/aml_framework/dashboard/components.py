@@ -312,6 +312,24 @@ h3 { font-size: 1.5rem !important; }
 .block-container [data-testid="stCaptionContainer"] {
     font-size: 0.95rem !important;
 }
+
+/* Page-load fade-up — applied via .animate-on-load class on hero +
+ * KPI cards. 500ms one-shot, no infinite loop. Delays cascade so the
+ * sections reveal sequentially (like a board deck slide in).
+ *
+ * Stays subtle on purpose — board-pack credible, not slop.
+ */
+@keyframes fadeUp {
+    0%   { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+.animate-on-load { animation: fadeUp 0.5s ease-out both; }
+.animate-on-load:nth-child(1) { animation-delay: 0ms; }
+.animate-on-load:nth-child(2) { animation-delay: 80ms; }
+.animate-on-load:nth-child(3) { animation-delay: 160ms; }
+@media (prefers-reduced-motion: reduce) {
+    .animate-on-load { animation: none; }
+}
 </style>
 """
 
@@ -623,6 +641,154 @@ def kpi_card_rag(label: str, value: Any, rag: str | None = None) -> None:
         f"""<div class="metric-card" style="border-left: 4px solid {color};">
             <div class="label">{label}</div>
             <div class="value">{value}</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def headline_hero(tiles: list[dict[str, Any]]) -> None:
+    """Render a 3-tile board-pack hero strip.
+
+    The Executive Dashboard's first screen for board members. Each tile
+    is a dict with:
+
+      - ``label`` (str) — uppercase tile label
+      - ``value`` (str | int) — the headline number
+      - ``rag`` (str | None) — colour band; tile 1 (the urgent one) gets
+        a heavier accent border, tiles 2 and 3 get the neutral kpi-card
+        treatment scaled up
+      - ``caption`` (str, optional) — small line under the value
+        (e.g., "12 SLA-at-risk · 3 closed-no-action")
+      - ``href`` (str, optional) — drill-through link rendered as a
+        compact arrow under the caption
+
+    The first tile is rendered ~1.4x the size of the others — visual
+    hierarchy is the point.
+
+    Pulls only from existing tokens (RAG_COLORS, KPI_NEUTRAL_BORDER) so
+    no new colour gets invented per the design memory.
+    """
+    if len(tiles) != 3:
+        raise ValueError("headline_hero expects exactly 3 tiles (got %d)" % len(tiles))
+
+    # Wrapper grid: hero gets 2x the column width of secondary tiles.
+    cols = st.columns([2, 1, 1])
+    for col, tile, is_hero in zip(cols, tiles, [True, False, False], strict=False):
+        rag = tile.get("rag")
+        accent = (
+            RAG_COLORS.get(rag) or SLA_BAND_COLORS.get(rag or "") if rag else KPI_NEUTRAL_BORDER
+        ) or KPI_NEUTRAL_BORDER
+        # Hero tile: thicker border (8px), larger value font, optional badge.
+        border_w = "8px" if is_hero else "4px"
+        value_fs = "3.6rem" if is_hero else "2.4rem"
+        label_fs = "0.95rem" if is_hero else "0.85rem"
+        caption_html = ""
+        if tile.get("caption"):
+            caption_html = (
+                f'<div style="color:#475569;font-size:0.85rem;margin-top:0.4rem;">'
+                f"{tile['caption']}</div>"
+            )
+        href_html = ""
+        if tile.get("href"):
+            href_html = (
+                f'<div style="margin-top:0.5rem;"><a href="{tile["href"]}" '
+                f'style="color:#2563eb;text-decoration:none;font-size:0.85rem;'
+                f'font-weight:600;">{tile.get("href_label", "→ open")}</a></div>'
+            )
+        bg_overlay = ""
+        if is_hero and rag in {"red", "amber", "green"}:
+            # Subtle tint (4% opacity hex via the closing 0a) on hero only —
+            # makes the urgent number unmissable without crossing into noise.
+            tint_pct = "0a"  # 4% opacity
+            bg_overlay = f"background: linear-gradient(180deg, {accent}{tint_pct} 0%, white 100%);"
+        with col:
+            st.markdown(
+                f"""<div class="metric-card animate-on-load" style="border-left: {border_w} solid {accent}; {bg_overlay} padding: 1.4rem 1.5rem;">
+                    <div class="label" style="font-size:{label_fs};letter-spacing:0.06em;text-transform:uppercase;color:#64748b;font-weight:600;">{tile["label"]}</div>
+                    <div class="value" style="font-size:{value_fs};font-weight:700;line-height:1.05;color:#0f172a;margin-top:0.4rem;">{tile["value"]}</div>
+                    {caption_html}
+                    {href_html}
+                </div>""",
+                unsafe_allow_html=True,
+            )
+
+
+def kpi_card_with_trend(
+    label: str,
+    value: Any,
+    trend_values: list[float] | None = None,
+    rag: str | None = None,
+    delta_pct: float | None = None,
+    delta_dir: str = "neutral",
+) -> None:
+    """KPI card with an inline sparkline + delta-vs-prior-run string.
+
+    Args:
+        label / value / rag — same as ``kpi_card_rag``.
+        trend_values: list of numeric values (oldest→newest, including
+            the current run as the last element). When fewer than 2
+            values are supplied the sparkline is suppressed and the
+            delta slot reads "(no prior runs)".
+        delta_pct: signed pct change of the current run vs the previous
+            (e.g., +12.0 for "12% higher than last run"). When ``None``
+            the delta string is suppressed.
+        delta_dir: ``"higher-better"`` / ``"lower-better"`` / ``"neutral"``.
+            Drives the colour of the sparkline + delta arrow:
+              - ``higher-better``: green when delta_pct > 0, amber when < 0
+              - ``lower-better``: green when delta_pct < 0, amber when > 0
+              - ``neutral``: grey
+    """
+    if rag and rag != "unset":
+        color = RAG_COLORS.get(rag) or SLA_BAND_COLORS.get(rag) or KPI_NEUTRAL_BORDER
+    else:
+        color = KPI_NEUTRAL_BORDER
+
+    # Spark + delta block markup.
+    spark_html = ""
+    delta_html = ""
+    if trend_values and len(trend_values) >= 2:
+        # Inline SVG sparkline — Plotly is overkill at this size and
+        # adds layout shift on first paint. The SVG is one path scaled
+        # to a 100x32 viewbox; works without JS.
+        vmin = min(trend_values)
+        vmax = max(trend_values)
+        rng = (vmax - vmin) or 1
+        n = len(trend_values)
+        pts = []
+        for i, v in enumerate(trend_values):
+            x = (i / (n - 1)) * 100
+            y = 28 - ((v - vmin) / rng) * 24  # 4..28 px in a 32-px tall canvas
+            pts.append(f"{x:.1f},{y:.1f}")
+        spark_color = {
+            "higher-better": RAG_COLORS["green"] if (delta_pct or 0) >= 0 else RAG_COLORS["amber"],
+            "lower-better": RAG_COLORS["green"] if (delta_pct or 0) <= 0 else RAG_COLORS["amber"],
+            "neutral": "#64748b",
+        }.get(delta_dir, "#64748b")
+        spark_html = (
+            f'<svg viewBox="0 0 100 32" preserveAspectRatio="none" style="width:100%;height:32px;'
+            f'margin-top:0.4rem;display:block;">'
+            f'<polyline points="{" ".join(pts)}" fill="none" stroke="{spark_color}" '
+            f'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />'
+            f"</svg>"
+        )
+        if delta_pct is not None:
+            arrow = "↑" if delta_pct > 0 else ("↓" if delta_pct < 0 else "→")
+            sign = "+" if delta_pct > 0 else ""
+            delta_html = (
+                f'<div style="color:{spark_color};font-size:0.8rem;font-weight:600;'
+                f'margin-top:0.25rem;">{arrow} {sign}{delta_pct:.1f}% vs last run</div>'
+            )
+    else:
+        delta_html = (
+            '<div style="color:#94a3b8;font-size:0.78rem;margin-top:0.4rem;">(no prior runs)</div>'
+        )
+
+    st.markdown(
+        f"""<div class="metric-card animate-on-load" style="border-left: 4px solid {color};">
+            <div class="label">{label}</div>
+            <div class="value">{value}</div>
+            {spark_html}
+            {delta_html}
         </div>""",
         unsafe_allow_html=True,
     )
