@@ -838,6 +838,110 @@ def risk_color(rating: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Pandas Styler helpers — make read-only tables carry semantic colour
+# without each page redeclaring its own _highlight_X / _status_color fns
+# ---------------------------------------------------------------------------
+
+
+def _styled_text(color: str | None, weight: str = "700") -> str:
+    """Return a Styler cell rule, or empty when colour resolution fell back
+    to the neutral grey (we leave such cells uncoloured to avoid suggesting
+    semantic meaning where none exists)."""
+    if not color or color in (RAG_COLORS["unset"], "#6b7280"):
+        return ""
+    return f"color: {color}; font-weight: {weight};"
+
+
+def severity_cell_style(value: Any) -> str:
+    """`Styler.map` callback — returns CSS for a severity-string cell.
+
+    Use as ``df.style.map(severity_cell_style, subset=["severity"])``.
+    Values are matched case-insensitively against ``SEVERITY_COLORS``;
+    unknown values render plain.
+    """
+    if not isinstance(value, str):
+        return ""
+    return _styled_text(SEVERITY_COLORS.get(value.lower()))
+
+
+def rag_cell_style(value: Any) -> str:
+    """`Styler.map` callback for RAG-band cells.
+
+    Accepts ``green``/``amber``/``red``/``breached``/``unset`` (case-
+    insensitive). ``unset`` renders neutral. Reuses ``RAG_COLORS`` +
+    ``SLA_BAND_COLORS`` so SLA breach state is also coloured correctly
+    when the column carries that vocabulary.
+    """
+    if not isinstance(value, str):
+        return ""
+    key = value.lower()
+    color = RAG_COLORS.get(key) or SLA_BAND_COLORS.get(key)
+    return _styled_text(color)
+
+
+def metric_gradient_style(
+    low_color: str = "#dc2626",  # red
+    mid_color: str = "#d97706",  # amber
+    high_color: str = "#16a34a",  # green
+    *,
+    low_threshold: float = 0.5,
+    high_threshold: float = 0.8,
+) -> Any:
+    """Return a `Styler.map` callback that colours numeric cells red→amber→green.
+
+    Used for precision/recall/F1 cells on Tuning Lab — values below
+    ``low_threshold`` are red, above ``high_threshold`` green, in between
+    amber. Designed for [0, 1] metrics; the thresholds are adjustable
+    when callers want a different break point.
+    """
+
+    def _style(value: Any) -> str:
+        if value is None or isinstance(value, str):
+            return ""
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            return ""
+        if v >= high_threshold:
+            color = high_color
+        elif v >= low_threshold:
+            color = mid_color
+        else:
+            color = low_color
+        return _styled_text(color)
+
+    return _style
+
+
+def event_type_cell_style(value: Any) -> str:
+    """`Styler.map` callback for audit-decision event-type cells.
+
+    Maps the controlled vocabulary the audit ledger emits onto a small
+    palette so analysts scanning the decision log can spot escalations
+    + resolutions without reading every row.
+    """
+    if not isinstance(value, str):
+        return ""
+    table = {
+        # Negative / escalation events — red
+        "alert": "#dc2626",
+        "escalate": "#dc2626",
+        "snooze": "#dc2626",
+        # Workflow / triage — amber
+        "transition": "#d97706",
+        "tuning_run": "#d97706",
+        "control_review": "#d97706",
+        # Closure / positive — green
+        "close": "#16a34a",
+        "resolve": "#16a34a",
+        "filed": "#16a34a",
+        "ack": "#16a34a",
+        "acknowledge": "#16a34a",
+    }
+    return _styled_text(table.get(value.lower()))
+
+
+# ---------------------------------------------------------------------------
 # Empty-state helper — kills the inconsistent st.warning/info/error pattern
 # ---------------------------------------------------------------------------
 

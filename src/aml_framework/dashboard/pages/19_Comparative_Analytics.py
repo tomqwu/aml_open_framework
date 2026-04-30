@@ -6,7 +6,12 @@ import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import (
+    chart_layout,
+    kpi_card,
+    page_header,
+    rag_cell_style,
+)
 
 page_header(
     "Comparative Analytics",
@@ -161,7 +166,14 @@ try:
     init_db()
     runs = list_runs()
     if runs:
-        st.dataframe(pd.DataFrame(runs), use_container_width=True, hide_index=True)
+        runs_df = pd.DataFrame(runs)
+        # Colour the RAG-band column when present so a glance separates
+        # green/amber/red runs without reading the value.
+        styled_runs = runs_df.style
+        for col in ("rag", "RAG", "rag_band", "overall_rag"):
+            if col in runs_df.columns:
+                styled_runs = styled_runs.map(rag_cell_style, subset=[col])
+        st.dataframe(styled_runs, use_container_width=True, hide_index=True)
     else:
         st.caption(
             "No historical runs stored. Use `aml api` or Docker Compose to enable "

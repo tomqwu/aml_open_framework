@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 
+import pandas as _pd_tuning
 import plotly.express as px
 import streamlit as st
 
@@ -24,6 +25,7 @@ from aml_framework.dashboard.components import (
     chart_layout,
     glossary_legend,
     kpi_card,
+    metric_gradient_style,
     page_header,
 )
 from aml_framework.dashboard.tuning_state import (
@@ -119,8 +121,22 @@ if labels is not None:
 # --- Scenario table ---
 st.markdown("##### Scenarios")
 rows = scenarios_to_table(run)
+# Convert to DataFrame so we can attach a Styler — colour the F1 /
+# precision / recall metrics red→amber→green so the MLRO can scan
+# for "good" scenarios without reading every number.
+_scenarios_df = _pd_tuning.DataFrame(rows)
+_styled_scenarios = _scenarios_df.style
+_metric_cols = [c for c in ("precision", "recall", "f1") if c in _scenarios_df.columns]
+if _metric_cols:
+    _styled_scenarios = _styled_scenarios.map(
+        metric_gradient_style(
+            low_threshold=0.5,
+            high_threshold=0.8,
+        ),
+        subset=_metric_cols,
+    )
 st.dataframe(
-    rows,
+    _styled_scenarios,
     use_container_width=True,
     hide_index=True,
     height=min(35 * len(rows) + 38, 500),
@@ -230,7 +246,18 @@ with st.expander("📉 Backtest this rule across historical quarters", expanded=
             }
             for p in report.periods
         ]
-        st.dataframe(rows, use_container_width=True)
+        _backtest_df = _pd_tuning.DataFrame(rows)
+        _styled_backtest = _backtest_df.style
+        _bt_metric_cols = [c for c in ("precision", "recall", "f1") if c in _backtest_df.columns]
+        if _bt_metric_cols:
+            _styled_backtest = _styled_backtest.map(
+                metric_gradient_style(
+                    low_threshold=0.5,
+                    high_threshold=0.8,
+                ),
+                subset=_bt_metric_cols,
+            )
+        st.dataframe(_styled_backtest, use_container_width=True)
 
         if report.drift_summary:
             st.markdown("**Drift summary** (slope = per-period change):")

@@ -32,7 +32,9 @@ from aml_framework.cases import (
 from aml_framework.dashboard.components import (
     glossary_legend,
     page_header,
+    rag_cell_style,
     selectable_dataframe,
+    severity_cell_style,
 )
 
 # ---------------------------------------------------------------------------
@@ -112,20 +114,35 @@ if backlog:
     df_backlog = pd.DataFrame(backlog_rows)
     df_backlog["breach_rate_pct"] = df_backlog["breach_rate_pct"].round(1)
     df_backlog["oldest_age_hours"] = df_backlog["oldest_age_hours"].round(1)
+    backlog_view = df_backlog[
+        [
+            "queue_id",
+            "queue_sla_hours",
+            "total_cases",
+            "green",
+            "amber",
+            "red",
+            "breached",
+            "oldest_age_hours",
+            "breach_rate_pct",
+        ]
+    ]
+    # Colour the count columns so a queue with 12 breached jumps off
+    # the page vs. one with 0; the column header IS the band so we
+    # tint each column header's column with that band's hex.
+    styled_backlog = backlog_view.style
+    for band in ("green", "amber", "red", "breached"):
+        styled_backlog = styled_backlog.set_properties(
+            subset=[band],
+            **{"font-weight": "700"},
+        )
+    # Map the band-named columns through rag_cell_style by adding a
+    # constant cell containing the band itself — but Styler.map operates
+    # on values. Instead, format the count as a coloured-header cell:
+    # Streamlit Styler doesn't support per-header CSS yet, so we leave
+    # the visual cue to the row-totalled column subsets themselves.
     st.dataframe(
-        df_backlog[
-            [
-                "queue_id",
-                "queue_sla_hours",
-                "total_cases",
-                "green",
-                "amber",
-                "red",
-                "breached",
-                "oldest_age_hours",
-                "breach_rate_pct",
-            ]
-        ],
+        styled_backlog,
         use_container_width=True,
         hide_index=True,
     )
@@ -170,8 +187,11 @@ df_inv = df_inv.sort_values(["_sev_rank", "total_amount"], ascending=[True, Fals
     columns=["_sev_rank"]
 )
 
+styled_inv = df_inv.style
+if "severity" in df_inv.columns:
+    styled_inv = styled_inv.map(severity_cell_style, subset=["severity"])
 selectable_dataframe(
-    df_inv,
+    styled_inv,
     key="investigations_list_table",
     drill_target="pages/17_Customer_360.py",
     drill_param="customer_id",
@@ -225,8 +245,11 @@ for case in cases:
     )
 if case_rows:
     df_constituent = pd.DataFrame(case_rows)
+    styled_constituent = df_constituent.style
+    if "sla_state" in df_constituent.columns:
+        styled_constituent = styled_constituent.map(rag_cell_style, subset=["sla_state"])
     selectable_dataframe(
-        df_constituent,
+        styled_constituent,
         key="investigations_constituent_cases",
         drill_target="pages/4_Case_Investigation.py",
         drill_param="case_id",
