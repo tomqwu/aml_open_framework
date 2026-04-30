@@ -31,10 +31,15 @@ result = st.session_state.result
 # Sidebar
 # ---------------------------------------------------------------------------
 with st.sidebar:
+    # Brand wordmark — mirrors the static-site landing header
+    # (docs/pitch/landing/index.html .brand selector). Orange dot
+    # + Source Serif name + mono uppercase tag. PR-N.
     st.markdown(
-        '<h2 style="margin:0; font-size:1.3rem;">AML Open Framework</h2>'
-        '<p style="margin:0 0 0.5rem 0; font-size:0.8rem; opacity:0.7;">'
-        "Spec-driven compliance automation</p>",
+        '<div class="dna-brand">'
+        '<span class="dna-brand-dot"></span>'
+        '<span class="dna-brand-name">AML Open Framework</span>'
+        "</div>"
+        '<div class="dna-brand-tag">Spec-driven · Audit-ready</div>',
         unsafe_allow_html=True,
     )
     st.divider()
