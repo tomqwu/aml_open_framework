@@ -180,3 +180,119 @@ def test_no_persona_falls_through_to_unguarded_default():
     assert not missing_audience, (
         "PERSONA_LABELS keys missing from AUDIENCE_PAGES:\n  " + "\n  ".join(missing_audience)
     )
+
+
+# ---------------------------------------------------------------------------
+# Broader audit (PR-S) — every page a persona can SEE must not link to a
+# hidden page without going through the defensive fallback. This is what
+# Today-cards taught us, scaled up to all link_to_page() callsites.
+#
+# We don't fail on every gap (that would force every persona to carry
+# every page any visible page links to, which defeats the filter). We
+# fail when:
+#   - A page in the persona's nav links to a page NOT in the persona's
+#     nav, AND link_to_page is the call vehicle. The defensive fallback
+#     in components.py already degrades these to a caption — but we
+#     surface them so a future audit can decide per-link whether to
+#     widen the audience map or accept the degradation.
+# This test is INFORMATIONAL — set ALLOWED_GAPS to whitelist known
+# "graceful degradation expected here" links. New gaps without an
+# entry fail; the failure points at the specific persona/page/link so
+# the fix is mechanical.
+# ---------------------------------------------------------------------------
+
+
+PAGES_DIR = PROJECT_ROOT / "src" / "aml_framework" / "dashboard" / "pages"
+
+# Sweep every page file once, building (page_title → set of target paths
+# referenced via link_to_page).
+_LINK_PATTERN = re.compile(r"link_to_page\(\s*[\"'](pages/[^\"']+)[\"']", flags=re.DOTALL)
+
+
+def _outgoing_links_per_page() -> dict[str, set[str]]:
+    out: dict[str, set[str]] = {}
+    for page_file in sorted(PAGES_DIR.glob("*.py")):
+        if page_file.name == "__init__.py":
+            continue
+        body = page_file.read_text(encoding="utf-8")
+        targets = set(_LINK_PATTERN.findall(body))
+        if targets:
+            # Resolve "pages/3_Alert_Queue.py" → its app.py-registered title
+            # so we can compare against AUDIENCE_PAGES (also title-based).
+            page_path = f"pages/{page_file.name}"
+            page_title = PATH_TO_TITLE.get(page_path, page_file.stem)
+            out[page_title] = {PATH_TO_TITLE.get(t, t) for t in targets}
+    return out
+
+
+# Known gaps the team has accepted. Each entry is
+# `(persona, source_page_title, target_page_title)` and means: when this
+# persona views <source>, the link to <target> goes through the
+# defensive fallback in link_to_page() and renders as a degraded caption
+# instead of crashing. Adding to this set is a deliberate decision to
+# *not* widen the audience map.
+ALLOWED_GRACEFUL_GAPS: set[tuple[str, str, str]] = {
+    # Executive Dashboard's drill-downs to operational pages — most
+    # exec personas don't carry Alert Queue / Investigations in their
+    # nav, and pulling in the queues bloats their sidebar past the
+    # 9-page cap. Graceful degradation is the right behaviour here.
+    ("svp", "Executive Dashboard", "Alert Queue"),
+    ("svp", "Executive Dashboard", "Investigations"),
+    ("cto", "Executive Dashboard", "Alert Queue"),
+    ("cto", "Executive Dashboard", "Investigations"),
+    ("vp", "Executive Dashboard", "Alert Queue"),
+    ("vp", "Executive Dashboard", "Investigations"),
+    ("cco", "Executive Dashboard", "Alert Queue"),
+    ("business", "Executive Dashboard", "Alert Queue"),
+    ("business", "Executive Dashboard", "Investigations"),
+    # PM doesn't operate the alert queue or investigation queue — those
+    # are operational, PM is roadmap. Exec dashboard's drill-downs
+    # gracefully degrade.
+    ("pm", "Executive Dashboard", "Alert Queue"),
+    ("pm", "Executive Dashboard", "Investigations"),
+    # Developer has no operational drill-down need either; tuning +
+    # data-quality is their lane.
+    ("developer", "Executive Dashboard", "Alert Queue"),
+    ("developer", "Executive Dashboard", "Investigations"),
+    # Auditor has Investigations but not Alert Queue (queue triage is
+    # 1LoD's job; auditor consumes outputs). Graceful here.
+    ("auditor", "Executive Dashboard", "Alert Queue"),
+    # Manager: My Queue's "open the case" link targets Case Investigation
+    # which manager doesn't carry (Phase D moved manager to Investigations
+    # as the single drill point). Defensive caption degrades cleanly.
+    ("manager", "My Queue", "Case Investigation"),
+}
+
+
+def test_cross_page_links_either_in_nav_or_explicitly_graceful():
+    """Walk every persona's visible pages, collect the link_to_page
+    targets each page declares, and assert every cross-link is either:
+      (a) in the persona's nav (no degradation needed), or
+      (b) explicitly listed in ALLOWED_GRACEFUL_GAPS (degradation
+          deliberate; defensive fallback in components.py handles it).
+    New gaps fail loudly, listing the (persona, source, target) tuples
+    to either add to AUDIENCE_PAGES or mark as graceful.
+    """
+    outgoing = _outgoing_links_per_page()
+    surprises: list[tuple[str, str, str]] = []
+
+    for persona in PERSONA_LABELS:
+        persona_titles = set(AUDIENCE_PAGES.get(persona, [])) | UNIVERSAL_TITLES
+        for source_title, targets in outgoing.items():
+            if source_title not in persona_titles:
+                continue  # persona doesn't see this page; skip
+            for target in targets:
+                if target in persona_titles:
+                    continue  # link is in nav — no problem
+                key = (persona, source_title, target)
+                if key in ALLOWED_GRACEFUL_GAPS:
+                    continue  # known + deliberate
+                surprises.append(key)
+
+    assert not surprises, (
+        "New cross-page link gaps detected. For each tuple below, either:\n"
+        "  (a) add the target page to AUDIENCE_PAGES[persona], or\n"
+        "  (b) add the tuple to ALLOWED_GRACEFUL_GAPS in this test if "
+        "you've decided graceful degradation is the right behaviour.\n"
+        "Surprises:\n" + "\n".join(f"  - {s}" for s in surprises)
+    )
