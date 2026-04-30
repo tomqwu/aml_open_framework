@@ -59,10 +59,10 @@ class TestAiPanelHelperContract:
         or as a hoisted variable like `question_key = f"ai_question_{page}"`."""
         body = COMPONENTS.read_text(encoding="utf-8")
         assert 'f"ai_question_{page}"' in body, (
-            "Textarea key must be page-scoped (f\"ai_question_{page}\")"
+            'Textarea key must be page-scoped (f"ai_question_{page}")'
         )
         assert 'f"ai_ask_{page}"' in body, (
-            "Submit button key must be page-scoped (f\"ai_ask_{page}\")"
+            'Submit button key must be page-scoped (f"ai_ask_{page}")'
         )
 
     def test_ai_panel_reads_AML_AI_BACKEND_env(self):
