@@ -76,11 +76,31 @@ with st.sidebar:
     jurisdiction_flag = {"CA": "CA", "US": "US", "UK": "UK", "EU": "EU"}.get(
         spec.program.jurisdiction, spec.program.jurisdiction
     )
+    # Map known AML role keys to their canonical display form. The raw
+    # `program.owner` field uses snake_case keys; without this map the
+    # naive `.replace('_',' ').title()` produces "Chief Anti Money
+    # Laundering Officer" (no hyphens) which mis-renders the Canadian
+    # CAMLO role. Falls back to the generic title-case for unknown keys.
+    _ROLE_LABELS = {
+        "chief_compliance_officer": "Chief Compliance Officer",
+        "chief_anti_money_laundering_officer": "Chief Anti-Money Laundering Officer",
+        "chief_aml_officer": "Chief Anti-Money Laundering Officer",
+        "money_laundering_reporting_officer": "Money Laundering Reporting Officer",
+        "mlro": "Money Laundering Reporting Officer",
+        "head_of_aml_ops": "Head of AML Operations",
+        "head_of_financial_crime": "Head of Financial Crime",
+        "bsa_officer": "BSA Officer",
+    }
+    _owner_label = _ROLE_LABELS.get(
+        spec.program.owner, spec.program.owner.replace("_", " ").title()
+    )
     st.markdown(
         f"**{spec.program.name}**<br>"
         f"<span style='font-size:0.85rem;'>"
-        f"{jurisdiction_flag} &middot; {spec.program.regulator} &middot; "
-        f"{spec.program.owner.replace('_', ' ').title()}"
+        f"{jurisdiction_flag} &middot; {spec.program.regulator}"
+        f"</span><br>"
+        f"<span style='font-size:0.78rem; color: var(--dna-ink-dim);'>"
+        f"Owned by {_owner_label}"
         f"</span>",
         unsafe_allow_html=True,
     )
