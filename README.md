@@ -23,6 +23,19 @@ This framework gives the AML org one source of truth that compliance can read, e
 
 A live multi-audience pitch deck walking the framework slide by slide is at [`docs/pitch/deck/index.html`](https://github.com/tomqwu/aml_open_framework/blob/docs/pitch-deck/docs/pitch/deck/index.html) — start there if you have 5 minutes.
 
+## How it works · 4 layers, one Compliance Manifest
+
+![Architecture · 4-layer stack: Policy → Generation → Runtime → Evidence, with persona arrows showing who authors and who verifies each layer](docs/architecture-diagram.png)
+
+One versioned document — the **Compliance Manifest** (an `aml.yaml` file, for engineers) — drives four layers:
+
+- **Policy** — program metadata, data contracts, detection rules, workflow, reporting · *authored by CCO / MLRO, verified by 2LoD*
+- **Generation** — `aml.yaml` → SQL / DAG stubs / data-quality tests / MRM dossier / control matrix · *operated by Engineering, validated by MRM under SR 26-2*
+- **Runtime** — detectors fire, cases route, BOI refresh, tuning lab backtests, examiner pack exports · *reviewed by 2LoD*
+- **Evidence** — immutable hash-chained audit ledger · spec / input / output / decision hashes · *replayed by Internal Audit byte-for-byte*
+
+[Live interactive version →](https://tomqwu.github.io/aml_open_framework_demo/#/research/architecture) · [Full design rationale →](docs/architecture.md)
+
 ---
 
 ## Quickstart

@@ -1,13 +1,16 @@
 # Reference Architecture
 
-> **Rendered version**: a designed page with the layered diagram + persona arrows lives at [`/research/architecture`](https://tomqwu.github.io/aml_open_framework_demo/#/research/architecture) on the demo site.
+![Architecture · 4-layer stack: Policy → Generation → Runtime → Evidence, with persona arrows showing who authors and who verifies each layer](architecture-diagram.png)
+
+> **Live interactive version** — full design with hover states + body copy at [`/research/architecture`](https://tomqwu.github.io/aml_open_framework_demo/#/research/architecture) on the demo site. The image above is the canonical diagram; the Mermaid below is the textual spec for accessibility.
 
 ## Principle
 
-**The spec is the source of truth.** Policy, data contracts, detection rules,
-case workflow, and regulator mapping live in one versioned YAML file. Every
+**The Compliance Manifest is the source of truth.** Policy, data contracts, detection rules,
+case workflow, and regulator mapping live in one versioned document — the
+Compliance Manifest (an `aml.yaml` file, for engineers). Every
 runtime artifact — SQL, DAGs, data-quality tests, dashboards, alert payloads,
-audit log entries — is *generated* from the spec, never hand-written in
+audit ledger entries — is *generated* from the Manifest, never hand-written in
 parallel. This is what kills the drift that causes AML fines.
 
 ## Layered view
