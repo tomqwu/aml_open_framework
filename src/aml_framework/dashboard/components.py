@@ -950,11 +950,15 @@ def kpi_card(label: str, value: Any, accent_color: str = "#2563eb") -> None:
     RAG + severity color systems. Existing call sites are kept so the
     migration can land page-by-page.
     """
+    # Markdown HTML must be unindented — Streamlit's markdown parser
+    # treats 4+ leading spaces as a code block, so an indented multi-line
+    # f-string leaks `<div>` / `</div>` as visible text. Single-line keeps
+    # the parser in HTML mode (regression caught by PR-T's HTML-leak test).
     st.markdown(
-        f"""<div class="metric-card" style="border-left: 4px solid {accent_color};">
-            <div class="label">{label}</div>
-            <div class="value">{value}</div>
-        </div>""",
+        f'<div class="metric-card" style="border-left: 4px solid {accent_color};">'
+        f'<div class="label">{label}</div>'
+        f'<div class="value">{value}</div>'
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -1010,11 +1014,13 @@ def kpi_card_rag(label: str, value: Any, rag: str | None = None) -> None:
         color = RAG_COLORS.get(rag) or SLA_BAND_COLORS.get(rag) or KPI_NEUTRAL_BORDER
     else:
         color = KPI_NEUTRAL_BORDER
+    # See kpi_card() comment: indented multi-line HTML in st.markdown
+    # leaks `<div>` as visible text on Streamlit ≥1.50.
     st.markdown(
-        f"""<div class="metric-card" style="border-left: 4px solid {color};">
-            <div class="label">{label}</div>
-            <div class="value">{value}</div>
-        </div>""",
+        f'<div class="metric-card" style="border-left: 4px solid {color};">'
+        f'<div class="label">{label}</div>'
+        f'<div class="value">{value}</div>'
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -1075,13 +1081,14 @@ def headline_hero(tiles: list[dict[str, Any]]) -> None:
             tint_pct = "0a"  # 4% opacity
             bg_overlay = f"background: linear-gradient(180deg, {accent}{tint_pct} 0%, white 100%);"
         with col:
+            # See kpi_card() comment on indentation in st.markdown.
             st.markdown(
-                f"""<div class="metric-card animate-on-load" style="border-left: {border_w} solid {accent}; {bg_overlay} padding: 1.4rem 1.5rem;">
-                    <div class="label" style="font-size:{label_fs};letter-spacing:0.06em;text-transform:uppercase;color:#64748b;font-weight:600;">{tile["label"]}</div>
-                    <div class="value" style="font-size:{value_fs};font-weight:700;line-height:1.05;color:#0f172a;margin-top:0.4rem;">{tile["value"]}</div>
-                    {caption_html}
-                    {href_html}
-                </div>""",
+                f'<div class="metric-card animate-on-load" style="border-left: {border_w} solid {accent}; {bg_overlay} padding: 1.4rem 1.5rem;">'
+                f'<div class="label" style="font-size:{label_fs};letter-spacing:0.06em;text-transform:uppercase;color:#64748b;font-weight:600;">{tile["label"]}</div>'
+                f'<div class="value" style="font-size:{value_fs};font-weight:700;line-height:1.05;color:#0f172a;margin-top:0.4rem;">{tile["value"]}</div>'
+                f"{caption_html}"
+                f"{href_html}"
+                f"</div>",
                 unsafe_allow_html=True,
             )
 
@@ -1156,13 +1163,14 @@ def kpi_card_with_trend(
             '<div style="color:#94a3b8;font-size:0.78rem;margin-top:0.4rem;">(no prior runs)</div>'
         )
 
+    # See kpi_card() comment on indentation in st.markdown.
     st.markdown(
-        f"""<div class="metric-card animate-on-load" style="border-left: 4px solid {color};">
-            <div class="label">{label}</div>
-            <div class="value">{value}</div>
-            {spark_html}
-            {delta_html}
-        </div>""",
+        f'<div class="metric-card animate-on-load" style="border-left: 4px solid {color};">'
+        f'<div class="label">{label}</div>'
+        f'<div class="value">{value}</div>'
+        f"{spark_html}"
+        f"{delta_html}"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
