@@ -124,6 +124,10 @@ AUDIENCE_PAGES = {
     "cco": [
         # Metrics Taxonomy added (PR-I) — defendable view of what
         # the program measures.
+        # AI Assistant added (PR-K) — CCOs need provenance + audit
+        # trail of what the GenAI co-pilot has said this run.
+        # Transformation Roadmap dropped to keep within 9-page cap;
+        # it's still cross-linked from Program Maturity's see-also.
         "Executive Dashboard",
         "Program Maturity",
         "Framework Alignment",
@@ -131,8 +135,8 @@ AUDIENCE_PAGES = {
         "Audit & Evidence",
         "Investigations",
         "Regulator Pulse",
-        "Transformation Roadmap",
         "Metrics Taxonomy",
+        "AI Assistant",
     ],
     "vp": [
         # Tuning Lab dropped — VP consumes tuning outcomes via
@@ -140,6 +144,7 @@ AUDIENCE_PAGES = {
         # Regulator Pulse added — MLRO needs to see what's moved.
         # Metrics Taxonomy added — 2LoD MLRO needs to defend what
         # the program measures for effectiveness.
+        # AI Assistant added (PR-K) — 2LoD signs off on AI provenance.
         "Executive Dashboard",
         "Rule Performance",
         "Framework Alignment",
@@ -147,6 +152,7 @@ AUDIENCE_PAGES = {
         "Comparative Analytics",
         "Regulator Pulse",
         "Metrics Taxonomy",
+        "AI Assistant",
     ],
     "director": [
         # Added Investigations (drill-down when KPIs spike).
@@ -209,6 +215,8 @@ AUDIENCE_PAGES = {
     "developer": [
         # Added Spec Editor + Rule Tuning + Analyst Review Queue +
         # Tuning Lab — spec authoring + model perf + tuning arc.
+        # AI Assistant added (PR-K) — devs configure the LLM backend
+        # and need a place to see whether the wiring works.
         "Spec Editor",
         "Rule Performance",
         "Rule Tuning",
@@ -217,6 +225,7 @@ AUDIENCE_PAGES = {
         "Data Quality",
         "Analyst Review Queue",
         "Run History",
+        "AI Assistant",
     ],
     "business": [
         # Business owner / CCO-equivalent at smaller institutions.
@@ -234,14 +243,18 @@ AUDIENCE_PAGES = {
         # Regulator Pulse added — auditors track regulator-side movement.
         # Metrics Taxonomy added — auditors verify what's measured
         # matches what the program claims to measure.
+        # AI Assistant added (PR-K) — every GenAI interaction is on
+        # the audit trail; auditors are the primary consumer.
+        # Run History dropped to stay within the 9-page cap; it's
+        # still in the dashboard, accessible by direct URL.
         "Audit & Evidence",
         "Investigations",
         "Case Investigation",
         "Data Quality",
         "Framework Alignment",
         "Regulator Pulse",
-        "Run History",
         "Metrics Taxonomy",
+        "AI Assistant",
     ],
     "fintech_mlro": [
         # FinTech / EMI / VASP MLRO — 1-person program. Operates from
@@ -251,14 +264,16 @@ AUDIENCE_PAGES = {
         # the persona's reality: no 2LoD, no separate validation team.
         # Metrics Taxonomy added — the 1-person MLRO IS the metric
         # program owner; the catalogue is their reference.
+        # AI Assistant added (PR-K) — 1-person program leans hardest
+        # on the co-pilot; needs the audit + provenance view.
         "FinTech Cockpit",
         "Audit & Evidence",
         "Investigations",
         "Tuning Lab",
         "Regulator Pulse",
-        "Framework Alignment",
         "Spec Editor",
         "Metrics Taxonomy",
+        "AI Assistant",
     ],
 }
 

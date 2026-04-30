@@ -160,21 +160,26 @@ class AuditLedger:
 
     @staticmethod
     def append_to_run_dir(
-        run_dir: Path, decision: dict[str, Any], ts: datetime | None = None
+        run_dir: Path,
+        decision: dict[str, Any],
+        ts: datetime | None = None,
+        *,
+        jsonl_name: str = "decisions.jsonl",
     ) -> None:
         """Append a human-time decision to a finalised run.
 
-        Used by the dashboard for analyst actions (escalate, file, close).
+        Used by the dashboard for analyst actions (escalate, file, close)
+        and PR-K's GenAI interactions (`jsonl_name="ai_interactions.jsonl"`).
         Uses wall-clock `ts` by default — these writes are not part of the
         engine reproducibility contract. Single canonical writer so the
-        decisions.jsonl shape stays consistent across the codebase.
+        log shape stays consistent across the codebase.
         """
         stamp = ts if ts is not None else datetime.now(tz=timezone.utc)
         event = {
             "ts": stamp.isoformat(),
             **decision,
         }
-        with (run_dir / "decisions.jsonl").open("ab") as f:
+        with (run_dir / jsonl_name).open("ab") as f:
             f.write(_canonical_json(event) + b"\n")
 
     def finalize(self) -> dict[str, Any]:
