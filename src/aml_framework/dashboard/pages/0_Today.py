@@ -17,21 +17,42 @@ from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
     kpi_card_rag,
     link_to_page,
-    page_header,
 )
 from aml_framework.dashboard.today import build_cards_for_audience
-
-page_header(
-    "Today",
-    "Your priorities for this run, scoped to the audience you've selected.",
-)
-show_audience_context("Today")
 
 audience = st.session_state.get("selected_audience")
 spec = st.session_state.spec
 result = st.session_state.result
 df_alerts = st.session_state.df_alerts
 df_cases = st.session_state.get("df_cases")
+
+# ---------------------------------------------------------------------------
+# Landing-style hero (PR-P) — mirrors docs/pitch/landing/index.html so the
+# entrance page feels like the marketing site's first frame, not a generic
+# Streamlit dashboard. Three regions: eyebrow → serif headline → meta row.
+# ---------------------------------------------------------------------------
+_program = spec.program.name.replace("_", " ").title()
+_jurisdiction = spec.program.jurisdiction
+_regulator = spec.program.regulator
+
+st.markdown(
+    f"""
+<div class="dna-hero">
+  <div class="dna-hero-eyebrow">
+    <span class="dna-hero-dot"></span>
+    Today &middot; {_jurisdiction} &middot; {_regulator}
+  </div>
+  <h1 class="dna-hero-title">An AML program you can <em>show</em>,<br>not just describe.</h1>
+  <p class="dna-hero-lede">
+    {_program}. {len(spec.rules)} detection rules · {result.total_alerts} alerts · {len(result.case_ids)} cases on this run.
+    Pick up where the program is right now &mdash; the priorities below adapt to your role.
+  </p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+show_audience_context("Today")
 
 if not audience:
     st.info(

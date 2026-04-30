@@ -90,11 +90,77 @@ CUSTOM_CSS = """
     --dna-accent-soft: rgba(164, 75, 48, 0.10);
     --dna-rule:    rgba(28, 31, 38, 0.10);
     --dna-rule-strong: rgba(28, 31, 38, 0.18);
-    /* Sidebar stays dark (deck tech panel) — it's a navigation chrome,
-     * not body content. The dark-on-cream contrast is the same one the
-     * landing site uses on its modal overlays + footer. */
-    --dna-sidebar-bg: #1c1f26;
-    --dna-sidebar-ink: #f1f5f9;
+    /* Sidebar matches the landing site's card panels — soft ivory on
+     * cream so the chrome reads as a subtle column, not a dark slab.
+     * (PR-N initially shipped a dark sidebar; user feedback was that
+     * the slab clashed with the cream body. PR-P recolours.) */
+    --dna-sidebar-bg: #fdfbf5;
+    --dna-sidebar-ink: #1c1f26;
+    --dna-topbar-h: 64px;
+}
+
+/* ---- Global topbar (PR-P) ----
+ * The landing site at docs/pitch/landing/index.html has a sticky 72px
+ * navbar with the brand wordmark anchored top-left (cream blur, orange
+ * dot, Source Serif name). The dashboard now mirrors that so the
+ * AML Open Framework name appears in the same fixed real-estate the
+ * marketing surface uses — top-left, always visible, never buried in
+ * a panel that can be collapsed.
+ */
+.dna-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--dna-topbar-h);
+    z-index: 999991;  /* above stHeader (999990) */
+    background: rgba(247, 244, 236, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--dna-rule);
+    display: flex;
+    align-items: center;
+    padding: 0 32px;
+    pointer-events: none; /* purely chrome — clicks pass through */
+}
+.dna-topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    pointer-events: auto;
+}
+.dna-topbar-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dna-accent);
+    flex-shrink: 0;
+}
+.dna-topbar-name {
+    font-family: var(--dna-display);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    color: var(--dna-ink);
+    line-height: 1;
+}
+.dna-topbar-tag {
+    font-family: var(--dna-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dna-ink-faint);
+    margin-left: 8px;
+}
+
+/* Push Streamlit's main view + sidebar below the topbar. Streamlit's
+ * own stHeader chrome is hidden (deploy/menu rules above), but the
+ * sidebar still starts at top:0 — bump it down so the topbar can sit
+ * unobstructed. */
+[data-testid="stAppViewContainer"] {
+    padding-top: var(--dna-topbar-h);
+}
+section[data-testid="stSidebar"] {
+    top: var(--dna-topbar-h) !important;
 }
 
 /* ---- Global ---- */
@@ -133,9 +199,22 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
  * the sidebar, with no way to re-open it (issue #69).
  */
 .stDeployButton,
+.stAppDeployButton,
 [data-testid="stDeployButton"],
+[data-testid="stAppDeployButton"],
 [data-testid="stMainMenu"],
 [data-testid="stStatusWidget"] { display: none !important; }
+
+/* Streamlit's native stHeader is a transparent ~60px strip at the top
+ * of the viewport. With our own topbar in place we don't need it; hide
+ * its background + content while leaving it in the DOM (zero height)
+ * so any future Streamlit code that probes for it doesn't break. */
+[data-testid="stHeader"] {
+    background: transparent !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: visible !important;  /* keep sidebar collapse arrow clickable */
+}
 
 /* ---- Always-visible sidebar collapse/expand controls ----
  * Belt-and-braces: explicitly force the collapse-expand chevron to
@@ -145,6 +224,7 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
 [data-testid="stSidebarCollapsedControl"],
 [data-testid="collapsedControl"],
 [data-testid="stSidebarCollapseButton"],
+[data-testid="stExpandSidebarButton"],
 [data-testid="stSidebarHeader"] button {
     display: flex !important;
     visibility: visible !important;
@@ -157,10 +237,14 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
     background: var(--dna-bg);
 }
 
-/* ---- Sidebar: dark panel (chrome only — body stays cream) ---- */
+/* ---- Sidebar: ivory card on cream canvas (PR-P) ----
+ * Recoloured from the original dark slab to a soft ivory column that
+ * matches the landing site's card panel grammar. Right-edge rule
+ * separates it from the cream body without screaming.
+ */
 section[data-testid="stSidebar"] {
     background: var(--dna-sidebar-bg);
-    border-right: 1px solid rgba(154, 163, 173, 0.18);
+    border-right: 1px solid var(--dna-rule);
 }
 section[data-testid="stSidebar"] * {
     color: var(--dna-sidebar-ink) !important;
@@ -170,40 +254,10 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
     line-height: 1.5;
 }
 section[data-testid="stSidebar"] hr {
-    border-color: rgba(154, 163, 173, 0.18) !important;
+    border-color: var(--dna-rule) !important;
 }
-
-/* ---- Brand wordmark in sidebar (PR-N) ----
- * Mirrors the .brand selector at docs/pitch/landing/index.html L70-89.
- * This is the LOGO — orange dot + Source Serif name. */
-.dna-brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 6px;
-}
-.dna-brand-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--dna-accent);
-    flex-shrink: 0;
-}
-.dna-brand-name {
-    font-family: var(--dna-display) !important;
-    font-size: 19px !important;
-    font-weight: 600 !important;
-    letter-spacing: -0.012em;
-    color: var(--dna-sidebar-ink) !important;
-    line-height: 1.15;
-}
-.dna-brand-tag {
-    font-family: var(--dna-mono) !important;
-    font-size: 10px !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: rgba(241, 245, 249, 0.55) !important;
-    margin-left: 20px;
-    margin-bottom: 8px;
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a {
+    color: var(--dna-accent) !important;
 }
 
 /* ---- KPI metric cards ---- */
@@ -253,6 +307,58 @@ h3 {
     font-family: var(--dna-body) !important;
     font-weight: 600 !important;
     color: #334155 !important;
+}
+
+/* ---- Today entrance hero (PR-P) ----
+ * Mirrors the landing site's first-frame grammar — eyebrow line with
+ * accent dot, oversized Source Serif headline (with italic emphasis
+ * pull-quote on the verb), and a single muted lede paragraph below.
+ * This replaces the generic page_header() on the Today page so the
+ * dashboard's entrance reads like the marketing surface's hero.
+ */
+.dna-hero {
+    margin: 12px 0 28px 0;
+    max-width: 880px;
+}
+.dna-hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--dna-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dna-ink-dim);
+    margin-bottom: 18px;
+}
+.dna-hero-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--dna-accent);
+}
+.dna-hero-title {
+    font-family: var(--dna-display) !important;
+    font-size: clamp(36px, 5vw, 64px) !important;
+    font-weight: 600 !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.018em !important;
+    color: var(--dna-ink) !important;
+    margin: 0 0 18px 0 !important;
+    text-wrap: balance;
+}
+.dna-hero-title em {
+    font-style: italic;
+    color: var(--dna-accent);
+    font-weight: 600;
+}
+.dna-hero-lede {
+    font-family: var(--dna-body);
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--dna-ink-dim);
+    margin: 0;
+    max-width: 720px;
+    text-wrap: pretty;
 }
 
 /* Eyebrow + 32px rule pattern — rendered by page_header() (PR-M).
