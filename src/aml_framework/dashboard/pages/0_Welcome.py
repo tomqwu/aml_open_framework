@@ -242,6 +242,19 @@ NEXT_BY_PERSONA: dict[str, list[tuple[str, str, str]]] = {
         ),
         ("Risk Assessment", "Where exposure concentrates.", "6_Risk_Assessment"),
     ],
+    "fintech_mlro": [
+        (
+            "FinTech Cockpit",
+            "Sponsor-bank cure-notice timer + 8 realities + evidence pack.",
+            "26_FinTech_Cockpit",
+        ),
+        (
+            "Audit & Evidence",
+            "What the sponsor bank's risk officer asks for, on one button.",
+            "7_Audit_Evidence",
+        ),
+        ("Tuning Lab", "Test threshold changes before they go live.", "23_Tuning_Lab"),
+    ],
 }
 
 # Default fallback when no persona is selected — show the three doors a
@@ -277,13 +290,39 @@ for col, (page_label, page_desc, _page_slug) in zip(cols, next_options):
         st.caption("→ Open from the sidebar.")
 
 st.markdown("---")
+st.markdown("### Recent research")
+st.caption(
+    "Three primary-source-anchored docs that ground every page on this dashboard. "
+    "Refreshed 2026-04-29."
+)
+research_col1, research_col2, research_col3 = st.columns(3)
+with research_col1:
+    st.markdown(
+        "**Tier-1 process pain** · "
+        "[10 daily pains a CCO/MLRO feels]"
+        "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md)"
+    )
+    st.caption("FCA, FinCEN, OSFI, FINTRAC primary sources.")
+with research_col2:
+    st.markdown(
+        "**FinTech reality** · "
+        "[8 realities a fintech MLRO lives with]"
+        "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-fintech-aml-reality.md)"
+    )
+    st.caption("Sponsor-bank cure notices, AMLR, FATF Travel Rule.")
+with research_col3:
+    st.markdown(
+        "**Regulator pulse** · "
+        "[30 events Feb-Apr 2026]"
+        "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-regulator-pulse.md)"
+    )
+    st.caption("SR 26-2 effective 2026-04-17 + EU AMLA + OFAC + EU 20th package.")
+
+st.markdown("<br>", unsafe_allow_html=True)
 st.caption(
     "**Want the 5-minute pitch instead?** Open the [interactive deck]"
     "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/pitch/deck/index.html) "
-    "— 27 slides walking the framework end-to-end. "
-    "**Want the 10 daily pain points behind every page on this dashboard?** "
-    "Read the [process-pain research doc]"
-    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md)."
+    "— 27 slides walking the framework end-to-end."
 )
 
 # Acronyms used on this page — expanded in plain English so a leader who

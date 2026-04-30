@@ -354,6 +354,17 @@ else:
         "using the same generator skeleton."
     )
 
+st.markdown("---")
+st.caption(
+    "**See also** · "
+    '[PAIN-1 in research — "We can\'t prove what we did"]'
+    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md)"
+    " · [TD 2024 case study — the framing case for evidence-defensibility]"
+    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/case-studies/td-2024.md)"
+    " · [FINTECH-1 — sponsor-bank cure notices]"
+    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-fintech-aml-reality.md)"
+)
+
 # Acronyms used on this page — leader-friendly expansions so the
 # regulator-facing terminology stays visible without losing readers.
 st.markdown(

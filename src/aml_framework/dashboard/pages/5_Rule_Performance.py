@@ -183,3 +183,14 @@ st.dataframe(
     use_container_width=True,
     hide_index=True,
 )
+
+st.markdown("---")
+st.caption(
+    "**See also** · "
+    '[PAIN-3 — "95 of every 100 alerts are noise"]'
+    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md)"
+    ' · [PAIN-6 — "My monitoring system is a model and I cannot validate it"]'
+    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md)"
+    " · [SR 26-2 effective 2026-04-17 in the Regulator Pulse]"
+    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-regulator-pulse.md)"
+)
