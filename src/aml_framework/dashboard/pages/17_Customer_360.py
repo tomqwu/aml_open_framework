@@ -9,9 +9,9 @@ from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
     chart_layout,
     kpi_card,
-    link_to_page,
     page_header,
     risk_color,
+    selectable_dataframe,
     tooltip_banner,
     tour_panel,
 )
@@ -148,6 +148,10 @@ if not cust_alerts.empty:
         alert_display["severity"] = alert_display["rule_id"].map(sev_map)
     show_cols = ["rule_id", "severity", "sum_amount", "count", "window_start", "window_end"]
     available = [c for c in show_cols if c in alert_display.columns]
+    # Plain table — alerts on this page are already scoped to one customer,
+    # so there's no nested drill target. (Cases below DO drill — see helper
+    # call there.) Kept as st.dataframe rather than selectable_dataframe so
+    # the page renders identically when no rule_id click target exists.
     st.dataframe(alert_display[available], use_container_width=True, hide_index=True)
 else:
     st.success("No alerts for this customer.")
@@ -177,29 +181,16 @@ if not cust_cases.empty:
     show_cols = show_cols + ["sla_state"]
 
     available = [c for c in show_cols if c in cust_cases.columns]
-    st.dataframe(cust_cases[available], use_container_width=True, hide_index=True)
-
-    # Drill-down: pick a case and open it in Case Investigation. Streamlit
-    # dataframes don't support per-row click-through, so we surface a
-    # selectbox + page link that mirrors the table contents. The
-    # `link_to_page` helper writes `case_id` into session state under the
-    # `selected_case_id` key Case Investigation reads via `consume_param`.
-    case_id_options = cust_cases["case_id"].tolist()
-    if case_id_options:
-        drill_col1, drill_col2 = st.columns([3, 2])
-        with drill_col1:
-            drill_case = st.selectbox(
-                "Drill into case",
-                case_id_options,
-                key="customer360_case_drill",
-            )
-        with drill_col2:
-            st.write("")  # vertical alignment with the selectbox
-            link_to_page(
-                "pages/4_Case_Investigation.py",
-                f"→ Open {drill_case} in Case Investigation",
-                case_id=drill_case,
-            )
+    selectable_dataframe(
+        cust_cases[available],
+        key="customer360_cases_table",
+        drill_target="pages/4_Case_Investigation.py",
+        drill_param="case_id",
+        drill_column="case_id",
+        hint="Click any case row to open the investigation package.",
+        use_container_width=True,
+        hide_index=True,
+    )
 else:
     st.caption("No cases for this customer.")
 

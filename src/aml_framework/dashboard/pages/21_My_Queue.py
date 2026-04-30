@@ -14,6 +14,7 @@ from aml_framework.dashboard.components import (
     empty_state,
     kpi_card,
     page_header,
+    selectable_dataframe,
 )
 
 page_header(
@@ -136,14 +137,19 @@ if not open_cases.empty:
     display_cols = display_cols + ["sla_state", "sla_remaining"]
 
     available_cols = [c for c in display_cols if c in open_cases.columns]
-    st.dataframe(
+    selectable_dataframe(
         open_cases[available_cols],
+        key="myqueue_open_cases_table",
+        drill_target="pages/4_Case_Investigation.py",
+        drill_param="case_id",
+        drill_column="case_id",
+        hint="Click any row to open the case in Case Investigation.",
         use_container_width=True,
         hide_index=True,
         height=min(35 * len(open_cases) + 38, 400),
     )
-    # Caption documents the column for the analyst — they'll learn it
-    # once and look for it on every queue.
+    # Caption documents the SLA band column for the analyst — they'll
+    # learn it once and look for it on every queue.
     st.caption(
         "SLA bands: green > 50% remaining · amber 10-50% · red < 10% · breached ≤ 0%. "
         "Computed live from `cases/sla.py`."

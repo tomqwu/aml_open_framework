@@ -30,7 +30,7 @@ from aml_framework.compliance.boi import (
     export_fincen_boi,
     synthesise_owners_from_customer,
 )
-from aml_framework.dashboard.components import page_header
+from aml_framework.dashboard.components import page_header, selectable_dataframe
 
 page_header(
     title="BOI Workflow",
@@ -85,7 +85,16 @@ c4.metric("Not required", summary["not_required"])
 
 st.subheader("Customers — sorted worst-first")
 df_records = pd.DataFrame([r.to_dict() for r in records])
-st.dataframe(df_records, use_container_width=True, hide_index=True)
+selectable_dataframe(
+    df_records,
+    key="boi_records_table",
+    drill_target="pages/17_Customer_360.py",
+    drill_param="customer_id",
+    drill_column="customer_id",
+    hint="Click any row to open the customer's 360 view (KYC + ownership + alerts).",
+    use_container_width=True,
+    hide_index=True,
+)
 
 # ---------------------------------------------------------------------------
 # Drill-down + FinCEN export

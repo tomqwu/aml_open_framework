@@ -29,7 +29,11 @@ from aml_framework.cases import (
     linkage_summary,
     summarise_backlog,
 )
-from aml_framework.dashboard.components import glossary_legend, page_header
+from aml_framework.dashboard.components import (
+    glossary_legend,
+    page_header,
+    selectable_dataframe,
+)
 
 # ---------------------------------------------------------------------------
 # Page setup
@@ -166,7 +170,16 @@ df_inv = df_inv.sort_values(["_sev_rank", "total_amount"], ascending=[True, Fals
     columns=["_sev_rank"]
 )
 
-st.dataframe(df_inv, use_container_width=True, hide_index=True)
+selectable_dataframe(
+    df_inv,
+    key="investigations_list_table",
+    drill_target="pages/17_Customer_360.py",
+    drill_param="customer_id",
+    drill_column="customer_id",
+    hint="Click any investigation row to open the customer's 360 view.",
+    use_container_width=True,
+    hide_index=True,
+)
 
 # ---------------------------------------------------------------------------
 # Section 3 — investigation detail
@@ -212,7 +225,16 @@ for case in cases:
     )
 if case_rows:
     df_constituent = pd.DataFrame(case_rows)
-    st.dataframe(df_constituent, use_container_width=True, hide_index=True)
+    selectable_dataframe(
+        df_constituent,
+        key="investigations_constituent_cases",
+        drill_target="pages/4_Case_Investigation.py",
+        drill_param="case_id",
+        drill_column="case_id",
+        hint="Click a case row to open the full investigation package.",
+        use_container_width=True,
+        hide_index=True,
+    )
 else:
     st.info("No constituent cases with resolvable open time.")
 
@@ -261,7 +283,16 @@ if linked:
         }
         for lc in linked
     ]
-    st.dataframe(pd.DataFrame(linked_rows), use_container_width=True, hide_index=True)
+    selectable_dataframe(
+        pd.DataFrame(linked_rows),
+        key="investigations_linked_table",
+        drill_target="pages/17_Customer_360.py",
+        drill_param="customer_id",
+        drill_column="customer_id",
+        hint="Click a row to open the customer's 360 view (resolves the cross-team blindspot).",
+        use_container_width=True,
+        hide_index=True,
+    )
 else:
     st.info(
         "No cross-domain links in this run. To exercise the panel, mark a rule's "

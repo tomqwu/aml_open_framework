@@ -3,10 +3,16 @@
 Source-level checks that the 5 pages in scope:
   - import the navigation helpers from `dashboard.components` /
     `dashboard.query_params`
-  - register the expected `link_to_page` / `read_param` /
-    `consume_param` calls
+  - register the expected `link_to_page` / `selectable_dataframe` /
+    `read_param` / `consume_param` calls
   - destination pages read the same `selected_<key>` namespace that
-    source pages write into via `link_to_page`
+    source pages write into via either helper
+
+PR-A (2026-04-29) replaced the "selectbox-below-the-table" pattern on
+Alert Queue / Customer 360 / My Queue / Investigations / BOI Workflow
+with row-click drill-through via `selectable_dataframe(drill_target=...,
+drill_param=..., drill_column=...)`. Tests below accept either form on
+the migrated pages — both ultimately mirror into `selected_<param>`.
 
 Avoids importing Streamlit (not on the unit-test CI image).
 """
@@ -31,35 +37,44 @@ CUSTOMER_360 = PAGES / "17_Customer_360.py"
 
 
 class TestAlertQueueDrillDowns:
-    def test_imports_link_to_page(self):
+    def test_imports_drill_helper(self):
         body = ALERT_QUEUE.read_text(encoding="utf-8")
-        assert "link_to_page" in body
         assert "from aml_framework.dashboard.components import" in body
+        # Either the legacy link_to_page helper or the PR-A row-click
+        # helper is acceptable — both mirror to `selected_<param>`.
+        assert ("link_to_page" in body) or ("selectable_dataframe" in body)
 
     def test_links_to_customer_360_with_customer_id(self):
         body = ALERT_QUEUE.read_text(encoding="utf-8")
-        # The customer-drill block must target the Customer 360 page and
+        # The customer drill must target the Customer 360 page and
         # forward the `customer_id` param so destination can pre-select.
         assert "pages/17_Customer_360.py" in body
-        # Look for the keyword arg form `customer_id=...` which is what
-        # link_to_page expects (kwargs become session-state writes).
-        assert "customer_id=" in body
+        # Either the legacy `customer_id=...` kwarg form (link_to_page)
+        # or the row-click form (`drill_param="customer_id"`) is OK.
+        assert ('drill_param="customer_id"' in body) or ("customer_id=" in body)
 
     def test_links_to_case_investigation_with_case_id(self):
         body = ALERT_QUEUE.read_text(encoding="utf-8")
         assert "pages/4_Case_Investigation.py" in body
-        assert "case_id=" in body
+        assert ('drill_param="case_id"' in body) or ("case_id=" in body)
 
-    def test_drill_section_below_alert_table(self):
-        # Drill UI must come AFTER the alert table render so the
-        # selectbox options reflect the filtered view.
+    def test_drill_is_table_native_or_below_table(self):
+        # Either the table itself is the drill (selectable_dataframe row
+        # click — preferred since PR-A) or there's a "Drill into ..."
+        # selectbox after the alert dataframe. Both should work — the
+        # invariant is that the alert table is followed by some drill
+        # surface, not just dead-end on the read-only frame.
         body = ALERT_QUEUE.read_text(encoding="utf-8")
-        table_idx = body.find(
-            "st.dataframe(styled, use_container_width=True, hide_index=True, height=400)"
+        has_row_click = "selectable_dataframe(" in body and 'drill_target="pages/' in body
+        has_legacy = (
+            "Drill into customer" in body
+            and "st.dataframe(styled" in body
+            and body.find("Drill into customer") > body.find("st.dataframe(styled")
         )
-        drill_idx = body.find("Drill into customer")
-        assert table_idx > 0
-        assert drill_idx > table_idx
+        assert has_row_click or has_legacy, (
+            "Alert Queue must give analysts SOME path off a row — "
+            "either row-click (selectable_dataframe) or selectbox-below-table"
+        )
 
 
 class TestNetworkExplorerDrillDown:
@@ -122,7 +137,8 @@ class TestCustomer360ReceivesDeepLink:
     def test_per_case_drill_to_case_investigation(self):
         body = CUSTOMER_360.read_text(encoding="utf-8")
         assert "pages/4_Case_Investigation.py" in body
-        assert "case_id=" in body
+        # Same dual acceptance as Alert Queue — legacy kwarg or row-click.
+        assert ('drill_param="case_id"' in body) or ("case_id=" in body)
 
 
 class TestCaseInvestigationReceivesDeepLink:
