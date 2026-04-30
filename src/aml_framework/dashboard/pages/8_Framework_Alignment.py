@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    citation_link,
     page_header,
     research_link,
     see_also_footer,
@@ -71,6 +72,16 @@ def _render_table(rows: list[dict]) -> None:
         st.dataframe(styled, use_container_width=True, hide_index=True)
     else:
         st.dataframe(df, use_container_width=True, hide_index=True)
+    # Citation-link companion view: if any cell contains markdown of
+    # the form `[label](url)` (which `citation_link()` emits when the
+    # source data carries a URL), render a clickable markdown table
+    # below so the URLs become live links. st.dataframe renders the
+    # markdown as plain text; st.markdown renders it as HTML. Skipped
+    # silently when no row carries a link.
+    has_link = any(isinstance(v, str) and "](http" in v for row in rows for v in row.values())
+    if has_link:
+        with st.expander("Click-through citations (rendered as links)", expanded=False):
+            st.markdown(df.to_markdown(index=False), unsafe_allow_html=True)
 
 
 framework_tabs = get_framework_tabs(jurisdiction)
@@ -88,11 +99,14 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
             )
             rows = []
             for m in data:
+                # If the data carries a `url` for this recommendation,
+                # the Title cell becomes a clickable link via citation_link.
+                # When no URL is on file the helper falls back to plain text.
                 rows.append(
                     {
                         "Status": STATUS_LABELS.get(m["status"], "? Unknown"),
                         "Rec": m["rec"],
-                        "Title": m["title"],
+                        "Title": citation_link(m["title"], m.get("url")),
                         "Spec Element": m["spec_element"],
                         "Notes": m.get("notes", ""),
                     }
@@ -116,7 +130,9 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
                     {
                         "Status": STATUS_LABELS.get(p["status"], "? Unknown"),
                         "Pillar": p.get("pillar", ""),
-                        "Name": p["name"],
+                        # Pillar Name becomes a clickable citation when
+                        # the data layer carries a `url` for this pillar.
+                        "Name": citation_link(p["name"], p.get("url")),
                         "Spec Element": p["spec_element"],
                         "Notes": p.get("notes", ""),
                     }

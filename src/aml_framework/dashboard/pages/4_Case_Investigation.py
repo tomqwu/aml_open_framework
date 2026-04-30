@@ -13,6 +13,7 @@ from aml_framework.cases.sla import apply_escalation, compute_sla_status
 from aml_framework.cases.str_bundle import bundle_investigation_to_str
 from aml_framework.dashboard.components import (
     chart_layout,
+    citation_link,
     empty_state,
     page_header,
     risk_color,
@@ -260,7 +261,8 @@ with col_alert:
     if refs:
         st.markdown("**Regulation References**")
         for ref in refs:
-            st.markdown(f"- **{ref['citation']}**: {ref['description']}")
+            cite_md = citation_link(ref["citation"], ref.get("url"))
+            st.markdown(f"- **{cite_md}**: {ref['description']}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 

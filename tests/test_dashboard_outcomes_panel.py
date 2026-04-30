@@ -104,7 +104,10 @@ class TestAuditEvidenceRegwatch:
         body = AUDIT_EVIDENCE.read_text(encoding="utf-8")
         idx = body.find("Regulation Drift")
         assert idx > 0
-        section = body[idx : idx + 3000]
+        # PR-F (2026-04-30) added a citation_link comment block inside
+        # this section; widened window from 3000 → 4000 chars so the
+        # except-clause stays inside the lookahead.
+        section = body[idx : idx + 4000]
         assert "try:" in section
         assert "except" in section
 
