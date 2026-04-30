@@ -7,9 +7,11 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    CHART_PALETTE,
     chart_layout,
     kpi_card,
     page_header,
+    responsive_plotly_config,
     risk_color,
     selectable_dataframe,
     tooltip_banner,
@@ -204,7 +206,15 @@ if not cust_txns.empty:
         names="Channel",
         values="Volume",
         hole=0.45,
-        color_discrete_sequence=["#d97706", "#2563eb", "#7c3aed", "#6b7280", "#0891b2"],
+        color_discrete_sequence=CHART_PALETTE,
     )
-    fig.update_traces(textposition="inside", textinfo="percent+label")
-    st.plotly_chart(chart_layout(fig, 300), use_container_width=True)
+    fig.update_traces(
+        textposition="inside",
+        textinfo="percent+label",
+        hovertemplate="%{label}<br>Volume: $%{value:,.0f}<br>%{percent}<extra></extra>",
+    )
+    st.plotly_chart(
+        chart_layout(fig, 300),
+        use_container_width=True,
+        config=responsive_plotly_config(),
+    )

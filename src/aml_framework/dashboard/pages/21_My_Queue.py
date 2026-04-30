@@ -14,6 +14,7 @@ from aml_framework.dashboard.components import (
     empty_state,
     kpi_card,
     page_header,
+    responsive_plotly_config,
     selectable_dataframe,
 )
 
@@ -237,13 +238,40 @@ if not df_decisions.empty and "resolution_hours" in df_decisions.columns:
             labels={"resolution_hours": "Resolution Time (hours)"},
             color_discrete_sequence=["#2563eb"],
         )
-        # Add SLA line if available.
+        fig.update_traces(hovertemplate="Bucket: %{x:.1f}h<br>Cases: %{y}<extra></extra>")
+        # Shade SLA bands so an analyst sees "where am I vs. SLA?" at a
+        # glance: green ≤ SLA, amber 1× to 2× SLA, red beyond 2× SLA.
         if queue_obj:
             from aml_framework.generators.sql import parse_window
 
             try:
                 sla_td = parse_window(queue_obj.sla)
                 sla_hours = sla_td.total_seconds() / 3600
+                # Add SLA bands as faint background rectangles.
+                fig.add_vrect(
+                    x0=0,
+                    x1=sla_hours,
+                    fillcolor="#16a34a",
+                    opacity=0.08,
+                    line_width=0,
+                    layer="below",
+                )
+                fig.add_vrect(
+                    x0=sla_hours,
+                    x1=sla_hours * 2,
+                    fillcolor="#d97706",
+                    opacity=0.08,
+                    line_width=0,
+                    layer="below",
+                )
+                fig.add_vrect(
+                    x0=sla_hours * 2,
+                    x1=sla_hours * 10,  # extends past visible range
+                    fillcolor="#dc2626",
+                    opacity=0.08,
+                    line_width=0,
+                    layer="below",
+                )
                 fig.add_vline(
                     x=sla_hours,
                     line_dash="dash",
@@ -254,7 +282,11 @@ if not df_decisions.empty and "resolution_hours" in df_decisions.columns:
             except Exception:
                 pass
         fig.update_layout(yaxis_title="Count")
-        st.plotly_chart(chart_layout(fig, 300), use_container_width=True)
+        st.plotly_chart(
+            chart_layout(fig, 300),
+            use_container_width=True,
+            config=responsive_plotly_config(),
+        )
     else:
         st.caption("No resolution data for this queue.")
 else:

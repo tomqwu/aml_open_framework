@@ -11,6 +11,7 @@ from aml_framework.dashboard.components import (
     kpi_card,
     metric_gradient_style,
     page_header,
+    responsive_plotly_config,
     severity_cell_style,
 )
 from aml_framework.dashboard.audience import show_audience_context
@@ -103,10 +104,44 @@ for rule in ml_rules:
                 labels={"x": "Risk Score", "y": "Count"},
                 color_discrete_sequence=["#2563eb"],
             )
+            # Shade the score bands so a glance answers "how many alerts
+            # are at high-confidence vs. just-over-threshold?". Threshold
+            # 0.65 = the model card's documented action line.
+            fig.add_vrect(
+                x0=0,
+                x1=0.65,
+                fillcolor="#16a34a",
+                opacity=0.06,
+                line_width=0,
+                layer="below",
+            )
+            fig.add_vrect(
+                x0=0.65,
+                x1=0.85,
+                fillcolor="#d97706",
+                opacity=0.08,
+                line_width=0,
+                layer="below",
+            )
+            fig.add_vrect(
+                x0=0.85,
+                x1=1.0,
+                fillcolor="#dc2626",
+                opacity=0.10,
+                line_width=0,
+                layer="below",
+            )
             fig.add_vline(
                 x=0.65, line_dash="dash", line_color="#dc2626", annotation_text="Threshold (0.65)"
             )
-            st.plotly_chart(chart_layout(fig, 300), use_container_width=True)
+            fig.update_traces(
+                hovertemplate="Score: %{x:.2f}<br>Count: %{y}<extra></extra>",
+            )
+            st.plotly_chart(
+                chart_layout(fig, 300),
+                use_container_width=True,
+                config=responsive_plotly_config(),
+            )
 
     with col_right:
         # Feature breakdown (from alert data if available).

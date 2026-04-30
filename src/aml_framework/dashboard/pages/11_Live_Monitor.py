@@ -15,7 +15,12 @@ from typing import Any
 import plotly.graph_objects as go
 import streamlit as st
 
-from aml_framework.dashboard.components import empty_state, page_header
+from aml_framework.dashboard.components import (
+    CHART_PALETTE,
+    empty_state,
+    page_header,
+    responsive_plotly_config,
+)
 
 page_header(
     "Live Monitor",
@@ -283,13 +288,15 @@ if start:
             )
 
             fig = go.Figure()
+            primary_blue = CHART_PALETTE[0]
             fig.add_trace(
                 go.Scatter(
                     y=volume_history,
                     mode="lines",
-                    line=dict(color="#2563eb", width=2),
+                    line=dict(color=primary_blue, width=2),
                     fill="tozeroy",
                     fillcolor="rgba(37, 99, 235, 0.1)",
+                    hovertemplate="Tx #%{x}<br>Cumulative: $%{y:,.0f}<extra></extra>",
                 )
             )
             fig.update_layout(
@@ -301,23 +308,27 @@ if start:
                 yaxis_title="",
                 showlegend=False,
             )
-            chart_placeholder.plotly_chart(fig, use_container_width=True)
+            chart_placeholder.plotly_chart(
+                fig,
+                use_container_width=True,
+                config=responsive_plotly_config(),
+            )
 
             if channel_counts:
-                ch_colors = {
-                    "cash": "#d97706",
-                    "wire": "#2563eb",
-                    "ach": "#7c3aed",
-                    "card": "#6b7280",
-                    "e_transfer": "#0891b2",
-                    "cheque": "#059669",
-                }
+                # Use the centralised CHART_PALETTE rotated by channel
+                # name — keeps colours consistent with Customer 360's
+                # channel pie + the rest of the dashboard.
+                channels = list(channel_counts.keys())
+                channel_colors = [
+                    CHART_PALETTE[i % len(CHART_PALETTE)] for i in range(len(channels))
+                ]
                 fig2 = go.Figure(
                     go.Bar(
                         x=list(channel_counts.values()),
-                        y=list(channel_counts.keys()),
+                        y=channels,
                         orientation="h",
-                        marker_color=[ch_colors.get(c, "#94a3b8") for c in channel_counts.keys()],
+                        marker_color=channel_colors,
+                        hovertemplate="%{y}<br>Count: %{x}<extra></extra>",
                     )
                 )
                 fig2.update_layout(
@@ -329,7 +340,11 @@ if start:
                     yaxis_title="",
                     showlegend=False,
                 )
-                channel_placeholder.plotly_chart(fig2, use_container_width=True)
+                channel_placeholder.plotly_chart(
+                    fig2,
+                    use_container_width=True,
+                    config=responsive_plotly_config(),
+                )
 
             import pandas as pd
 
