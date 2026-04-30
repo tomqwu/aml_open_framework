@@ -675,45 +675,144 @@
     .problem-grid { grid-template-columns: 1fr; gap: 24px; }
   }
 
-  /* Built section · architecture diagram embed */
-  .built-figure {
+  /* Built section · architecture stack diagram (inlined for legibility) */
+  .arch-stack {
+    margin: 12px 0 0;
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-    gap: 36px;
-    align-items: center;
-    margin-top: 8px;
+    grid-template-columns: 220px 1fr 220px;
+    gap: 18px;
+    align-items: stretch;
   }
-  .built-figure img {
-    width: 100%;
-    height: auto;
-    display: block;
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-  }
-  .built-caption {
+  .arch-personas {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    font-size: 14px;
-    color: var(--ink-dim);
-    line-height: 1.5;
+    gap: 10px;
   }
-  .built-caption span { padding-left: 14px; border-left: 2px solid var(--accent-tint); }
-  .built-caption strong { color: var(--ink); font-weight: 600; }
-  .built-caption .more-link {
+  .arch-persona {
+    flex: 1;
+    border-radius: 4px;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--rule-strong);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .arch-persona:hover { border-color: var(--accent); transform: translateX(2px); }
+  .arch-personas.right .arch-persona:hover { transform: translateX(-2px); }
+  .arch-persona .role {
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 6px;
+  }
+  .arch-persona .what {
+    font-size: 14px; line-height: 1.4;
+    color: var(--ink-2);
+  }
+  .arch-persona .what strong { color: var(--ink); font-weight: 600; }
+  .arch-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .arch-layer {
+    border: 1.5px solid var(--ink);
+    border-radius: 4px;
+    padding: 18px 22px 16px;
+    background: var(--bg-card);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .arch-layer:hover { box-shadow: 0 6px 20px rgba(28,31,38,0.08); transform: translateY(-1px); }
+  .arch-layer .head {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .arch-layer .head .icon { font-size: 18px; flex-shrink: 0; }
+  .arch-layer .head .name {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .arch-layer .head .sub {
+    font-size: 13.5px;
+    color: var(--ink-dim);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .arch-layer .head .sub code {
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .arch-layer .items {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px 12px;
+  }
+  .arch-layer .item {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-2);
+    padding: 7px 10px;
+    background: var(--bg);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 2px 2px 0;
+  }
+  .arch-layer .item strong {
+    display: block;
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    color: var(--ink);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .arch-layer.policy   { background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg-card) 100%); }
+  .arch-layer.policy   .head .icon { color: var(--accent); }
+  .arch-layer.evidence { background: linear-gradient(180deg, rgba(28,31,38,0.04) 0%, var(--bg-card) 100%); }
+  .arch-flow {
+    height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    margin: -2px 0;
+  }
+  .arch-flow svg { width: 22px; height: 18px; }
+  .arch-foot {
+    margin-top: 18px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .arch-more {
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.06em;
     color: var(--accent);
     border-bottom: 1px solid currentColor;
-    align-self: flex-start;
-    margin-top: 6px;
-    padding-left: 0;
-    border-left: none;
+    text-decoration: none;
+    transition: color 0.2s;
   }
-  .built-caption .more-link:hover { color: var(--accent-deep); }
+  .arch-more:hover { color: var(--ink); }
+  @media (max-width: 1100px) {
+    .arch-stack { grid-template-columns: 180px 1fr 180px; gap: 14px; }
+    .arch-persona .what { font-size: 13px; }
+  }
   @media (max-width: 900px) {
-    .built-figure { grid-template-columns: 1fr; gap: 24px; }
+    .arch-stack { grid-template-columns: 1fr; gap: 14px; }
+    .arch-personas { flex-direction: row; flex-wrap: wrap; }
+    .arch-persona { flex: 1 1 calc(50% - 6px); }
+    .arch-personas.right .arch-persona:hover { transform: translateX(2px); }
+    .arch-layer .items { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    .arch-layer .items { grid-template-columns: 1fr; }
+    .arch-persona { flex: 1 1 100%; }
   }
 
   /* Built On · tech-stack pills */
@@ -1182,15 +1281,127 @@
           <p class="sub">Policy, data contracts, detection rules, case workflow and regulator mapping live in one versioned document — the <strong>Compliance Manifest</strong> (an <code>aml.yaml</code> file, for engineers). Every runtime artifact is generated from it; an immutable hash-chained audit ledger records every decision so any historical run can replay byte-for-byte. <em>This is what kills the drift that causes AML enforcement actions.</em></p>
         </div>
 
-        <div class="built-figure">
-          <img src="research/architecture-diagram.png" alt="Architecture · 4-layer stack: Policy → Generation → Runtime → Evidence, with persona arrows showing who authors and who verifies each layer" loading="lazy">
-          <div class="built-caption">
-            <span><strong>Policy</strong> · authored by CCO / MLRO · verified by 2LoD</span>
-            <span><strong>Generation</strong> · operated by Engineering · validated by MRM under SR 26-2</span>
-            <span><strong>Runtime</strong> · reviewed by 2LoD on every alert</span>
-            <span><strong>Evidence</strong> · replayed by Internal Audit byte-for-byte</span>
-            <a class="more-link" href="#/research/architecture">Full design rationale →</a>
+        <div class="arch-stack">
+          <!-- Left column: who AUTHORS each layer -->
+          <div class="arch-personas left">
+            <div class="arch-persona">
+              <div class="role">Authored by</div>
+              <div class="what"><strong>CCO / MLRO</strong> — writes the Manifest; signs the decision log.</div>
+            </div>
+            <div class="arch-persona">
+              <div class="role">Operated by</div>
+              <div class="what"><strong>Engineer / 1LoD</strong> — runs the generators + the engine.</div>
+            </div>
+            <div class="arch-persona">
+              <div class="role">Operated by</div>
+              <div class="what"><strong>Engineer / 1LoD</strong> — manages the alert + case stream.</div>
+            </div>
+            <div class="arch-persona">
+              <div class="role">Verified by</div>
+              <div class="what"><strong>Audit / Regulator</strong> — replays history byte-for-byte.</div>
+            </div>
           </div>
+
+          <!-- Center: 4 stacked layers -->
+          <div class="arch-layers">
+            <div class="arch-layer policy">
+              <div class="head">
+                <span class="icon">📜</span>
+                <span class="name">Policy</span>
+                <span class="sub">The Compliance Manifest · <code>aml.yaml</code> for engineers · reviewed via PR</span>
+              </div>
+              <div class="items">
+                <div class="item"><strong>program</strong>jurisdiction · regulator · owner</div>
+                <div class="item"><strong>data_contracts</strong>tables · columns · SLAs · PII</div>
+                <div class="item"><strong>rules</strong>logic + regulation_refs</div>
+                <div class="item"><strong>workflow</strong>queues · SLAs · escalations</div>
+                <div class="item"><strong>reporting</strong>SAR · CTR · STR forms</div>
+                <div class="item"><strong>boi · mrm</strong>BOI refresh · model risk</div>
+              </div>
+            </div>
+
+            <div class="arch-flow" aria-hidden="true">
+              <svg viewBox="0 0 22 18"><path d="M 11 2 L 11 14 M 5 9 L 11 15 L 17 9" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+
+            <div class="arch-layer gen">
+              <div class="head">
+                <span class="icon">⚙️</span>
+                <span class="name">Generation</span>
+                <span class="sub">Manifest → artifacts · deterministic, reproducible</span>
+              </div>
+              <div class="items">
+                <div class="item"><strong>sql_generator</strong>rule SQL · DuckDB · Snowflake</div>
+                <div class="item"><strong>dag_generator</strong>Airflow · Dagster stubs</div>
+                <div class="item"><strong>tests_generator</strong>data-quality + fixtures</div>
+                <div class="item"><strong>docs_generator</strong>persona-specific markdown</div>
+                <div class="item"><strong>control_matrix</strong>auditor-facing mapping</div>
+                <div class="item"><strong>mrm_dossier</strong>per-rule MRM bundle</div>
+              </div>
+            </div>
+
+            <div class="arch-flow" aria-hidden="true">
+              <svg viewBox="0 0 22 18"><path d="M 11 2 L 11 14 M 5 9 L 11 15 L 17 9" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+
+            <div class="arch-layer runtime">
+              <div class="head">
+                <span class="icon">⚡</span>
+                <span class="name">Runtime</span>
+                <span class="sub">execute rules · produce alerts + cases</span>
+              </div>
+              <div class="items">
+                <div class="item"><strong>ingest</strong>data contract enforced · ISO 20022 native</div>
+                <div class="item"><strong>rule engine</strong>windowed aggregations · joins · network</div>
+                <div class="item"><strong>case manager</strong>queues · SLAs · reviewer notes</div>
+                <div class="item"><strong>boi workflow</strong>beneficial-owner refresh</div>
+                <div class="item"><strong>tuning lab</strong>backtester + threshold sweeps</div>
+                <div class="item"><strong>regulator export</strong>SAR bundle · audit-pack CLI</div>
+              </div>
+            </div>
+
+            <div class="arch-flow" aria-hidden="true">
+              <svg viewBox="0 0 22 18"><path d="M 11 2 L 11 14 M 5 9 L 11 15 L 17 9" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+
+            <div class="arch-layer evidence">
+              <div class="head">
+                <span class="icon">🔒</span>
+                <span class="name">Evidence</span>
+                <span class="sub">immutable audit ledger · signed manifests · hash-chained</span>
+              </div>
+              <div class="items">
+                <div class="item"><strong>spec_version_hash</strong>git SHA + content hash</div>
+                <div class="item"><strong>input_hash</strong>data snapshot hash</div>
+                <div class="item"><strong>output_hash</strong>deterministic-rerun proof</div>
+                <div class="item"><strong>decision_log</strong>reviewer actions + reason</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right column: who VERIFIES each layer -->
+          <div class="arch-personas right">
+            <div class="arch-persona">
+              <div class="role">Verified by</div>
+              <div class="what"><strong>2LoD</strong> — challenges the Manifest quarterly.</div>
+            </div>
+            <div class="arch-persona">
+              <div class="role">Validated by</div>
+              <div class="what"><strong>MRM</strong> — independent re-implementation under SR&nbsp;26-2.</div>
+            </div>
+            <div class="arch-persona">
+              <div class="role">Reviewed by</div>
+              <div class="what"><strong>2LoD / Audit</strong> — sample-checks alerts, reads decision log.</div>
+            </div>
+            <div class="arch-persona">
+              <div class="role">Replayed by</div>
+              <div class="what"><strong>Internal Audit</strong> — re-runs any historical execution byte-for-byte.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-foot">
+          <a class="arch-more" href="#/research/architecture">Full design rationale →</a>
         </div>
       </section>
 
