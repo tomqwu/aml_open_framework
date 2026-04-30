@@ -97,12 +97,12 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
             if jurisdiction == "CA":
                 st.caption(
                     "PCMLTFR s.71 requires 5 pillars for a Canadian AML/ATF compliance "
-                    "program. Each pillar maps to spec primitives."
+                    "program. Each pillar maps to Manifest entries."
                 )
             else:
                 st.caption(
                     "The BSA requires 5 pillars (with a 6th proposed in April 2026). "
-                    "Each pillar maps to spec primitives."
+                    "Each pillar maps to Manifest entries."
                 )
             rows = []
             for p in data:

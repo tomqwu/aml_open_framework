@@ -358,6 +358,24 @@ def page_header(title: str, description: str | None = None) -> None:
     st.divider()
 
 
+def research_link(label: str, doc_path: str, anchor: str | None = None) -> str:
+    """Return a markdown link to a research doc on GitHub.
+
+    All research docs live under ``docs/research/`` in the main repo
+    and render natively on github.com (Mermaid + tables + footnotes).
+    The dashboard surfaces "See also research →" links rather than
+    embedding markdown directly so the doc stays the canonical surface.
+
+    >>> research_link("PAIN-1 — can't prove what we did", "2026-04-aml-process-pain.md", "pain-1--we-cant-prove-what-we-did")
+    '[PAIN-1 — can\\'t prove what we did](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md#pain-1--we-cant-prove-what-we-did)'
+    """
+    base = "https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/"
+    href = f"{base}{doc_path}"
+    if anchor:
+        href = f"{href}#{anchor}"
+    return f"[{label}]({href})"
+
+
 def tooltip_banner(page_title: str, body: str) -> None:
     """Render the legacy "Guided demo" tooltip-style banner.
 

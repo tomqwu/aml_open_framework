@@ -107,8 +107,15 @@ class TestAudienceMapCoverage:
         # Phase D: Tuning Lab kept only for personas who actually tune
         # rules (Manager, Developer, PM). Director + VP consume tuning
         # outcomes via Comparative Analytics, don't tune themselves.
+        # fintech_mlro added 2026-04-29: a 1-person fintech AML program has
+        # no separate developer or 2LoD — the MLRO IS the tuner by default.
         tuners = {p for p, pages in AUDIENCE_PAGES.items() if "Tuning Lab" in pages}
-        assert tuners == {"manager", "developer", "pm"}, f"Tuning Lab assignment drifted: {tuners}"
+        assert tuners == {
+            "manager",
+            "developer",
+            "pm",
+            "fintech_mlro",
+        }, f"Tuning Lab assignment drifted: {tuners}"
 
     def test_every_mapped_page_exists_on_disk(self):
         on_disk = _page_titles_on_disk()
@@ -308,7 +315,14 @@ class TestSampleDataWiring:
     or read spec/result. Static template pages (Typology Catalogue) are
     the documented exception."""
 
-    STATIC_PAGES = {"18_Typology_Catalogue.py"}
+    STATIC_PAGES = {
+        "18_Typology_Catalogue.py",
+        # 27_Regulator_Pulse.py is static by design — renders the
+        # hand-curated dashboard/data/regulator_pulse.py event log.
+        # No session-state coupling needed; the timeline doesn't depend
+        # on a run.
+        "27_Regulator_Pulse.py",
+    }
 
     def test_every_page_reads_session_state_or_is_static(self):
         non_compliant: list[str] = []

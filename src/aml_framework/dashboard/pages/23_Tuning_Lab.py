@@ -249,6 +249,17 @@ with st.expander("📉 Backtest this rule across historical quarters", expanded=
             mime="application/json",
         )
 
+st.markdown("---")
+st.caption(
+    "**See also** · "
+    '[PAIN-6 — "My monitoring system is a model and I cannot validate it"]'
+    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md)"
+    " · [SR 26-2 (effective 2026-04-17) — what changed for AML model risk]"
+    "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-regulator-pulse.md)"
+    " · [Determinism contract in the technical deck]"
+    "(https://tomqwu.github.io/aml_open_framework_demo/#/technical/deck)"
+)
+
 # Acronyms used on this page — model-validation context terms expanded
 # so a non-MRM-resident leader can read along.
 st.markdown(

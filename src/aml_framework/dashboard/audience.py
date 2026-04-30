@@ -78,6 +78,10 @@ PERSONA_LABELS: dict[str, tuple[str, str]] = {
         "Auditor (Internal / External)",
         "Replays runs and verifies the chain. Cares about evidence completeness and reproducibility.",
     ),
+    "fintech_mlro": (
+        "FinTech / EMI / VASP MLRO",
+        "1-MLRO program. Lives with sponsor-bank cure notices and Series-B AML diligence questionnaires.",
+    ),
 }
 
 
@@ -120,16 +124,19 @@ AUDIENCE_PAGES = {
         "Risk Assessment",
         "Audit & Evidence",
         "Investigations",
+        "Regulator Pulse",
         "Transformation Roadmap",
     ],
     "vp": [
         # Tuning Lab dropped — VP consumes tuning outcomes via
         # Comparative Analytics, doesn't tune themselves.
+        # Regulator Pulse added — MLRO needs to see what's moved.
         "Executive Dashboard",
         "Rule Performance",
         "Framework Alignment",
         "Sanctions Screening",
         "Comparative Analytics",
+        "Regulator Pulse",
     ],
     "director": [
         # Added Investigations (drill-down when KPIs spike).
@@ -205,12 +212,28 @@ AUDIENCE_PAGES = {
     "auditor": [
         # Added Investigations + Case Investigation — auditor reviews
         # specific cases, not just aggregate evidence.
+        # Regulator Pulse added — auditors track regulator-side movement.
         "Audit & Evidence",
         "Investigations",
         "Case Investigation",
         "Data Quality",
         "Framework Alignment",
+        "Regulator Pulse",
         "Run History",
+    ],
+    "fintech_mlro": [
+        # FinTech / EMI / VASP MLRO — 1-person program. Operates from
+        # the FinTech Cockpit (cure-notice timer + 8 realities + evidence
+        # pack) and only opens the wider dashboard when an alert needs
+        # triage or a regulator asks. Page list deliberately tight per
+        # the persona's reality: no 2LoD, no separate validation team.
+        "FinTech Cockpit",
+        "Audit & Evidence",
+        "Investigations",
+        "Tuning Lab",
+        "Regulator Pulse",
+        "Framework Alignment",
+        "Spec Editor",
     ],
 }
 

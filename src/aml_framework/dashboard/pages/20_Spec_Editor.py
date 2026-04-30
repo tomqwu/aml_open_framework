@@ -9,7 +9,7 @@ from aml_framework.dashboard.components import kpi_card, page_header
 
 page_header(
     "Spec Editor",
-    "Edit the AML spec YAML and validate in real time.",
+    "Edit the Compliance Manifest (an aml.yaml file, for engineers) and validate in real time.",
 )
 
 spec = st.session_state.spec
