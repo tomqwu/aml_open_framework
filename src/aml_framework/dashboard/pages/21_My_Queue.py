@@ -13,6 +13,7 @@ from aml_framework.dashboard.components import (
     chart_layout,
     empty_state,
     kpi_card,
+    link_to_page,
     page_header,
     responsive_plotly_config,
     selectable_dataframe,
@@ -81,12 +82,44 @@ if not df_decisions.empty and "within_sla" in df_decisions.columns:
 
 with c1:
     kpi_card("Assigned", total_assigned, "#2563eb")
+    # KPI drill: clicking the page-link sets a queue filter on Case
+    # Investigation so the analyst lands on a pre-filtered list rather
+    # than scrolling the full case table.
+    if total_assigned:
+        link_to_page(
+            "pages/4_Case_Investigation.py",
+            "→ Open in Case Investigation",
+            queue_filter=selected_queue,
+        )
 with c2:
     kpi_card("Open", total_open, "#d97706" if total_open > 0 else "#059669")
+    if total_open:
+        link_to_page(
+            "pages/4_Case_Investigation.py",
+            f"→ {total_open} open · drill in",
+            queue_filter=selected_queue,
+            status_filter="open",
+        )
 with c3:
     kpi_card("Resolved", total_resolved, "#059669")
+    if total_resolved:
+        link_to_page(
+            "pages/4_Case_Investigation.py",
+            f"→ {total_resolved} resolved",
+            queue_filter=selected_queue,
+            status_filter="resolved",
+        )
 with c4:
     kpi_card("SLA Compliance", sla_compliance, "#7c3aed")
+    # SLA breaches are the high-leverage drill here — when the SLA % is
+    # below 100, lead the analyst straight to the breached cases.
+    if sla_compliance != "N/A" and sla_compliance != "100%":
+        link_to_page(
+            "pages/4_Case_Investigation.py",
+            "→ SLA breaches",
+            queue_filter=selected_queue,
+            sla_filter="breached",
+        )
 
 # --- SLA info ---
 if queue_obj:

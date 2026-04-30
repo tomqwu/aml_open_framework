@@ -74,12 +74,19 @@ if df_alerts.empty:
 
 # --- Summary KPIs ---
 sev_map = {r.id: r.severity for r in spec.rules}
+high_ct = sum(1 for _, r in df_alerts.iterrows() if sev_map.get(r["rule_id"]) == "high")
+
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     kpi_card("Total Alerts", len(df_alerts), "#2563eb")
+    if st.button("Show all", key="kpi_filter_all", use_container_width=True):
+        st.session_state.pop("alertqueue_severity_filter", None)
 with c2:
-    high_ct = sum(1 for _, r in df_alerts.iterrows() if sev_map.get(r["rule_id"]) == "high")
     kpi_card("High Severity", high_ct, "#dc2626")
+    if st.button(
+        "Filter to high", key="kpi_filter_high", use_container_width=True, disabled=high_ct == 0
+    ):
+        st.session_state["alertqueue_severity_filter"] = ["high", "critical"]
 with c3:
     kpi_card("Rules Triggered", df_alerts["rule_id"].nunique(), "#7c3aed")
 with c4:
@@ -103,7 +110,17 @@ with col_f1:
     selected_rules = st.multiselect("Filter by rule", rule_options, default=rule_options)
 with col_f2:
     severities = sorted(set(sev_map.values()))
-    selected_sev = st.multiselect("Filter by severity", severities, default=severities)
+    # KPI drill: if a "Filter to high" button above was clicked it
+    # writes `alertqueue_severity_filter` into session state; default
+    # the multiselect to that scope so the table is pre-filtered. The
+    # user can still adjust here.
+    severity_default = st.session_state.get("alertqueue_severity_filter") or severities
+    severity_default = [s for s in severity_default if s in severities]
+    selected_sev = st.multiselect(
+        "Filter by severity",
+        severities,
+        default=severity_default,
+    )
 
 filtered = df_alerts[df_alerts["rule_id"].isin(selected_rules)]
 filtered = filtered[filtered["rule_id"].map(sev_map).isin(selected_sev)]
