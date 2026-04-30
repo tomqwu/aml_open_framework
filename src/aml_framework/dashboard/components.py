@@ -394,6 +394,34 @@ def research_link(label: str, doc_path: str, anchor: str | None = None) -> str:
     return f"[{label}]({href})"
 
 
+def id_link(id_value: str, page_path: str, param: str) -> str:
+    """Return a markdown deep link for an entity ID.
+
+    Used by table renderers that want to expose plain-text IDs (rule
+    IDs, case IDs, investigation IDs, customer IDs) as clickable links
+    to the destination page that owns the detail.
+
+    Pair with a markdown-table companion view inside an expander when
+    consumers use ``st.dataframe``, since that widget doesn't render
+    embedded markdown — the same pattern ``citation_link`` uses.
+
+    Args:
+        id_value: the entity ID to surface (e.g. ``"C0001"``).
+        page_path: relative page filename without ``pages/`` or ``.py``
+            (e.g. ``"17_Customer_360"``). Streamlit's page-link URL
+            convention is ``./<filename>``.
+        param: query-param name the destination reads via ``read_param``.
+
+    Returns:
+        Markdown anchor of the form
+        ``[id_value](./page_path?param=id_value)``.
+
+    >>> id_link("C0001", "17_Customer_360", "customer_id")
+    '[C0001](./17_Customer_360?customer_id=C0001)'
+    """
+    return f"[{id_value}](./{page_path}?{param}={id_value})"
+
+
 def citation_link(citation: str, url: str | None = None) -> str:
     """Return a markdown link for a regulation citation, or bare text.
 

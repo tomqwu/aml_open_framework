@@ -29,6 +29,7 @@ from aml_framework.dashboard.components import (
     page_header,
     responsive_plotly_config,
 )
+from aml_framework.dashboard.query_params import consume_param as _consume_param
 from aml_framework.dashboard.tuning_state import (
     best_scenario,
     parse_labels_csv,
@@ -61,9 +62,15 @@ if not tunable_rules:
     st.stop()
 
 # --- Selectors ---
+# Pre-select via deep link from Rule Performance / Spec Editor when
+# they pass a `rule_id` query param. Falls back to the first tunable
+# rule otherwise. consume_param keeps the link state one-shot so a
+# refresh doesn't re-trigger.
+_deep_link_rule = _consume_param("rule_id")
+_default_rule_idx = tunable_rules.index(_deep_link_rule) if _deep_link_rule in tunable_rules else 0
 left, right = st.columns([2, 1])
 with left:
-    rule_id = st.selectbox("Rule to sweep", tunable_rules, index=0)
+    rule_id = st.selectbox("Rule to sweep", tunable_rules, index=_default_rule_idx)
 with right:
     audit_writeback = st.checkbox(
         "Append `tuning_run` event to audit ledger",

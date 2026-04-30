@@ -26,6 +26,7 @@ from aml_framework.dashboard.components import (
     citation_link,
     event_type_cell_style,
     glossary_legend,
+    id_link,
     kpi_card_rag,
     page_header,
     terminal_block,
@@ -180,6 +181,26 @@ if not df_decisions.empty:
         height=300,
     )
     st.caption(f"Showing {len(filtered_decisions)} of {len(df_decisions)} decisions.")
+
+    # ID-link companion view: the dataframe widget renders cells as
+    # plain text, so case_ids in the decision log aren't clickable.
+    # PR-H surfaces the unique case_ids referenced in the (filtered)
+    # log as a markdown bullet list of links — analyst can click any
+    # case_id to jump straight into Case Investigation. Skipped when
+    # the column doesn't exist or the filter view is empty.
+    if "case_id" in filtered_decisions.columns and not filtered_decisions.empty:
+        unique_case_ids = sorted(
+            cid for cid in filtered_decisions["case_id"].dropna().unique() if cid
+        )
+        if unique_case_ids:
+            with st.expander(
+                f"Quick-jump to {len(unique_case_ids)} unique case(s) in this view",
+                expanded=False,
+            ):
+                links = " · ".join(
+                    id_link(cid, "4_Case_Investigation", "case_id") for cid in unique_case_ids
+                )
+                st.markdown(links)
 else:
     st.caption("No decisions recorded.")
 

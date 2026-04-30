@@ -31,6 +31,7 @@ from aml_framework.cases import (
 )
 from aml_framework.dashboard.components import (
     glossary_legend,
+    id_link,
     page_header,
     rag_cell_style,
     research_link,
@@ -220,6 +221,16 @@ c1.metric("Subject", selected["customer_id"])
 c2.metric("Severity", selected["severity"])
 c3.metric("Cases", selected["case_count"])
 c4.metric("Total amount", f"${float(selected['total_amount']):,.2f}")
+
+# Constituent case-IDs as clickable links — even though the SLA
+# table below has row-click drill (PR-A), having the IDs as a quick
+# bullet list above the table is the fastest path when the analyst
+# already knows which case they want to open.
+case_id_links = " · ".join(
+    id_link(cid, "4_Case_Investigation", "case_id") for cid in selected.get("case_ids", [])
+)
+if case_id_links:
+    st.markdown(f"**Cases in this investigation:** {case_id_links}")
 
 st.markdown("**Constituent cases (live SLA):**")
 queue_map = {q.id: q for q in spec.workflow.queues}

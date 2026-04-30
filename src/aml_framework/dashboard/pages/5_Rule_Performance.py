@@ -11,6 +11,7 @@ from aml_framework.dashboard.components import (
     chart_layout,
     citation_link,
     empty_state,
+    id_link,
     kpi_card,
     page_header,
 )
@@ -131,6 +132,16 @@ def _sev_style(val: str) -> str:
 
 styled = df_rules.style.map(_sev_style, subset=["Severity"])
 st.dataframe(styled, use_container_width=True, hide_index=True)
+
+# ID-link companion: rule IDs in the table aren't clickable in
+# st.dataframe. Surface the rules that have a tuning_grid declared
+# as a markdown bullet of links to Tuning Lab — these are the rules
+# the MLRO can actually challenge / sweep / promote, so the deep
+# link is high-leverage. Skipped silently when no rule has a grid.
+_tunable = [r for r in spec.rules if getattr(r, "tuning_grid", None)]
+if _tunable:
+    rule_links = " · ".join(id_link(r.id, "23_Tuning_Lab", "rule_id") for r in _tunable)
+    st.caption(f"🛠 Tunable rules — open one in the lab: {rule_links}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
