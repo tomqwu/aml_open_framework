@@ -83,12 +83,29 @@ c2.metric("Stale", summary["stale"], help="On file but past the freshness window
 c3.metric("Current", summary["current"])
 c4.metric("Not required", summary["not_required"])
 
+# KPI drill — filter the per-customer table below by status. Buttons
+# sit under the metric tiles and write `boi_status_filter` into session
+# state; the table reads it back to scope rows. "Show all" clears.
+fc1, fc2, fc3, fc4, fc5 = st.columns(5)
+if fc1.button("Show missing", use_container_width=True, disabled=summary["missing"] == 0):
+    st.session_state["boi_status_filter"] = "missing"
+if fc2.button("Show stale", use_container_width=True, disabled=summary["stale"] == 0):
+    st.session_state["boi_status_filter"] = "stale"
+if fc3.button("Show current", use_container_width=True, disabled=summary["current"] == 0):
+    st.session_state["boi_status_filter"] = "current"
+if fc4.button("Show not-required", use_container_width=True, disabled=summary["not_required"] == 0):
+    st.session_state["boi_status_filter"] = "not_required"
+if fc5.button("Show all", use_container_width=True):
+    st.session_state.pop("boi_status_filter", None)
+
 # ---------------------------------------------------------------------------
 # Per-customer table
 # ---------------------------------------------------------------------------
 
-st.subheader("Customers — sorted worst-first")
-df_records = pd.DataFrame([r.to_dict() for r in records])
+active_filter = st.session_state.get("boi_status_filter")
+st.subheader(f"Customers — {'filter: ' + active_filter if active_filter else 'sorted worst-first'}")
+_records_for_table = [r for r in records if r.status == active_filter] if active_filter else records
+df_records = pd.DataFrame([r.to_dict() for r in _records_for_table])
 selectable_dataframe(
     df_records,
     key="boi_records_table",
