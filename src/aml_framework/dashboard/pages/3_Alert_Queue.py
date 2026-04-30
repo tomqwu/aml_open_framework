@@ -11,8 +11,8 @@ from aml_framework.dashboard.components import (
     SEVERITY_COLORS,
     chart_layout,
     kpi_card,
-    link_to_page,
     page_header,
+    selectable_dataframe,
     tooltip_banner,
     tour_panel,
 )
@@ -186,30 +186,24 @@ styled = (
 )
 if "status" in available:
     styled = styled.map(_status_style, subset=["status"])
-st.dataframe(styled, use_container_width=True, hide_index=True, height=400)
 
-# --- Drill-down to Customer 360 ---
-# Streamlit dataframes don't support per-cell click handlers, so the
-# drill-down lives below the table as a selectbox + page link. Picking a
-# customer_id here writes `selected_customer_id` into session state via
-# `link_to_page`; Customer 360 reads it back via `read_param`.
-if "customer_id" in display_df.columns and not display_df.empty:
-    drill_customers = sorted(display_df["customer_id"].dropna().unique().tolist())
-    if drill_customers:
-        drill_c1, drill_c2 = st.columns([3, 2])
-        with drill_c1:
-            drill_cid = st.selectbox(
-                "Drill into customer",
-                drill_customers,
-                key="alertqueue_customer_drill",
-            )
-        with drill_c2:
-            st.write("")  # vertical alignment with selectbox label
-            link_to_page(
-                "pages/17_Customer_360.py",
-                f"→ Open {drill_cid} in Customer 360",
-                customer_id=drill_cid,
-            )
+# Row-click drills into Customer 360 for the alert's customer; the
+# `selectable_dataframe` helper handles the on_select event + switch_page.
+selectable_dataframe(
+    styled,
+    key="alertqueue_alerts_table",
+    drill_target="pages/17_Customer_360.py" if "customer_id" in available else None,
+    drill_param="customer_id",
+    drill_column="customer_id",
+    hint=(
+        "Click any alert row to open the customer's 360 view."
+        if "customer_id" in available
+        else None
+    ),
+    use_container_width=True,
+    hide_index=True,
+    height=400,
+)
 
 # --- Acknowledge / Snooze ---
 new_alerts = display_df[display_df["status"] == "new"]
@@ -352,27 +346,18 @@ if not df_cases.empty and "status" in df_cases.columns:
         styled = active[available].style.map(_status_color, subset=["status"])
         if "SLA" in available:
             styled = styled.map(_sla_color, subset=["SLA"])
-        st.dataframe(styled, use_container_width=True, hide_index=True)
 
-        # --- Drill-down to Case Investigation ---
-        # Same pattern as the Customer 360 drill above — pick a case row
-        # and jump to the full investigation view with `case_id` deep link.
-        case_drill_options = active["case_id"].tolist()
-        if case_drill_options:
-            cd_c1, cd_c2 = st.columns([3, 2])
-            with cd_c1:
-                drill_case_id = st.selectbox(
-                    "Drill into case",
-                    case_drill_options,
-                    key="alertqueue_case_drill",
-                )
-            with cd_c2:
-                st.write("")
-                link_to_page(
-                    "pages/4_Case_Investigation.py",
-                    f"→ Open {drill_case_id} in Case Investigation",
-                    case_id=drill_case_id,
-                )
+        # Row-click drills into the full Case Investigation view.
+        selectable_dataframe(
+            styled,
+            key="alertqueue_cases_table",
+            drill_target="pages/4_Case_Investigation.py",
+            drill_param="case_id",
+            drill_column="case_id",
+            hint="Click any case row to open the investigation package.",
+            use_container_width=True,
+            hide_index=True,
+        )
 
         # --- Bulk actions ---
         st.markdown("<br>", unsafe_allow_html=True)

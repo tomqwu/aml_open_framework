@@ -905,6 +905,84 @@ def link_to_page(
     st.page_link(page_path, label=label)
 
 
+def selectable_dataframe(
+    df: Any,
+    *,
+    key: str,
+    drill_target: str | None = None,
+    drill_param: str | None = None,
+    drill_column: str | None = None,
+    hint: str | None = "Click any row to open the detail view.",
+    **dataframe_kwargs: Any,
+) -> Any:
+    """Render a dataframe whose rows drill through to a target page on click.
+
+    Replaces the older "selectbox-below-the-table" pattern: instead of
+    repeating each row's primary key in a dropdown, the table itself is
+    the picker — click a row → set ``selected_<drill_param>`` in session
+    state → ``st.switch_page(drill_target)``. Built on Streamlit ≥1.34's
+    ``st.dataframe(on_select="rerun", selection_mode="single-row")``.
+
+    Args:
+        df: a ``pandas.DataFrame`` or ``pandas.io.formats.style.Styler``.
+            For a Styler, the underlying frame is read via ``df.data``
+            so the click handler can look up the drill value.
+        key: required Streamlit widget key — selection state is keyed
+            by this, so two tables on the same page must use distinct keys.
+        drill_target: relative page path (e.g. ``"pages/17_Customer_360.py"``).
+            ``None`` disables drill-through (table is just selectable).
+        drill_param: query-param name (e.g. ``"customer_id"``) used by the
+            destination page's ``read_param`` / ``consume_param`` call.
+        drill_column: column in the underlying frame holding the drill
+            value (e.g. ``"customer_id"``). Falls back silently when the
+            column is missing or the value is null.
+        hint: caption shown above the table; pass ``None`` to suppress.
+        **dataframe_kwargs: forwarded to ``st.dataframe`` (height,
+            column_config, etc).
+
+    Returns:
+        The Streamlit selection-state object (``event``) so callers can
+        inspect ``event.selection.rows`` for non-drill use cases. Drill
+        navigation calls ``st.switch_page`` and never returns.
+    """
+    if hint and drill_target:
+        st.caption(hint)
+
+    underlying = df.data if hasattr(df, "data") else df
+
+    event = st.dataframe(
+        df,
+        on_select="rerun",
+        selection_mode="single-row",
+        key=key,
+        **dataframe_kwargs,
+    )
+
+    if not (drill_target and drill_param and drill_column):
+        return event
+
+    rows = getattr(getattr(event, "selection", None), "rows", None) or []
+    if not rows:
+        return event
+
+    try:
+        idx = rows[0]
+        if drill_column not in underlying.columns:
+            return event
+        value = underlying.iloc[idx][drill_column]
+    except (IndexError, KeyError, AttributeError):
+        return event
+
+    if pd.isna(value):
+        return event
+
+    # Mirror into session state under the `selected_<param>` convention
+    # query_params.read_param / consume_param expect, then jump.
+    st.session_state[f"selected_{drill_param}"] = str(value)
+    st.switch_page(drill_target)
+    return event  # unreachable; switch_page halts the script
+
+
 def metric_table(metrics: list[MetricResult], audience: str | None = None) -> None:
     """Render a styled metric summary table with colored RAG dots."""
     filtered = metrics
