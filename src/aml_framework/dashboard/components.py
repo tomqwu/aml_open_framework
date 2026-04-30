@@ -62,20 +62,39 @@ CUSTOM_CSS = """
  * rendering. @import works reliably inside the style block. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-/* ---- Deck DNA tokens (PR-M) ----
- * Lifted from docs/pitch/landing/index.html so the dashboard reads as a
- * sibling to the deck + research site instead of a separate product. */
+/* ---- Brand DNA tokens (PR-N) ----
+ * Lifted directly from docs/pitch/landing/index.html (the live static
+ * site at https://tomqwu.github.io/aml_open_framework_demo/). The
+ * landing surface is the brand's primary visual identity:
+ *   - Cream canvas (#f7f4ec)
+ *   - Dark navy ink (#1c1f26)
+ *   - Burnt-orange accent (#a44b30) — appears as the brand dot, links,
+ *     hover states, and the "I am here" indicators throughout
+ *   - Source Serif 4 for the wordmark + display
+ *   - JetBrains Mono for tags + data labels
+ *
+ * PR-M wrongly applied the DECK SLIDES palette (dark + cyan) — that's
+ * the same brand's tech-deck surface, not its landing surface. PR-N
+ * corrects this. */
 :root {
     --dna-display: 'Source Serif 4', Georgia, serif;
     --dna-body:    'Inter', -apple-system, system-ui, sans-serif;
     --dna-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-    --dna-ink:     #0f172a;
-    --dna-ink-2:   #475569;
-    --dna-ink-faint: #94a3b8;
-    --dna-rule:    rgba(15, 23, 42, 0.10);
-    --dna-tech-bg: #0a0e1a;
-    --dna-tech-panel: #0f172a;
-    --dna-cyan:    #67e8f9;
+    --dna-bg:      #f7f4ec;
+    --dna-bg-card: #fdfbf5;
+    --dna-ink:     #1c1f26;
+    --dna-ink-2:   #2b3641;
+    --dna-ink-dim: #5f6b78;
+    --dna-ink-faint: #9aa3ad;
+    --dna-accent:  #a44b30;
+    --dna-accent-soft: rgba(164, 75, 48, 0.10);
+    --dna-rule:    rgba(28, 31, 38, 0.10);
+    --dna-rule-strong: rgba(28, 31, 38, 0.18);
+    /* Sidebar stays dark (deck tech panel) — it's a navigation chrome,
+     * not body content. The dark-on-cream contrast is the same one the
+     * landing site uses on its modal overlays + footer. */
+    --dna-sidebar-bg: #1c1f26;
+    --dna-sidebar-ink: #f1f5f9;
 }
 
 /* ---- Global ---- */
@@ -112,30 +131,59 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
 [data-testid="stToolbar"],
 [data-testid="stStatusWidget"] { display: none !important; }
 
-/* ---- Sidebar (deck DNA: tech panel) ---- */
+/* ---- Main canvas: cream from landing site ---- */
+[data-testid="stAppViewContainer"] > .main,
+[data-testid="stAppViewContainer"] section.main {
+    background: var(--dna-bg);
+}
+
+/* ---- Sidebar: dark panel (chrome only — body stays cream) ---- */
 section[data-testid="stSidebar"] {
-    background: var(--dna-tech-bg);
-    border-right: 1px solid rgba(148, 163, 184, 0.15);
+    background: var(--dna-sidebar-bg);
+    border-right: 1px solid rgba(154, 163, 173, 0.18);
 }
 section[data-testid="stSidebar"] * {
-    color: #e2e8f0 !important;
+    color: var(--dna-sidebar-ink) !important;
 }
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
     font-size: 0.88rem;
     line-height: 1.5;
 }
 section[data-testid="stSidebar"] hr {
-    border-color: rgba(148, 163, 184, 0.15) !important;
+    border-color: rgba(154, 163, 173, 0.18) !important;
 }
-/* Cyan accent dot above the sidebar header — deck signature.
- * Pure CSS, no per-page wiring needed. */
-section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]::before {
-    content: '';
-    display: block;
+
+/* ---- Brand wordmark in sidebar (PR-N) ----
+ * Mirrors the .brand selector at docs/pitch/landing/index.html L70-89.
+ * This is the LOGO — orange dot + Source Serif name. */
+.dna-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+.dna-brand-dot {
     width: 8px; height: 8px; border-radius: 50%;
-    background: var(--dna-cyan);
-    box-shadow: 0 0 8px var(--dna-cyan);
-    margin: 0 0 14px 4px;
+    background: var(--dna-accent);
+    flex-shrink: 0;
+}
+.dna-brand-name {
+    font-family: var(--dna-display) !important;
+    font-size: 19px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.012em;
+    color: var(--dna-sidebar-ink) !important;
+    line-height: 1.15;
+}
+.dna-brand-tag {
+    font-family: var(--dna-mono) !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(241, 245, 249, 0.55) !important;
+    margin-left: 20px;
+    margin-bottom: 8px;
 }
 
 /* ---- KPI metric cards ---- */
@@ -156,11 +204,13 @@ section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"]::before {
     color: #64748b !important;
 }
 div[data-testid="stMetric"] {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    /* Cream-ivory card on cream canvas — matches the landing site's
+     * card panels (--bg-card #fdfbf5 in docs/pitch/landing/index.html). */
+    background: var(--dna-bg-card);
+    border: 1px solid var(--dna-rule);
     border-radius: 12px;
     padding: 1rem 1.2rem 0.8rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(28, 31, 38, 0.04);
 }
 
 /* ---- Page headers (deck DNA: serif h1, tighter scale) ---- */
@@ -187,7 +237,8 @@ h3 {
 
 /* Eyebrow + 32px rule pattern — rendered by page_header() (PR-M).
  * Mono uppercase label with a horizontal accent line under it, the
- * same signature the deck uses on every section break. */
+ * same signature the landing site uses for section breaks. PR-N
+ * swapped the dot from cyan (deck) to burnt orange (landing brand). */
 .dna-eyebrow {
     display: flex;
     align-items: center;
@@ -196,20 +247,18 @@ h3 {
     font-size: 11px;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--dna-ink-faint);
+    color: var(--dna-ink-dim);
     margin: 4px 0 8px 0;
 }
 .dna-eyebrow::after {
     content: '';
     flex: 0 0 32px;
     height: 1px;
-    background: var(--dna-ink-faint);
-    opacity: 0.55;
+    background: var(--dna-rule-strong);
 }
 .dna-eyebrow .dot {
     width: 6px; height: 6px; border-radius: 50%;
-    background: var(--dna-cyan);
-    box-shadow: 0 0 6px var(--dna-cyan);
+    background: var(--dna-accent);
 }
 
 /* ---- Tables ---- */
@@ -225,11 +274,11 @@ button[data-baseweb="tab"] {
 
 /* ---- Cards (via HTML) ---- */
 .metric-card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--dna-bg-card);
+    border: 1px solid var(--dna-rule);
     border-radius: 12px;
     padding: 1.2rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(28, 31, 38, 0.04);
 }
 
 /* ---- Terminal block (Audit & Evidence — PR 4) ----
