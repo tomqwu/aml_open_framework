@@ -1,12 +1,12 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-04-28. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-04-29. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
 ---
 
 ## At a Glance
 
-| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-28) |
+| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) |
 |---|---|---|---|
 | Source code | 19,642 LOC across 18 modules | + ~2,500 LOC (compliance/, metrics/outcomes, generators/audit_pack, data/psd3) | + ~700 LOC (dashboard helpers + integrations) |
 | Tests | 991 | + ~110 | 1,161 passing |
@@ -240,13 +240,13 @@ See `memory/project_round5to9_plan.md` (private) for the full "three new traps" 
 ## Open Items
 
 - Issue #66 — closed 2026-04-27 (PR #70 mobile-responsive)
-- Issue #68 — **still open**, due 2026-05-27. Tracking issue for a docs
-  freshness sweep + the (now moot) mobile #66 status check. The mobile
-  half is satisfied (`#66` closed); the docs-sweep half (walking
-  `getting-started.md` from a clean checkout, reconciling
-  `jurisdictions.md` against `examples/`, opening per-drift PRs) is
-  pending — `dashboard-tour.md` was partially updated in PR #85 (audience
-  filtering table only).
+- Issue #68 — **in progress** (2026-04-29 docs-sweep PR open). The mobile half
+  was satisfied by `#66` closed (PR #70). The docs-sweep half is now in progress:
+  static site stats corrected (test count, competitive-positioning scope/date),
+  Round&nbsp;7 features marked as shipped in competitive-positioning.html, and
+  unshipped PR references removed from process-pain.html. Remaining: walk
+  `getting-started.md` from a clean checkout, reconcile `jurisdictions.md`
+  against `examples/`, open per-drift PRs.
 - No other tracked issues open as of this snapshot
 
 ## Round 8 / 9 — Remaining Planned Work
