@@ -1379,7 +1379,31 @@ def link_to_page(
         # `selected_<key>` namespace that destination pages already use.
         for key, value in query_params.items():
             st.session_state[f"selected_{key}"] = value
-    st.page_link(page_path, label=label)
+    try:
+        st.page_link(page_path, label=label)
+    except Exception as exc:
+        # Two distinct failure modes both mean "this page isn't in the
+        # active navigation context, so we can't link to it":
+        #   1. Production: StreamlitPageNotFoundError when the persona's
+        #      AUDIENCE_PAGES filter hid the target from `st.navigation`.
+        #   2. Bare scripts / AppTest harness: KeyError('url_pathname')
+        #      because the navigation context was never initialised.
+        # Both are user-visible link breakage; degrade to a caption that
+        # explains the cause so the page render survives. Issue #69.
+        is_nav_failure = type(exc).__name__ == "StreamlitPageNotFoundError" or (
+            isinstance(exc, KeyError) and "url_pathname" in str(exc)
+        )
+        if not is_nav_failure:
+            raise
+        # Convert "pages/3_Alert_Queue.py" → "Alert Queue" for the hint.
+        title_hint = (
+            page_path.rsplit("/", 1)[-1].removesuffix(".py").split("_", 1)[-1].replace("_", " ")
+        )
+        st.caption(
+            f"{label}  \n"
+            f"_(Hidden in your current persona view. Switch to a persona "
+            f"that includes **{title_hint}** to navigate.)_"
+        )
 
 
 def selectable_dataframe(
