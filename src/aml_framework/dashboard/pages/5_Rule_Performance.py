@@ -9,6 +9,7 @@ import streamlit as st
 from aml_framework.dashboard.components import (
     SEVERITY_COLORS,
     chart_layout,
+    citation_link,
     empty_state,
     kpi_card,
     page_header,
@@ -173,16 +174,31 @@ for rule in spec.rules:
             {
                 "Rule": rule.id,
                 "Severity": rule.severity,
-                "Citation": ref.citation,
+                # Cite-as-link: when the spec declares a `url`, render
+                # the citation as a clickable markdown link so analysts
+                # can jump straight to the source. Falls back to plain
+                # text when no URL is on file.
+                "Citation": citation_link(ref.citation, getattr(ref, "url", None)),
                 "Description": ref.description,
             }
         )
 df_refs = pd.DataFrame(ref_rows)
+# st.dataframe doesn't render embedded markdown; for clickable
+# citations we use st.markdown on a pandas-rendered Markdown table.
+# The severity styling stays via the standalone styled view above the
+# markdown table; we keep both renders — the Styler view for severity
+# colour, the markdown view for clickable citations.
 st.dataframe(
     df_refs.style.map(_sev_style, subset=["Severity"]),
     use_container_width=True,
     hide_index=True,
 )
+# Clickable-citation companion view: rendered as a markdown table so
+# the `[citation](url)` strings in the "Citation" column become live
+# links in the browser. Skipped silently when no rule carries a URL.
+if any(getattr(r, "url", None) for rule in spec.rules for r in rule.regulation_refs):
+    with st.expander("Citation links (click to open the regulation)", expanded=False):
+        st.markdown(df_refs.to_markdown(index=False), unsafe_allow_html=True)
 
 st.markdown("---")
 st.caption(

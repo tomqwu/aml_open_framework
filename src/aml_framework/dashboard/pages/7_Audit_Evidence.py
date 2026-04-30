@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    citation_link,
     event_type_cell_style,
     glossary_legend,
     kpi_card_rag,
@@ -254,7 +255,9 @@ try:
         entry = _baseline_by_key.get((citation, url))
         rows.append(
             {
-                "citation": citation,
+                # Cite-as-link via the shared helper so the citation
+                # column lights up when the spec carries a URL.
+                "citation": citation_link(citation, url),
                 "url": url,
                 "in_baseline": entry is not None,
                 "baseline_age": entry.fetched_at[:10] if entry else "—",

@@ -394,6 +394,31 @@ def research_link(label: str, doc_path: str, anchor: str | None = None) -> str:
     return f"[{label}]({href})"
 
 
+def citation_link(citation: str, url: str | None = None) -> str:
+    """Return a markdown link for a regulation citation, or bare text.
+
+    Specs declare ``regulation_refs[*].url`` for some citations and not
+    others. Pages should not have to branch on that — this helper does
+    it once: when ``url`` is present, the citation becomes a clickable
+    markdown link; otherwise the citation renders as plain text.
+
+    The dashboard's regulation tables, citations on Case Investigation,
+    and the Audit & Evidence drift table all flow through this so
+    populating ``url`` in a spec instantly makes that citation
+    deep-linkable wherever it appears, without per-page edits.
+
+    >>> citation_link("31 CFR 1020.320", "https://www.ecfr.gov/...")
+    '[31 CFR 1020.320](https://www.ecfr.gov/...)'
+    >>> citation_link("31 CFR 1020.320", None)
+    '31 CFR 1020.320'
+    >>> citation_link("31 CFR 1020.320", "")
+    '31 CFR 1020.320'
+    """
+    if not url or not str(url).strip():
+        return citation
+    return f"[{citation}]({url})"
+
+
 def see_also_footer(items: list[str]) -> None:
     """Render the standard 'See also · ' footer block.
 
