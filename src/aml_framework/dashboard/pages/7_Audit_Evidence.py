@@ -206,6 +206,69 @@ else:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# --- Lineage walk-back (PR-DATA-4) ----------------------------------------
+# DATA-4 whitepaper claim: a 2LoD reviewer can walk back from any case_id
+# to the producing run, rule_version, spec hash, and input file hashes
+# without manually stitching artifacts. This panel exposes that as one
+# input box: paste a case_id, see the full chain.
+st.markdown("### Lineage walk-back")
+st.caption(
+    "Paste any case_id from this run to see the chain back to the rule_version, "
+    "spec hash, and input file hashes that produced it."
+)
+_lineage_case = st.text_input(
+    "case_id",
+    placeholder="e.g. C0042-cash_structuring-001",
+    key="audit_lineage_case_input",
+)
+if _lineage_case.strip():
+    from aml_framework.engine.audit import walk_lineage as _walk_lineage
+
+    _chain = _walk_lineage(run_dir, _lineage_case.strip())
+    if _chain.get("case") is None:
+        st.warning(f"No case file found for `{_lineage_case.strip()}` in this run.")
+    else:
+        _l, _r = st.columns(2)
+        with _l:
+            st.markdown("**Case**")
+            st.markdown(f"- case_id: `{_chain['case_id']}`")
+            st.markdown(f"- rule_id: `{_chain.get('rule_id') or '—'}`")
+            st.markdown(f"- rule_version: `{_chain.get('rule_version') or '—'}`")
+            st.markdown(f"- queue: `{_chain.get('queue') or '—'}`")
+        with _r:
+            st.markdown("**Run anchor**")
+            st.markdown(f"- spec_content_hash: `{(_chain.get('spec_content_hash') or '—')[:16]}…`")
+            st.markdown(f"- engine_version: `{_chain.get('engine_version') or '—'}`")
+            st.markdown(f"- as_of: `{_chain.get('as_of') or '—'}`")
+        st.markdown("**Input files**")
+        if _chain["input_files"]:
+            import pandas as _pd
+
+            st.dataframe(
+                _pd.DataFrame(_chain["input_files"]).rename(
+                    columns={
+                        "contract_id": "Contract",
+                        "row_count": "Rows",
+                        "content_hash": "Content hash",
+                    }
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.caption("No input manifest recorded for this run.")
+        st.markdown(f"**Decisions tied to this case** ({len(_chain['decisions'])})")
+        if _chain["decisions"]:
+            import pandas as _pd
+
+            st.dataframe(
+                _pd.DataFrame(_chain["decisions"]),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
 # --- Run Manifest ---
 col_left, col_right = st.columns(2)
 
