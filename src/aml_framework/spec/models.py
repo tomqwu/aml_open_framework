@@ -70,6 +70,15 @@ class Column(_Base):
     pii: bool = False
     enum: list[str] | None = None
     constraints: list[str] | None = None
+    # Per-attribute freshness pinning (DATA-2 in the data-problem
+    # whitepaper). When set, the engine runs a freshness scan after
+    # warehouse build and emits a `pkyc_trigger` audit event for any row
+    # whose `last_refreshed_at_column` is older than `max_staleness_days`
+    # from `as_of`. Both fields must be set together (validated at the
+    # contract level); `last_refreshed_at_column` must reference another
+    # column on the same contract typed `timestamp` or `date`.
+    max_staleness_days: int | None = Field(default=None, ge=1)
+    last_refreshed_at_column: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*$")
 
 
 class DataContract(_Base):
@@ -320,6 +329,42 @@ class AMLSpec(_Base):
                 raise ValueError(
                     f"rule '{rule.id}' escalates to unknown queue '{rule.escalate_to}'"
                 )
+
+        # Freshness-pinning cross-reference: a column with
+        # `max_staleness_days` set must also point at a sibling column
+        # on the same contract via `last_refreshed_at_column`, and that
+        # sibling must be typed `timestamp` or `date`. Validates at spec
+        # load time so the engine doesn't have to defensively re-check.
+        for contract in self.data_contracts:
+            cols_by_name = {c.name: c for c in contract.columns}
+            for col in contract.columns:
+                pinned = col.max_staleness_days is not None
+                ref = col.last_refreshed_at_column
+                if pinned and not ref:
+                    raise ValueError(
+                        f"contract '{contract.id}' column '{col.name}' has "
+                        f"`max_staleness_days` but no `last_refreshed_at_column` — "
+                        f"both fields must be set together"
+                    )
+                if ref and not pinned:
+                    raise ValueError(
+                        f"contract '{contract.id}' column '{col.name}' has "
+                        f"`last_refreshed_at_column` but no `max_staleness_days` — "
+                        f"both fields must be set together"
+                    )
+                if ref:
+                    if ref not in cols_by_name:
+                        raise ValueError(
+                            f"contract '{contract.id}' column '{col.name}' references "
+                            f"unknown `last_refreshed_at_column` '{ref}'"
+                        )
+                    sibling = cols_by_name[ref]
+                    if sibling.type not in ("timestamp", "date"):
+                        raise ValueError(
+                            f"contract '{contract.id}' column '{col.name}' references "
+                            f"`last_refreshed_at_column` '{ref}' which is type "
+                            f"'{sibling.type}', not `timestamp` or `date`"
+                        )
 
         metric_ids = {m.id for m in self.metrics}
         for report in self.reports:

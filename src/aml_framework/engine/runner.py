@@ -16,6 +16,7 @@ import duckdb
 from aml_framework.engine.audit import AuditLedger
 from aml_framework.engine.constants import Event, Queue
 from aml_framework.engine.entity_resolution import resolve_entities
+from aml_framework.engine.freshness import scan_contract_freshness
 from aml_framework.generators.sql import compile_rule_sql
 from aml_framework.metrics.engine import MetricResult, evaluate_metrics
 from aml_framework.metrics.reports import render_all_reports
@@ -710,6 +711,19 @@ def run_spec(
             }
         )
         raise
+
+    # DATA-2 whitepaper claim: per-attribute freshness pinning. After
+    # warehouse build, scan each contract for rows whose
+    # `last_refreshed_at_column` is older than `max_staleness_days`.
+    # Emit one `pkyc_trigger` event per violation. The run continues
+    # — staleness is informational, not blocking — but the events land
+    # in `decisions.jsonl` so the audit trail names what was stale, when.
+    for contract in spec.data_contracts:
+        rows = data.get(contract.id, [])
+        violations = scan_contract_freshness(contract, rows, as_of)
+        for v in violations:
+            ledger.append_decision(v.to_event())
+
     resolve_entities(con, spec)
 
     alerts_by_rule: dict[str, list[dict[str, Any]]] = {}
