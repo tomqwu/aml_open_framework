@@ -490,6 +490,45 @@ def notify_digest_cmd(
             console.print(f"  {mark} {platform}")
 
 
+@app.command(name="attest")
+def attest_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True, help="Spec to attest."),
+    officer: str = typer.Option(
+        ..., "--officer", help="MLRO / officer ID signing the attestation."
+    ),
+    notes: str = typer.Option("", "--notes", help="Optional sign-off notes."),
+    attestations_dir: Path = typer.Option(
+        Path(".attestations"),
+        "--attestations-dir",
+        help="Where to write the hash-chained attestations.jsonl ledger.",
+    ),
+) -> None:
+    """Record an MLRO attestation against the spec's current content hash (DATA-8).
+
+    Writes an entry to a hash-chained `attestations.jsonl` ledger,
+    chained for tamper detection. Use `aml run --strict` afterwards to
+    enforce attestation as a precondition for execution.
+    """
+    from aml_framework.attestations import AttestationLedger
+    from aml_framework.spec.loader import spec_content_hash
+
+    spec_hash = spec_content_hash(spec_path)
+    ledger = AttestationLedger(dir=attestations_dir)
+    attestation = ledger.append(
+        officer_id=officer,
+        spec_content_hash=spec_hash,
+        notes=notes,
+    )
+    console.print(
+        f"[green]Attestation recorded[/green] for spec hash [cyan]{spec_hash[:16]}…[/cyan]"
+    )
+    console.print(f"  officer: {attestation.officer_id}")
+    console.print(f"  ts:      {attestation.ts.isoformat()}")
+    console.print(f"  ledger:  {ledger.path}")
+    if notes:
+        console.print(f"  notes:   {notes}")
+
+
 @app.command()
 def init(
     target_dir: Path = typer.Argument(
@@ -1538,12 +1577,44 @@ def run(
     data_dir: str | None = typer.Option(
         None, help="Directory with CSV/Parquet files. Default: data/input/"
     ),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help=(
+            "Refuse to run unless the current spec_content_hash has an MLRO "
+            "attestation on file (DATA-8). Use `aml attest` to record one. "
+            "Opt-in; default behaviour unchanged."
+        ),
+    ),
 ) -> None:
     """End-to-end: load data, execute rules, emit cases + audit bundle."""
     from aml_framework.data.sources import resolve_source
+    from aml_framework.spec.loader import spec_content_hash as _spec_hash
 
     spec = load_spec(spec_path)
     as_of_dt = _parse_as_of(as_of)
+
+    # PR-DATA-8: --strict gate. If the spec hasn't been signed by an
+    # MLRO at this exact content hash, refuse to run. Run "aml attest"
+    # first; or drop --strict if the gate isn't appropriate yet.
+    if strict:
+        from aml_framework.attestations import AttestationLedger
+
+        spec_hash_now = _spec_hash(spec_path)
+        ledger = AttestationLedger()
+        latest = ledger.latest_for_spec(spec_hash_now)
+        if latest is None:
+            console.print(
+                f"[red]--strict refused:[/red] no attestation on file for spec "
+                f"hash {spec_hash_now[:16]}…\n"
+                f"  Run [cyan]aml attest --officer <name> --spec {spec_path}[/cyan] first."
+            )
+            raise typer.Exit(code=1)
+        console.print(
+            f"[green]--strict passed:[/green] attested by "
+            f"[cyan]{latest.officer_id}[/cyan] at {latest.ts.isoformat()}"
+        )
+
     data = resolve_source(
         source_type=data_source,
         spec=spec,
