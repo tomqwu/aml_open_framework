@@ -74,7 +74,9 @@
         "nullable":    { "type": "boolean", "default": true },
         "pii":         { "type": "boolean", "default": false },
         "enum":        { "type": "array", "items": { "type": "string" } },
-        "constraints": { "type": "array", "items": { "type": "string" } }
+        "constraints": { "type": "array", "items": { "type": "string" } },
+        "max_staleness_days":       { "type": "integer", "minimum": 1, "description": "Per-attribute freshness pin (DATA-2). Set together with `last_refreshed_at_column`; engine emits a `pkyc_trigger` for rows older than this." },
+        "last_refreshed_at_column": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "Sibling timestamp/date column used to evaluate `max_staleness_days`." }
       }
     },
     "rule": {
