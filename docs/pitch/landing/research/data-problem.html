@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data is the AML problem — 2026 · AML Open Framework</title>
+<meta name="description" content="The binding constraint on AML program effectiveness is data, not detection. Eleven faces of the data problem, each anchored in a primary regulator source — BCBS 239, FinCEN, OSFI, FCA, FINTRAC, EBA, Wolfsberg.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_research.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="r-frame">
+    <span>Research <span class="num">·</span> 07</span>
+    <span style="margin-left:auto"><a href="../#/">← back to resource hub</a></span>
+  </div>
+
+  <div class="r-eyebrow">Whitepaper · 2026 edition</div>
+  <h1 class="r-title">Data is the AML <em>problem</em>.</h1>
+  <p class="r-lede">
+    The pain doc argues that audit-defensibility is the dominant 2026 pain. This doc argues the layer underneath: the binding constraint <em>under</em> audit-defensibility is data. Detection presumes data the bank often does not have. Vendor AI presumes a quality of input that public enforcement orders show does not exist. Eleven faces, each anchored in a primary regulator source.
+  </p>
+  <div class="r-meta">
+    <span><strong>Audience</strong> · CCO · MLRO · CRO · 2LoD · MRM Director</span>
+    <span><strong>Sources</strong> · BCBS · FinCEN · OSFI · FCA · FINTRAC · EBA · ECB · Wolfsberg · DOJ · OCC</span>
+    <span><strong>Last refresh</strong> · May 2026</span>
+  </div>
+
+  <h2 class="r-h2"><em>How</em> to read this doc.</h2>
+  <p class="r-p">
+    The pain doc collected the language CCOs use; this doc collects the language regulators use about the layer underneath. Each section names a specific failure mode, anchors it in a primary source — BCBS 239, FinCEN's April 2026 NPRM, OSFI's revised E-23, the FCA's March 2024 Annex 1 letter, the largest 2024 enforcement orders — and maps it to the framework capability that responds. <strong>Cite DATA-N the way you cite PAIN-N</strong>: in deck slides, dashboard descriptions, and exec emails.
+  </p>
+
+  <ol class="r-rules">
+    <li>
+      <strong>Audit-defensibility, not detection, is the dominant pain — and the data layer is its binding constraint.</strong> Across recent enforcement orders surveyed (TD 2024, RBC 2024, HSBC 2012, Wells 2024, NatWest), regulators rarely allege the bank missed a typology — they allege the bank could not produce the data, evidence the lineage, or reconcile the systems. <em>The data problem is the audit-defensibility problem one layer down.</em>
+    </li>
+    <li>
+      <strong>CCOs say "alert volume," but the underlying ailment is alert <em>quality</em> — and quality is a function of data.</strong> A 95% false-positive rate is what you get when you run a typology against incomplete KYC, stale customer profiles, and unreconciled transaction streams. <em>Frame data work in terms of analyst attention bought.</em>
+    </li>
+    <li>
+      <strong>Write the way regulators speak.</strong> "Capture and aggregate all material risk data." "Failed to monitor more than $670 billion in wire transfers." "Decisions were not supported by an audit trail of debate and challenge." These are the actual primary-source phrases — copy them before paraphrasing.
+    </li>
+  </ol>
+
+  <div class="r-callout">
+    <span class="label">Cross-reference</span>
+    The README's <strong>"In-bank, not SaaS"</strong> section operationalises DATA-5; the framework's <strong>data-contract</strong> validator + hash-chained audit ledger respond to DATA-1 through DATA-4 and DATA-9; the <strong>cross-border information-sharing sandbox</strong> (Round-9 closure) is the worked example for DATA-10.
+  </div>
+
+  <h2 class="r-h2">The <em>11 faces</em> of the data problem.</h2>
+
+  <!-- DATA 1 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 01</div>
+    <h3 class="card-title">"We can't capture what we don't have."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The bank's typology fires on data the bank thinks it has. A subset of customers have no occupation field. A subset of corporate clients have no UBO record. A whole product line was onboarded before the current KYC schema existed. The detector cannot fire on what was never captured — and the regulator counts the gap, not the alert.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">BCBS 239 Principle 4 — Completeness: <em>"A bank should be able to capture and aggregate all material risk data across the banking group."</em> — <a href="https://www.bis.org/publ/bcbs239.pdf">BCBS 239, BIS, January 2013</a>. The Basel Committee's 2023 implementation progress report finds <em>"banks are at different stages in terms of alignment"</em> with <em>"significant work remaining at most banks"</em> a decade after publication — <a href="https://www.bis.org/bcbs/publ/d559.htm">BCBS d559</a>. TD Bank (FinCEN, October 2024): TD allowed <em>"trillions of dollars in transactions annually to go unmonitored"</em> — the ultimate completeness failure. — <a href="https://www.fincen.gov/news/news-releases/fincen-assesses-record-13-billion-penalty-against-td-bank">FinCEN release</a>.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">CCO · MLRO · 1LoD analyst · 2LoD · Internal Audit</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">Every detector declares its <code>data_contract</code> — the schema it depends on. The validator fails closed if the schema isn't present. The Compliance Manifest's data-contract block is the document the bank hands a regulator to say <em>"these are the fields this control depends on."</em> When fields are missing, the validator surfaces the gap as a control gap — not as a silent zero alert. <em>Data Quality</em> dashboard page renders the gap.</div>
+    </div>
+  </div>
+
+  <!-- DATA 2 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 02</div>
+    <h3 class="card-title">"Stale beats stale beats stale."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The customer's address has not been updated in seven years. The occupation field still says <em>"student"</em> on a 41-year-old. The UBO list was captured at onboarding and never refreshed. The detector runs against today's transactions but yesterday's profile, and the false-positive rate is the price the analyst pays.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">BCBS 239 Principle 3 — Accuracy and Integrity: <em>"A bank should be able to generate accurate and reliable risk data… Data should be aggregated on a largely automated basis so as to minimise the probability of errors."</em> Principle 5 — Timeliness: <em>"A bank should be able to generate aggregate and up-to-date risk data in a timely manner."</em> — <a href="https://www.bis.org/publ/bcbs239.pdf">BCBS 239</a>. Wolfsberg CBDDQ V1.4 (April 2024) requires correspondent-banking due-diligence data be <em>"kept current and updated no less frequently than every eighteen months,"</em> with the institution committing to <em>"file accurate supplemental information on a timely basis."</em> — <a href="https://wolfsberg-group.org/resources/correspondent-banking">Wolfsberg CBDDQ</a>. Eighteen months is the floor, not the aspiration.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">MLRO · 1LoD analyst · 2LoD model validation</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Cost + audit-defensibility</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">Perpetual KYC trigger engine (<code>pkyc/</code>) fires on transaction-pattern deltas that should re-trigger refresh. <em>Customer 360</em> page surfaces the staleness clock per attribute. The data-contract block can pin a <code>last_refreshed_at</code> column as required, so any detector consuming a customer field also consumes the freshness of that field.</div>
+    </div>
+  </div>
+
+  <!-- DATA 3 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 03</div>
+    <h3 class="card-title">"Three systems, three answers."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The KYC system says the customer is a small business. The transaction-monitoring system has them flagged as retail. The case-management system has them as a high-risk SME. Whichever surface the analyst opens, the analyst gets a different story — and so does the regulator on examination day.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">BCBS 239 Principle 2 — Data Architecture and IT Infrastructure: <em>"A bank should design, build and maintain data architecture and IT infrastructure which fully supports its risk data aggregation capabilities."</em> — <a href="https://www.bis.org/publ/bcbs239.pdf">BCBS 239</a>. HSBC (DOJ, December 2012): the bank classified Mexico as <em>"standard"</em> risk, its lowest AML risk category, <em>"resulting in the bank's failure to monitor more than $670 billion in wire transfers and more than $9.4 billion in purchases of physical U.S. dollars from HSBC Mexico."</em> The risk-rating system and the wire-monitoring system held different views; nobody noticed for years. — <a href="https://www.justice.gov/archives/opa/documents-and-resources-december-11-2012hsbc-press-conference">DOJ press conference</a>; <a href="https://www.occ.gov/news-issuances/news-releases/2012/nr-occ-2012-173b.pdf">OCC CMP 2012-262</a>.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">CCO · MLRO · 1LoD · 2LoD · Internal Audit</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">One Compliance Manifest references one set of data contracts. The detector cannot fire on a different definition of <em>"customer"</em> than the case-bundling logic uses, because both reference the same <code>customer</code> contract by ID. <em>Spec Editor</em> surfaces the contract; <em>Investigations</em> aggregator joins back to it. Reconciliation becomes a validator problem — not an end-of-year project.</div>
+    </div>
+  </div>
+
+  <!-- DATA 4 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 04</div>
+    <h3 class="card-title">"Where did this <em>number</em> come from?"</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The board pack shows a 14% increase in high-risk-customer alerts quarter-over-quarter. The CCO is asked, in front of the audit committee, where the 14 came from. The honest answer is "the dashboard." The defensible answer requires walking back through the source extracts, the threshold settings, the model versions, and the manual reclassifications that produced the number. Most banks cannot walk back that far.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">FCA Dear-CEO Letter to Annex 1 firms (March 2024, still operative in 2026): <em>"Decisions made in relation to financial crime were not supported by evidence or an audit trail of debate and challenge."</em> — <a href="https://www.fca.org.uk/publication/correspondence/dear-ceo-letter-action-response-common-control-failings-anti-money-laundering-frameworks.pdf">FCA letter</a>. The May 2018 ECB review of the largest 25 institutions' BCBS 239 implementation found <em>"none of those significant institutions… have fully implemented the BCBS 239 principles"</em>; the 2023 Basel Committee progress report (<a href="https://www.bis.org/bcbs/publ/d559.htm">BCBS d559</a>) confirms the gap persists across G-SIBs in 2023. Lineage is the principle most banks miss most consistently.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">CCO · 2LoD · Internal Audit · Audit Committee</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">The append-only <code>decisions.jsonl</code> ledger captures every input dataset's SHA-256 hash, every rule version, every threshold, every manual reclassification — chained so any tampering is detectable. <em>Audit &amp; Evidence</em> dashboard page lets a 2LoD reviewer click any number on the executive dashboard and walk back to the run that produced it, the spec version that defined the rule, and the input file that fed it.</div>
+    </div>
+  </div>
+
+  <!-- DATA 5 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 05</div>
+    <h3 class="card-title">"Your data leaves our perimeter."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The vendor wants the bank's transactions, KYC profiles, and case data in their cloud, where their model runs and their dashboard renders. The CCO knows this is structurally incompatible with how the regulator looks at outsourcing — but the procurement process keeps producing SaaS shortlists anyway. <em>"Your data leaves our perimeter"</em> is the first question the OSFI / Fed / FCA exam team asks.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">OSFI Guideline B-13 — Technology and Cyber Risk Management (issued July 2022) requires comprehensive third-party risk assessment specifically covering <em>"how third parties handle data and the potential impact of disruptions or data breaches."</em> — <a href="https://www.osfi-bsif.gc.ca/en/guidance/guidance-library/guideline-b-13-technology-and-cyber-risk-management">OSFI B-13</a>. EBA Guidelines on outsourcing arrangements (EBA/GL/2019/02, in force 30 September 2019) integrate the December 2017 cloud-services recommendation; pre-existing cloud arrangements had to be brought into compliance by 31 December 2021 — <a href="https://www.eba.europa.eu/activities/single-rulebook/regulatory-activities/internal-governance/guidelines-outsourcing-arrangements">EBA outsourcing</a>. The ECB's 2024 cloud-outsourcing draft guidance reinforces the same posture — <a href="https://www.bankingsupervision.europa.eu/framework/legal-framework/public-consultations/pdf/ssm.pubcon240603_draftguide.en.pdf">ECB draft guide</a>.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">CCO · CRO · CIO · Procurement · Vendor Risk</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility + cost</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">Apache 2.0, single Python package, deployable into VPCs, on-prem, or air-gapped environments. The bank owns the spec, the engine, the audit ledger, the case data, and the operating cost — no per-event meter, no perpetual data-export contract. README's <em>"In-bank, not SaaS"</em> section details the practical implications. The framework's deployability shape is itself a response to DATA-5.</div>
+    </div>
+  </div>
+
+  <!-- DATA 6 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 06</div>
+    <h3 class="card-title">"AI presumes data we don't have."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The vendor pitch shows the AI model finding the suspicious pattern that the rules-based system missed. The pitch presumes a quality of input — clean, complete, reconciled, lineage-traced — that the bank's recent consent orders explicitly say it did not have. <em>"Garbage in, garbage out"</em> is not a slogan; it is the operating reality regulators have been writing down for fifteen years.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">OSFI Guideline E-23 — Model Risk Management (final published 11 September 2025; effective 1 May 2027) explicitly extends the model-risk perimeter: <em>"Artificial intelligence and machine learning (AI/ML) methods are expressly included in the definition of model."</em> — <a href="https://www.osfi-bsif.gc.ca/en/guidance/guidance-library/guideline-e-23-model-risk-management-2027-letter">OSFI E-23 final letter</a>; <a href="https://www.osfi-bsif.gc.ca/en/news/backgrounder-guideline-e-23-model-risk-management">backgrounder</a>. FRB SR 26-2 (effective 17 April 2026) folds BSA/AML transaction monitoring, sanctions screening, and customer-risk rating into the same model-risk inventory — <a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm">SR 26-2</a>; <a href="https://www.occ.treas.gov/news-issuances/bulletins/2026/bulletin-2026-13.html">OCC 2026-13</a>. The empirical record on what banks were actually working with: TD's <em>"trillions… unmonitored"</em>; HSBC's $670B in wire transfers and $9.4B in physical USD purchases never connected to risk rating; RBC <em>"failed to flag suspicious activity… did not disclose relevant information."</em></div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">CCO · 2LoD · MRM Director</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility + cost</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">The framework deliberately does <strong>not</strong> ship an in-tree alert-scoring ML model. Detection rules are human-authored, regulation-cited, and reviewable as policy — not model artefacts. Where the institution wants to bring its own ML scorer, the <code>python_ref</code> rule type is the seam — but the model is recorded with <code>model_id</code> + <code>model_version</code> per SR 26-2 / E-23, and the input data is still captured by the same data-contract validator that catches DATA-1 / DATA-2.</div>
+    </div>
+  </div>
+
+  <!-- DATA 7 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 07</div>
+    <h3 class="card-title">"Engineering owns the warehouse, Compliance owns the alert."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The detection logic lives in Compliance. The data it runs on lives in Engineering. They report to different VPs, work in different ticketing systems, and answer to different boards. When the alert fires — or doesn't — the question of "whose responsibility is the data shape?" gets passed back and forth until it lands on the MLRO's desk because the MLRO's signature is on the SAR.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">BCBS 239 Principle 1 — Governance: <em>"A bank's risk data aggregation capabilities and risk reporting practices should be subject to strong governance arrangements."</em> — <a href="https://www.bis.org/publ/bcbs239.pdf">BCBS 239</a>. FCA Dear-CEO Letter to UK retail banks (May 2021, still cited in 2025–26 supervisory framing): firms <em>"blurred responsibilities between first line business roles and second line compliance roles, such that first line employees often do not own or fully understand the financial crime risk faced by the firm."</em> — <a href="https://www.mayerbrown.com/en/insights/publications/2021/08/the-fcas-dear-ceo-letter">Mayer Brown</a>. The same diagnosis applies one layer down at the data layer.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">CCO · MLRO · CIO · Head of Data</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility + morale</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">The Compliance Manifest is the artifact both sides commit against. The data-contract block belongs to Compliance; the data pipeline that fills it belongs to Engineering. When a contract is violated, the validator surfaces the failure on the <em>Data Quality</em> dashboard, not silently in a missed alert three months later. The Manifest moves the boundary from "whose Jira ticket?" to "whose pull request against the contract?"</div>
+    </div>
+  </div>
+
+  <!-- DATA 8 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 08</div>
+    <h3 class="card-title">"The MLRO has no veto over data shape."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The CCO discovers, post-incident, that a new product launched six months ago without surfacing transactions to the AML pipeline. By the time anyone walks back the lineage, the gap is in the consent order. The MLRO's name is the one on the SAR — but the MLRO never had a veto over what data the product captured at the source.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">OSFI Letter to Industry (11 September 2025), introducing the new AMP Guide effective 29 January 2026: <em>"a lower tolerance for contraventions… penalties may be issued for lower levels of potential negligence and harm, and more frequently in 2026."</em> — <a href="https://www.fasken.com/en/knowledge/2026/02/financial-services-regulatory-updates">Fasken summary</a>. FinCEN April 2026 NPRM: AML/CFT programs <em>"must be approved by a board of directors… designated AML/CFT officer must be located in the United States."</em> — <a href="https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs">Federal Register</a>. FCA Dear-CEO Annex 1 (March 2024): firms showed <em>"business growth without evolving financial crime systems and controls."</em></div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">MLRO personally · CCO · Audit Committee</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility + personal liability + morale</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">The Compliance Manifest is the veto. New product = new data-contract entry, validated before the product can ship to production data pipelines. <em>Multi-jurisdiction</em> and <em>Program Maturity</em> dashboard pages render the coverage gap the moment a new geography or product is added. The MLRO's signature on a control attestation references a Manifest version — by hash, unambiguous about what the program covered, when.</div>
+    </div>
+  </div>
+
+  <!-- DATA 9 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 09</div>
+    <h3 class="card-title">"The SAR we filed and the SAR we should have filed."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The MLRO signs off on a thousand SARs a year. Some are defensive — filed because the analyst couldn't rule out suspicion, even when nothing in the data pattern made the case. Others are missing — the genuinely suspicious customer's behaviour did not surface in time, because a transaction did not arrive in the alert engine, or the prior STR's narrative was not joined to the current alert. The defect is data continuity from the source extract through to the regulator-facing form.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">FINTRAC on RBC (2024, $7.5M penalty — the largest in FINTRAC history): the bank <em>"failed to flag suspicious activity, neglected to keep its written AML policies and procedures up to date and did not disclose relevant information in suspicious transaction reports… failed to submit 16 suspicious transactions reports across 130 customer files."</em> — <a href="https://www.acams.org/en/news/fintrac-fines-royal-bank-of-canada-record-7-5-million-for-aml-failings">ACAMS coverage</a>. The 16 missed STRs across 130 customer files is not a detection failure — the data to file the STR existed somewhere in RBC; it did not arrive at the regulator-facing form. FinCEN's April 2026 NPRM names the unbroken chain — <em>identified, escalated, and reported</em> — not the alert volume.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">MLRO · 1LoD analyst · FIU lead · Internal Audit</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility + regulatory-penalty exposure</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">Investigation-aggregator joins alerts to a deterministic INV-{sha256[:16]} ID; STR auto-bundling packages narrative + goAML XML + Mermaid diagrams + manifest hash so the artifact the regulator receives is the artifact the analyst saw. STR filing-latency p95 is a first-class metric on the Executive Dashboard's effectiveness funnel. The chain from raw transaction → alert → case → narrative → submitted STR is one append-only ledger; gaps surface as missing IDs.</div>
+    </div>
+  </div>
+
+  <!-- DATA 10 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 10</div>
+    <h3 class="card-title">"We can't see what the other bank is seeing."</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">A customer wires money out of Bank A and into Bank B. Bank A files an STR. Bank B's monitoring system has no signal that Bank A flagged anything — and may not even ask. The typology that requires both halves of the transaction to be visible only fires correctly across institutional boundaries, where data does not cross. Cross-bank information sharing is the data layer regulators have been asking banks to operationalise since FATF Recommendation 18.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">The Wolfsberg Group's CBDDQ V1.4 (April 2024) sets the global standard for what information correspondent banks share, binding counterparties to <em>"file accurate supplemental information on a timely basis"</em> with refresh <em>"no less frequently than every eighteen months."</em> — <a href="https://wolfsberg-group.org/resources/correspondent-banking">Wolfsberg CBDDQ</a>. FATF Recommendation 18 (still operative in 2026) requires <em>"policies and procedures for sharing information required for the purposes of customer due diligence and money laundering and terrorist financing risk management."</em> The EU's AMLA, operationally active in 2026, is tasked with creating the cross-border information-sharing infrastructure AMLD6 requires — <a href="https://www.amla.europa.eu/amla-takes-major-step-toward-harmonised-eu-supervision_en">AMLA</a>. FinCEN section 314(b) provides the US-domestic safe harbour; uptake has been historically uneven.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">CCO · MLRO · Head of Correspondent Banking · FIU lead</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility + missed-typology risk</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">The framework ships a <strong>cross-border information-sharing sandbox</strong> (<code>compliance/sandbox.py</code>) — a reference implementation of how a Manifest can declare information-sharing partners, scope, and audit trail, so 314(b) / Wolfsberg / FATF R.18 compliance becomes a configurable contract rather than a bilateral negotiation re-invented per partnership. Opt-in and isolated from the production engine.</div>
+    </div>
+  </div>
+
+  <!-- DATA 11 -->
+  <div class="r-card">
+    <div class="card-tag">Data · 11</div>
+    <h3 class="card-title">The compliance-defensible answer is a <em>data contract</em>, not a detection upgrade.</h3>
+    <div class="r-rows">
+      <div class="row-key">Plain English</div>
+      <div class="row-val">The framework's load-bearing claim is that DATA-1 through DATA-10 are solved at the data-contract layer, before the detector runs. <em>Disclosure: this framework is positioned around this thesis.</em> It is included not as marketing but because the doc would be incomplete without naming what the alternative posture looks like. The PAIN doc's style guide warned against framework promotion in leader-facing copy; here, the framework is the worked example.</div>
+
+      <div class="row-key">Primary source</div>
+      <div class="row-val">FinCEN's April 2026 NPRM is the most explicit recent statement of what an AML program's evidence layer must produce — board approval, designated officer, <em>risk assessment, internal controls, independent testing,</em> training, and documentation that ties controls back to risks. — <a href="https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs">Federal Register 2026-07033</a>. FRB SR 26-2 + OCC Bulletin 2026-13 (effective 17 April 2026) require independent challenger validation of model-risk components — <a href="https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm">SR 26-2</a>. The April 2026 enforcement perimeter is clear: a program is defensible to the extent its data, its controls, its decisions, and its lineage can be replayed on demand.</div>
+
+      <div class="row-key">Roles affected</div>
+      <div class="row-val">CCO · MLRO · 2LoD · MRM Director · Internal Audit</div>
+
+      <div class="row-key">Cost type</div>
+      <div class="row-val">Audit-defensibility</div>
+
+      <div class="row-key">Framework capability</div>
+      <div class="row-val">One versioned <code>aml.yaml</code> declares the data contracts every detector depends on. Two-layer validation (JSON Schema + Pydantic cross-references) catches contract violations before the engine runs. Same spec + same data + same seed = identical output hashes — the deterministic-replay guarantee is what makes the audit ledger byte-replayable. The Manifest is the document Compliance and Engineering both commit against. The audit ledger is the document the regulator replays. Together they turn DATA-1 through DATA-10 from organisational pain into validator output.</div>
+    </div>
+  </div>
+
+  <h2 class="r-h2"><em>Themes</em></h2>
+  <p class="r-p">
+    The dominant message in 2026 primary sources is that <strong>data, not detection, is the binding constraint on AML program effectiveness</strong>. BCBS 239 codified this in 2013; the Basel Committee's 2023 progress report shows G-SIBs still don't meet the principles a decade later. FinCEN's April 2026 NPRM, OSFI's revised E-23 (effective 2027), FRB SR 26-2 (effective April 2026), and the FCA's 2024 Annex 1 letter converge: programs must produce evidence — data lineage, decision rationale, control coverage — on demand. The largest 2024 enforcement orders (TD, RBC) are not detection-failure cases; they are data-and-process cases dressed up as detection cases. The vendor "AI" wave presumes a data quality the consent orders show does not exist.
+  </p>
+
+  <h2 class="r-h2">Style guide — phrases to <em>use</em>, phrases to <em>avoid</em>.</h2>
+  <p class="r-section-dek">
+    Regulator-sourced phrases are defensible to a buyer the moment they're cited. Engineering shorthand on a leader-facing page reads as condescension. The terms in the right column remain correct on developer-facing surfaces — the goal is to <strong>hide them from leaders, not delete them.</strong>
+  </p>
+  <div class="r-doublecol">
+    <div class="col use">
+      <h4>✓ Use these · regulator-sourced</h4>
+      <ul>
+        <li>"Capture and aggregate all material risk data" (BCBS 239 P4)</li>
+        <li>"Accurate and reliable risk data" (BCBS 239 P3)</li>
+        <li>"An audit trail of debate and challenge" (FCA Annex 1 2024)</li>
+        <li>"Your data leaves our perimeter" (OSFI / Fed / FCA framing)</li>
+        <li>"Lineage we can walk back" (audit-evidence layer)</li>
+        <li>"Data contract" (schema-as-policy artifact)</li>
+      </ul>
+    </div>
+    <div class="col avoid">
+      <h4>✕ Avoid these on leader surfaces</h4>
+      <ul>
+        <li>"data quality" alone — too vague. Use <em>completeness / accuracy / staleness / reconciliation / lineage</em></li>
+        <li>"ETL," "data pipeline," "warehouse" → "the data the controls run on"</li>
+        <li>"data lake," "lakehouse," "Delta," "Iceberg" → "the underlying data store"</li>
+        <li>"garbage in, garbage out" → "the controls cannot fire on data the bank does not have"</li>
+        <li>"data sovereignty" alone → "the bank owns where the data sits" + cite OSFI B-13 / EBA</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="r-foot">
+    <a href="../#/">← back to resource hub</a>
+    <span class="gh">view source on <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md">github</a></span>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -86,6 +86,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 👥 [Personas & Workflows](docs/personas.md) | Map your role (CCO / MLRO / Analyst / Auditor / Developer) to the framework |
 | 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 29 pages with screenshots + audience filtering — incl. GenAI assistant on every page |
 | 🤔 [10 Daily Pain Points](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) | The real reasons AML leaders feel stuck — primary-source quotes only |
+| 📐 [Data is the AML Problem](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) | The layer underneath the pain — 11 faces of the data problem, BCBS 239 + 2024-26 enforcement |
 
 ### How it works
 
@@ -109,6 +110,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 📋 [Changelog](CHANGELOG.md) | Round-by-round PR-level history |
 | 📊 [Progress Snapshot](docs/progress.md) | Fact-based audit of what's shipped (modules, tests, regulatory coverage) |
 | 🔍 [Competitive Positioning Research](docs/research/2026-04-competitive-positioning.md) | Where this framework slots vs. Actimize / Hawk / Marble / Jube |
+| 📐 [Data is the AML Problem](docs/research/2026-05-aml-data-problem.md) | Why the binding constraint is data, not detection — 11 faces, primary-source only |
 
 ---
 
