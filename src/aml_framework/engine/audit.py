@@ -45,6 +45,111 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+# Schema version stamped on every decision event. Readers can use this to
+# detect old runs and apply default values for fields that didn't exist
+# yet. Bumped from 1 → 2 in PR-DATA-4 (added optional rule_version,
+# threshold_used, override_by, override_reason).
+DECISION_SCHEMA_VERSION = 2
+
+
+def walk_lineage(run_dir: Path, case_id: str) -> dict[str, Any]:
+    """Reconstruct the full audit chain for a case (PR-DATA-4).
+
+    Given a run directory and a case_id, walk back through the artifacts
+    the engine wrote and assemble the chain a 2LoD reviewer needs to
+    answer "where did this case come from?":
+
+        case file → rule_id → rule_version → spec_content_hash →
+        input_file_hashes → run timestamp
+
+    Returns a dict with a stable shape so dashboards (and other tooling)
+    can render the chain without re-walking the filesystem. Missing
+    pieces become `None` rather than raising — old runs predating
+    PR-DATA-4 won't have rule_version stamped, and this should still
+    surface what's available rather than crash the page.
+
+    The helper is pure (no streamlit, no I/O writes) so it's testable
+    without dashboard dependencies.
+    """
+    chain: dict[str, Any] = {
+        "case_id": case_id,
+        "run_dir": str(run_dir),
+        "case": None,
+        "rule_id": None,
+        "rule_version": None,
+        "queue": None,
+        "spec_content_hash": None,
+        "engine_version": None,
+        "as_of": None,
+        "input_files": [],
+        "decisions": [],
+    }
+
+    case_path = run_dir / "cases" / f"{case_id}.json"
+    if case_path.exists():
+        chain["case"] = json.loads(case_path.read_text(encoding="utf-8"))
+        chain["rule_id"] = chain["case"].get("rule_id")
+        chain["queue"] = chain["case"].get("queue")
+
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        chain["spec_content_hash"] = manifest.get("spec_content_hash")
+        chain["engine_version"] = manifest.get("engine_version")
+        chain["as_of"] = manifest.get("ts") or manifest.get("as_of")
+
+    input_manifest_path = run_dir / "input_manifest.json"
+    if input_manifest_path.exists():
+        input_manifest = json.loads(input_manifest_path.read_text(encoding="utf-8"))
+        chain["input_files"] = [
+            {
+                "contract_id": cid,
+                "row_count": meta.get("row_count"),
+                "content_hash": meta.get("content_hash"),
+            }
+            for cid, meta in sorted(input_manifest.items())
+        ]
+
+    decisions_path = run_dir / "decisions.jsonl"
+    if decisions_path.exists():
+        for line in decisions_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("case_id") != case_id:
+                continue
+            chain["decisions"].append(event)
+            # First case_opened event for this case carries the
+            # rule_version (PR-DATA-4 stamps it there). Pull it up to
+            # the chain root for easy display.
+            if event.get("event") == "case_opened" and event.get("rule_version"):
+                chain["rule_version"] = event["rule_version"]
+
+    return chain
+
+
+def rule_version_hash(rule: Any) -> str:
+    """SHA-256 of a rule's serialised content — the rule_version stamped
+    on each decision event so the lineage chain (PR-DATA-4) survives spec
+    edits. Two runs with the same `rule_id` but different thresholds
+    produce different `rule_version`s; that's what makes "where did this
+    number come from?" answerable from the audit ledger alone.
+
+    Accepts either a Pydantic Rule model (uses `.model_dump_json`) or a
+    plain dict. Returns the first 16 hex chars to keep ledger lines
+    compact while staying collision-resistant for the rule-population
+    sizes the framework targets (~hundreds, not millions).
+    """
+    if hasattr(rule, "model_dump_json"):
+        body = rule.model_dump_json().encode("utf-8")
+    else:
+        body = _canonical_json(rule)
+    return _sha256(body)[:16]
+
+
 # Set of file basenames / dirs that must not change after `finalize()`. The
 # manifest plus the rule-output snapshot are the load-bearing audit artifacts;
 # `decisions.jsonl` is intentionally left writable so the dashboard can append
@@ -149,10 +254,17 @@ class AuditLedger:
     def append_decision(self, decision: dict[str, Any], ts: datetime | None = None) -> None:
         """Append an engine-time decision. `ts` defaults to `self.as_of` for
         run-to-run determinism. Pass an explicit `ts` only if the caller has a
-        deterministic per-decision time (e.g. a simulated resolution time)."""
+        deterministic per-decision time (e.g. a simulated resolution time).
+
+        Every event written here carries a `schema_version` so future
+        readers can default-fill the optional metadata fields
+        (`rule_version`, `threshold_used`, `override_by`, `override_reason`)
+        introduced in PR-DATA-4.
+        """
         stamp = ts if ts is not None else self.as_of
         event = {
             "ts": stamp.isoformat() if hasattr(stamp, "isoformat") else str(stamp),
+            "schema_version": DECISION_SCHEMA_VERSION,
             **decision,
         }
         with (self.run_dir / "decisions.jsonl").open("ab") as f:

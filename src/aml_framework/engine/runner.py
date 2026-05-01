@@ -13,7 +13,7 @@ from typing import Any, TypedDict
 
 import duckdb
 
-from aml_framework.engine.audit import AuditLedger
+from aml_framework.engine.audit import AuditLedger, rule_version_hash
 from aml_framework.engine.constants import Event, Queue
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
@@ -224,15 +224,20 @@ def _open_cases_for_alerts(
     case_ids: list[str],
 ) -> None:
     """Create a case for each alert, record to ledger, and append to case_ids."""
+    rule_version = rule_version_hash(rule)
     for alert in alerts:
         case = _build_case(rule, alert, spec, ledger.input_manifest)
         ledger.record_case(case["case_id"], case)
         case_ids.append(case["case_id"])
+        # PR-DATA-4: stamp rule_version on every case-opened decision so a
+        # 2LoD reviewer can answer "which version of this rule fired?" by
+        # reading the ledger alone — no spec-snapshot diff required.
         ledger.append_decision(
             {
                 "event": Event.CASE_OPENED,
                 "case_id": case["case_id"],
                 "rule_id": rule.id,
+                "rule_version": rule_version,
                 "queue": rule.escalate_to,
             }
         )
