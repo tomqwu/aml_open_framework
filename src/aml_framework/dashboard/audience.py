@@ -261,6 +261,9 @@ AUDIENCE_PAGES = {
         # matches what the program claims to measure.
         # AI Assistant added (PR-K) — every GenAI interaction is on
         # the audit trail; auditors are the primary consumer.
+        # Information Sharing added (PR-DATA-10b) — FATF R.18 / 314(b)
+        # exchanges leave a paper trail auditors are the primary
+        # consumer of (who shared what with whom, salt rotation cadence).
         # Run History dropped to stay within the 9-page cap; it's
         # still in the dashboard, accessible by direct URL.
         "Audit & Evidence",
@@ -270,6 +273,7 @@ AUDIENCE_PAGES = {
         "Framework Alignment",
         "Regulator Pulse",
         "Metrics Taxonomy",
+        "Information Sharing",
         "AI Assistant",
     ],
     "fintech_mlro": [
