@@ -490,6 +490,127 @@ def notify_digest_cmd(
             console.print(f"  {mark} {platform}")
 
 
+@app.command(name="share-pattern")
+def share_pattern_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    partner: str = typer.Option(
+        ..., "--partner", help="Partner FI ID from spec.information_sharing.partners[].fi_id."
+    ),
+    rule_family: str = typer.Option(
+        "network_pattern",
+        "--rule-family",
+        help="Taxonomy slug for the pattern family being shared (e.g. rtp_mule_cluster).",
+    ),
+    salt: str = typer.Option(
+        ...,
+        "--salt",
+        help="Per-pair, per-period salt agreed with the partner FI out-of-band.",
+    ),
+    salt_period: str = typer.Option(
+        "",
+        "--salt-period",
+        help="Salt period label, e.g. '2026-04'. Receiving FI checks parity.",
+    ),
+    out: Path = typer.Option(
+        Path("share-pattern.json"),
+        "--out",
+        help="Where to write the partner-scoped JSON.",
+    ),
+) -> None:
+    """Emit a partner-scoped obfuscated-pattern JSON for cross-bank info sharing (DATA-10).
+
+    The spec must declare `information_sharing.partners[].fi_id == partner`
+    or the command refuses to write — the spec is the policy boundary.
+    Production cross-FI exchange is out of scope; this command produces
+    a reference artifact the partner can compare against.
+    """
+    import json as _json
+    from datetime import datetime, timezone
+
+    from aml_framework.compliance.sandbox import obfuscate_pattern_match
+
+    spec = load_spec(spec_path)
+    if not spec.information_sharing or not spec.information_sharing.enabled:
+        console.print("[red]Refused:[/red] spec has no enabled `information_sharing` block.")
+        raise typer.Exit(code=1)
+    declared = {p.fi_id for p in spec.information_sharing.partners}
+    if partner not in declared:
+        console.print(
+            f"[red]Refused:[/red] partner '{partner}' is not in the spec's "
+            f"information_sharing.partners (declared: {sorted(declared) or 'none'})."
+        )
+        raise typer.Exit(code=1)
+
+    obfuscated = obfuscate_pattern_match(
+        fi_id=spec.program.regulator,
+        rule_family=rule_family,
+        detected_at=datetime.now(tz=timezone.utc),
+        pattern_kind="component_size",
+        structural_fingerprint={"node_count": 0, "edge_count": 0, "max_hop": 0},
+        subject_ids=[],
+        neighbour_ids=[],
+        salt=salt.encode("utf-8"),
+        salt_period=salt_period,
+    )
+    out.write_text(_json.dumps(obfuscated.to_dict(), indent=2, sort_keys=True), encoding="utf-8")
+    console.print(f"[green]Wrote[/green] partner-scoped pattern to {out}")
+    console.print(f"  partner: {partner}")
+    console.print(f"  salt_period: {salt_period or '(unset)'}")
+
+
+@app.command(name="verify-pattern")
+def verify_pattern_cmd(
+    local_file: Path = typer.Argument(
+        ..., exists=True, readable=True, help="Local obfuscated-pattern JSON."
+    ),
+    partner_file: Path = typer.Argument(
+        ..., exists=True, readable=True, help="Partner-FI obfuscated-pattern JSON."
+    ),
+) -> None:
+    """Compare two obfuscated patterns from different FIs (DATA-10).
+
+    Both files should have been emitted by `aml share-pattern` against
+    the same salt + salt_period. Returns a structural-match flag plus
+    any obfuscated-id overlap.
+    """
+    import json as _json
+    from datetime import datetime
+
+    from aml_framework.compliance.sandbox import (
+        ObfuscatedPattern,
+        verify_pattern_overlap,
+    )
+
+    def _load(path: Path) -> ObfuscatedPattern:
+        d = _json.loads(path.read_text(encoding="utf-8"))
+        return ObfuscatedPattern(
+            fi_id=d["fi_id"],
+            rule_family=d["rule_family"],
+            detected_at=datetime.fromisoformat(d["detected_at"].replace("Z", "+00:00")),
+            pattern_kind=d["pattern_kind"],
+            structural_fingerprint=d["structural_fingerprint"],
+            obfuscated_subject_ids=list(d.get("obfuscated_subject_ids", [])),
+            obfuscated_neighbour_ids=list(d.get("obfuscated_neighbour_ids", [])),
+            salt_period=d.get("salt_period", ""),
+        )
+
+    local = _load(local_file)
+    partner = _load(partner_file)
+    report = verify_pattern_overlap(local, partner)
+
+    console.print("[bold]Overlap report[/bold]")
+    console.print(f"  structural_match: {report.structural_match}")
+    console.print(f"  structural_distance: {report.structural_distance}")
+    console.print(f"  has_identifier_overlap: {report.has_identifier_overlap}")
+    if report.has_identifier_overlap:
+        console.print(
+            f"  overlapping_obfuscated_ids ({len(report.overlapping_obfuscated_ids)}): "
+            f"{report.overlapping_obfuscated_ids[:5]}…"
+        )
+    if report.note:
+        console.print(f"  note: {report.note}")
+
+
 @app.command(name="attest")
 def attest_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True, help="Spec to attest."),

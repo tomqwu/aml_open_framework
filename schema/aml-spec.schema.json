@@ -29,6 +29,30 @@
     "reports": {
       "type": "array",
       "items": { "$ref": "#/$defs/report" }
+    },
+    "information_sharing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "PR-DATA-10: cross-bank / cross-border AML information-sharing declaration (FATF R.18 / Wolfsberg CBDDQ / FinCEN 314(b) / AMLA). Opt-in.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "partners": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["fi_id"],
+            "additionalProperties": false,
+            "properties": {
+              "fi_id":          { "type": "string", "minLength": 1 },
+              "label":          { "type": "string" },
+              "jurisdictions":  { "type": "array", "items": { "type": "string" } },
+              "typology_scope": { "type": "array", "items": { "type": "string" } },
+              "salt_rotation":  { "type": "string", "enum": ["daily", "weekly", "monthly", "quarterly"] }
+            }
+          }
+        },
+        "notes": { "type": "string" }
+      }
     }
   },
   "$defs": {
