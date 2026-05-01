@@ -196,7 +196,46 @@ def _proxy_repeat_alert(ctx: "MetricContext") -> float:
 
 
 def _proxy_filing_latency(ctx: "MetricContext") -> float:
-    """p95 STR/SAR filing latency in days (approximate)."""
+    """p95 STR/SAR filing latency in days.
+
+    PR-DATA-9 promotion: when filing sidecars exist (`cases/<case_id>__filing.json`,
+    written by `cases.filing.record_filing`), use the wall-clock latency
+    from case-open to actual filing — that's the regulator-defensible
+    number the whitepaper's DATA-9 calls for. Falls back to the proxy
+    (queue-resolution time as filing time) for cases without sidecars,
+    so legacy runs and runs that haven't filed yet still produce a
+    number rather than zero.
+    """
+    real_latencies: list[float] = []
+    if ctx.run_dir is not None:
+        from aml_framework.cases.filing import filing_latency_days, list_filings
+
+        filings = list_filings(ctx.run_dir)
+        case_open_at: dict[str, Any] = {}
+        for d in ctx.decisions:
+            if d.get("event") == "case_opened" and d.get("case_id"):
+                from datetime import datetime
+
+                ts_raw = d.get("ts")
+                if isinstance(ts_raw, str):
+                    try:
+                        case_open_at[d["case_id"]] = datetime.fromisoformat(
+                            ts_raw.replace("Z", "+00:00")
+                        )
+                    except ValueError:
+                        pass
+        for f in filings:
+            opened = case_open_at.get(f.case_id)
+            if opened is None:
+                continue
+            real_latencies.append(filing_latency_days(f, opened))
+
+    if real_latencies:
+        real_latencies.sort()
+        p95_idx = min(int(len(real_latencies) * 0.95), len(real_latencies) - 1)
+        return round(real_latencies[p95_idx], 2)
+
+    # Proxy fallback — same logic as before PR-DATA-9.
     filing_hours = sorted(
         d.get("resolution_hours", 0)
         for d in ctx.decisions
@@ -304,6 +343,11 @@ class MetricContext:
     cases: list[dict[str, Any]]
     decisions: list[dict[str, Any]]
     data: dict[str, list[dict[str, Any]]]
+    # PR-DATA-9: optional run dir lets the filing-latency metric read
+    # filing sidecars (`cases/<case_id>__filing.json`) for real
+    # wall-clock latency. Backwards-compatible — None falls back to
+    # the proxy implementation.
+    run_dir: Any = None  # actually `Path | None`; Any keeps the dataclass importable without pathlib in callers
 
 
 def evaluate_metrics(
@@ -312,8 +356,16 @@ def evaluate_metrics(
     cases: list[dict[str, Any]],
     decisions: list[dict[str, Any]],
     data: dict[str, list[dict[str, Any]]],
+    run_dir: Any = None,
 ) -> list[MetricResult]:
-    ctx = MetricContext(spec=spec, alerts=alerts, cases=cases, decisions=decisions, data=data)
+    ctx = MetricContext(
+        spec=spec,
+        alerts=alerts,
+        cases=cases,
+        decisions=decisions,
+        data=data,
+        run_dir=run_dir,
+    )
     results: list[MetricResult] = []
     for metric in spec.metrics:
         value = _compute(metric.formula, ctx)
