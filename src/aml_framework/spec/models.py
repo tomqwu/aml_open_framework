@@ -49,6 +49,47 @@ class _Base(BaseModel):
 AiAuditLogMode = Literal["hash_only", "full_text"]
 
 
+SaltRotationCadence = Literal["daily", "weekly", "monthly", "quarterly"]
+
+
+class InformationSharingPartner(_Base):
+    """One cross-border / cross-bank information-sharing partner.
+
+    PR-DATA-10 (DATA-10 in the data-problem whitepaper). Declares intent
+    to share obfuscated network-pattern fingerprints with another FI
+    under a per-pair, per-period salt arrangement managed by
+    `compliance/sandbox.py`. The spec block is opt-in; the engine does
+    not contact partners — it only records that the institution has
+    declared this partnership and what scope it covers.
+    """
+
+    fi_id: str = Field(min_length=1)  # LEI / BIC of the partner FI
+    label: str = ""  # human-readable partner name for the dashboard
+    jurisdictions: list[str] = Field(default_factory=list)  # e.g. ["US", "CA"]
+    typology_scope: list[str] = Field(default_factory=list)  # rule_family slugs
+    salt_rotation: SaltRotationCadence = "monthly"
+
+
+class InformationSharing(_Base):
+    """Cross-bank / cross-border AML information-sharing declaration.
+
+    Backs FATF Recommendation 18 / Wolfsberg CBDDQ / FinCEN 314(b) /
+    AMLA cross-border infrastructure (see DATA-10 in the data-problem
+    whitepaper). When `enabled=False` (the default), the spec carries
+    a zero-cost record of "we considered this and opted out"; when
+    True, the listed partners are actively in scope.
+
+    The sandbox at `compliance/sandbox.py` consumes this block via the
+    `aml share-pattern` CLI command. Production-grade cross-FI exchange
+    is out of scope; this is the *reference surface* the whitepaper's
+    DATA-10 describes.
+    """
+
+    enabled: bool = False
+    partners: list[InformationSharingPartner] = Field(default_factory=list)
+    notes: str = ""
+
+
 class Program(_Base):
     name: str
     jurisdiction: str
@@ -314,6 +355,12 @@ class AMLSpec(_Base):
     retention_policy: dict[str, str] | None = None
     metrics: list[Metric] = Field(default_factory=list)
     reports: list[Report] = Field(default_factory=list)
+    # PR-DATA-10: cross-bank / cross-border AML information-sharing
+    # declaration (FATF R.18 / Wolfsberg CBDDQ / FinCEN 314(b) / AMLA).
+    # Defaults to disabled; opt-in by setting `enabled: true` and
+    # listing partners. The framework's `compliance/sandbox.py` consumes
+    # this block via `aml share-pattern`.
+    information_sharing: InformationSharing | None = None
 
     @model_validator(mode="after")
     def _check_cross_references(self) -> "AMLSpec":
