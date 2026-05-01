@@ -8,6 +8,61 @@ that introduced them.
 ## [Unreleased]
 
 ### Changed
+- **Brand DNA port — deck → dashboard CSS (PR-M / PR-N / PR-Q, #162 / #163 / #165)**
+  (`dashboard/components.py`, dashboard CSS bundle, dashboard layout
+  shell). Three PRs land the landing-site brand inside the live
+  dashboard: PR-M ports the deck's typography scale, spacing, and
+  accent ramp into the dashboard's CSS; PR-N applies the wordmark
+  + cream/orange palette so the dashboard now looks like the same
+  product as the marketing surface; PR-Q rebuilds the topbar and
+  sidebar around an ivory background and adds the Today hero block
+  on the landing surface. The brand decisions live in the deck's
+  research record and are now load-bearing for the dashboard
+  itself, not just print artifacts.
+
+- **Topbar / Today regression fixes (PR-O / PR-R / PR-S, #164 / #166 / #167)**
+  (`dashboard/components.py`, `dashboard/pages/0_Today.py`,
+  `dashboard/audience.py`). Three follow-up fixes for regressions
+  surfaced after the topbar + Today-hero rebuild went live:
+  - PR-O preserves the sidebar expand control after a collapse; PR-N
+    had introduced a layout where the chevron disappeared on
+    collapsed state, leaving no obvious way to re-expand.
+  - PR-R fixes Today cards crashing for VP / SVP / Director /
+    Developer / FinTech personas. Root cause: the persona-filter
+    metric subset can be empty for some personas, and the Today
+    cards were indexing into the filtered list assuming non-empty.
+  - PR-S fixes `link_to_page()` crashing when the link target is
+    hidden by the active persona's audience filter. Now degrades
+    to a non-link with a tooltip explaining the visibility
+    constraint, instead of throwing.
+
+- **e2e persona × page coverage matrix (PR-T, #168)**
+  (`tests/test_e2e_dashboard_persona_pages.py` — new file,
+  `tests/test_e2e_dashboard.py`, several dashboard pages with
+  KPI render fixes). New persona × page coverage matrix exercises
+  every (persona, page) combination — 31 pages × 12 personas with
+  the audience filter applied — catching the class of bugs PR-R /
+  PR-S found before they ship. Also adds an HTML-leak detector
+  that fails the test if any rendered page contains unrendered
+  Markdown / HTML strings (a regression vector that's easy to
+  introduce when porting CSS-heavy components — Streamlit
+  silently renders escaped strings as text). KPI render fix
+  closes one render-bug the new matrix surfaced. Test files went
+  56 → 90 (the e2e suite split into per-persona modules so a
+  single persona regression doesn't take down the whole matrix
+  in CI). Tests grew 1,750 → 1,791 (+41).
+
+- **README — positioning + onboarding polish (3 direct-to-main commits, `1eed419`, `8a6cc8b`, `30f4622`)**
+  (`README.md`). Three small README additions outside the PR
+  cadence: "Where this fits in your stack" frames the framework as
+  a control-plane sitting above the existing AML stack (not a
+  replacement for Actimize / Snowflake / Pega); "In-bank, not
+  SaaS" addresses the data-egress objection regulated banks raise
+  about hosted AML AI vendors; the Quickstart now opens with a
+  venv step and a macOS note explaining that the system `python3`
+  is 3.9 and fails the `>=3.10` pin (one-line fix: `brew install
+  python`).
+
 - **Color-resolver migration (Phase E follow-up)**
   (`dashboard/components.py`,
   `dashboard/pages/4_Case_Investigation.py`,

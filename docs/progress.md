@@ -1,20 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-04-30. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-05-01. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
 ---
 
 ## At a Glance
 
-| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) | Dashboard UX + GenAI push (2026-04-30) |
-|---|---|---|---|---|
-| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC | + ~700 LOC | + ~3,500 LOC (PR-A → PR-L) |
-| Tests | 991 | + ~110 | 1,161 passing | **1,750 passing** |
-| Test files | 34 | 39 | 43 | 56 |
-| Example specs | 7 | 9 | 9 | 9 |
-| Unique regulation citations | 61+ | ~75+ | ~75+ | ~75+ |
-| Dashboard pages | 24 | 24 | 24 | **29** (+ Metrics Taxonomy, AI Assistant, screenshots-pending) |
-| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 | + #150–#161 (PR-A → PR-L) |
+| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) | Dashboard UX + GenAI push (2026-04-30) | Brand + UX consolidation (2026-05-01) |
+|---|---|---|---|---|---|
+| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC | + ~700 LOC | + ~3,500 LOC (PR-A → PR-L) | + ~2,650 LOC (PR-M → PR-T, 31 files) |
+| Tests | 991 | + ~110 | 1,161 passing | **1,750 passing** | **1,791 passing** |
+| Test files | 34 | 39 | 43 | 56 | 90 |
+| Example specs | 7 | 9 | 9 | 9 | **10** |
+| Unique regulation citations | 61+ | ~75+ | ~75+ | ~75+ | ~80+ |
+| Dashboard pages | 24 | 24 | 24 | **29** (+ Metrics Taxonomy, AI Assistant, screenshots-pending) | 29 (count unchanged; 31 page files inc. 2 nav surfaces) |
+| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 | + #150–#161 (PR-A → PR-L) | + #162–#168 (PR-M → PR-T) |
 
 ---
 
@@ -144,6 +144,22 @@ Goal: close the remaining clickability/colour/cross-link gaps from a fresh page-
 
 **Result**: dashboard now ships with click-everywhere navigation, a coherent colour discipline (RAG / severity / SLA from centralised tokens, no inline hex), an audit-doc-defendable Metrics Taxonomy reference, and a GenAI co-pilot that mounts on every page without per-page edits. The `narratives/` substrate that previously powered only the Case Investigation STR drafter is now reused for the assistant — same Citation model, same backend factory, same audit-log discipline. Tests grew 1,646 → 1,750 (+104) across the 12 PRs.
 
+### Brand + UX consolidation (7 PRs, 2026-05-01)
+
+Goal: port the landing-site brand DNA (deck → dashboard CSS), then absorb the regressions that surfaced once the topbar / Today-hero rebuild went live. Smaller wave than PR-A→L; mostly CSS, fixes, and one e2e expansion.
+
+| PR | Workstream |
+|---|---|
+| #162 | PR-M · Port deck DNA to live CSS (typography scale, spacing, accent ramp) |
+| #163 | PR-N · Landing-site brand applied — wordmark + cream/orange palette |
+| #164 | PR-O · Preserve sidebar expand control after collapse (regression from N) |
+| #165 | PR-Q · Landing-style topbar + ivory sidebar + Today hero |
+| #166 | PR-R · Fix Today cards crashing for VP / SVP / Director / Developer / FinTech personas (KeyError on persona-filtered metrics) |
+| #167 | PR-S · Fix `link_to_page()` crash when target page is hidden by persona filter |
+| #168 | PR-T · e2e persona × page coverage matrix + HTML-leak detector + KPI render fix |
+
+**Result**: dashboard chrome now matches the landing-site brand. Two persona-side crashes that surfaced after the topbar/Today-hero rebuild are fixed and protected by a 31×12 persona-page e2e coverage matrix. The HTML-leak detector catches a class of bug where Streamlit components render unrendered Markdown/HTML strings into the page (a regression vector that's easy to introduce when porting CSS-heavy components). Tests grew 1,750 → 1,791 (+41) across the 7 PRs; test files went 56 → 90 (the e2e expansion split into per-persona modules). Three follow-up README polish commits (`Where this fits in your stack`, `In-bank, not SaaS`, Quickstart venv guidance) shipped directly to main outside the PR cadence.
+
 ---
 
 ## What the Framework Does Today
@@ -269,19 +285,22 @@ See `memory/project_round5to9_plan.md` (private) for the full "three new traps" 
 
 ## Round 8 / 9 — Remaining Planned Work
 
-The deep-research-agent's 5-round plan (in `memory/project_round5to9_plan.md`) is partially shipped — regwatch (8.3) shipped as Round 7 PR #74, FINTRAC audit-pack (9.1) as Round 7 PR #78, UK APP-fraud spec (8.1) as Round 7 PR #76. Remaining items, with the original engineer-day estimates:
+The deep-research-agent's 5-round plan (in `memory/project_round5to9_plan.md`) is now substantially shipped. Status as of 2026-05-01:
 
 | Round | Item | Estimate | Status |
 |---|---|---|---|
-| 8.2 | RTP/FedNow push-fraud detector pack | 3d | not started |
-| 8.4 | Fraud-AML unified case linkage | 3d | partial (cyber_enabled_fraud spec exists) |
-| 8.5 | Beneficial Ownership (BOI) workflow page #26 | 3d | not started |
-| 9.2 | Open Compliance API draft (`api/openapi-compliance.yaml`) | 3d | not started |
-| 9.3 | Guided demo CLI (`aml demo`) | 3d | not started |
+| 8.1 | UK APP-fraud spec | 3d | shipped — Round 7 PR #76 |
+| 8.2 | RTP/FedNow push-fraud detector pack | 3d | **shipped** — `examples/us_rtp_fednow/aml.yaml` |
+| 8.3 | Regulatory-change diff watcher (regwatch) | 3d | shipped — Round 7 PR #74 |
+| 8.4 | Fraud-AML unified case linkage | 3d | **shipped** — `cases/linkage.py` (cyber_enabled_fraud spec is the only consumer; a cross-spec example would deepen this) |
+| 8.5 | Beneficial Ownership (BOI) workflow page | 3d | **shipped** — `dashboard/pages/25_BOI_Workflow.py` |
+| 9.1 | FINTRAC pre-examination audit pack | 3d | shipped — Round 7 PR #78 |
+| 9.2 | Open Compliance API draft | 3d | **shipped** — `api/openapi-compliance.yaml` |
+| 9.3 | Guided demo CLI (`aml demo`) | 3d | **shipped** — `cli.py` |
 | 9.4 | Synthetic data quality upgrade for new specs | 3d | partial |
-| 9.5 | Cross-border information-sharing sandbox (FATF R.18) | 5d | not started |
+| 9.5 | Cross-border information-sharing sandbox (FATF R.18) | 5d | **shipped** — `compliance/sandbox.py` |
 
-~20 engineer-days of focused work remaining — each item warrants its own scope confirmation before implementation.
+The only Round-8/9 item with meaningful work left is 9.4 (~3 engineer-days) — a synthetic-data quality pass for the newer specs (`us_rtp_fednow`, `uk_app_fraud`, `trade_based_ml`) so each ships with its own planted-positives demo run, not just the inherited `community_bank` data. 8.4 is flagged "shipped but partial" because the unified case-linkage code is in but only `cyber_enabled_fraud` exercises it; a fraud↔AML cross-spec example would be the next deepening step.
 
 ---
 
