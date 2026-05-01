@@ -15,6 +15,19 @@ This is the **spec / control-plane layer above your AML stack** — not a replac
 
 It is *not* a transaction-monitoring platform (Actimize, SAS AML, NICE, Quantexa), not a data warehouse or pipeline (Snowflake, Databricks, dbt, Fivetran), not a case-management system (Pega, Hummingbird, Unit21), and not a SAR/STR filing service. It is *not* an AI detection model — though rules can call ML scorers via the `python_ref` escape hatch with `model_id` + `model_version` recorded for audit. The framework sits **above** those systems and makes them governed-by-spec, peer-reviewed, and audit-replayable — without replacing them.
 
+## In-bank, not SaaS
+
+The dominant AML AI-vendor model is hosted SaaS: the bank ships transactions, KYC, and case data to the vendor's cloud, the vendor runs detection and review there, and pricing is per-event. That shape is structurally incompatible with how regulated banks actually want to operate. Data egress at scale is uneconomic, the bank loses control of the model-risk surface, and *"your data leaves our perimeter"* is the first question OSFI / Fed / FCA exam teams ask about.
+
+This framework is built for the opposite shape: it runs **inside the bank's environment**. Apache 2.0, single Python package, deployable into existing VPCs, on-prem clusters, or air-gapped environments. Data does not move. The bank owns the spec, the engine, the audit ledger, and the operating cost — no per-event meter, no perpetual data-export contract.
+
+Practical implications:
+
+- **No data leaves the perimeter** — detection runs against the bank's warehouse, audit bundles land in the bank's storage, reports render in the bank's dashboards.
+- **No SaaS lock-in** — Apache 2.0 means a fork is always available. Worst-case exit is reading our spec, which is YAML.
+- **Compatible with existing MRM** — detection logic is reviewable code, not a vendor black box. ML scorers invoked via `python_ref` carry `model_id` + `model_version` for SR 11-7 / E-23 / SS1/23 evidence.
+- **Future agentic-AI extensions stay in-bank** — when LLM-based case-data assembly and review-draft assistants land on the roadmap, they run inside the bank's environment too. Same deployment shape, same data-egress posture (none).
+
 ## What changes for each role
 
 | If you are a… | What changes |
