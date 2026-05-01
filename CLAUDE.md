@@ -93,11 +93,11 @@ aml.yaml (spec)
 
 ### Dashboard
 
-21 Streamlit pages. `state.py` runs the engine once, caches in `st.session_state`. `audience.py` maps personas to relevant pages. Sidebar audience selector hides non-relevant pages.
+29 Streamlit pages (plus 2 navigation surfaces — Welcome + Today). `state.py` runs the engine once, caches in `st.session_state`. `audience.py` maps personas to relevant pages. Sidebar audience selector hides non-relevant pages.
 
 ### Specs
 
-5 example specs across 4 jurisdictions: US (FinCEN), CA (FINTRAC/OSFI), EU (EBA/AMLD6), UK (FCA/POCA).
+10 example specs across 5 jurisdictions: US (FinCEN/FATF/RTP-FedNow), CA (FINTRAC/OSFI), EU (EBA/AMLD6), UK (FCA/POCA/PSR), Cross-border (FATF R.16 crypto/VASP).
 
 ## Python
 

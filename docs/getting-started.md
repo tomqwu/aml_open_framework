@@ -37,15 +37,20 @@ If you only need the engine + CLI, drop the extras: `pip install -e ".[dev]"`. T
 
 ## 2. Pick a Spec (1 min)
 
-Five example specs ship in `examples/`, one per regulatory regime:
+Ten example specs ship in `examples/`, spanning 5 jurisdictions and several typology focuses:
 
 | Spec path | Jurisdiction | Regulator | Use when |
 |---|---|---|---|
 | `examples/community_bank/aml.yaml` | US | FinCEN | Demo / first-time exploration |
+| `examples/canadian_bank/aml.yaml` | CA | FINTRAC | Mid-size Canadian retail / credit union |
 | `examples/canadian_schedule_i_bank/aml.yaml` | CA | FINTRAC + OSFI | Big-six Canadian bank |
 | `examples/eu_bank/aml.yaml` | EU | EBA / AMLD6 | Eurozone retail bank |
 | `examples/uk_bank/aml.yaml` | UK | FCA / POCA | UK challenger or retail |
-| `examples/cyber_enabled_fraud/aml.yaml` | US | FinCEN/FATF | Pig-butchering + APP fraud |
+| `examples/cyber_enabled_fraud/aml.yaml` | US | FinCEN / FATF | Pig-butchering + investment-scam typology |
+| `examples/uk_app_fraud/aml.yaml` | UK | FCA + PSR + NCA | UK PSR reimbursement-mandate APP fraud |
+| `examples/trade_based_ml/aml.yaml` | US | FinCEN + FATF / Egmont | Trade-based ML typology indicators |
+| `examples/us_rtp_fednow/aml.yaml` | US | FinCEN / RTP / FedNow | Real-time-payment push-fraud detection |
+| `examples/crypto_vasp/aml.yaml` | Cross-border | FATF R.16 / FinCEN / FINTRAC | VASP STR/SAR + Travel Rule completeness |
 
 For your first run pick **`community_bank`** — it's the smallest, fastest, and best-documented.
 
@@ -95,7 +100,7 @@ Full page-by-page walkthrough: [`docs/dashboard-tour.md`](dashboard-tour.md).
 
 ## 5. Bring Your Own Data (5 min)
 
-Two options to feed real data into the framework: drop CSVs in `data/input/`, or point the CLI at any of 8 supported source types.
+Two options to feed real data into the framework: drop CSVs in `data/input/`, or point the CLI at any of 9 supported source types (`synthetic`, `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`).
 
 ### Option A: CSV files (simplest)
 
