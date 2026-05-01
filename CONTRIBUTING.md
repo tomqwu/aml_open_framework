@@ -5,10 +5,13 @@
 ```bash
 git clone https://github.com/tomqwu/aml_open_framework.git
 cd aml_open_framework
+python3 -m venv .venv && source .venv/bin/activate    # Python >= 3.10 required
 pip install -e ".[dev,dashboard,api]"
-make validate   # check all 5 specs
+make validate   # check all specs
 make test       # run unit + API tests (~20s)
 ```
+
+> **macOS note:** the system `python3` is 3.9 and fails the `>=3.10` pin. Install a current Python (`brew install python`) before creating the venv. Verified working on 3.12 and 3.14.
 
 ## Adding a New Detection Rule
 

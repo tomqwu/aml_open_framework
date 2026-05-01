@@ -24,12 +24,17 @@ The framework is a Python package with optional dashboard + API extras.
 git clone https://github.com/tomqwu/aml_open_framework.git
 cd aml_open_framework
 
-# Install (Python >= 3.10)
+# Create a venv (Python >= 3.10 required)
+python3 -m venv .venv && source .venv/bin/activate
+
+# Install
 pip install -e ".[dev,dashboard,api]"
 
 # Verify
 aml --help
 ```
+
+> **macOS note:** the system `python3` shipped with macOS is 3.9, which fails the `>=3.10` pin and surfaces as `ERROR: Package 'aml-open-framework' requires a different Python: 3.9.x not in '>=3.10'`. Install a current Python first (`brew install python`), then re-run the venv step. Verified working on 3.12 and 3.14.
 
 If you only need the engine + CLI, drop the extras: `pip install -e ".[dev]"`. The `dashboard` extra pulls in Streamlit + Plotly; the `api` extra pulls in FastAPI + Uvicorn.
 
