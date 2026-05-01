@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-import yaml
 
 from aml_framework.engine.runner import ContractViolation, _build_warehouse, run_spec
 from aml_framework.spec.loader import load_spec
