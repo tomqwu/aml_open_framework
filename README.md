@@ -142,7 +142,7 @@ The framework's mechanics — for engineers and 2LoD model-validation teams — 
 
 ```
 schema/aml-spec.schema.json     JSON Schema for aml.yaml (the contract)
-examples/                       9 example specs across 5 jurisdictions
+examples/                       10 example specs across 5 jurisdictions
 src/aml_framework/
   spec/                         Parse + validate the spec
   generators/                   Emit SQL, DAG stubs, audit packs, STR narratives, MRM dossiers
@@ -150,16 +150,20 @@ src/aml_framework/
   metrics/                      Metric evaluation + report rendering
   cases/                        Investigation aggregator, SLA timer, STR bundling, fraud↔AML linkage
   data/                         Synthetic generator + ISO 20022 ingestion
+  models/                       ML scoring callables for python_ref rules + travel-rule validator
   dashboard/                    Streamlit web dashboard (29 pages, persona-aware, GenAI co-pilot)
   assistant/                    GenAI assistant — pluggable backend (template / ollama / openai)
   narratives/                   STR/SAR narrative drafter — same backend abstraction
+  pkyc/                         Perpetual KYC trigger engine
+  sanctions/                    OFAC SDN refresh + fuzzy match
+  vasp/                         Public-data VASP attribution (Chainalysis alternative)
   compliance/                   Regulation-drift watcher, BOI workflow, cross-border sandbox
   integrations/                 Travel-Rule webhook adapters (Notabene, Sumsub)
   api/                          FastAPI REST layer + FINOS Open Compliance API draft
   cli.py                        `aml` command-line entry point
 deploy/helm/                    Helm chart for Kubernetes
 docs/                           Architecture, persona, spec, API, deployment guides
-tests/                          1,180+ tests across unit, API, e2e
+tests/                          1,790+ tests across unit, API, e2e
 ```
 
 ---
