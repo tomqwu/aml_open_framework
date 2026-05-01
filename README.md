@@ -9,6 +9,12 @@ The hard part of AML at a bank is not detection. It's proving — months later �
 
 This framework gives the AML org one source of truth that compliance can read, engineering can ship, and an auditor can replay byte-for-byte. The day-to-day result: analysts stop hunting across eight tabs, supervisors see real status not Excel rumours, and when the regulator walks in, the examination ZIP is already on the shelf.
 
+## Where this fits in your stack
+
+This is the **spec / control-plane layer above your AML stack** — not a replacement for any tool inside it. Think Terraform for AML controls: it didn't replace AWS, Azure, or GCP, it made whichever one you use declarative, peer-reviewed, and reproducible. We're trying to do the same for AML — one versioned `aml.yaml` drives whatever detection engine, data pipeline, and case tool you already own, and produces an evidence bundle a regulator can replay against stored output hashes.
+
+It is *not* a transaction-monitoring platform (Actimize, SAS AML, NICE, Quantexa), not a data warehouse or pipeline (Snowflake, Databricks, dbt, Fivetran), not a case-management system (Pega, Hummingbird, Unit21), and not a SAR/STR filing service. It is *not* an AI detection model — though rules can call ML scorers via the `python_ref` escape hatch with `model_id` + `model_version` recorded for audit. The framework sits **above** those systems and makes them governed-by-spec, peer-reviewed, and audit-replayable — without replacing them.
+
 ## What changes for each role
 
 | If you are a… | What changes |
