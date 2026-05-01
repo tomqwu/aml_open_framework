@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **29 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **30 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -210,6 +210,12 @@ _Screenshot: pending — see follow-up._
 ### AI Assistant
 
 Where the dashboard's GenAI co-pilot lives (PR-K). Three sections: (1) backend status — which provider is configured (`template` / `ollama` / `openai`), is the API key set, what's the spec's `program.ai_audit_log` mode; (2) this session's transcript — every Q&A from the sidebar panel, page-tagged; (3) run-level audit trail — tail of `ai_interactions.jsonl` for forensic review. The sidebar panel that appears on every page is for asking; this page is for accountability.
+
+_Screenshot: pending — see follow-up._
+
+### Information Sharing
+
+Cross-bank obfuscated-pattern exchange (PR-DATA-10b). Renders the spec's `information_sharing` block — declared partners, jurisdictions, typology scope, salt-rotation cadence — and the recent `aml share-pattern` artifacts the institution has published. Read-only operational view; production cross-FI exchange (transport, partner discovery, salt rotation infrastructure) is out of scope. Anchored in FATF Recommendation 18 / Wolfsberg CBDDQ V1.4 / FinCEN 314(b) / AMLA cross-border pilot. Empty-states cleanly when the spec doesn't declare information sharing — no spurious surface for institutions that haven't opted in.
 
 _Screenshot: pending — see follow-up._
 
