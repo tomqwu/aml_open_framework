@@ -94,6 +94,33 @@ class RunResult:
         return sum(len(v) for v in self.alerts.values())
 
 
+class ContractViolation(Exception):
+    """Input data does not satisfy a `data_contract`'s required-column constraints.
+
+    Raised by `_build_warehouse` when a non-nullable contract column is
+    missing from input data (i.e. the engine cannot fire any rule that
+    depends on that column). Callers in `run_spec` catch this, emit a
+    `contract_violation` event to the audit ledger, and re-raise so the
+    CLI exits non-zero.
+
+    This is the engine-side enforcement of the data-contract claim in the
+    "Data is the AML problem" whitepaper (DATA-1): the validator fails
+    closed, rather than firing a rule against NULLs and producing
+    misleading-zero alerts.
+    """
+
+    def __init__(self, contract_id: str, missing_columns: list[str], detail: str = ""):
+        self.contract_id = contract_id
+        self.missing_columns = sorted(missing_columns)
+        msg = (
+            f"contract '{contract_id}' violation: required column(s) "
+            f"{self.missing_columns} missing from input data"
+        )
+        if detail:
+            msg = f"{msg}. {detail}"
+        super().__init__(msg)
+
+
 def _build_warehouse(
     con: duckdb.DuckDBPyConnection,
     spec: AMLSpec,
@@ -104,12 +131,34 @@ def _build_warehouse(
     The physical table name used in the engine is the contract id, not the
     `source` string — that keeps the reference engine independent of the
     institution's warehouse layout.
+
+    Fail-closed semantics: if any non-nullable contract column is absent
+    from the input rows for that contract, raise `ContractViolation`. This
+    runs *before* DuckDB's NOT NULL constraint would fire, so the error
+    message names the contract + missing columns rather than surfacing a
+    raw "Constraint Error" from the driver.
     """
     for contract in spec.data_contracts:
         rows = data.get(contract.id, [])
         if not rows:
             con.execute(f"CREATE TABLE {contract.id} AS SELECT NULL WHERE 1=0")
             continue
+        # Pre-flight: every non-nullable column declared in the contract
+        # must be present as a key in the input rows. Sample the first row
+        # — input data is uniform within a single contract by convention
+        # (every row has the same keys, even if values are None).
+        required = [c.name for c in contract.columns if not c.nullable]
+        sample_keys = set(rows[0].keys())
+        missing = [c for c in required if c not in sample_keys]
+        if missing:
+            raise ContractViolation(
+                contract_id=contract.id,
+                missing_columns=missing,
+                detail=(
+                    f"input rows expose columns {sorted(sample_keys)}; "
+                    f"contract requires {sorted(required)}"
+                ),
+            )
         # Only insert columns declared in the contract — synthetic data may
         # carry extra fields used by other specs.
         contract_cols = [c.name for c in contract.columns]
@@ -646,7 +695,21 @@ def run_spec(
 
     con = duckdb.connect(":memory:")
     _harden_duckdb(con)
-    _build_warehouse(con, spec, data)
+    try:
+        _build_warehouse(con, spec, data)
+    except ContractViolation as exc:
+        # DATA-1 whitepaper claim: the validator fails closed. Emit a
+        # decision-ledger event so the run dir documents *why* the engine
+        # refused to fire any rule, then re-raise so the CLI exits non-zero.
+        ledger.append_decision(
+            {
+                "event": "contract_violation",
+                "contract_id": exc.contract_id,
+                "missing_columns": exc.missing_columns,
+                "detail": str(exc),
+            }
+        )
+        raise
     resolve_entities(con, spec)
 
     alerts_by_rule: dict[str, list[dict[str, Any]]] = {}
