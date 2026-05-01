@@ -871,6 +871,7 @@ def _finalize_run(
         cases=cases_rows,
         decisions=decisions_rows,
         data=data,
+        run_dir=ledger.run_dir,
     )
     metrics_dir = ledger.run_dir / "metrics"
     metrics_dir.mkdir(parents=True, exist_ok=True)
