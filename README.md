@@ -59,12 +59,15 @@ One versioned document — the **Compliance Manifest** (an `aml.yaml` file, for 
 
 ```bash
 git clone https://github.com/tomqwu/aml_open_framework.git && cd aml_open_framework
+python3 -m venv .venv && source .venv/bin/activate    # Python ≥ 3.10 required
 pip install -e ".[dev,dashboard,api]"
 aml demo --persona cco        # 5-min guided tour for a non-technical buyer
 # or:
 aml dashboard examples/community_bank/aml.yaml
 # Open http://localhost:8501
 ```
+
+> **macOS note:** the system `python3` is 3.9, which fails the `>=3.10` pin. Install a current Python first: `brew install python` then re-run the venv step. Verified working on 3.12 and 3.14.
 
 `aml demo` runs validate → engine → audit pack against the canonical Canadian Schedule-I bank spec, narrates each step, and prints persona-specific next-step commands (`--persona cco|mlro|analyst|auditor`). It exists so a CCO who has 5 minutes between meetings can self-serve a real regulator-ready audit pack — no vendor demo cycle required.
 
