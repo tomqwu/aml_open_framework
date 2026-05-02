@@ -23,7 +23,7 @@ from pathlib import Path
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import empty_state, page_header
+from aml_framework.dashboard.components import data_grid, empty_state, page_header
 
 page_header(
     "Information Sharing",
@@ -67,7 +67,12 @@ if info.partners:
             for p in info.partners
         ]
     )
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    data_grid(
+        df,
+        key="info_sharing_partners",
+        pinned_left=["FI ID"] if "FI ID" in df.columns else None,
+        height=min(35 * len(df) + 60, 300),
+    )
 else:
     st.caption("No partners declared yet — add entries under `information_sharing.partners`.")
 
@@ -106,7 +111,12 @@ if share_dir.exists() and share_dir.is_dir():
         if rows:
             import pandas as pd
 
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            data_grid(
+                pd.DataFrame(rows),
+                key="info_sharing_artifacts",
+                pinned_left=["File"],
+                height=min(35 * len(rows) + 60, 300),
+            )
         else:
             st.caption("Found `share-patterns/` directory but no parseable JSON files inside.")
     else:

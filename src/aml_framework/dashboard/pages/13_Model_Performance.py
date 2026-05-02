@@ -8,10 +8,9 @@ import streamlit as st
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
     bar_chart,
+    data_grid,
     kpi_card,
-    metric_gradient_style,
     page_header,
-    severity_cell_style,
 )
 
 page_header(
@@ -57,10 +56,13 @@ for rule in ml_rules:
         }
     )
 _inventory_df = pd.DataFrame(inventory_rows)
-styled_inventory = _inventory_df.style
-if "Severity" in _inventory_df.columns:
-    styled_inventory = styled_inventory.map(severity_cell_style, subset=["Severity"])
-st.dataframe(styled_inventory, use_container_width=True, hide_index=True)
+data_grid(
+    _inventory_df,
+    key="model_perf_inventory",
+    severity_col="Severity" if "Severity" in _inventory_df.columns else None,
+    pinned_left=["Model"] if "Model" in _inventory_df.columns else None,
+    height=min(35 * len(_inventory_df) + 60, 300),
+)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -143,20 +145,20 @@ for rule in ml_rules:
         alert_df = pd.DataFrame(alerts)
         show_cols = ["customer_id", "risk_score", "sum_amount", "count"]
         available = [c for c in show_cols if c in alert_df.columns]
-        styled_alerts = alert_df[available].style
-        if "risk_score" in available:
-            # Higher risk_score = more suspicious → trend toward red.
-            styled_alerts = styled_alerts.map(
-                metric_gradient_style(
-                    low_color="#16a34a",
-                    mid_color="#d97706",
-                    high_color="#dc2626",
-                    low_threshold=0.65,
-                    high_threshold=0.85,
-                ),
-                subset=["risk_score"],
-            )
-        st.dataframe(styled_alerts, use_container_width=True, hide_index=True)
+        # risk_score gradient is inverted: high score = bad (red).
+        # 0.65 = action threshold (model card), 0.85 = high-confidence
+        # band. gradient_invert=True flips data_grid's default
+        # "high = green" semantic to match the risk-score reading.
+        data_grid(
+            alert_df[available],
+            key=f"model_perf_alerts_{rule.id}",
+            gradient_cols=["risk_score"] if "risk_score" in available else None,
+            gradient_low=0.65,
+            gradient_high=0.85,
+            gradient_invert=True,
+            pinned_left=["customer_id"] if "customer_id" in available else None,
+            height=min(35 * len(alert_df) + 60, 320),
+        )
 
     st.markdown("<br>", unsafe_allow_html=True)
 

@@ -9,12 +9,12 @@ from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
     bar_chart,
     citation_link,
+    data_grid,
     empty_state,
     id_link,
     kpi_card,
     page_header,
     pie_chart,
-    severity_cell_style,
 )
 
 page_header(
@@ -123,10 +123,13 @@ for rule in spec.rules:
     )
 
 df_rules = pd.DataFrame(rows)
-
-
-styled = df_rules.style.map(severity_cell_style, subset=["Severity"])
-st.dataframe(styled, use_container_width=True, hide_index=True)
+data_grid(
+    df_rules,
+    key="rule_perf_analytics_table",
+    severity_col="Severity" if "Severity" in df_rules.columns else None,
+    pinned_left=["Rule"] if "Rule" in df_rules.columns else None,
+    height=min(35 * len(df_rules) + 60, 400),
+)
 
 # ID-link companion: rule IDs in the table aren't clickable in
 # st.dataframe. Surface the rules that have a tuning_grid declared
@@ -187,15 +190,16 @@ for rule in spec.rules:
             }
         )
 df_refs = pd.DataFrame(ref_rows)
-# st.dataframe doesn't render embedded markdown; for clickable
-# citations we use st.markdown on a pandas-rendered Markdown table.
-# The severity styling stays via the standalone styled view above the
-# markdown table; we keep both renders — the Styler view for severity
-# colour, the markdown view for clickable citations.
-st.dataframe(
-    df_refs.style.map(severity_cell_style, subset=["Severity"]),
-    use_container_width=True,
-    hide_index=True,
+# Regulation-refs view — severity colour on each row's Severity cell.
+# Citations remain plain text in the grid (AG Grid doesn't render
+# embedded markdown either); the markdown companion view below
+# turns the [citation](url) strings into live links.
+data_grid(
+    df_refs,
+    key="rule_perf_refs_table",
+    severity_col="Severity" if "Severity" in df_refs.columns else None,
+    pinned_left=["Rule"] if "Rule" in df_refs.columns else None,
+    height=min(35 * len(df_refs) + 60, 400),
 )
 # Clickable-citation companion view: rendered as a markdown table so
 # the `[citation](url)` strings in the "Citation" column become live

@@ -31,10 +31,20 @@ from aml_framework.compliance.boi import (
     synthesise_owners_from_customer,
 )
 from aml_framework.dashboard.components import (
+    data_grid,
     empty_state,
     page_header,
-    selectable_dataframe,
 )
+
+# BOI status palette — local to this page (not part of severity / RAG).
+# Filing required = red (action), in-window/up-to-date = green, etc.
+BOI_STATUS_PALETTE = {
+    "filing_due": "#dc2626",
+    "filing_overdue": "#7c2d12",
+    "review_due": "#d97706",
+    "in_window": "#16a34a",
+    "not_required": "#6b7280",
+}
 
 page_header(
     title="BOI Workflow",
@@ -106,15 +116,16 @@ active_filter = st.session_state.get("boi_status_filter")
 st.subheader(f"Customers — {'filter: ' + active_filter if active_filter else 'sorted worst-first'}")
 _records_for_table = [r for r in records if r.status == active_filter] if active_filter else records
 df_records = pd.DataFrame([r.to_dict() for r in _records_for_table])
-selectable_dataframe(
+data_grid(
     df_records,
     key="boi_records_table",
+    palette_cols={"status": BOI_STATUS_PALETTE},
+    pinned_left=["customer_id"],
     drill_target="pages/17_Customer_360.py",
     drill_param="customer_id",
     drill_column="customer_id",
     hint="Click any row to open the customer's 360 view (KYC + ownership + alerts).",
-    use_container_width=True,
-    hide_index=True,
+    height=400,
 )
 
 # ---------------------------------------------------------------------------

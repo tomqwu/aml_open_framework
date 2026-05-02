@@ -66,19 +66,27 @@ def _cell_style_js(palette: dict[str, str]) -> str:
     )
 
 
-def _gradient_style_js(low: float = 0.5, high: float = 0.8) -> str:
+def _gradient_style_js(low: float = 0.5, high: float = 0.8, invert: bool = False) -> str:
     """JsCode for numeric cells coloured red→amber→green by threshold.
 
-    Mirrors components.py ``metric_gradient_style()``.
+    Default direction is "high = good" (green) — for precision /
+    recall / F1-style metrics where higher is healthier.
+
+    ``invert=True`` flips to "high = bad" (red) — for risk_score /
+    breach_rate-style metrics where higher is more concerning.
+    Mirrors the way components.py ``metric_gradient_style()`` callers
+    swapped low/high colours by hand for inverted-semantic columns.
     """
+    hi_color = "#dc2626" if invert else "#16a34a"
+    lo_color = "#16a34a" if invert else "#dc2626"
     return (
         "function(params) {"
         "  var v = parseFloat(params.value);"
         "  if (isNaN(v)) return null;"
         "  var color;"
-        f"  if (v >= {high}) color = '#16a34a';"
+        f"  if (v >= {high}) color = '{hi_color}';"
         f"  else if (v >= {low}) color = '#d97706';"
-        "  else color = '#dc2626';"
+        f"  else color = '{lo_color}';"
         "  return {"
         "    'backgroundColor': color + '1a',"
         "    'color': color,"
@@ -98,6 +106,7 @@ def data_grid(
     gradient_cols: list[str] | None = None,
     gradient_low: float = 0.5,
     gradient_high: float = 0.8,
+    gradient_invert: bool = False,
     palette_cols: dict[str, dict[str, str]] | None = None,
     pinned_left: list[str] | None = None,
     pinned_right: list[str] | None = None,
@@ -174,7 +183,8 @@ def data_grid(
     for col in gradient_cols or []:
         if col in df.columns:
             builder.configure_column(
-                col, cellStyle=JsCode(_gradient_style_js(gradient_low, gradient_high))
+                col,
+                cellStyle=JsCode(_gradient_style_js(gradient_low, gradient_high, gradient_invert)),
             )
     for col_name, palette in (palette_cols or {}).items():
         if col_name in df.columns:

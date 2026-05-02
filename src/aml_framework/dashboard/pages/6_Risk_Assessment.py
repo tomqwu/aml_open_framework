@@ -6,14 +6,13 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
-    RISK_RATING_COLORS,
     bar_chart,
+    data_grid,
     heatmap_chart,
     kpi_card_rag,
     page_header,
     pie_chart,
     research_link,
-    risk_color,
     see_also_footer,
 )
 
@@ -191,14 +190,13 @@ if not df_alerts.empty and "customer_id" in df_alerts.columns:
     alerted_ids = df_alerts["customer_id"].dropna().unique()
     alerted = df_customers[df_customers["customer_id"].isin(alerted_ids)].copy()
 
-    def _risk_style(val: str) -> str:
-        c = risk_color(val)
-        return f"color: {c}; font-weight: 700;" if val in RISK_RATING_COLORS else ""
-
-    styled = alerted[["customer_id", "full_name", "country", "risk_rating"]].style.map(
-        _risk_style, subset=["risk_rating"]
+    data_grid(
+        alerted[["customer_id", "full_name", "country", "risk_rating"]],
+        key="risk_assessment_alerted_customers",
+        risk_col="risk_rating",
+        pinned_left=["customer_id"],
+        height=300,
     )
-    st.dataframe(styled, use_container_width=True, hide_index=True)
 else:
     st.caption("No alerts with customer data.")
 

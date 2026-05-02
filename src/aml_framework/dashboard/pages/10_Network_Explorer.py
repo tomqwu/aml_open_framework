@@ -13,6 +13,7 @@ import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
 from aml_framework.dashboard.components import (
+    data_grid,
     empty_state,
     kpi_card_rag,
     link_to_page,
@@ -272,7 +273,13 @@ if fan_in_suspects:
         )
         cols = ["customer_id", "full_name", "country", "risk_rating", "total_volume", "links"]
         available = [c for c in cols if c in suspects_df.columns]
-        st.dataframe(suspects_df[available], use_container_width=True, hide_index=True)
+        data_grid(
+            suspects_df[available],
+            key="network_fan_in_suspects",
+            risk_col="risk_rating" if "risk_rating" in available else None,
+            pinned_left=["customer_id"] if "customer_id" in available else None,
+            height=300,
+        )
 
 # --- Alerted customer detail ---
 st.markdown("### Alerted Customers")
@@ -284,4 +291,10 @@ if alerted_ids:
     )
     cols = ["customer_id", "full_name", "country", "risk_rating", "total_volume", "txn_count"]
     available = [c for c in cols if c in detail_df.columns]
-    st.dataframe(detail_df[available], use_container_width=True, hide_index=True)
+    data_grid(
+        detail_df[available],
+        key="network_alerted_customers",
+        risk_col="risk_rating" if "risk_rating" in available else None,
+        pinned_left=["customer_id"] if "customer_id" in available else None,
+        height=300,
+    )

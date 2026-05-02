@@ -7,11 +7,11 @@ import streamlit as st
 
 from aml_framework.dashboard.components import (
     bar_chart,
+    data_grid,
     empty_state,
     kpi_card,
     page_header,
     pie_chart,
-    rag_cell_style,
 )
 
 page_header(
@@ -174,13 +174,17 @@ try:
     runs = list_runs()
     if runs:
         runs_df = pd.DataFrame(runs)
-        # Colour the RAG-band column when present so a glance separates
-        # green/amber/red runs without reading the value.
-        styled_runs = runs_df.style
-        for col in ("rag", "RAG", "rag_band", "overall_rag"):
-            if col in runs_df.columns:
-                styled_runs = styled_runs.map(rag_cell_style, subset=[col])
-        st.dataframe(styled_runs, use_container_width=True, hide_index=True)
+        rag_col = next(
+            (c for c in ("rag", "RAG", "rag_band", "overall_rag") if c in runs_df.columns),
+            None,
+        )
+        data_grid(
+            runs_df,
+            key="comparative_run_history",
+            rag_col=rag_col,
+            pinned_left=["run_id"] if "run_id" in runs_df.columns else None,
+            height=300,
+        )
     else:
         empty_state(
             "No historical runs stored yet.",
