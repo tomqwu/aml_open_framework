@@ -215,106 +215,174 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 # Navigation — role-based page visibility
 # ---------------------------------------------------------------------------
-ALL_PAGES = [
-    # "Today" is the first entry so it becomes the default landing for
-    # every persona — replaces the pre-PR-3 default of dropping all
-    # users on Executive Dashboard regardless of role.
-    st.Page("pages/0_Today.py", title="Today", icon=":material/today:"),
-    st.Page(
-        "pages/1_Executive_Dashboard.py", title="Executive Dashboard", icon=":material/dashboard:"
-    ),
-    st.Page("pages/2_Program_Maturity.py", title="Program Maturity", icon=":material/speed:"),
-    st.Page("pages/3_Alert_Queue.py", title="Alert Queue", icon=":material/notifications:"),
-    st.Page("pages/4_Case_Investigation.py", title="Case Investigation", icon=":material/search:"),
-    st.Page("pages/5_Rule_Performance.py", title="Rule Performance", icon=":material/tune:"),
-    st.Page("pages/6_Risk_Assessment.py", title="Risk Assessment", icon=":material/map:"),
-    st.Page("pages/7_Audit_Evidence.py", title="Audit & Evidence", icon=":material/verified:"),
-    st.Page("pages/8_Framework_Alignment.py", title="Framework Alignment", icon=":material/rule:"),
-    st.Page(
-        "pages/9_Transformation_Roadmap.py",
-        title="Transformation Roadmap",
-        icon=":material/rocket_launch:",
-    ),
-    st.Page("pages/10_Network_Explorer.py", title="Network Explorer", icon=":material/hub:"),
-    st.Page("pages/11_Live_Monitor.py", title="Live Monitor", icon=":material/monitor_heart:"),
-    st.Page(
-        "pages/12_Sanctions_Screening.py", title="Sanctions Screening", icon=":material/shield:"
-    ),
-    st.Page(
-        "pages/13_Model_Performance.py", title="Model Performance", icon=":material/model_training:"
-    ),
-    st.Page("pages/14_Data_Quality.py", title="Data Quality", icon=":material/fact_check:"),
-    st.Page("pages/15_Run_History.py", title="Run History", icon=":material/history:"),
-    st.Page("pages/16_Rule_Tuning.py", title="Rule Tuning", icon=":material/tune:"),
-    st.Page("pages/17_Customer_360.py", title="Customer 360", icon=":material/person_search:"),
-    st.Page(
-        "pages/18_Typology_Catalogue.py",
-        title="Typology Catalogue",
-        icon=":material/library_books:",
-    ),
-    st.Page(
-        "pages/19_Comparative_Analytics.py",
-        title="Comparative Analytics",
-        icon=":material/trending_up:",
-    ),
-    st.Page("pages/20_Spec_Editor.py", title="Spec Editor", icon=":material/edit_note:"),
-    st.Page("pages/21_My_Queue.py", title="My Queue", icon=":material/assignment_ind:"),
-    st.Page(
-        "pages/22_Analyst_Review_Queue.py",
-        title="Analyst Review Queue",
-        icon=":material/inbox:",
-    ),
-    st.Page(
-        "pages/23_Tuning_Lab.py",
-        title="Tuning Lab",
-        icon=":material/science:",
-    ),
-    st.Page(
-        "pages/24_Investigations.py",
-        title="Investigations",
-        icon=":material/group_work:",
-    ),
-    # Pages 25-31 — exist on disk + audience routing + tour coverage but
-    # were never wired into runtime nav until this fix. Audience filter
-    # below already references their titles in AUDIENCE_PAGES.
-    st.Page(
-        "pages/25_BOI_Workflow.py",
-        title="BOI Workflow",
-        icon=":material/business:",
-    ),
-    st.Page(
-        "pages/26_FinTech_Cockpit.py",
-        title="FinTech Cockpit",
-        icon=":material/rocket_launch:",
-    ),
-    st.Page(
-        "pages/27_Regulator_Pulse.py",
-        title="Regulator Pulse",
-        icon=":material/podcasts:",
-    ),
-    st.Page(
-        "pages/28_Metrics_Taxonomy.py",
-        title="Metrics Taxonomy",
-        icon=":material/category:",
-    ),
-    st.Page(
-        "pages/29_AI_Assistant.py",
-        title="AI Assistant",
-        icon=":material/smart_toy:",
-    ),
-    st.Page(
-        "pages/30_Data_Integration.py",
-        title="Data Integration",
-        icon=":material/lan:",
-    ),
-    st.Page(
-        "pages/31_Information_Sharing.py",
-        title="Information Sharing",
-        icon=":material/share:",
-    ),
-]
+# PR-NAV-1: hierarchical sidebar — 7 categories.
+#
+# Pre-PR-NAV-1, ALL_PAGES was a flat list of 32 st.Page entries. Even
+# with the persona filter narrowing it to 6-9 pages per role, the
+# "all pages" view was a wall of titles and the structure of the
+# product wasn't visible. Streamlit's `st.navigation()` accepts a
+# `Dict[str, List[st.Page]]` and renders each key as a collapsible
+# section header in the sidebar — turning the phone-book into a map.
+#
+# The "" (empty-string) section renders flush at the top of the
+# sidebar without a header — the standard Streamlit idiom for
+# "ungrouped, always at the top." Today lives there because it's the
+# personalised landing every persona sees first.
+#
+# Categories below match the existing tour prose groupings in
+# `docs/dashboard-tour.md` (Operational / Strategic / Engineering /
+# Audit / Compliance Workflow / Reference) plus a dedicated "Data"
+# category for the PR-DATAVIZ surfaces and "FinTech" as a niche
+# 1-MLRO surface.
+ALL_PAGES: dict[str, list[st.Page]] = {
+    # Welcome + Today are ungrouped above the first category header.
+    # Welcome (page 0) is currently orphaned (on disk, not wired);
+    # only Today is registered here, matching pre-PR-NAV-1 behaviour.
+    "": [
+        st.Page("pages/0_Today.py", title="Today", icon=":material/today:"),
+    ],
+    "Operations": [
+        # Day-to-day analyst + manager surfaces. Triage, SLA, case
+        # workflow, live transaction stream.
+        st.Page("pages/3_Alert_Queue.py", title="Alert Queue", icon=":material/notifications:"),
+        st.Page(
+            "pages/4_Case_Investigation.py",
+            title="Case Investigation",
+            icon=":material/search:",
+        ),
+        st.Page(
+            "pages/24_Investigations.py",
+            title="Investigations",
+            icon=":material/group_work:",
+        ),
+        st.Page("pages/21_My_Queue.py", title="My Queue", icon=":material/assignment_ind:"),
+        st.Page(
+            "pages/22_Analyst_Review_Queue.py",
+            title="Analyst Review Queue",
+            icon=":material/inbox:",
+        ),
+        st.Page("pages/11_Live_Monitor.py", title="Live Monitor", icon=":material/monitor_heart:"),
+    ],
+    "Risk & Compliance": [
+        # 2LoD lane — exposure, sanctions screening, regulator-side
+        # alignment, BOI, regulator-pulse intelligence.
+        st.Page("pages/6_Risk_Assessment.py", title="Risk Assessment", icon=":material/map:"),
+        st.Page(
+            "pages/12_Sanctions_Screening.py",
+            title="Sanctions Screening",
+            icon=":material/shield:",
+        ),
+        st.Page("pages/10_Network_Explorer.py", title="Network Explorer", icon=":material/hub:"),
+        st.Page(
+            "pages/8_Framework_Alignment.py",
+            title="Framework Alignment",
+            icon=":material/rule:",
+        ),
+        st.Page(
+            "pages/25_BOI_Workflow.py",
+            title="BOI Workflow",
+            icon=":material/business:",
+        ),
+        st.Page(
+            "pages/27_Regulator_Pulse.py",
+            title="Regulator Pulse",
+            icon=":material/podcasts:",
+        ),
+    ],
+    "Detection & Tuning": [
+        # Spec author + threshold-tuner surfaces. Engineering's
+        # detection lane.
+        st.Page("pages/5_Rule_Performance.py", title="Rule Performance", icon=":material/tune:"),
+        st.Page("pages/16_Rule_Tuning.py", title="Rule Tuning", icon=":material/tune:"),
+        st.Page(
+            "pages/13_Model_Performance.py",
+            title="Model Performance",
+            icon=":material/model_training:",
+        ),
+        st.Page(
+            "pages/23_Tuning_Lab.py",
+            title="Tuning Lab",
+            icon=":material/science:",
+        ),
+        st.Page("pages/20_Spec_Editor.py", title="Spec Editor", icon=":material/edit_note:"),
+    ],
+    "Data": [
+        # Data engineer + auditor lane (introduced in PR-DATAVIZ-1
+        # / #193). The data layer the controls run on.
+        st.Page(
+            "pages/30_Data_Integration.py",
+            title="Data Integration",
+            icon=":material/lan:",
+        ),
+        st.Page("pages/14_Data_Quality.py", title="Data Quality", icon=":material/fact_check:"),
+        st.Page("pages/17_Customer_360.py", title="Customer 360", icon=":material/person_search:"),
+        st.Page(
+            "pages/31_Information_Sharing.py",
+            title="Information Sharing",
+            icon=":material/share:",
+        ),
+    ],
+    "Strategy & Reporting": [
+        # Executive + program-management surfaces. Headline picture,
+        # maturity, run-over-run trends, roadmap, metric catalogue,
+        # typology library.
+        st.Page(
+            "pages/1_Executive_Dashboard.py",
+            title="Executive Dashboard",
+            icon=":material/dashboard:",
+        ),
+        st.Page("pages/2_Program_Maturity.py", title="Program Maturity", icon=":material/speed:"),
+        st.Page(
+            "pages/19_Comparative_Analytics.py",
+            title="Comparative Analytics",
+            icon=":material/trending_up:",
+        ),
+        st.Page(
+            "pages/9_Transformation_Roadmap.py",
+            title="Transformation Roadmap",
+            icon=":material/rocket_launch:",
+        ),
+        st.Page(
+            "pages/28_Metrics_Taxonomy.py",
+            title="Metrics Taxonomy",
+            icon=":material/category:",
+        ),
+        st.Page(
+            "pages/18_Typology_Catalogue.py",
+            title="Typology Catalogue",
+            icon=":material/library_books:",
+        ),
+    ],
+    "Audit & Reference": [
+        # Auditor lane + GenAI provenance surface.
+        st.Page("pages/7_Audit_Evidence.py", title="Audit & Evidence", icon=":material/verified:"),
+        st.Page("pages/15_Run_History.py", title="Run History", icon=":material/history:"),
+        st.Page(
+            "pages/29_AI_Assistant.py",
+            title="AI Assistant",
+            icon=":material/smart_toy:",
+        ),
+    ],
+    "FinTech": [
+        # 1-MLRO niche. Sponsor-bank cure-notice timer + 8 realities
+        # + evidence pack. Lives alone in its own header — it's a
+        # different product surface, not a child of Operations. The
+        # persona filter drops this section for everyone except
+        # `fintech_mlro`.
+        st.Page(
+            "pages/26_FinTech_Cockpit.py",
+            title="FinTech Cockpit",
+            icon=":material/rocket_launch:",
+        ),
+    ],
+}
 
-# Filter pages by audience if one is selected.
+# Filter pages by audience if one is selected. PR-NAV-1 made
+# ALL_PAGES a nested dict; the filter walks the structure, applies
+# the title-set filter to each section's page list, and DROPS any
+# section that ends up empty. The "" (ungrouped) section that
+# carries Today survives because Today is always in the universal
+# title set.
 selected_audience = st.session_state.get("selected_audience")
 if selected_audience:
     relevant_titles = set(AUDIENCE_PAGES.get(selected_audience, []))
@@ -323,7 +391,12 @@ if selected_audience:
     # the strategic-view fallback when no persona is selected).
     relevant_titles.add("Today")
     relevant_titles.add("Executive Dashboard")
-    visible_pages = [p for p in ALL_PAGES if p.title in relevant_titles]
+    visible_pages: dict[str, list[st.Page]] = {
+        section: [p for p in pages if p.title in relevant_titles]
+        for section, pages in ALL_PAGES.items()
+    }
+    # Drop empty sections (per PR-NAV-1 user decision in plan Phase 3).
+    visible_pages = {section: pages for section, pages in visible_pages.items() if pages}
 else:
     visible_pages = ALL_PAGES
 
