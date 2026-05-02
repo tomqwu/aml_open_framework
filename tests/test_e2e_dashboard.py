@@ -465,6 +465,15 @@ class TestPersonaCoverage:
 
     @pytest.mark.parametrize("persona_code,persona_label", _PERSONA_MATRIX)
     def test_persona_can_navigate_universal_pages(self, browser_page, persona_code, persona_label):
+        # PR-NAV-1: reset to home before persona switch. browser_page
+        # is module-scoped, so accumulated state from prior tests can
+        # leave modals / dropdowns / sidebar collapse-state in a
+        # mode where the persona selectbox click times out (saw 3
+        # specific personas fail intermittently without this reset).
+        # A fresh `goto /` re-runs Streamlit's main, restoring the
+        # persona selectbox to its default-clickable state.
+        browser_page.goto(f"http://localhost:{PORT}/", wait_until="networkidle", timeout=30000)
+        browser_page.wait_for_timeout(2000)
         _select_persona(browser_page, persona_label)
         for page_title in _UNIVERSAL_PAGES:
             _navigate(browser_page, page_title)
