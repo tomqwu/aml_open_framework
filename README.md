@@ -5,7 +5,11 @@
 
 **An anti-money-laundering program you can show to your regulator without a six-week reconstruction.**
 
+> **9 connectors · ISO 20022 native · contract-validated · 11 data pains, one surface.** *(See the [Data Integration page](https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration) for the operator view, or the [data-problem whitepaper](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) for the regulatory grounding.)*
+
 The hard part of AML at a bank is not detection. It's proving — months later — that the right rule fired, was reviewed, was acted on, and that nothing was quietly turned off. *(See [PAIN-1, PAIN-2 in the leader pain doc](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) — across recent enforcement orders, regulators rarely allege missed typologies; they allege the bank cannot evidence what it did.)*
+
+The other hard part is the **data layer underneath the controls** — the binding constraint behind every recent consent order. The framework's [data-problem whitepaper](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) enumerates 11 specific pains; the [Data Integration page](https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration) maps every one to the concrete framework artifact that closes it.
 
 This framework gives the AML org one source of truth that compliance can read, engineering can ship, and an auditor can replay byte-for-byte. The day-to-day result: analysts stop hunting across eight tabs, supervisors see real status not Excel rumours, and when the regulator walks in, the examination ZIP is already on the shelf.
 

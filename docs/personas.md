@@ -40,6 +40,20 @@ and reviews.
 - Cannot change rule logic without a spec PR. The framework refuses to run if
   the warehouse schema drifts from the contract.
 
+**Where to start**
+
+- [Data Integration page](dashboard-tour.md#data-integration) — the
+  30-second answer to *"what data is flowing through this AML
+  program?"*. Source catalogue, contract roll-up in whitepaper
+  vocabulary (completeness / staleness / checks), ISO 20022
+  message-type counts, and a DATA-N → artifact map linking each
+  whitepaper claim to the page / CLI / module that closes it.
+- [Spec Editor](dashboard-tour.md#spec-editor--rule-builder) — edit
+  `data_contracts` declarations + per-attribute freshness pinning
+  (`max_staleness_days` + `last_refreshed_at_column`).
+- [Run History](dashboard-tour.md#run-history) — per-run lineage,
+  spec hashes, ingestion provenance.
+
 ## 3. Data / Analytics Team
 
 **Reads**
