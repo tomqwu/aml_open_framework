@@ -8,6 +8,91 @@ that introduced them.
 ## [Unreleased]
 
 ### Changed
+
+- **Round 10 — Data layer hardening (7 PRs, #177 → #183)**
+  Closes the gap between the `docs/research/2026-05-aml-data-problem.md`
+  whitepaper's claims and what the code backs. Six DATA-N
+  whitepaper sections promoted from stub/partial to strong:
+
+  - **PR-DATA-1 (#177)** — fail-closed contract validation
+    (`engine/runner.py`, `engine/audit.py`,
+    `tests/test_contract_validation.py`). New `ContractViolation`
+    exception raised when a non-nullable contract column is absent
+    from input rows; the engine refuses to fire any rule and emits
+    a `contract_violation` event to `decisions.jsonl`. DATA-1
+    moves from "validator warns" to "validator fails closed."
+
+  - **PR-DATA-2 (#178)** — pKYC integration + per-attribute
+    freshness pinning (`spec/models.py:Column`,
+    `engine/freshness.py`, `engine/runner.py`,
+    `schema/aml-spec.schema.json`,
+    `tests/test_pkyc_integration.py`). `Column` gains
+    `max_staleness_days` + `last_refreshed_at_column`; engine runs
+    a freshness scan after warehouse build and emits one
+    `pkyc_trigger` (kind=`stale_field`) event per stale row.
+    DATA-2 moves from "scaffold exists, on-demand only" to
+    "spec-pinned + engine-integrated."
+
+  - **PR-DATA-4 (#179)** — per-decision audit metadata + lineage
+    walk-back (`engine/audit.py`,
+    `dashboard/pages/7_Audit_Evidence.py`,
+    `tests/test_audit_decision_metadata.py`). Decision-event
+    schema bumped to version 2; `case_opened` events stamp
+    `rule_version` (SHA-256[:16] over rule content).
+    `walk_lineage(run_dir, case_id)` reconstructs case → rule_id →
+    rule_version → spec_content_hash → input file hashes; Audit &
+    Evidence page exposes a paste-a-case-id walk-back panel.
+    DATA-4 moves from "manifest has data, no helper" to "one-click
+    chain reconstruction."
+
+  - **PR-DATA-9 (#180)** — real STR/SAR filing-latency capture
+    (`cases/filing.py`, `metrics/engine.py`,
+    `tests/test_cases_filing.py`). New filing sidecars
+    `cases/<case_id>__filing.json` carry the wall-clock filed_at +
+    channel + reference_id; metrics engine reads sidecars first
+    and computes p95 from real latency, falling back to the proxy
+    only when no sidecars exist. DATA-9 moves from
+    "queue-resolution proxy" to "real wall-clock latency."
+
+  - **PR-DATA-8 (#181)** — MLRO attestation workflow + `aml run
+    --strict` gate (new `attestations/` module, `cli.py`,
+    `tests/test_attestations.py`). Hash-chained
+    `attestations.jsonl` parallel to `decisions.jsonl`. New
+    `aml attest` CLI signs against the spec's current content
+    hash; `aml run --strict` exits 1 if the spec is unattested.
+    DATA-8 moves from "assessment pages exist, no signing" to
+    "the MLRO can sign and the engine can refuse to run without
+    a signature."
+
+  - **PR-DATA-10a (#182)** — information-sharing spec syntax +
+    CLI (`spec/models.py`, `cli.py`,
+    `schema/aml-spec.schema.json`,
+    `tests/test_information_sharing_spec.py`). New
+    `information_sharing` block on `AMLSpec` declares partner FIs,
+    typology scope, salt-rotation cadence (FATF R.18 / Wolfsberg
+    CBDDQ / FinCEN 314(b) / AMLA). Two new CLI commands —
+    `aml share-pattern` (refuses non-declared partners) and
+    `aml verify-pattern` — reach the existing
+    `compliance/sandbox.py` from the operator surface for the
+    first time.
+
+  - **PR-DATA-10b (#183)** — Information Sharing dashboard page
+    (`dashboard/pages/31_Information_Sharing.py`,
+    `dashboard/audience.py`, `docs/dashboard-tour.md`). New page
+    #30 (purpose-built; #31 file-numbered) renders declared
+    partners + recent share-pattern artifacts. Registered with
+    the auditor persona (the primary consumer for cross-FI
+    paper trails). Dashboard tour count bumped to 30 with new
+    section heading; `test_dashboard_tour_coverage.py` enforces.
+
+  Cumulative impact: tests 1,791 → 1,848 (+57 across 6 new test
+  files); test files 90 → 96; modules 16 → 17 (+`attestations/`);
+  dashboard pages 29 → 30 purpose-built; CLI commands 35 → 38.
+  Whitepaper claims now match code for DATA-1, DATA-2, DATA-4,
+  DATA-8, DATA-9, DATA-10. DATA-3 / DATA-5 / DATA-11 were already
+  STRONG; DATA-6 closes transitively via DATA-1's fail-closed
+  validation; DATA-7's residual gap is organisational.
+
 - **Brand DNA port — deck → dashboard CSS (PR-M / PR-N / PR-Q, #162 / #163 / #165)**
   (`dashboard/components.py`, dashboard CSS bundle, dashboard layout
   shell). Three PRs land the landing-site brand inside the live
