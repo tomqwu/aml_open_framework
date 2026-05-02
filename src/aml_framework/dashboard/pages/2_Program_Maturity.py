@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import plotly.graph_objects as go
 import streamlit as st
 
 from aml_framework.dashboard.components import (
     RAG_COLORS,
-    chart_layout,
     kpi_card,
     page_header,
+    radar_chart,
     research_link,
     see_also_footer,
 )
@@ -63,42 +62,16 @@ with c4:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Radar Chart ---
-fig = go.Figure()
-fig.add_trace(
-    go.Scatterpolar(
-        r=current + [current[0]],
-        theta=dim_names + [dim_names[0]],
-        fill="toself",
-        name="Current State",
-        line=dict(color="#2563eb", width=2.5),
-        fillcolor="rgba(37, 99, 235, 0.15)",
-    )
+# ECharts radar takes (indicator_name, max_value) tuples per axis +
+# (series_name, values) tuples per ring. radar_chart applies the
+# brand palette + cream/ink theme automatically.
+indicators = [(name, 5.5) for name in dim_names]
+radar_chart(
+    indicators=indicators,
+    series=[("Current State", current), ("Target State", targets)],
+    height=520,
+    key="program_maturity_radar",
 )
-fig.add_trace(
-    go.Scatterpolar(
-        r=targets + [targets[0]],
-        theta=dim_names + [dim_names[0]],
-        fill="toself",
-        name="Target State",
-        line=dict(color="#16a34a", width=2, dash="dot"),
-        fillcolor="rgba(22, 163, 74, 0.06)",
-    )
-)
-fig.update_layout(
-    polar=dict(
-        radialaxis=dict(
-            visible=True,
-            range=[0, 5.5],
-            tickvals=[1, 2, 3, 4, 5],
-            showticklabels=True,
-            tickfont_size=10,
-        ),
-        bgcolor="rgba(0,0,0,0)",
-    ),
-    showlegend=True,
-    legend=dict(orientation="h", yanchor="bottom", y=-0.12, x=0.5, xanchor="center"),
-)
-st.plotly_chart(chart_layout(fig, 520), use_container_width=True)
 
 # --- Level Legend ---
 st.markdown("### Maturity Levels")

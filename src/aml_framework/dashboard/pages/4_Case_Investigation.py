@@ -4,19 +4,18 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from aml_framework.cases.aggregator import aggregate_investigations
 from aml_framework.cases.sla import apply_escalation, compute_sla_status
 from aml_framework.cases.str_bundle import bundle_investigation_to_str
 from aml_framework.dashboard.components import (
-    chart_layout,
     citation_link,
     empty_state,
     page_header,
     risk_color,
+    sankey_chart,
+    scatter_chart,
     severity_color,
     sla_band_color,
     tooltip_banner,
@@ -275,36 +274,24 @@ if customer_id and not df_txns.empty:
         cust_txns["signed_amount"] = cust_txns.apply(
             lambda r: r["amount"] if r["direction"] == "in" else -r["amount"], axis=1
         )
-        fig = px.scatter(
+        # ECharts scatter takes a single x/y per point. Channel hue
+        # comes from the categorical palette in chart_theme. Size
+        # carries the absolute amount, label carries the txn_id.
+        # Alert-window vrect was a Plotly-only annotation — its scope
+        # is documented in the alert summary card above the timeline,
+        # so we drop the chart-side annotation rather than approximate.
+        cust_txns["abs_amount"] = cust_txns["amount"].abs()
+        scatter_chart(
             cust_txns,
             x="booked_at",
             y="signed_amount",
+            size="abs_amount",
             color="channel",
-            size=cust_txns["amount"].abs(),
-            hover_data=["txn_id", "direction", "amount", "channel"],
-            labels={"booked_at": "Date", "signed_amount": "Amount (signed)"},
-            color_discrete_map={
-                "cash": "#d97706",
-                "wire": "#2563eb",
-                "ach": "#7c3aed",
-                "card": "#6b7280",
-                "eft": "#0891b2",
-            },
+            label="txn_id",
+            title="Transaction Timeline",
+            height=380,
+            key="case_investigation_txn_scatter",
         )
-        w_start_full = alert_data.get("window_start")
-        w_end_full = alert_data.get("window_end")
-        if w_start_full and w_end_full:
-            fig.add_vrect(
-                x0=str(w_start_full),
-                x1=str(w_end_full),
-                fillcolor="rgba(220, 38, 38, 0.08)",
-                line=dict(color="rgba(220, 38, 38, 0.4)", width=1),
-                annotation_text="Alert Window",
-                annotation_position="top left",
-                annotation_font_size=11,
-            )
-        fig.update_layout(xaxis_title="", yaxis_title="Amount ($)")
-        st.plotly_chart(chart_layout(fig, 380), use_container_width=True)
     else:
         st.caption("No transactions found for this customer.")
 
@@ -321,44 +308,35 @@ if customer_id and not df_txns.empty:
             .reset_index()
         )
 
-        labels = [customer_id]
-        channels = flow["channel"].unique().tolist()
-        labels.extend(channels)
-
-        sources, targets_list, values, link_colors = [], [], [], []
-        channel_colors = {
-            "cash": "#d97706",
-            "wire": "#2563eb",
-            "ach": "#7c3aed",
-            "card": "#6b7280",
-            "eft": "#0891b2",
-        }
+        # ECharts sankey is a strict DAG — when a customer has both
+        # "in" AND "out" txns through the same channel, naive
+        # (channel → customer, customer → channel) edges form a cycle
+        # and the chart throws "Sankey is a DAG, the original data has
+        # cycle!". Split each direction into a distinct node label so
+        # the graph stays acyclic: "cash (in)" → customer → "cash (out)".
+        edges: list[tuple[str, str, float]] = []
+        node_set: list[str] = []
         for _, row in flow.iterrows():
-            ch_idx = labels.index(row["channel"])
-            base_color = channel_colors.get(row["channel"], "#94a3b8")
+            value = float(row["total"])
+            if value <= 0:
+                continue
+            label = f"{row['channel']} ({row['direction']})"
             if row["direction"] == "in":
-                sources.append(ch_idx)
-                targets_list.append(0)
+                edges.append((label, customer_id, value))
             else:
-                sources.append(0)
-                targets_list.append(ch_idx)
-            values.append(float(row["total"]))
-            # Convert hex to rgba for Plotly compatibility.
-            r, g, b = int(base_color[1:3], 16), int(base_color[3:5], 16), int(base_color[5:7], 16)
-            link_colors.append(f"rgba({r},{g},{b},0.25)")
+                edges.append((customer_id, label, value))
+            if label not in node_set:
+                node_set.append(label)
+        nodes = [customer_id, *node_set]
 
-        fig = go.Figure(
-            go.Sankey(
-                node=dict(
-                    label=labels,
-                    pad=20,
-                    thickness=25,
-                    color=["#2563eb"] + [channel_colors.get(c, "#94a3b8") for c in channels],
-                ),
-                link=dict(source=sources, target=targets_list, value=values, color=link_colors),
+        if edges:
+            sankey_chart(
+                nodes=nodes,
+                edges=edges,
+                title=f"Transaction Flow by Channel — {customer_id}",
+                height=320,
+                key="case_investigation_flow_sankey",
             )
-        )
-        st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
 
 # --- Evidence Requested ---
 st.markdown("### Evidence Requested")

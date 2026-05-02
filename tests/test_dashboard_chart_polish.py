@@ -30,12 +30,11 @@ PAGES_DIR = PROJECT_ROOT / "src" / "aml_framework" / "dashboard" / "pages"
 #
 # Migrated by PR-CHART-2:
 #   - 11_Live_Monitor.py  (charts → bar_chart / line_chart)
-PAGES_WITH_CHART_POLISH = (
-    "13_Model_Performance.py",
-    "17_Customer_360.py",
-    "21_My_Queue.py",
-    "23_Tuning_Lab.py",
-)
+# Migrated by PR-CHART-3:
+#   - 13_Model_Performance.py / 17_Customer_360.py / 21_My_Queue.py /
+#     23_Tuning_Lab.py — all chart-bearing pages now use the ECharts
+#     wrappers; nothing left for the Plotly polish guards to assert.
+PAGES_WITH_CHART_POLISH: tuple[str, ...] = ()
 
 
 class TestChartsUseCentralisedConfig:
@@ -69,35 +68,59 @@ class TestPaletteUnification:
             "Hand-coded channel colour map should be replaced by the centralised ECharts theme"
         )
 
-    def test_customer360_pie_uses_chart_palette(self):
+    def test_customer360_pie_uses_chart_helper(self):
+        # Post PR-CHART-3: Customer 360 pie chart routes through the
+        # pie_chart() helper instead of px.pie + CHART_PALETTE wiring.
+        # Palette comes from chart_theme.CATEGORICAL_PALETTE.
         body = (PAGES_DIR / "17_Customer_360.py").read_text(encoding="utf-8")
-        assert "color_discrete_sequence=CHART_PALETTE" in body, (
-            "Customer 360 channel pie must use CHART_PALETTE"
-        )
+        assert "pie_chart(" in body, "Customer 360 must use the centralised pie_chart helper"
 
 
 class TestRangeBandsAndAnnotations:
-    def test_my_queue_has_sla_band_shading(self):
+    # PR-CHART-3 replaced Plotly's add_vrect background bands on the
+    # My Queue resolution histogram + Model Performance score histogram
+    # with per-bin severity-keyed bar colouring (green ≤ SLA / amber
+    # 1-2× SLA / red > 2× SLA). The contract — "the analyst sees the
+    # SLA cliff at a glance" — is preserved; the implementation no
+    # longer uses add_vrect.
+
+    def test_my_queue_resolution_chart_carries_sla_signal(self):
         body = (PAGES_DIR / "21_My_Queue.py").read_text(encoding="utf-8")
-        # 3 add_vrect calls — green ≤ SLA, amber 1-2× SLA, red > 2× SLA
-        assert body.count("add_vrect(") >= 3, (
-            "My Queue resolution histogram must have green/amber/red SLA-band shading"
+        assert "bar_chart(" in body, (
+            "My Queue resolution histogram must use the bar_chart helper "
+            "with per-bin severity colouring (PR-CHART-3 migration)"
+        )
+        # The _band() local must classify against sla_hours so the
+        # SLA cliff is reflected in the bar palette, not just the X axis.
+        assert "sla_hours" in body and "_band" in body, (
+            "Resolution histogram must derive each bar's severity-band "
+            "colour from the queue's SLA window"
         )
 
-    def test_model_performance_has_score_band_shading(self):
+    def test_model_performance_score_chart_carries_band_signal(self):
         body = (PAGES_DIR / "13_Model_Performance.py").read_text(encoding="utf-8")
-        # 3 add_vrect calls for the 0–0.65 / 0.65–0.85 / 0.85+ score bands
-        assert body.count("add_vrect(") >= 3, (
-            "Model Performance score histogram must have score-band shading"
+        assert "bar_chart(" in body, (
+            "Model Performance score histogram must use the bar_chart "
+            "helper with per-bin severity colouring (PR-CHART-3 migration)"
         )
+        # Threshold 0.65 is the documented action line — the band
+        # function must reference it so the bar palette flips at the
+        # right cliff.
+        assert "0.65" in body, "Model Performance must keep the 0.65 action threshold"
 
-    def test_tuning_lab_scatter_uses_rag_gradient(self):
+    def test_tuning_lab_scatter_uses_rag_band_colouring(self):
         body = (PAGES_DIR / "23_Tuning_Lab.py").read_text(encoding="utf-8")
-        # The Viridis colour scale is replaced with a RAG-aligned scale.
+        # PR-CHART-3 replaced Plotly's continuous Viridis/RAG gradient
+        # with discrete severity-band colouring via scatter_chart's
+        # color= column. The Viridis literal must remain absent;
+        # best-F1 callout migrated from add_annotation to a per-row
+        # `label` column on the scatter.
         assert '"Viridis"' not in body, (
-            "Tuning Lab P/R scatter should use a RAG-aligned colour scale, not Viridis"
+            "Tuning Lab P/R scatter should use the severity-band palette, not Viridis"
         )
-        # Best-F1 annotation must be present.
         assert "best F1" in body, (
             "Tuning Lab scatter must annotate the best-F1 point so the eye lands there first"
+        )
+        assert "scatter_chart(" in body, (
+            "Tuning Lab P/R scatter must use the centralised scatter_chart helper"
         )

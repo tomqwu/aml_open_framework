@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
+from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
-    chart_layout,
+    bar_chart,
     kpi_card,
     metric_gradient_style,
     page_header,
-    responsive_plotly_config,
     severity_cell_style,
 )
-from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Model Performance",
@@ -95,52 +93,48 @@ for rule in ml_rules:
     col_left, col_right = st.columns(2)
 
     with col_left:
-        # Score distribution histogram.
+        # Score distribution histogram. ECharts has no native histogram
+        # type, so we pre-bin into 20 buckets and render as a bar chart.
+        # The score-band shading (green ≤ 0.65 / amber 0.65-0.85 /
+        # red ≥ 0.85) is preserved by per-bar colouring keyed off the
+        # bin's centre value. Threshold 0.65 = the model card's action
+        # line — analyst sees the cliff in the bar gradient.
         st.markdown("#### Score Distribution")
         if scores:
-            fig = px.histogram(
-                x=scores,
-                nbins=20,
-                labels={"x": "Risk Score", "y": "Count"},
-                color_discrete_sequence=["#2563eb"],
+            import math
+
+            n_bins = 20
+            bin_width = 1.0 / n_bins
+            bins = [0] * n_bins
+            for s in scores:
+                idx = min(int(s / bin_width), n_bins - 1) if not math.isnan(s) else 0
+                bins[idx] += 1
+
+            def _band(centre: float) -> str:
+                # Returns the severity-token that the bar palette resolves
+                # via _series_color() in dashboard.charts.
+                if centre >= 0.85:
+                    return "high"  # red
+                if centre >= 0.65:
+                    return "medium"  # amber
+                return "low"  # green
+
+            band_centres = [(i + 0.5) * bin_width for i in range(n_bins)]
+            score_df = pd.DataFrame(
+                {
+                    "score": [f"{c:.2f}" for c in band_centres],
+                    "count": bins,
+                    "band": [_band(c) for c in band_centres],
+                }
             )
-            # Shade the score bands so a glance answers "how many alerts
-            # are at high-confidence vs. just-over-threshold?". Threshold
-            # 0.65 = the model card's documented action line.
-            fig.add_vrect(
-                x0=0,
-                x1=0.65,
-                fillcolor="#16a34a",
-                opacity=0.06,
-                line_width=0,
-                layer="below",
-            )
-            fig.add_vrect(
-                x0=0.65,
-                x1=0.85,
-                fillcolor="#d97706",
-                opacity=0.08,
-                line_width=0,
-                layer="below",
-            )
-            fig.add_vrect(
-                x0=0.85,
-                x1=1.0,
-                fillcolor="#dc2626",
-                opacity=0.10,
-                line_width=0,
-                layer="below",
-            )
-            fig.add_vline(
-                x=0.65, line_dash="dash", line_color="#dc2626", annotation_text="Threshold (0.65)"
-            )
-            fig.update_traces(
-                hovertemplate="Score: %{x:.2f}<br>Count: %{y}<extra></extra>",
-            )
-            st.plotly_chart(
-                chart_layout(fig, 300),
-                use_container_width=True,
-                config=responsive_plotly_config(),
+            bar_chart(
+                score_df,
+                x="score",
+                y="count",
+                color="band",
+                title="Score Distribution (Threshold 0.65)",
+                height=300,
+                key=f"model_perf_score_hist_{rule.id}",
             )
 
     with col_right:

@@ -17,17 +17,16 @@ from __future__ import annotations
 import json
 
 import pandas as _pd_tuning
-import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
-    chart_layout,
     glossary_legend,
     kpi_card,
+    line_chart,
     metric_gradient_style,
     page_header,
-    responsive_plotly_config,
+    scatter_chart,
 )
 from aml_framework.dashboard.query_params import consume_param as _consume_param
 from aml_framework.dashboard.tuning_state import (
@@ -164,55 +163,52 @@ if labels is not None and any(s.precision is not None for s in run.scenarios):
         for s in run.scenarios
         if s.precision is not None and s.recall is not None
     ]
-    fig = px.scatter(
-        pr_rows,
-        x="recall",
-        y="precision",
-        size="alerts",
-        color="f1",
-        hover_data=["params"],
-        # Red→amber→green tied to F1: low F1 stands out as red rather
-        # than the Viridis purple-yellow gradient (which doesn't carry
-        # semantic "this is bad" / "this is good" connotation).
-        color_continuous_scale=[
-            (0.0, "#dc2626"),  # red — F1 ≤ 0.5 is poor
-            (0.5, "#d97706"),  # amber — middling
-            (0.8, "#16a34a"),  # green — F1 ≥ 0.8 is strong
-            (1.0, "#16a34a"),
-        ],
-        range_color=[0.0, 1.0],
-        range_x=[0, 1.05],
-        range_y=[0, 1.05],
+
+    # F1 → severity-token mapping for per-point colour: low F1 → red,
+    # mid → amber, high → green. Mirrors the previous Plotly RAG
+    # gradient with discrete band colouring (closer to AML compliance
+    # convention than a continuous scale).
+    def _f1_band(f1: float | None) -> str:
+        if f1 is None:
+            return "low"
+        if f1 >= 0.8:
+            return "low"  # green via severity palette ("low" severity reads green)
+        if f1 >= 0.5:
+            return "medium"  # amber
+        return "high"  # red
+
+    pr_df = _pd_tuning.DataFrame(
+        [
+            {
+                "recall": r["recall"],
+                "precision": r["precision"],
+                "alerts": r["alerts"],
+                "band": _f1_band(r["f1"]),
+                # Best-F1 row gets a "★ best F1 = X.XXX" label so the
+                # eye lands there first (replaces add_annotation arrow).
+                "label": "",
+            }
+            for r in pr_rows
+        ]
     )
-    # Annotate the best-F1 point so the reader's eye lands there first.
+    # Annotate the best-F1 row's `label`.
     best_idx = max(
         range(len(pr_rows)),
         key=lambda i: pr_rows[i]["f1"] if pr_rows[i]["f1"] is not None else -1,
     )
-    best_row = pr_rows[best_idx]
-    if best_row["f1"] is not None:
-        fig.add_annotation(
-            x=best_row["recall"],
-            y=best_row["precision"],
-            text=f"★ best F1 = {best_row['f1']:.3f}",
-            showarrow=True,
-            arrowhead=2,
-            arrowcolor="#0f172a",
-            ax=30,
-            ay=-30,
-            font=dict(size=12, color="#0f172a", weight=700),
-        )
-    fig.update_traces(
-        hovertemplate=(
-            "Recall: %{x:.3f}<br>Precision: %{y:.3f}<br>"
-            "F1: %{marker.color:.3f}<br>Params: %{customdata[0]}<extra></extra>"
-        )
-    )
-    fig.update_layout(xaxis_title="Recall", yaxis_title="Precision")
-    st.plotly_chart(
-        chart_layout(fig, 360),
-        use_container_width=True,
-        config=responsive_plotly_config(),
+    if pr_rows[best_idx]["f1"] is not None:
+        pr_df.loc[best_idx, "label"] = f"★ best F1 = {pr_rows[best_idx]['f1']:.3f}"
+
+    scatter_chart(
+        pr_df,
+        x="recall",
+        y="precision",
+        size="alerts",
+        color="band",
+        label="label",
+        title="Precision vs. Recall — point size = alert volume, colour = F1 band",
+        height=360,
+        key="tuning_lab_pr_scatter",
     )
 
 # --- Promote a scenario ---
@@ -309,10 +305,18 @@ with st.expander("📉 Backtest this rule across historical quarters", expanded=
             st.json(report.drift_summary)
 
         # Quick chart: alert volume over periods.
-        chart_df = [{"period": p.period, "alerts": p.alert_count} for p in report.periods]
-        fig = px.line(chart_df, x="period", y="alerts", markers=True)
-        fig.update_layout(**chart_layout())
-        st.plotly_chart(fig, use_container_width=True)
+        chart_df = _pd_tuning.DataFrame(
+            [{"period": p.period, "alerts": p.alert_count} for p in report.periods]
+        )
+        line_chart(
+            chart_df,
+            x="period",
+            y="alerts",
+            smooth=True,
+            markers=True,
+            height=300,
+            key=f"tuning_lab_backtest_volume_{rule_id}",
+        )
 
         st.download_button(
             "Download backtest_report.json",

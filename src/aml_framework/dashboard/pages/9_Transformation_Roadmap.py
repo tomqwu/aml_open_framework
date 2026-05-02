@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.components import (
-    chart_layout,
     kpi_card,
     page_header,
     see_also_footer,
+    timeline_chart,
 )
 from aml_framework.dashboard.data_layer import get_roadmap_phases
 
@@ -75,22 +74,17 @@ for phase in ROADMAP_PHASES:
     )
 
 df_gantt = pd.DataFrame(gantt_data)
-status_colors = {"Complete": "#16a34a", "In Progress": "#2563eb", "Planned": "#94a3b8"}
-fig = px.timeline(
+# `color="Status"` paints each Gantt bar with a status-keyed colour
+# via the chart_theme palette resolver — no per-page colour map needed.
+timeline_chart(
     df_gantt,
-    x_start="Start_date",
-    x_end="Finish_date",
-    y="Phase",
+    task="Phase",
+    start="Start_date",
+    finish="Finish_date",
     color="Status",
-    color_discrete_map=status_colors,
+    height=300,
+    key="roadmap_gantt",
 )
-fig.update_yaxes(autorange="reversed")
-fig.update_layout(
-    showlegend=True,
-    legend_title_text="",
-    legend=dict(orientation="h", yanchor="bottom", y=-0.25, x=0.5, xanchor="center"),
-)
-st.plotly_chart(chart_layout(fig, 300), use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 

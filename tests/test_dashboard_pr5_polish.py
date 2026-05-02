@@ -95,15 +95,28 @@ class TestRiskGeographyStacked:
         )
 
     def test_uses_risk_rating_colors(self):
+        # PR-CHART-3 swapped px.bar(color_discrete_map=...) for the
+        # bar_chart() helper, which routes "high"/"medium"/"low"
+        # series names through the severity palette resolver in
+        # chart_theme.py — same colours, derived from one source.
+        # Either pattern is acceptable — the invariant is that the
+        # risk-rating segments stay severity-coloured.
         body = RISK.read_text(encoding="utf-8")
-        assert "color_discrete_map=RISK_RATING_COLORS" in body, (
-            "Stacked bars must use the centralised RISK_RATING_COLORS "
-            "to stay consistent with the rest of the dashboard"
+        ok = "color_discrete_map=RISK_RATING_COLORS" in body or (
+            "bar_chart(" in body and 'y=[c for c in ["high", "medium", "low"]' in body
+        )
+        assert ok, (
+            "Risk Geography stacked bars must keep severity colouring — "
+            "either via px.bar color_discrete_map=RISK_RATING_COLORS or "
+            "via bar_chart with the severity-keyed series names"
         )
 
     def test_stack_mode_explicit(self):
+        # PR-CHART-3 wraps the stack mode behind bar_chart(stacked=True).
         body = RISK.read_text(encoding="utf-8")
-        assert 'barmode="stack"' in body, "Bars must explicitly stack"
+        assert ('barmode="stack"' in body) or ("stacked=True" in body), (
+            "Bars must explicitly stack (px.bar barmode='stack' or bar_chart stacked=True)"
+        )
 
 
 class TestRiskKpiMigration:
