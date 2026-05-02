@@ -16,10 +16,15 @@ No streamlit, no streamlit-echarts imports — runs in the lean
 
 from __future__ import annotations
 
-import pandas as pd
 import pytest
 
-from aml_framework.dashboard.chart_theme import (
+# pandas is part of the [dashboard] extra, not [dev]. The unit-tests CI
+# job installs only [dev] and runs every test file in tests/ — so this
+# file must skip cleanly when pandas isn't around. Mirrors the pattern
+# in test_dashboard_today.py and test_dashboard_today_cards_reachable.py.
+pd = pytest.importorskip("pandas")
+
+from aml_framework.dashboard.chart_theme import (  # noqa: E402
     CATEGORICAL_PALETTE,
     DNA_INK,
     RAG_PALETTE,
@@ -28,7 +33,7 @@ from aml_framework.dashboard.chart_theme import (
     rag_color,
     severity_color,
 )
-from aml_framework.dashboard.charts import (
+from aml_framework.dashboard.charts import (  # noqa: E402
     _build_bar_option,
     _build_funnel_option,
     _build_gauge_option,
