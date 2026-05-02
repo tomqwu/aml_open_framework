@@ -88,6 +88,58 @@ flowchart TD
 | Model risk management           | `rules[*].mrm`                      | Per-rule MRM dossier + 4-quarter backtester     |
 | Retention                       | `retention_policy`                  | Ledger TTL + export redaction                   |
 
+## Data integration
+
+AML's biggest practical pain isn't detection logic — it's getting one
+clean view across core banking, payment rails, KYC vendors, sanctions
+screeners, and fraud systems. The whitepaper [*Data is the AML
+problem*](research/2026-05-aml-data-problem.md) enumerates 11 specific
+data pains; the framework closes them across four surfaces:
+
+**Connectors** — `data/sources.py` ships 9 source loaders out of the
+box. The same `aml.yaml` runs against any of them by changing one CLI
+flag:
+
+| Source | Flag | Notes |
+|---|---|---|
+| Synthetic | (default) | Deterministic test data — every demo + CI run uses this |
+| CSV | `--data-source csv --data-dir <dir>` | One file per `data_contracts[*].id` |
+| Parquet | `--data-source parquet --data-dir <dir>` | Same shape, columnar |
+| DuckDB | `--data-source duckdb --db-path <file>` | One table per contract |
+| Snowflake | `--data-source snowflake` | Via DuckDB `snowflake` extension |
+| BigQuery | `--data-source bigquery` | Via DuckDB `bigquery` extension |
+| S3 | `--data-source s3 --data-dir s3://...` | CSV/Parquet via `httpfs` |
+| GCS | `--data-source gcs --data-dir gs://...` | CSV/Parquet via `httpfs` |
+| ISO 20022 | `--data-source iso20022 --data-dir <xml-dir>` | pacs.008 / pacs.009 / pacs.004 / pain.001 |
+
+**Contract enforcement** — every `data_contracts[*]` declaration in
+the spec gates ingestion. `aml run --strict` refuses to execute when
+contract checks fail (PR-DATA-1 fail-closed validation). Per-attribute
+freshness pinning (`max_staleness_days` + `last_refreshed_at_column`,
+PR-DATA-2) closes the *"stale beats stale beats stale"* DATA-2 pain
+without per-pipeline plumbing.
+
+**ISO 20022 native** — `data/iso20022/parser.py` reads pacs.008
+(customer credit transfer), pacs.009 (FI credit transfer), pacs.004
+(payment return), and pain.001 (corporate batch initiation). Each
+parsed row carries `msg_kind` so downstream rules + the dashboard can
+filter / count by message type. Closes DATA-8.
+
+**Lineage walk-back** — every alert carries the source-rule version,
+spec hash, input-file hashes, and ingestion run id (PR-DATA-4
+`walk_lineage()`). The Audit & Evidence page renders the chain;
+`aml export --include-lineage` packages it for the auditor. Closes
+DATA-4.
+
+For the operator-facing summary surface — *"what data is flowing
+through this AML program right now?"* — see the [Data Integration
+dashboard page](dashboard-tour.md#data-integration) (page 30). It
+lays out the 9 connectors, contract roll-up in whitepaper vocabulary
+(completeness / staleness / checks), ISO 20022 message-type counts,
+and a DATA-N → artifact map that lets a data engineer verify each
+whitepaper claim against the concrete framework artifact that closes
+it.
+
 ## Determinism & reproducibility
 
 Every rule execution records:

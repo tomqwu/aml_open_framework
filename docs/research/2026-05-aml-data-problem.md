@@ -138,6 +138,31 @@ The dominant message in 2026 primary sources is that **data, not detection, is t
 
 ---
 
+## Where the framework closes each pain (DATA-N → artifact map)
+
+Every claim above maps to a concrete framework artifact — a dashboard
+page, a CLI command, a Python module, or a test file. This table is
+the contract: if the artifact doesn't close the pain, the claim is
+broken. The same map renders inside the dashboard itself on the
+[Data Integration page](../dashboard-tour.md#data-integration) so
+operators can verify each row in one click.
+
+| Pain | Page | CLI | Module / test |
+|---|---|---|---|
+| **DATA-1** Fail-closed contract validation | [Data Integration · Contract roll-up](../dashboard-tour.md#data-integration) · [Data Quality](../dashboard-tour.md#data-quality) | `aml validate-data <spec> <data-dir>` · `aml run --strict` | `engine/runner.py::_validate_contracts` · `tests/test_contract_validation.py` |
+| **DATA-2** Per-attribute freshness pinning | [Customer 360 · staleness expander](../dashboard-tour.md#customer-360) · Data Integration · contract roll-up | `aml run --strict` (refuses stale attributes) | `spec/models.py::Column.max_staleness_days` · `engine/freshness.py` |
+| **DATA-3** Cross-system reconciliation | Audit & Evidence (decision log) · *(richer reconciliation view planned)* | `aml run` emits `reconciliation.jsonl` per contract | `engine/runner.py` reconciliation pass |
+| **DATA-4** Lineage walk-back from KPI | [Audit & Evidence · decision log](../dashboard-tour.md#audit--evidence) | `aml export --include-lineage` | `engine/audit.py::walk_lineage` |
+| **DATA-5** In-bank, not SaaS (data sovereignty) | [Data Integration · source catalogue](../dashboard-tour.md#data-integration) — the deployment topology IS the source list | Docker / Helm — see [`deployment.md`](../deployment.md) | `data/sources.py` (no SaaS dependency in any loader) |
+| **DATA-6** AI presumes data (fail-closed gate) | Closes transitively via DATA-1 | `aml run --strict` halts on contract violation before any LLM call | `assistant/factory.py` checks contract pass before backend invocation |
+| **DATA-7** Engineering vs Compliance ownership boundary | [Spec Editor](../dashboard-tour.md#spec-editor--rule-builder) · Data Integration | `aml validate <spec>` (engineering) · `aml attest` (compliance) | `spec/models.py` (the boundary IS the spec) |
+| **DATA-8** Payment-rail data (ISO 20022 native) | [Data Integration · ISO 20022 message-type chart](../dashboard-tour.md#data-integration) | `aml run --data-source iso20022 --data-dir <xml-dir>` | `data/iso20022/parser.py` (pacs.008/009/004 + pain.001) |
+| **DATA-9** STR/SAR filing-latency wall-clock | [Audit & Evidence](../dashboard-tour.md#audit--evidence) — `cases/<id>__filing.json` sidecars | `aml export` rolls filing latency into the bundle | `cases/str_bundle.py` (real wall-clock per filing) |
+| **DATA-10** Cross-bank information sharing | [Information Sharing](../dashboard-tour.md#information-sharing) · share-pattern artifacts | `aml share-pattern` · `aml verify-pattern` | `compliance/sandbox.py` (FATF R.18 / 314(b) seam) |
+| **DATA-11** Spec as data contract (versioned, hashable) | [Audit & Evidence](../dashboard-tour.md#audit--evidence) — spec hash on every run | `aml validate <spec>` (JSON Schema + Pydantic two-layer) | `spec/loader.py` · `engine/audit.py` (hash-chained ledger) |
+
+---
+
 ## Style guide — phrases to use, phrases to avoid
 
 ### Use these (regulator-sourced, defensible to a buyer)

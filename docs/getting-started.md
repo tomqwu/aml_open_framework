@@ -131,6 +131,8 @@ aml run spec.yaml --data-source bigquery  # uses GOOGLE_APPLICATION_CREDENTIALS
 
 ISO 20022 ingestion handles pacs.008 / pacs.009 (FI-to-FI), pain.001 (corporate batch), and pacs.004 (returns) natively — see [Round-5 changelog entries](../CHANGELOG.md) for the full surface.
 
+> **Watch the data layer in the dashboard**: the [Data Integration page](dashboard-tour.md#data-integration) renders a 30-second view of every wired source, contract roll-up, and ISO 20022 message-type counts — plus a DATA-N → artifact map linking each whitepaper data pain to its concrete framework artifact.
+
 ---
 
 ## 6. Author Your First Custom Rule (5 min)
