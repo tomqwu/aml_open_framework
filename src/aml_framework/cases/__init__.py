@@ -37,6 +37,11 @@ from aml_framework.cases.str_bundle import (
     bundle_hash,
     bundle_investigation_to_str,
 )
+from aml_framework.cases.triage import (
+    RankedCase,
+    rank_queue,
+    triage_score,
+)
 
 __all__ = [
     "Investigation",
@@ -56,4 +61,7 @@ __all__ = [
     "classify_rule_domain",
     "find_linked_customers",
     "linkage_summary",
+    "RankedCase",
+    "rank_queue",
+    "triage_score",
 ]
