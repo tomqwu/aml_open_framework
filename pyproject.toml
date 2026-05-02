@@ -40,6 +40,8 @@ dashboard = [
     "streamlit>=1.35",
     "plotly>=5.22",
     "streamlit-agraph>=0.0.45",
+    "streamlit-echarts>=0.6.0",
+    "streamlit-aggrid>=1.2.1",
     "pandas>=2.2",
 ]
 api = [
