@@ -51,7 +51,14 @@ jobs:
       - run: pip install -e ".[dev,dashboard]" playwright
       - run: python -m playwright install chromium
       - run: pytest tests/test_e2e_dashboard.py tests/test_e2e_dashboard_mobile.py -q
-        timeout-minutes: 8
+        # Bumped 8 → 15 minutes after PR-0 / nav-wiring exposed pages
+        # 25-31 (and the previously-orphaned 22-24) to the per-page
+        # render matrix + the persona × page coverage matrix. Each
+        # Playwright navigate cycle takes ~2-3s of stable-load wait,
+        # so adding 9 page titles × 12 personas adds ~3-4 minutes.
+        # 15 min keeps headroom for future page additions without
+        # per-PR retuning of this value.
+        timeout-minutes: 15
 
   docker-build:
     runs-on: ubuntu-latest
