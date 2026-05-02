@@ -1,20 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-05-01. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-05-02. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
 ---
 
 ## At a Glance
 
-| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) | Dashboard UX + GenAI push (2026-04-30) | Brand + UX consolidation (2026-05-01) |
-|---|---|---|---|---|---|
-| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC | + ~700 LOC | + ~3,500 LOC (PR-A → PR-L) | + ~2,650 LOC (PR-M → PR-T, 31 files) |
-| Tests | 991 | + ~110 | 1,161 passing | **1,750 passing** | **1,791 passing** |
-| Test files | 34 | 39 | 43 | 56 | 90 |
-| Example specs | 7 | 9 | 9 | 9 | **10** |
-| Unique regulation citations | 61+ | ~75+ | ~75+ | ~75+ | ~80+ |
-| Dashboard pages | 24 | 24 | 24 | **29** (+ Metrics Taxonomy, AI Assistant, screenshots-pending) | 29 (count unchanged; 31 page files inc. 2 nav surfaces) |
-| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 | + #150–#161 (PR-A → PR-L) | + #162–#168 (PR-M → PR-T) |
+| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) | Dashboard UX + GenAI push (2026-04-30) | Brand + UX consolidation (2026-05-01) | Round 10 — Data layer (2026-05-02) |
+|---|---|---|---|---|---|---|
+| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC | + ~700 LOC | + ~3,500 LOC (PR-A → PR-L) | + ~2,650 LOC (PR-M → PR-T, 31 files) | + ~2,920 LOC (PR-DATA-1 → PR-DATA-10b, 19 files) |
+| Tests | 991 | + ~110 | 1,161 passing | **1,750 passing** | **1,791 passing** | **1,848 passing** |
+| Test files | 34 | 39 | 43 | 56 | 90 | 96 |
+| Example specs | 7 | 9 | 9 | 9 | **10** | 10 |
+| Unique regulation citations | 61+ | ~75+ | ~75+ | ~75+ | ~80+ | ~85+ (BCBS 239, FATF R.18, OSFI E-23/B-13, EBA outsourcing, Wolfsberg CBDDQ) |
+| Dashboard pages | 24 | 24 | 24 | **29** (+ Metrics Taxonomy, AI Assistant, screenshots-pending) | 29 (count unchanged; 31 page files inc. 2 nav surfaces) | **30** (+ Information Sharing) |
+| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 | + #150–#161 (PR-A → PR-L) | + #162–#168 (PR-M → PR-T) | + #177–#183 (PR-DATA-1 → PR-DATA-10b) |
 
 ---
 
@@ -23,7 +23,8 @@ Snapshot of where the AML Open Framework is as of 2026-05-01. This document is a
 ```
 src/aml_framework/
 ├── api/              FastAPI REST layer (JWT auth, multi-tenant DB, rate limiting)
-├── cases/            Investigation aggregator, SLA timer, STR bundling (Round 6)
+├── attestations/     MLRO sign-off ledger — hash-chained attestations.jsonl (Round 10)
+├── cases/            Investigation aggregator, SLA timer, STR bundling, filing sidecars (Round 6/10)
 ├── assistant/        GenAI co-pilot (template/ollama/openai backends, sidebar on every page)
 ├── dashboard/        29-page Streamlit web app (mobile-responsive, multi-tenant, GenAI panel)
 ├── data/             Synthetic generator + 8 source loaders + ISO 20022 parser
@@ -160,6 +161,24 @@ Goal: port the landing-site brand DNA (deck → dashboard CSS), then absorb the 
 
 **Result**: dashboard chrome now matches the landing-site brand. Two persona-side crashes that surfaced after the topbar/Today-hero rebuild are fixed and protected by a 31×12 persona-page e2e coverage matrix. The HTML-leak detector catches a class of bug where Streamlit components render unrendered Markdown/HTML strings into the page (a regression vector that's easy to introduce when porting CSS-heavy components). Tests grew 1,750 → 1,791 (+41) across the 7 PRs; test files went 56 → 90 (the e2e expansion split into per-persona modules). Three follow-up README polish commits (`Where this fits in your stack`, `In-bank, not SaaS`, Quickstart venv guidance) shipped directly to main outside the PR cadence.
 
+### Round 10 — Data layer hardening (7 PRs, 2026-05-02)
+
+Goal: close the gap between the "Data is the AML problem" whitepaper's claims (`docs/research/2026-05-aml-data-problem.md`, shipped in PR #174) and what the code actually backs. A code audit against the doc found 3 STRONG / 5 PARTIAL / 3 STUB verdicts across 11 DATA-N sections; this round addresses the 6 with material gaps.
+
+| PR | Workstream | DATA-N | Whitepaper claim before / after |
+|---|---|---|---|
+| #177 | PR-DATA-1 · Fail-closed contract validation | DATA-1 | "Validator fails closed" — partial → **strong** |
+| #178 | PR-DATA-2 · pKYC integration + per-attribute freshness pinning (`max_staleness_days` + `last_refreshed_at_column`) | DATA-2 | "Per-attribute freshness pinning" — stub → **strong** |
+| #179 | PR-DATA-4 · Per-decision audit metadata + `walk_lineage()` helper | DATA-4 | "Walk-back from any KPI to producing run + rule version + spec hash + input file hashes" — partial → **strong** |
+| #180 | PR-DATA-9 · Real STR/SAR filing-latency capture (filing sidecars) | DATA-9 | "STR filing-latency p95 is a first-class metric" — proxy → **real wall-clock** |
+| #181 | PR-DATA-8 · MLRO attestation workflow + `aml run --strict` gate | DATA-8 | "MLRO signs against Manifest hash" — stub → **strong** (hash-chained `attestations.jsonl`) |
+| #182 | PR-DATA-10a · `information_sharing` spec syntax + `aml share-pattern` / `aml verify-pattern` CLI | DATA-10 | "Cross-bank info-sharing reference surface" — sandbox-only-as-library → **policy boundary in spec + CLI seam** |
+| #183 | PR-DATA-10b · Information Sharing dashboard (page #31) | DATA-10 | Operational view (declared partners + recent share-pattern artifacts) |
+
+**Result**: 6 DATA-N sections promoted from stub/partial to strong. New module `attestations/` (17 modules total). New engine submodule `engine/freshness.py`. New cases sidecar `cases/<case_id>__filing.json`. Three new CLI commands (`attest`, `share-pattern`, `verify-pattern`); two new audit-event types (`contract_violation`, `pkyc_trigger`). Audit-ledger schema bumped to version 2 with `rule_version` stamped on every `case_opened` event. Tests grew 1,791 → 1,848 (+57) across 6 new test files; test files went 90 → 96. The `aml run --strict` opt-in flag refuses to execute against unattested specs — the first concrete Manifest-version gate the framework ships.
+
+The whitepaper's three remaining claims (DATA-3 reconciliation, DATA-5 sovereignty, DATA-11 spec-as-data-contract) were already STRONG; DATA-6 (AI presumes data) is closed transitively by PR-DATA-1's fail-closed validation; DATA-7 (Engineering vs Compliance ownership) is technical-pattern-strong via the data-contract architecture, with the residual gap being organisational and out of code scope.
+
 ---
 
 ## What the Framework Does Today
@@ -285,7 +304,7 @@ See `memory/project_round5to9_plan.md` (private) for the full "three new traps" 
 
 ## Round 8 / 9 — Remaining Planned Work
 
-The deep-research-agent's 5-round plan (in `memory/project_round5to9_plan.md`) is now substantially shipped. Status as of 2026-05-01:
+The deep-research-agent's 5-round plan (in `memory/project_round5to9_plan.md`) is now substantially shipped. Round 10 (data-layer hardening) closed the cross-border information-sharing item (9.5) by shipping the spec syntax + CLI + dashboard surface (PR-DATA-10a/b). Status as of 2026-05-02:
 
 | Round | Item | Estimate | Status |
 |---|---|---|---|
