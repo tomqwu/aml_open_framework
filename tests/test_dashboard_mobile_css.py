@@ -59,30 +59,14 @@ class TestMobileCSSPresent:
 
 
 # ---------------------------------------------------------------------------
-# responsive_plotly_config helper
+# Responsive chart container — post PR-CHART-5 cleanup
 # ---------------------------------------------------------------------------
-
-
-class TestResponsivePlotlyConfig:
-    def test_components_module_exports_helper(self):
-        body = COMPONENTS_FILE.read_text(encoding="utf-8")
-        assert "def responsive_plotly_config" in body, (
-            "responsive_plotly_config helper missing from components module"
-        )
-
-    def test_helper_returns_responsive_true(self):
-        # Source-level static check — avoids importing the components
-        # module here to keep the test pure (the helper is tiny and
-        # importing pulls in pandas + plotly + streamlit, which we
-        # don't want as a dependency of this unit test). The full
-        # behavioral check happens in the e2e mobile suite.
-        body = COMPONENTS_FILE.read_text(encoding="utf-8")
-        # Verify the helper body returns the two responsive flags.
-        # Match the dict keys + values literally; if the helper is
-        # ever rewritten to compute these dynamically the test should
-        # be updated to import + call it.
-        assert '"responsive": True' in body
-        assert '"displayModeBar": False' in body
+# The Plotly-specific responsive_plotly_config() helper was removed
+# alongside Plotly itself in PR-CHART-5. ECharts is responsive by
+# default (the wrapper sets `height` and the chart auto-fits its
+# container width). The mobile-CSS guard above (max-height: 60vh on
+# stPlotlyChart) is preserved so any residual Plotly chart in
+# downstream forks would still cap nicely.
 
 
 # ---------------------------------------------------------------------------

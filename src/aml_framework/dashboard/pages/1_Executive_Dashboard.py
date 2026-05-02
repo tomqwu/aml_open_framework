@@ -5,13 +5,14 @@ open. It now leads with a Bloomberg-terminal-style trust strip (hash
 chain status), then a 3-tile headline hero (the most-urgent number, with
 the others demoted to a secondary KPI bar). Every KPI carries a
 sparkline + delta-vs-prior-run when run-history is available. The
-effectiveness funnel is rendered as both a Plotly Sankey (alerts → cases
-→ STRs flow) and a Waterfall (per-stage drop-off magnitude). The radar
-gets gap annotations and a 500ms fade-up reveal sweeps the page on load.
+effectiveness funnel is rendered as both an ECharts Sankey (alerts →
+cases → STRs flow) and a Waterfall (per-stage drop-off magnitude).
+The radar gets a gap caption below it.
 
 Reuses helpers in `dashboard/components.py` (terminal_block,
-headline_hero, kpi_card_with_trend, kpi_card_rag, chart_layout) and
-the new `dashboard/run_history.py` for sparkline data.
+headline_hero, kpi_card_with_trend, kpi_card_rag, the
+sankey/radar/waterfall ECharts wrappers) and `dashboard/run_history.py`
+for sparkline data.
 """
 
 from __future__ import annotations
