@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-import plotly.express as px
 import streamlit as st
 
+from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
     RISK_RATING_COLORS,
-    chart_layout,
+    bar_chart,
+    heatmap_chart,
     kpi_card_rag,
     page_header,
+    pie_chart,
     research_link,
     risk_color,
     see_also_footer,
 )
-from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Risk Assessment",
@@ -91,40 +92,38 @@ with col_left:
     st.markdown("### Customer Risk Distribution")
     rc = risk_counts.reset_index()
     rc.columns = ["Risk Rating", "Count"]
-    fig = px.pie(
+    # `names="Risk Rating"` triggers the severity-palette path in
+    # _series_color() (high → red, medium → amber, low → green).
+    pie_chart(
         rc,
         names="Risk Rating",
         values="Count",
-        color="Risk Rating",
-        color_discrete_map=RISK_RATING_COLORS,
-        hole=0.45,
+        donut=True,
+        height=340,
+        key="risk_assessment_distribution_pie",
     )
-    fig.update_traces(textposition="inside", textinfo="percent+label")
-    st.plotly_chart(chart_layout(fig, 340), use_container_width=True)
 
 with col_right:
     st.markdown("### Customer Geography")
-    # Stack by risk rating so the chart tells where risk concentrates
-    # geographically — not just where customers count is highest.
-    # Pre-PR-5 this was a monochrome blue gradient on raw count which
-    # had no story beyond bar height.
+    # Stacked-by-risk via the per-bar `color="risk_rating"` semantic
+    # column. ECharts renders horizontal stacks per category (country)
+    # with one segment per risk band, severity-coloured.
     geo = df_customers.groupby(["country", "risk_rating"]).size().reset_index(name="Count")
-    geo = geo.sort_values("Count", ascending=False)
-    fig = px.bar(
-        geo,
+    # Pivot to wide so each risk_rating becomes its own series, which
+    # lets bar_chart stack them (multi-series stacked = one bar per
+    # country, segments per risk).
+    geo_wide = geo.pivot_table(
+        index="country", columns="risk_rating", values="Count", fill_value=0
+    ).reset_index()
+    bar_chart(
+        geo_wide,
         x="country",
-        y="Count",
-        color="risk_rating",
-        color_discrete_map=RISK_RATING_COLORS,
-        category_orders={"risk_rating": ["high", "medium", "low"]},
+        y=[c for c in ["high", "medium", "low"] if c in geo_wide.columns],
+        stacked=True,
+        title="Customer Geography (stacked by risk rating)",
+        height=340,
+        key="risk_assessment_geography_bar",
     )
-    fig.update_layout(
-        xaxis_title="",
-        yaxis_title="",
-        legend_title_text="Risk",
-        barmode="stack",
-    )
-    st.plotly_chart(chart_layout(fig, 340), use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -139,15 +138,16 @@ if not df_txns.empty:
     geo_vol = txn_with_country.groupby("country")["amount"].sum().reset_index()
     geo_vol.columns = ["Country", "Total Volume"]
     geo_vol = geo_vol.sort_values("Total Volume", ascending=False)
-    fig = px.bar(
+    # Single-colour bars (no continuous scale) — the brand burnt-orange
+    # accent reads as "elevated volume" without the noisy Reds gradient.
+    bar_chart(
         geo_vol,
         x="Country",
         y="Total Volume",
-        color="Total Volume",
-        color_continuous_scale="Reds",
+        title="Transaction Volume by Country",
+        height=340,
+        key="risk_assessment_country_volume",
     )
-    fig.update_layout(coloraxis_showscale=False, xaxis_title="", yaxis_title="Volume ($)")
-    st.plotly_chart(chart_layout(fig, 340), use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -169,14 +169,19 @@ if not df_txns.empty:
     order = ["low", "medium", "high"]
     heatmap_data = heatmap_data.reindex([r for r in order if r in heatmap_data.index])
 
-    fig = px.imshow(
-        heatmap_data,
-        labels=dict(x="Channel", y="Risk Rating", color="Volume ($)"),
-        color_continuous_scale="YlOrRd",
-        aspect="auto",
-        text_auto=",.0f",
+    # Heatmap matrix: rows = risk_rating, cols = channel. ECharts wants
+    # a 2D list indexed [y][x]. Use the cream → burnt-orange ramp (the
+    # brand-aligned default) which carries the same "low → high" read
+    # as the old YlOrRd gradient.
+    matrix = heatmap_data.values.tolist()
+    heatmap_chart(
+        matrix=matrix,
+        x_labels=heatmap_data.columns.tolist(),
+        y_labels=heatmap_data.index.tolist(),
+        title="Volume ($) by risk rating × channel",
+        height=350,
+        key="risk_assessment_heatmap",
     )
-    st.plotly_chart(chart_layout(fig, 350), use_container_width=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 

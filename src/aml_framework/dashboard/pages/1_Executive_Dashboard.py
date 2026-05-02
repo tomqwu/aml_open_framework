@@ -19,22 +19,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from aml_framework.dashboard.components import (
-    CHART_PALETTE,
     RAG_COLORS,
-    SEVERITY_COLORS,
-    chart_layout,
+    bar_chart,
     headline_hero,
     kpi_card_rag,
     kpi_card_with_trend,
     link_to_page,
     metric_table,
     page_header,
+    radar_chart,
+    sankey_chart,
     terminal_block,
+    waterfall_chart,
 )
 from aml_framework.dashboard.run_history import (
     delta_pct,
@@ -280,17 +279,17 @@ with col_left:
         chart_df = df_alerts.groupby("rule_id").size().reset_index(name="count")
         chart_df["severity"] = chart_df["rule_id"].map(sev_map)
         chart_df = chart_df.sort_values("count", ascending=True)
-        fig = px.bar(
+        # `color="severity"` paints each rule's bar with the severity
+        # palette automatically — no per-page colour map needed.
+        bar_chart(
             chart_df,
-            y="rule_id",
-            x="count",
+            x="rule_id",
+            y="count",
             color="severity",
             orientation="h",
-            color_discrete_map=SEVERITY_COLORS,
-            labels={"rule_id": "", "count": "Alerts"},
+            height=350,
+            key="exec_alerts_by_rule",
         )
-        fig.update_layout(yaxis_title="", showlegend=True, legend_title_text="")
-        st.plotly_chart(chart_layout(fig, 350), use_container_width=True)
     else:
         st.info("No alerts generated.")
 
@@ -312,57 +311,16 @@ with col_radar:
     values = [{"green": 3, "amber": 2, "red": 1}.get(m.rag, 0) for m in radar_metrics]
 
     if categories and values:
-        fig = go.Figure()
-        # Target ring first so the current-state polygon overlays it.
-        fig.add_trace(
-            go.Scatterpolar(
-                r=[3] * (len(categories) + 1),
-                theta=categories + [categories[0]],
-                fill="toself",
-                name="Target",
-                line=dict(color=RAG_COLORS["green"], width=1, dash="dot"),
-                fillcolor="rgba(22, 163, 74, 0.05)",
-            )
+        # Target ring at 3 (green = strongest RAG); current overlays.
+        # Gap caption below the radar is the board-pack-legible reading
+        # — annotations inside polar charts are universally clunky.
+        indicators = [(cat, 3.5) for cat in categories]
+        radar_chart(
+            indicators=indicators,
+            series=[("Target", [3] * len(categories)), ("Current", values)],
+            height=480,
+            key="exec_program_health_radar",
         )
-        fig.add_trace(
-            go.Scatterpolar(
-                r=values + [values[0]],
-                theta=categories + [categories[0]],
-                fill="toself",
-                name="Current",
-                line=dict(color="#2563eb", width=2.5),
-                fillcolor="rgba(37, 99, 235, 0.18)",
-            )
-        )
-        # Gap annotations — one per axis where current < target.
-        # Keeps the radar from being just decorative.
-        annotations = []
-        for cat, v in zip(categories, values, strict=False):
-            gap = 3 - v
-            if gap > 0:
-                annotations.append(
-                    dict(
-                        text=f"−{gap}",
-                        showarrow=False,
-                        font=dict(
-                            size=10, color=RAG_COLORS["amber"] if gap == 1 else RAG_COLORS["red"]
-                        ),
-                        # Position at the metric's category — Plotly polar
-                        # supports text via `add_annotation` with polar coords
-                        # but it's clunky; rely on hover detail instead.
-                    )
-                )
-        fig.update_layout(
-            polar=dict(
-                radialaxis=dict(visible=True, range=[0, 3.5], showticklabels=False),
-                bgcolor="rgba(0,0,0,0)",
-            ),
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.15, x=0.5, xanchor="center"),
-        )
-        st.plotly_chart(chart_layout(fig, 480), use_container_width=True)
-        # Compact gap summary below the radar — explicit text is more
-        # board-pack legible than annotations crammed inside the polar.
         gaps = [(cat, 3 - v) for cat, v in zip(categories, values, strict=False) if v < 3]
         if gaps:
             gap_caption = " · ".join(f"{cat}: −{g}pt" for cat, g in gaps[:5])
@@ -505,82 +463,58 @@ try:
         #   4  Closed-no-action
         #   5  Pending
         if n_alerts > 0:
-            sankey_fig = go.Figure(
-                data=[
-                    go.Sankey(
-                        node=dict(
-                            pad=18,
-                            thickness=20,
-                            line=dict(color="#cbd5e1", width=0.5),
-                            label=[
-                                f"Alerts ({n_alerts:,})",
-                                f"Cases ({n_cases:,})",
-                                f"Filtered ({alerts_no_case:,})",
-                                f"STR filed ({n_str:,})",
-                                f"Closed · no action ({n_closed:,})",
-                                f"Pending ({cases_pending:,})",
-                            ],
-                            color=[
-                                CHART_PALETTE[0],  # Alerts (blue)
-                                CHART_PALETTE[0],  # Cases (blue)
-                                RAG_COLORS["amber"],  # Filtered (drop-off)
-                                RAG_COLORS["green"],  # STR filed (good outcome)
-                                RAG_COLORS["amber"],  # Closed-no-action (drop-off)
-                                "#94a3b8",  # Pending (neutral)
-                            ],
-                        ),
-                        link=dict(
-                            source=[0, 0, 1, 1, 1],
-                            target=[1, 2, 3, 4, 5],
-                            value=[
-                                max(n_cases, 1) if n_alerts > 0 else 0,
-                                alerts_no_case,
-                                n_str,
-                                n_closed,
-                                cases_pending,
-                            ],
-                            color=[
-                                "rgba(37, 99, 235, 0.35)",
-                                "rgba(217, 119, 6, 0.35)",
-                                "rgba(22, 163, 74, 0.45)",
-                                "rgba(217, 119, 6, 0.35)",
-                                "rgba(148, 163, 184, 0.35)",
-                            ],
-                        ),
-                    )
-                ]
+            # Sankey nodes carry the count in the label so the funnel
+            # tells its own story; edges connect alerts → cases → STR
+            # plus the drop-off branches (filtered / closed / pending).
+            nodes = [
+                f"Alerts ({n_alerts:,})",
+                f"Cases ({n_cases:,})",
+                f"Filtered ({alerts_no_case:,})",
+                f"STR filed ({n_str:,})",
+                f"Closed · no action ({n_closed:,})",
+                f"Pending ({cases_pending:,})",
+            ]
+            edges = [
+                (nodes[0], nodes[1], float(max(n_cases, 1))),
+                (nodes[0], nodes[2], float(alerts_no_case)),
+                (nodes[1], nodes[3], float(n_str)),
+                (nodes[1], nodes[4], float(n_closed)),
+                (nodes[1], nodes[5], float(cases_pending)),
+            ]
+            sankey_chart(
+                nodes=nodes,
+                edges=edges,
+                title="Alert → case → STR flow",
+                height=360,
+                key="exec_funnel_sankey",
             )
-            sankey_fig.update_layout(font=dict(size=12))
-            st.plotly_chart(chart_layout(sankey_fig, 360), use_container_width=True)
         else:
             st.caption("_No alerts in this run — Sankey will populate once detectors fire._")
 
     with funnel_right:
         st.markdown("##### Waterfall · drop-off per stage")
         if n_alerts > 0:
-            waterfall_fig = go.Figure(
-                go.Waterfall(
-                    name="Funnel",
-                    orientation="v",
-                    measure=["absolute", "relative", "relative", "relative", "total"],
-                    x=["Alerts", "→ Filtered", "→ Closed", "→ Pending", "STR filed"],
-                    y=[n_alerts, -alerts_no_case, -n_closed, -cases_pending, n_str],
-                    text=[
-                        f"{n_alerts:,}",
-                        f"−{alerts_no_case:,}",
-                        f"−{n_closed:,}",
-                        f"−{cases_pending:,}",
-                        f"{n_str:,}",
-                    ],
-                    textposition="outside",
-                    connector=dict(line=dict(color="#cbd5e1", width=1)),
-                    increasing=dict(marker=dict(color=RAG_COLORS["green"])),
-                    decreasing=dict(marker=dict(color=RAG_COLORS["amber"])),
-                    totals=dict(marker=dict(color=CHART_PALETTE[0])),
-                )
+            # Waterfall: start at total alerts, subtract each drop-off
+            # stage, end at STR filed. The waterfall_chart helper
+            # handles pos/neg colouring + transparent placeholder
+            # stacking so the bars "float" off the running total.
+            labels = ["Alerts", "→ Filtered", "→ Closed", "→ Pending", "STR filed"]
+            deltas = [
+                float(n_alerts),
+                -float(alerts_no_case),
+                -float(n_closed),
+                -float(cases_pending),
+                float(n_str),
+            ]
+            waterfall_chart(
+                labels=labels,
+                deltas=deltas,
+                title="Drop-off per stage",
+                pos_color=RAG_COLORS["green"],
+                neg_color=RAG_COLORS["amber"],
+                height=360,
+                key="exec_funnel_waterfall",
             )
-            waterfall_fig.update_layout(showlegend=False, yaxis_title="Volume")
-            st.plotly_chart(chart_layout(waterfall_fig, 360), use_container_width=True)
         else:
             st.caption("_No alerts in this run — Waterfall will populate once detectors fire._")
 

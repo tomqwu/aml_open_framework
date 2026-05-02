@@ -4,18 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import plotly.express as px
 import streamlit as st
 
 from aml_framework.cases.sla import compute_sla_status
 from aml_framework.dashboard.components import (
-    SEVERITY_COLORS,
-    chart_layout,
+    bar_chart,
     empty_state,
     kpi_card,
     link_to_page,
     page_header,
-    responsive_plotly_config,
+    pie_chart,
     selectable_dataframe,
 )
 
@@ -209,15 +207,14 @@ with col_left:
     if not my_cases.empty and "severity" in my_cases.columns:
         sev_counts = my_cases["severity"].value_counts().reset_index()
         sev_counts.columns = ["severity", "count"]
-        fig = px.bar(
+        bar_chart(
             sev_counts,
             x="severity",
             y="count",
             color="severity",
-            color_discrete_map=SEVERITY_COLORS,
+            height=280,
+            key="my_queue_severity_bar",
         )
-        fig.update_layout(showlegend=False, xaxis_title="", yaxis_title="Cases")
-        st.plotly_chart(chart_layout(fig, 280), use_container_width=True)
     else:
         st.caption("No severity data available.")
 
@@ -226,21 +223,14 @@ with col_right:
     if not my_cases.empty and "status" in my_cases.columns:
         status_counts = my_cases["status"].value_counts().reset_index()
         status_counts.columns = ["status", "count"]
-        fig = px.pie(
+        pie_chart(
             status_counts,
             names="status",
             values="count",
-            hole=0.4,
-            color_discrete_sequence=[
-                "#2563eb",
-                "#059669",
-                "#d97706",
-                "#dc2626",
-                "#7c3aed",
-                "#6b7280",
-            ],
+            donut=True,
+            height=280,
+            key="my_queue_status_pie",
         )
-        st.plotly_chart(chart_layout(fig, 280), use_container_width=True)
     else:
         st.caption("No status data available.")
 
@@ -272,62 +262,65 @@ if not df_decisions.empty and "resolution_hours" in df_decisions.columns:
         (df_decisions["queue"] == selected_queue) & (df_decisions["resolution_hours"].notna())
     ]
     if not my_resolved.empty:
-        fig = px.histogram(
-            my_resolved,
-            x="resolution_hours",
-            nbins=15,
-            labels={"resolution_hours": "Resolution Time (hours)"},
-            color_discrete_sequence=["#2563eb"],
-        )
-        fig.update_traces(hovertemplate="Bucket: %{x:.1f}h<br>Cases: %{y}<extra></extra>")
-        # Shade SLA bands so an analyst sees "where am I vs. SLA?" at a
-        # glance: green ≤ SLA, amber 1× to 2× SLA, red beyond 2× SLA.
+        # ECharts has no native histogram + vrect band combo. Pre-bin
+        # into 15 buckets and render as a bar chart with per-bar
+        # severity-keyed colour: green ≤ SLA, amber 1×-2× SLA, red > 2×.
+        # The bar palette resolver in dashboard.charts maps the
+        # `band` column's "low/medium/high" values to severity colours.
+        import math
+
+        import pandas as pd
+
+        sla_hours = None
         if queue_obj:
             from aml_framework.generators.sql import parse_window
 
             try:
                 sla_td = parse_window(queue_obj.sla)
                 sla_hours = sla_td.total_seconds() / 3600
-                # Add SLA bands as faint background rectangles.
-                fig.add_vrect(
-                    x0=0,
-                    x1=sla_hours,
-                    fillcolor="#16a34a",
-                    opacity=0.08,
-                    line_width=0,
-                    layer="below",
-                )
-                fig.add_vrect(
-                    x0=sla_hours,
-                    x1=sla_hours * 2,
-                    fillcolor="#d97706",
-                    opacity=0.08,
-                    line_width=0,
-                    layer="below",
-                )
-                fig.add_vrect(
-                    x0=sla_hours * 2,
-                    x1=sla_hours * 10,  # extends past visible range
-                    fillcolor="#dc2626",
-                    opacity=0.08,
-                    line_width=0,
-                    layer="below",
-                )
-                fig.add_vline(
-                    x=sla_hours,
-                    line_dash="dash",
-                    line_color="#dc2626",
-                    annotation_text=f"SLA ({queue_obj.sla})",
-                    annotation_position="top right",
-                )
             except Exception:
-                pass
-        fig.update_layout(yaxis_title="Count")
-        st.plotly_chart(
-            chart_layout(fig, 300),
-            use_container_width=True,
-            config=responsive_plotly_config(),
-        )
+                sla_hours = None
+
+        hours = [float(h) for h in my_resolved["resolution_hours"].tolist() if h is not None]
+        if hours:
+            n_bins = 15
+            hi = max(hours)
+            lo = 0.0
+            bin_width = (hi - lo) / n_bins if hi > lo else 1.0
+            bins = [0] * n_bins
+            for h in hours:
+                if math.isnan(h):
+                    continue
+                idx = min(int((h - lo) / bin_width), n_bins - 1)
+                bins[idx] += 1
+
+            def _band(centre: float) -> str:
+                if sla_hours is None:
+                    return "medium"
+                if centre <= sla_hours:
+                    return "low"  # green — under SLA
+                if centre <= sla_hours * 2:
+                    return "medium"  # amber — 1×-2× SLA
+                return "high"  # red — > 2× SLA
+
+            centres = [(i + 0.5) * bin_width for i in range(n_bins)]
+            sla_label = f" (SLA {queue_obj.sla})" if queue_obj and sla_hours is not None else ""
+            res_df = pd.DataFrame(
+                {
+                    "bucket": [f"{c:.1f}h" for c in centres],
+                    "cases": bins,
+                    "band": [_band(c) for c in centres],
+                }
+            )
+            bar_chart(
+                res_df,
+                x="bucket",
+                y="cases",
+                color="band",
+                title=f"Resolution Time Distribution{sla_label}",
+                height=300,
+                key=f"my_queue_resolution_hist_{selected_queue}",
+            )
     else:
         st.caption("No resolution data for this queue.")
 else:

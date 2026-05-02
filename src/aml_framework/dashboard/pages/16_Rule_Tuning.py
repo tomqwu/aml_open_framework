@@ -8,10 +8,10 @@ happen for review before editing the YAML.
 from __future__ import annotations
 
 import duckdb
-import plotly.express as px
+import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import chart_layout, kpi_card, page_header
+from aml_framework.dashboard.components import kpi_card, line_chart, page_header
 from aml_framework.engine.runner import _build_warehouse
 from aml_framework.generators.sql import compile_rule_sql
 from aml_framework.spec.models import AggregationWindowLogic, Rule
@@ -185,16 +185,19 @@ if main_metric and isinstance(having[main_metric], dict):
 
         con2.close()
 
-        fig = px.line(
-            x=test_values,
-            y=test_counts,
-            labels={"x": f"{main_metric} threshold", "y": "Alert count"},
+        threshold_df = pd.DataFrame({"threshold": test_values, "alerts": test_counts})
+        # NOTE: ECharts has no direct equivalent of plotly's add_vline +
+        # annotation. The "current threshold" anchor is preserved by
+        # the slider widget above the chart — analyst sees their pick
+        # explicitly. Sweep curve still shows the volume impact across
+        # the full range.
+        line_chart(
+            threshold_df,
+            x="threshold",
+            y="alerts",
+            smooth=True,
             markers=True,
+            title=f"Alert count vs. {main_metric}",
+            height=350,
+            key="rule_tuning_threshold_sweep",
         )
-        fig.add_vline(
-            x=main_val,
-            line_dash="dash",
-            line_color="#6b7280",
-            annotation_text="Current",
-        )
-        st.plotly_chart(chart_layout(fig, 350), use_container_width=True)

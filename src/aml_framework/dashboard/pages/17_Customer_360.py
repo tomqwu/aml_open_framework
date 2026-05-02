@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import plotly.express as px
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
-    CHART_PALETTE,
-    chart_layout,
+    bar_chart,
     kpi_card,
     page_header,
-    responsive_plotly_config,
+    pie_chart,
     risk_color,
     selectable_dataframe,
     tooltip_banner,
@@ -109,23 +107,19 @@ if not cust_txns.empty:
         txn_plot["signed"] = txn_plot.apply(
             lambda r: r["amount"] if r["direction"] == "in" else -r["amount"], axis=1
         )
-        fig = px.bar(
+        # Channel hue carries from the centralised categorical palette
+        # in chart_theme — no per-page colour map. Direction-signed
+        # amount preserved via the `signed` column (in: positive,
+        # out: negative).
+        bar_chart(
             txn_plot,
             x="booked_at",
             y="signed",
             color="channel",
-            labels={"booked_at": "Date", "signed": "Amount"},
-            color_discrete_map={
-                "cash": "#d97706",
-                "wire": "#2563eb",
-                "ach": "#7c3aed",
-                "card": "#6b7280",
-                "e_transfer": "#0891b2",
-                "cheque": "#059669",
-            },
+            title="Transaction History (signed)",
+            height=300,
+            key="customer360_txn_history",
         )
-        fig.update_layout(xaxis_title="", yaxis_title="Amount ($)")
-        st.plotly_chart(chart_layout(fig, 300), use_container_width=True)
 
     with col_table:
         show = ["booked_at", "amount", "channel", "direction"]
@@ -201,20 +195,11 @@ st.markdown("### Channel Breakdown")
 if not cust_txns.empty:
     channel_vol = cust_txns.groupby("channel")["amount"].agg(["sum", "count"]).reset_index()
     channel_vol.columns = ["Channel", "Volume", "Count"]
-    fig = px.pie(
+    pie_chart(
         channel_vol,
         names="Channel",
         values="Volume",
-        hole=0.45,
-        color_discrete_sequence=CHART_PALETTE,
-    )
-    fig.update_traces(
-        textposition="inside",
-        textinfo="percent+label",
-        hovertemplate="%{label}<br>Volume: $%{value:,.0f}<br>%{percent}<extra></extra>",
-    )
-    st.plotly_chart(
-        chart_layout(fig, 300),
-        use_container_width=True,
-        config=responsive_plotly_config(),
+        donut=True,
+        height=300,
+        key="customer360_channel_pie",
     )

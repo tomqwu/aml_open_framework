@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import (
-    chart_layout,
+    bar_chart,
     empty_state,
     kpi_card,
     page_header,
+    pie_chart,
     rag_cell_style,
 )
 
@@ -48,23 +48,25 @@ st.markdown("### Metrics vs Targets")
 
 metrics_with_targets = [m for m in result.metrics if m.target_met is not None]
 if metrics_with_targets:
-    names = [m.name[:30] for m in metrics_with_targets]
-    values = [m.value for m in metrics_with_targets]
-    target_met = [m.target_met for m in metrics_with_targets]
-    colors = ["#16a34a" if t else "#dc2626" for t in target_met]
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            x=names,
-            y=values,
-            marker_color=colors,
-            text=[f"{'On' if t else 'Off'} target" for t in target_met],
-            textposition="outside",
-        )
+    # On-target → green, off-target → red. Re-projecting as a `band`
+    # column lets the bar palette resolver pick the colour from the
+    # severity palette without per-call colour wiring.
+    metric_df = pd.DataFrame(
+        {
+            "metric": [m.name[:30] for m in metrics_with_targets],
+            "value": [m.value for m in metrics_with_targets],
+            "band": ["low" if m.target_met else "high" for m in metrics_with_targets],
+        }
     )
-    fig.update_layout(yaxis_title="Value", xaxis_title="")
-    st.plotly_chart(chart_layout(fig, 400), use_container_width=True)
+    bar_chart(
+        metric_df,
+        x="metric",
+        y="value",
+        color="band",
+        title="Metrics vs Targets (green = on target, red = off)",
+        height=400,
+        key="comparative_metrics_bar",
+    )
 
 # --- RAG distribution ---
 st.markdown("### RAG Distribution")
@@ -74,19 +76,25 @@ for m in result.metrics:
 
 col_left, col_right = st.columns(2)
 with col_left:
-    rag_colors = {"green": "#16a34a", "amber": "#d97706", "red": "#dc2626", "unset": "#6b7280"}
-    fig = go.Figure(
-        go.Pie(
-            labels=list(rag_counts.keys()),
-            values=list(rag_counts.values()),
-            marker_colors=[rag_colors[k] for k in rag_counts.keys()],
-            hole=0.45,
-        )
+    # `names="rag"` triggers the RAG palette resolver in
+    # _series_color() so each slice gets its semantic colour.
+    rag_df = pd.DataFrame({"rag": list(rag_counts.keys()), "count": list(rag_counts.values())})
+    pie_chart(
+        rag_df,
+        names="rag",
+        values="count",
+        donut=True,
+        height=300,
+        key="comparative_rag_pie",
     )
-    fig.update_traces(textposition="inside", textinfo="label+value")
-    st.plotly_chart(chart_layout(fig, 300), use_container_width=True)
 
 with col_right:
+    rag_colors = {
+        "green": "#16a34a",
+        "amber": "#d97706",
+        "red": "#dc2626",
+        "unset": "#6b7280",
+    }
     for rag, count in rag_counts.items():
         if count > 0:
             color = rag_colors[rag]
@@ -145,19 +153,17 @@ if not rule_data:
     st.stop()
 
 df_rules = pd.DataFrame(rule_data)
-fig = go.Figure()
-fig.add_trace(
-    go.Bar(
-        x=df_rules["Rule"],
-        y=df_rules["Alerts"],
-        marker_color=[
-            "#dc2626" if s == "critical" else "#d97706" if s == "high" else "#2563eb"
-            for s in df_rules["Severity"]
-        ],
-    )
+# `color="Severity"` paints each rule's bar with its severity colour
+# from the centralised SEVERITY_PALETTE (no per-page colour map).
+bar_chart(
+    df_rules,
+    x="Rule",
+    y="Alerts",
+    color="Severity",
+    title="Alerts by Rule (coloured by severity)",
+    height=350,
+    key="comparative_alerts_by_rule",
 )
-fig.update_layout(xaxis_title="", yaxis_title="Alert Count")
-st.plotly_chart(chart_layout(fig, 350), use_container_width=True)
 
 # --- Historical trend placeholder ---
 st.markdown("### Historical Trends")
