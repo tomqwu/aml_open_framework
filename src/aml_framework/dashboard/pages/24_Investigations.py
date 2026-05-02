@@ -30,14 +30,12 @@ from aml_framework.cases import (
     summarise_backlog,
 )
 from aml_framework.dashboard.components import (
+    data_grid,
     glossary_legend,
     id_link,
     page_header,
-    rag_cell_style,
     research_link,
     see_also_footer,
-    selectable_dataframe,
-    severity_cell_style,
 )
 
 # ---------------------------------------------------------------------------
@@ -130,24 +128,18 @@ if backlog:
             "breach_rate_pct",
         ]
     ]
-    # Colour the count columns so a queue with 12 breached jumps off
-    # the page vs. one with 0; the column header IS the band so we
-    # tint each column header's column with that band's hex.
-    styled_backlog = backlog_view.style
-    for band in ("green", "amber", "red", "breached"):
-        styled_backlog = styled_backlog.set_properties(
-            subset=[band],
-            **{"font-weight": "700"},
-        )
-    # Map the band-named columns through rag_cell_style by adding a
-    # constant cell containing the band itself — but Styler.map operates
-    # on values. Instead, format the count as a coloured-header cell:
-    # Streamlit Styler doesn't support per-header CSS yet, so we leave
-    # the visual cue to the row-totalled column subsets themselves.
-    st.dataframe(
-        styled_backlog,
-        use_container_width=True,
-        hide_index=True,
+    # Backlog summary — pin the queue ID, gradient-colour the
+    # breach_rate_pct cell so a high breach rate jumps off the row.
+    data_grid(
+        backlog_view,
+        key="investigations_backlog_table",
+        gradient_cols=["breach_rate_pct"],
+        # 30% breach rate is the FCA Dear-CEO-letter threshold; bands
+        # below that read green/amber, above reads red.
+        gradient_low=0.10,
+        gradient_high=0.30,
+        pinned_left=["queue_id"] if "queue_id" in backlog_view.columns else None,
+        height=240,
     )
 else:
     st.info("No backlog rows — workflow has no queues defined in this spec.")
@@ -190,18 +182,16 @@ df_inv = df_inv.sort_values(["_sev_rank", "total_amount"], ascending=[True, Fals
     columns=["_sev_rank"]
 )
 
-styled_inv = df_inv.style
-if "severity" in df_inv.columns:
-    styled_inv = styled_inv.map(severity_cell_style, subset=["severity"])
-selectable_dataframe(
-    styled_inv,
+data_grid(
+    df_inv,
     key="investigations_list_table",
+    severity_col="severity",
+    pinned_left=["investigation_id"],
     drill_target="pages/17_Customer_360.py",
     drill_param="customer_id",
     drill_column="customer_id",
     hint="Click any investigation row to open the customer's 360 view.",
-    use_container_width=True,
-    hide_index=True,
+    height=400,
 )
 
 # ---------------------------------------------------------------------------
@@ -258,18 +248,16 @@ for case in cases:
     )
 if case_rows:
     df_constituent = pd.DataFrame(case_rows)
-    styled_constituent = df_constituent.style
-    if "sla_state" in df_constituent.columns:
-        styled_constituent = styled_constituent.map(rag_cell_style, subset=["sla_state"])
-    selectable_dataframe(
-        styled_constituent,
+    data_grid(
+        df_constituent,
         key="investigations_constituent_cases",
+        rag_col="sla_state",
+        pinned_left=["case_id"],
         drill_target="pages/4_Case_Investigation.py",
         drill_param="case_id",
         drill_column="case_id",
         hint="Click a case row to open the full investigation package.",
-        use_container_width=True,
-        hide_index=True,
+        height=350,
     )
 else:
     st.info("No constituent cases with resolvable open time.")
@@ -319,15 +307,16 @@ if linked:
         }
         for lc in linked
     ]
-    selectable_dataframe(
+    data_grid(
         pd.DataFrame(linked_rows),
         key="investigations_linked_table",
+        severity_col="severity",
+        pinned_left=["customer_id"],
         drill_target="pages/17_Customer_360.py",
         drill_param="customer_id",
         drill_column="customer_id",
         hint="Click a row to open the customer's 360 view (resolves the cross-team blindspot).",
-        use_container_width=True,
-        hide_index=True,
+        height=350,
     )
 else:
     st.info(

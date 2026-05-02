@@ -24,6 +24,7 @@ import streamlit as st
 from aml_framework.dashboard.components import (
     RAG_COLORS,
     bar_chart,
+    data_grid,
     headline_hero,
     kpi_card_rag,
     kpi_card_with_trend,
@@ -543,10 +544,16 @@ try:
             }
             for r in _report.rules
         ]
-        st.dataframe(
+        # SLA breach % gradient is inverted (high = bad).
+        data_grid(
             _pd.DataFrame(_rule_rows),
-            use_container_width=True,
-            hide_index=True,
+            key="exec_per_rule_funnel",
+            gradient_cols=["sla_breach_%"],
+            gradient_low=0.10,
+            gradient_high=0.30,
+            gradient_invert=True,
+            pinned_left=["rule_id"],
+            height=300,
         )
     else:
         st.caption("No rules fired yet — run the engine to populate the funnel.")

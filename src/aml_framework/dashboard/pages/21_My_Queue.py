@@ -9,12 +9,12 @@ import streamlit as st
 from aml_framework.cases.sla import compute_sla_status
 from aml_framework.dashboard.components import (
     bar_chart,
+    data_grid,
     empty_state,
     kpi_card,
     link_to_page,
     page_header,
     pie_chart,
-    selectable_dataframe,
 )
 
 page_header(
@@ -169,16 +169,17 @@ if not open_cases.empty:
     display_cols = display_cols + ["sla_state", "sla_remaining"]
 
     available_cols = [c for c in display_cols if c in open_cases.columns]
-    selectable_dataframe(
+    data_grid(
         open_cases[available_cols],
         key="myqueue_open_cases_table",
+        severity_col="severity",
+        rag_col="sla_state",
+        pinned_left=["case_id"],
         drill_target="pages/4_Case_Investigation.py",
         drill_param="case_id",
         drill_column="case_id",
         hint="Click any row to open the case in Case Investigation.",
-        use_container_width=True,
-        hide_index=True,
-        height=min(35 * len(open_cases) + 38, 400),
+        height=min(35 * len(open_cases) + 60, 400),
     )
     # Caption documents the SLA band column for the analyst — they'll
     # learn it once and look for it on every queue.
@@ -243,10 +244,11 @@ if not df_decisions.empty:
     if not my_activity.empty:
         display_cols = ["ts", "event", "case_id", "disposition"]
         available = [c for c in display_cols if c in my_activity.columns]
-        st.dataframe(
+        data_grid(
             my_activity[available].sort_values("ts", ascending=False).head(20),
-            use_container_width=True,
-            hide_index=True,
+            key=f"myqueue_recent_activity_{selected_queue}",
+            pinned_left=["ts"] if "ts" in available else None,
+            height=300,
         )
         st.caption(f"Showing latest 20 of {len(my_activity)} decisions.")
     else:

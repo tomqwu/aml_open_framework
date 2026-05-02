@@ -5,15 +5,14 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
+from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    data_grid,
     empty_state,
     kpi_card,
-    metric_gradient_style,
     page_header,
-    rag_cell_style,
     see_also_footer,
 )
-from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
     "Run History",
@@ -77,28 +76,28 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("### Stored Runs")
 if runs:
     df = pd.DataFrame(runs)
-    styled_runs = df.style
-    # RAG column when persisted by the API — glanceable severity.
-    for col in ("rag", "RAG", "rag_band"):
-        if col in df.columns:
-            styled_runs = styled_runs.map(rag_cell_style, subset=[col])
-    # `total_alerts` carries an implicit RAG: 0 alerts is fine, a sudden
-    # 10× spike is an incident. Threshold the gradient against a band
-    # tied to the typical (non-zero) volume rather than absolute counts.
+    # Find the rag-band column if persisted by the API.
+    rag_col = next((c for c in ("rag", "RAG", "rag_band") if c in df.columns), None)
+    # total_alerts gradient — thresholds tied to the typical run volume
+    # so a 3× median spike reads red regardless of absolute counts.
+    gradient_cols = []
+    g_low = 0.5
+    g_high = 0.8
     if "total_alerts" in df.columns and df["total_alerts"].max():
+        gradient_cols = ["total_alerts"]
         median_alerts = float(df["total_alerts"].median()) or 1.0
-        styled_runs = styled_runs.map(
-            metric_gradient_style(
-                # Inverted: lower=green (good), higher=red (incident shape).
-                low_color="#16a34a",
-                mid_color="#d97706",
-                high_color="#dc2626",
-                low_threshold=median_alerts,
-                high_threshold=median_alerts * 3,
-            ),
-            subset=["total_alerts"],
-        )
-    st.dataframe(styled_runs, use_container_width=True, hide_index=True)
+        g_low = median_alerts
+        g_high = median_alerts * 3
+    data_grid(
+        df,
+        key="run_history_table",
+        rag_col=rag_col,
+        gradient_cols=gradient_cols,
+        gradient_low=g_low,
+        gradient_high=g_high,
+        pinned_left=["run_id"] if "run_id" in df.columns else None,
+        height=400,
+    )
 else:
     empty_state(
         "No stored runs yet.",

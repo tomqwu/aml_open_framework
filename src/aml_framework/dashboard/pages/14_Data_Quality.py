@@ -5,8 +5,12 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import empty_state, kpi_card, page_header
 from aml_framework.dashboard.audience import show_audience_context
+from aml_framework.dashboard.components import data_grid, empty_state, kpi_card, page_header
+
+# Local status palettes — values come from the contract / check rows.
+FRESHNESS_PALETTE = {"breach": "#dc2626", "ok": "#16a34a"}
+CHECK_PALETTE = {"fail": "#dc2626", "pass": "#16a34a"}
 
 page_header(
     "Data Quality",
@@ -151,18 +155,12 @@ overview = pd.DataFrame(
 )
 
 
-def _status_color(val):
-    if val == "BREACH":
-        return "color: #dc2626; font-weight: 700;"
-    if val == "OK":
-        return "color: #059669; font-weight: 700;"
-    return ""
-
-
-st.dataframe(
-    overview.style.map(_status_color, subset=["Freshness"]),
-    use_container_width=True,
-    hide_index=True,
+data_grid(
+    overview,
+    key="data_quality_overview",
+    palette_cols={"Freshness": FRESHNESS_PALETTE} if "Freshness" in overview.columns else None,
+    pinned_left=["Contract"] if "Contract" in overview.columns else None,
+    height=300,
 )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -177,18 +175,11 @@ for cr in contract_results:
         if cr["checks"]:
             st.markdown("**Quality Checks**")
             checks_df = pd.DataFrame(cr["checks"])
-
-            def _check_color(val):
-                if val == "FAIL":
-                    return "color: #dc2626; font-weight: 700;"
-                if val == "PASS":
-                    return "color: #059669; font-weight: 700;"
-                return ""
-
-            st.dataframe(
-                checks_df.style.map(_check_color, subset=["Status"]),
-                use_container_width=True,
-                hide_index=True,
+            data_grid(
+                checks_df,
+                key=f"data_quality_checks_{cr['contract_id']}",
+                palette_cols={"Status": CHECK_PALETTE} if "Status" in checks_df.columns else None,
+                height=min(35 * len(checks_df) + 60, 250),
             )
 
         # Column schema.

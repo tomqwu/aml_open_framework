@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.components import data_grid, kpi_card, page_header
 from aml_framework.dashboard.audience import show_audience_context
 
 page_header(
@@ -102,16 +102,18 @@ if filtered_alerts:
     if "list_entry" in match_df.columns:
         available.insert(2, "list_entry")
 
-    def _score_color(val):
-        if isinstance(val, float):
-            if val >= 0.95:
-                return "color: #dc2626; font-weight: 700;"
-            if val >= 0.8:
-                return "color: #d97706; font-weight: 700;"
-        return ""
-
-    styled = match_df[available].style.map(_score_color, subset=["match_score"])
-    st.dataframe(styled, use_container_width=True, hide_index=True)
+    # match_score is a [0, 1] confidence: ≥ 0.95 → red (likely true
+    # match), ≥ 0.8 → amber, < 0.8 → green (probable false positive).
+    # data_grid's gradient renders the colour ramp inline.
+    data_grid(
+        match_df[available],
+        key="sanctions_match_table",
+        gradient_cols=["match_score"] if "match_score" in available else None,
+        gradient_low=0.8,
+        gradient_high=0.95,
+        pinned_left=["customer_id"] if "customer_id" in available else None,
+        height=350,
+    )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -120,10 +122,13 @@ if filtered_alerts:
     matched_ids = [a["customer_id"] for a in filtered_alerts]
     matched = df_customers[df_customers["customer_id"].isin(matched_ids)]
     cols = ["customer_id", "full_name", "country", "risk_rating"]
-    st.dataframe(
-        matched[[c for c in cols if c in matched.columns]],
-        use_container_width=True,
-        hide_index=True,
+    matched_view = matched[[c for c in cols if c in matched.columns]]
+    data_grid(
+        matched_view,
+        key="sanctions_matched_profiles",
+        risk_col="risk_rating" if "risk_rating" in matched_view.columns else None,
+        pinned_left=["customer_id"] if "customer_id" in matched_view.columns else None,
+        height=300,
     )
 elif sanctions_alerts:
     st.info(

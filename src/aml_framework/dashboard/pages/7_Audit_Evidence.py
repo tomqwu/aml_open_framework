@@ -24,7 +24,7 @@ import streamlit as st
 
 from aml_framework.dashboard.components import (
     citation_link,
-    event_type_cell_style,
+    data_grid,
     glossary_legend,
     id_link,
     kpi_card_rag,
@@ -34,6 +34,22 @@ from aml_framework.dashboard.components import (
     tour_panel,
 )
 from aml_framework.engine.audit import AuditLedger
+
+# Audit-event palette — mirrors the values event_type_cell_style used to
+# colour: escalations (red), workflow transitions (amber), closures (green).
+AUDIT_EVENT_PALETTE = {
+    "alert": "#dc2626",
+    "escalate": "#dc2626",
+    "snooze": "#dc2626",
+    "transition": "#d97706",
+    "tuning_run": "#d97706",
+    "control_review": "#d97706",
+    "close": "#16a34a",
+    "resolve": "#16a34a",
+    "filed": "#16a34a",
+    "ack": "#16a34a",
+    "acknowledge": "#16a34a",
+}
 
 page_header(
     "Audit & Evidence",
@@ -169,15 +185,17 @@ if not df_decisions.empty:
         )
         filtered_decisions = filtered_decisions[mask]
 
-    # Colour the event-type column so analysts scanning the decision log
-    # can distinguish escalations (red) from closures (green) at a glance.
-    styled_decisions = filtered_decisions.style
-    if "event" in filtered_decisions.columns:
-        styled_decisions = styled_decisions.map(event_type_cell_style, subset=["event"])
-    st.dataframe(
-        styled_decisions,
-        use_container_width=True,
-        hide_index=True,
+    # Decision log — pin the timestamp column, colour the event cell
+    # via the AUDIT_EVENT_PALETTE so escalations (red) / workflow
+    # transitions (amber) / closures (green) read at a glance.
+    pinned = ["ts"] if "ts" in filtered_decisions.columns else None
+    data_grid(
+        filtered_decisions,
+        key="audit_decisions_table",
+        palette_cols={"event": AUDIT_EVENT_PALETTE}
+        if "event" in filtered_decisions.columns
+        else None,
+        pinned_left=pinned,
         height=300,
     )
     st.caption(f"Showing {len(filtered_decisions)} of {len(df_decisions)} decisions.")

@@ -7,11 +7,11 @@ import streamlit as st
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
     bar_chart,
+    data_grid,
     kpi_card,
     page_header,
     pie_chart,
     risk_color,
-    selectable_dataframe,
     tooltip_banner,
     tour_panel,
 )
@@ -124,10 +124,10 @@ if not cust_txns.empty:
     with col_table:
         show = ["booked_at", "amount", "channel", "direction"]
         available = [c for c in show if c in cust_txns.columns]
-        st.dataframe(
+        data_grid(
             cust_txns[available].sort_values("booked_at", ascending=False),
-            use_container_width=True,
-            hide_index=True,
+            key="customer360_txn_table",
+            pinned_left=["booked_at"] if "booked_at" in available else None,
             height=300,
         )
 else:
@@ -144,11 +144,16 @@ if not cust_alerts.empty:
         alert_display["severity"] = alert_display["rule_id"].map(sev_map)
     show_cols = ["rule_id", "severity", "sum_amount", "count", "window_start", "window_end"]
     available = [c for c in show_cols if c in alert_display.columns]
-    # Plain table — alerts on this page are already scoped to one customer,
-    # so there's no nested drill target. (Cases below DO drill — see helper
-    # call there.) Kept as st.dataframe rather than selectable_dataframe so
-    # the page renders identically when no rule_id click target exists.
-    st.dataframe(alert_display[available], use_container_width=True, hide_index=True)
+    # Per-customer alerts table — no drill (alerts are already scoped
+    # to this customer). Severity column gets the gradient cell colour
+    # so high/critical entries jump off the row.
+    data_grid(
+        alert_display[available],
+        key="customer360_alerts_table",
+        severity_col="severity",
+        pinned_left=["rule_id"] if "rule_id" in available else None,
+        height=300,
+    )
 else:
     st.success("No alerts for this customer.")
 
@@ -177,15 +182,17 @@ if not cust_cases.empty:
     show_cols = show_cols + ["sla_state"]
 
     available = [c for c in show_cols if c in cust_cases.columns]
-    selectable_dataframe(
+    data_grid(
         cust_cases[available],
         key="customer360_cases_table",
+        severity_col="severity",
+        rag_col="sla_state",
+        pinned_left=["case_id"],
         drill_target="pages/4_Case_Investigation.py",
         drill_param="case_id",
         drill_column="case_id",
         hint="Click any case row to open the investigation package.",
-        use_container_width=True,
-        hide_index=True,
+        height=300,
     )
 else:
     st.caption("No cases for this customer.")

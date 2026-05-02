@@ -76,23 +76,30 @@ class TestPagesMigrated:
         )
 
     def test_customer_360_cases_table_drills(self):
+        # PR-CHART-4 swapped selectable_dataframe → data_grid; the
+        # row-click drill contract (selected_<param> + switch_page)
+        # is preserved.
         body = (PAGES_DIR / "17_Customer_360.py").read_text(encoding="utf-8")
-        assert "selectable_dataframe(" in body
+        assert ("selectable_dataframe(" in body) or ("data_grid(" in body)
         assert "customer360_case_drill" not in body, "Old case-drill selectbox should be removed"
         assert "customer360_cases_table" in body, (
-            "Customer 360 cases table must use the named selectable_dataframe key"
+            "Customer 360 cases table must keep its named widget key"
         )
 
     def test_my_queue_open_cases_drills(self):
         body = (PAGES_DIR / "21_My_Queue.py").read_text(encoding="utf-8")
-        assert "selectable_dataframe(" in body
+        assert ("selectable_dataframe(" in body) or ("data_grid(" in body)
         assert "myqueue_open_cases_table" in body
         # Drill target must be Case Investigation
         assert 'drill_target="pages/4_Case_Investigation.py"' in body
 
     def test_investigations_three_tables_drill(self):
         body = (PAGES_DIR / "24_Investigations.py").read_text(encoding="utf-8")
-        assert body.count("selectable_dataframe(") >= 3, (
+        # PR-CHART-4: 3 drillable tables now use data_grid (was
+        # selectable_dataframe). Either helper counts; the invariant
+        # is that there are 3 row-click surfaces with named keys.
+        total_drills = body.count("selectable_dataframe(") + body.count("data_grid(")
+        assert total_drills >= 3, (
             "Investigations page has 3 drillable tables: investigation list "
             "(→ Customer 360), constituent cases (→ Case Investigation), and "
             "linked-across-domains (→ Customer 360)"
@@ -103,6 +110,6 @@ class TestPagesMigrated:
 
     def test_boi_workflow_records_table_drills(self):
         body = (PAGES_DIR / "25_BOI_Workflow.py").read_text(encoding="utf-8")
-        assert "selectable_dataframe(" in body
+        assert ("selectable_dataframe(" in body) or ("data_grid(" in body)
         assert "boi_records_table" in body
         assert 'drill_target="pages/17_Customer_360.py"' in body

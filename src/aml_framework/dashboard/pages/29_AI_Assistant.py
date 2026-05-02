@@ -20,6 +20,7 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    data_grid,
     empty_state,
     page_header,
     research_link,
@@ -154,7 +155,12 @@ if log_rows:
         for c in ("ts", "page", "persona", "backend", "confidence", "question")
         if c in df_log.columns
     ]
-    st.dataframe(df_log[show_cols], use_container_width=True, hide_index=True, height=280)
+    data_grid(
+        df_log[show_cols],
+        key="ai_assistant_transcript",
+        pinned_left=["ts"] if "ts" in show_cols else None,
+        height=280,
+    )
     st.caption(f"{len(log_rows)} interaction(s) logged.")
 else:
     empty_state(

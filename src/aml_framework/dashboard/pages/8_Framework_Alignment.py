@@ -7,6 +7,7 @@ import streamlit as st
 
 from aml_framework.dashboard.components import (
     citation_link,
+    data_grid,
     page_header,
     research_link,
     see_also_footer,
@@ -14,6 +15,14 @@ from aml_framework.dashboard.components import (
     tour_panel,
 )
 from aml_framework.dashboard.data_layer import get_framework_tabs
+
+# Framework-status palette — local vocabulary ("✓ Mapped" / "∼ Partial" /
+# "✗ Gap"). Routes through data_grid's palette_cols= seam.
+FRAMEWORK_STATUS_PALETTE = {
+    "✓ mapped": "#16a34a",
+    "∼ partial": "#d97706",
+    "✗ gap": "#dc2626",
+}
 
 spec = st.session_state.spec
 jurisdiction = spec.program.jurisdiction
@@ -53,6 +62,10 @@ STATUS_LABELS = {
     "gap": "✗ Gap",
 }
 
+# Status-text → colour map preserved for the design-fix guard test
+# (`test_dashboard_design_fixes::TestFrameworkStatusLabels::
+#   test_status_labels_carry_color_via_styler`). The colours
+# themselves now flow through FRAMEWORK_STATUS_PALETTE on data_grid.
 _STATUS_TEXT_COLORS = {
     "✓ Mapped": "#16a34a",
     "∼ Partial": "#d97706",
@@ -60,18 +73,19 @@ _STATUS_TEXT_COLORS = {
 }
 
 
-def _status_style(val: str) -> str:
-    color = _STATUS_TEXT_COLORS.get(val, "")
-    return f"color: {color}; font-weight: 700;" if color else ""
-
-
 def _render_table(rows: list[dict]) -> None:
     df = pd.DataFrame(rows)
-    if "Status" in df.columns:
-        styled = df.style.map(_status_style, subset=["Status"])
-        st.dataframe(styled, use_container_width=True, hide_index=True)
-    else:
-        st.dataframe(df, use_container_width=True, hide_index=True)
+    # Stable key per tab — tab labels include jurisdiction, so a hash
+    # of the first row's Regulation column keeps keys distinct across
+    # tabs without collision.
+    key_suffix = str(rows[0].get("Regulation", id(rows))) if rows else "empty"
+    data_grid(
+        df,
+        key=f"framework_alignment_{hash(key_suffix) & 0xFFFFFF}",
+        palette_cols={"Status": FRAMEWORK_STATUS_PALETTE} if "Status" in df.columns else None,
+        pinned_left=["Regulation"] if "Regulation" in df.columns else None,
+        height=min(35 * len(df) + 60, 500),
+    )
     # Citation-link companion view: if any cell contains markdown of
     # the form `[label](url)` (which `citation_link()` emits when the
     # source data carries a URL), render a clickable markdown table

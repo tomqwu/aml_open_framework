@@ -21,10 +21,10 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    data_grid,
     glossary_legend,
     kpi_card,
     line_chart,
-    metric_gradient_style,
     page_header,
     scatter_chart,
 )
@@ -132,21 +132,14 @@ rows = scenarios_to_table(run)
 # precision / recall metrics red→amber→green so the MLRO can scan
 # for "good" scenarios without reading every number.
 _scenarios_df = _pd_tuning.DataFrame(rows)
-_styled_scenarios = _scenarios_df.style
 _metric_cols = [c for c in ("precision", "recall", "f1") if c in _scenarios_df.columns]
-if _metric_cols:
-    _styled_scenarios = _styled_scenarios.map(
-        metric_gradient_style(
-            low_threshold=0.5,
-            high_threshold=0.8,
-        ),
-        subset=_metric_cols,
-    )
-st.dataframe(
-    _styled_scenarios,
-    use_container_width=True,
-    hide_index=True,
-    height=min(35 * len(rows) + 38, 500),
+data_grid(
+    _scenarios_df,
+    key="tuning_lab_scenarios_table",
+    gradient_cols=_metric_cols if _metric_cols else None,
+    gradient_low=0.5,
+    gradient_high=0.8,
+    height=min(35 * len(rows) + 60, 500),
 )
 
 # --- Precision/recall scatter (only when labels present) ---
@@ -288,17 +281,16 @@ with st.expander("📉 Backtest this rule across historical quarters", expanded=
             for p in report.periods
         ]
         _backtest_df = _pd_tuning.DataFrame(rows)
-        _styled_backtest = _backtest_df.style
         _bt_metric_cols = [c for c in ("precision", "recall", "f1") if c in _backtest_df.columns]
-        if _bt_metric_cols:
-            _styled_backtest = _styled_backtest.map(
-                metric_gradient_style(
-                    low_threshold=0.5,
-                    high_threshold=0.8,
-                ),
-                subset=_bt_metric_cols,
-            )
-        st.dataframe(_styled_backtest, use_container_width=True)
+        data_grid(
+            _backtest_df,
+            key=f"tuning_lab_backtest_table_{rule_id}",
+            gradient_cols=_bt_metric_cols if _bt_metric_cols else None,
+            gradient_low=0.5,
+            gradient_high=0.8,
+            pinned_left=["period"] if "period" in _backtest_df.columns else None,
+            height=300,
+        )
 
         if report.drift_summary:
             st.markdown("**Drift summary** (slope = per-period change):")
