@@ -299,9 +299,14 @@ class TestAllPagesRender:
         if view_more.count() > 0:
             view_more.first.click()
             browser_page.wait_for_timeout(800)
-        sidebar_text = sidebar.inner_text()
+        # PR-NAV-2 added `text-transform: uppercase` to section headers
+        # via CSS. Playwright's `inner_text()` returns the *rendered*
+        # text content (per MDN spec), so headers come back uppercased
+        # even though the underlying DOM text is mixed-case. Lowercase
+        # both sides for the case-insensitive comparison.
+        sidebar_text = sidebar.inner_text().lower()
         # At least the active section's first item is visible.
-        assert "Alert Queue" in sidebar_text
+        assert "alert queue" in sidebar_text
         # All 7 category headers from PR-NAV-1 must now be present —
         # the sidebar's table of contents post-expansion.
         for category in (
@@ -313,7 +318,7 @@ class TestAllPagesRender:
             "Audit & Reference",
             "FinTech",
         ):
-            assert category in sidebar_text, (
+            assert category.lower() in sidebar_text, (
                 f"Category {category!r} missing from sidebar — PR-NAV-1's hierarchy regressed?"
             )
         nav_links = sidebar.locator("a")
