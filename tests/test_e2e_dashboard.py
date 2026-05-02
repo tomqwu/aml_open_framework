@@ -133,25 +133,70 @@ def browser_page(dashboard_server):
         browser.close()
 
 
+_PAGE_TO_SECTION: dict[str, str] = {
+    # Mirrors the 7-category dict in app.py:ALL_PAGES (PR-NAV-1).
+    # Used by _navigate to expand only the target's section header
+    # rather than toggling every section blindly.
+    "Today": "",
+    "Alert Queue": "Operations",
+    "Case Investigation": "Operations",
+    "Investigations": "Operations",
+    "My Queue": "Operations",
+    "Analyst Review Queue": "Operations",
+    "Live Monitor": "Operations",
+    "Risk Assessment": "Risk & Compliance",
+    "Sanctions Screening": "Risk & Compliance",
+    "Network Explorer": "Risk & Compliance",
+    "Framework Alignment": "Risk & Compliance",
+    "BOI Workflow": "Risk & Compliance",
+    "Regulator Pulse": "Risk & Compliance",
+    "Rule Performance": "Detection & Tuning",
+    "Rule Tuning": "Detection & Tuning",
+    "Model Performance": "Detection & Tuning",
+    "Tuning Lab": "Detection & Tuning",
+    "Spec Editor": "Detection & Tuning",
+    "Data Integration": "Data",
+    "Data Quality": "Data",
+    "Customer 360": "Data",
+    "Information Sharing": "Data",
+    "Executive Dashboard": "Strategy & Reporting",
+    "Program Maturity": "Strategy & Reporting",
+    "Comparative Analytics": "Strategy & Reporting",
+    "Transformation Roadmap": "Strategy & Reporting",
+    "Metrics Taxonomy": "Strategy & Reporting",
+    "Typology Catalogue": "Strategy & Reporting",
+    "Audit & Evidence": "Audit & Reference",
+    "Run History": "Audit & Reference",
+    "AI Assistant": "Audit & Reference",
+    "FinTech Cockpit": "FinTech",
+}
+
+
 def _navigate(page, title: str) -> None:
     sidebar = page.locator("[data-testid='stSidebar']")
-    # Step 1: expand any "View N more" overflow first.
+    # Step 1: expand the "View N more" overflow if present.
     view_more = sidebar.locator("button:has-text('View')")
     if view_more.count() > 0:
         view_more.first.click()
-        page.wait_for_timeout(1000)
-    # Step 2: PR-NAV-1's hierarchical nav collapses non-active sections.
-    # If the target link isn't already in the DOM after View-More,
-    # click every section header to toggle them open. Section headers
-    # are testid `stNavSectionHeader`. The check-then-expand pattern
-    # avoids unnecessarily collapsing the active section.
+        page.wait_for_timeout(800)
+    # Step 2: if the target link isn't visible, expand its section
+    # header. PR-NAV-1's hierarchical nav collapses non-active
+    # sections by default. Click the SPECIFIC section header for
+    # this title (not all of them — clicking an already-expanded
+    # section toggles it closed, and blind iteration leaves the nav
+    # in unpredictable state).
     if sidebar.locator(f"a:has-text('{title}')").count() == 0:
-        section_headers = sidebar.locator("[data-testid='stNavSectionHeader']")
-        for i in range(section_headers.count()):
-            section_headers.nth(i).click()
-            page.wait_for_timeout(150)
-        page.wait_for_timeout(500)
-    # Step 3: now the link should be in the DOM — click it.
+        section_name = _PAGE_TO_SECTION.get(title, "")
+        if section_name:
+            # stNavSectionHeader's text is the section name. Click
+            # the matching one to expand its group.
+            section = sidebar.locator(
+                f"[data-testid='stNavSectionHeader']:has-text('{section_name}')"
+            )
+            if section.count() > 0:
+                section.first.click()
+                page.wait_for_timeout(500)
+    # Step 3: click the link.
     link = sidebar.locator(f"a:has-text('{title}')")
     if link.count() > 0:
         link.first.scroll_into_view_if_needed()
