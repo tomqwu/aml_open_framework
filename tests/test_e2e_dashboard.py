@@ -245,13 +245,36 @@ class TestAllPagesRender:
     def test_sidebar_has_nav_links(self, browser_page):
         sidebar = browser_page.locator("[data-testid='stSidebar']")
         sidebar_text = sidebar.inner_text()
-        # With 15 pages, Streamlit may collapse some behind "View N more".
-        # Check that the core pages are visible and "View" button exists for the rest.
-        assert "Executive Dashboard" in sidebar_text
-        assert "Alert Queue" in sidebar_text
+        # PR-NAV-1 turned the flat nav into a 7-category hierarchical
+        # nav. Streamlit's grouped `st.navigation()` collapses sections
+        # other than the one containing the current page — so
+        # `inner_text()` only shows the active section's items
+        # (Today's group plus its peers). Assert the SHAPE: the
+        # current section is expanded (Alert Queue from Operations
+        # visible because Today's grand-parent renders too), and the
+        # other category headers exist as collapsed labels. We don't
+        # require Executive Dashboard's name to leak through — it's
+        # in Strategy & Reporting which collapses by default.
+        assert "Alert Queue" in sidebar_text  # at least one expanded nav item
+        # All 7 category headers from PR-NAV-1 must be present even
+        # when collapsed — they're the sidebar's table of contents.
+        for category in (
+            "Operations",
+            "Risk & Compliance",
+            "Detection & Tuning",
+            "Data",
+            "Strategy & Reporting",
+            "Audit & Reference",
+            "FinTech",
+        ):
+            assert category in sidebar_text, (
+                f"Category {category!r} missing from sidebar — PR-NAV-1's hierarchy regressed?"
+            )
         nav_links = sidebar.locator("a")
-        # Should have at least 10 visible nav links (some may be collapsed).
-        assert nav_links.count() >= 10, f"Only {nav_links.count()} nav links visible"
+        # Loose floor — at least the expanded section's pages render
+        # as <a> tags. Default expansion is the "" Today section + its
+        # neighbour, so 5+ links is a safe minimum.
+        assert nav_links.count() >= 5, f"Only {nav_links.count()} nav links visible"
 
 
 class TestExecutiveDashboard:
