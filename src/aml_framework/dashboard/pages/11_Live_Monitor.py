@@ -12,14 +12,13 @@ from __future__ import annotations
 import time
 from typing import Any
 
-import plotly.graph_objects as go
 import streamlit as st
 
 from aml_framework.dashboard.components import (
-    CHART_PALETTE,
+    bar_chart,
     empty_state,
+    line_chart,
     page_header,
-    responsive_plotly_config,
 )
 
 page_header(
@@ -287,66 +286,50 @@ if start:
                 unsafe_allow_html=True,
             )
 
-            fig = go.Figure()
-            primary_blue = CHART_PALETTE[0]
-            fig.add_trace(
-                go.Scatter(
-                    y=volume_history,
-                    mode="lines",
-                    line=dict(color=primary_blue, width=2),
-                    fill="tozeroy",
-                    fillcolor="rgba(37, 99, 235, 0.1)",
-                    hovertemplate="Tx #%{x}<br>Cumulative: $%{y:,.0f}<extra></extra>",
+            import pandas as pd
+
+            # Cumulative volume — area chart inside the placeholder.
+            # The placeholder's `.empty()` clears the previous render
+            # and `.container()` opens a fresh DG context for the new
+            # tick. We must NOT pass an explicit st_echarts `key` —
+            # Streamlit registers keys globally and a stable key would
+            # collide across loop iterations (StreamlitDuplicateElementId).
+            # Without `key`, each tick gets its own auto-id scoped to
+            # the container; cheap because the DOM only diffs the
+            # canvas's data.
+            volume_df = pd.DataFrame(
+                {"i": list(range(len(volume_history))), "volume": volume_history}
+            )
+            chart_placeholder.empty()
+            with chart_placeholder.container():
+                line_chart(
+                    volume_df,
+                    x="i",
+                    y="volume",
+                    area=True,
+                    smooth=True,
+                    markers=False,
+                    title="Cumulative Volume ($)",
+                    height=280,
                 )
-            )
-            fig.update_layout(
-                title="Cumulative Volume ($)",
-                height=280,
-                margin=dict(t=40, b=20, l=40, r=20),
-                template="plotly_white",
-                xaxis_title="Transactions",
-                yaxis_title="",
-                showlegend=False,
-            )
-            chart_placeholder.plotly_chart(
-                fig,
-                use_container_width=True,
-                config=responsive_plotly_config(),
-            )
 
             if channel_counts:
-                # Use the centralised CHART_PALETTE rotated by channel
-                # name — keeps colours consistent with Customer 360's
-                # channel pie + the rest of the dashboard.
-                channels = list(channel_counts.keys())
-                channel_colors = [
-                    CHART_PALETTE[i % len(CHART_PALETTE)] for i in range(len(channels))
-                ]
-                fig2 = go.Figure(
-                    go.Bar(
-                        x=list(channel_counts.values()),
-                        y=channels,
+                channel_df = pd.DataFrame(
+                    {
+                        "channel": list(channel_counts.keys()),
+                        "count": list(channel_counts.values()),
+                    }
+                )
+                channel_placeholder.empty()
+                with channel_placeholder.container():
+                    bar_chart(
+                        channel_df,
+                        x="channel",
+                        y="count",
                         orientation="h",
-                        marker_color=channel_colors,
-                        hovertemplate="%{y}<br>Count: %{x}<extra></extra>",
+                        title="Channel Activity",
+                        height=280,
                     )
-                )
-                fig2.update_layout(
-                    title="Channel Activity",
-                    height=280,
-                    margin=dict(t=40, b=20, l=60, r=20),
-                    template="plotly_white",
-                    xaxis_title="Count",
-                    yaxis_title="",
-                    showlegend=False,
-                )
-                channel_placeholder.plotly_chart(
-                    fig2,
-                    use_container_width=True,
-                    config=responsive_plotly_config(),
-                )
-
-            import pandas as pd
 
             feed_header.markdown(f"### Transaction Feed ({processed}/{total})")
             display = pd.DataFrame(feed_rows[-15:][::-1])

@@ -7,6 +7,12 @@ PR-E unifies palettes, adds `hovertemplate`, threads
 `responsive_plotly_config()` to every chart, and adds SLA / threshold
 band shading on My Queue + Model Performance.
 
+PR-CHART-2 (and the rest of the PR-CHART series) migrates pages off
+Plotly to ECharts via the wrapper helpers in ``dashboard/charts.py``.
+The migrated pages drop out of the polish guards below — palette /
+hover / responsive concerns move into the wrapper layer (and are
+covered by ``test_chart_helpers.py``).
+
 Run as text-only assertions.
 """
 
@@ -18,8 +24,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PAGES_DIR = PROJECT_ROOT / "src" / "aml_framework" / "dashboard" / "pages"
 
 
+# Plotly polish guards — applies only to pages still on Plotly.
+# Migrated pages (PR-CHART-2 onwards) drop out of this list as they
+# move to the ECharts wrappers in dashboard/charts.py.
+#
+# Migrated by PR-CHART-2:
+#   - 11_Live_Monitor.py  (charts → bar_chart / line_chart)
 PAGES_WITH_CHART_POLISH = (
-    "11_Live_Monitor.py",
     "13_Model_Performance.py",
     "17_Customer_360.py",
     "21_My_Queue.py",
@@ -44,15 +55,18 @@ class TestChartsUseCentralisedConfig:
 
 
 class TestPaletteUnification:
-    def test_live_monitor_uses_chart_palette(self):
+    def test_live_monitor_uses_chart_helpers(self):
+        # Post PR-CHART-2: Live Monitor calls bar_chart() / line_chart()
+        # from dashboard.charts. Those helpers source colours from the
+        # ECharts theme (chart_theme.echarts_theme()), not CHART_PALETTE.
+        # Old hand-coded channel colour dict must remain absent.
         body = (PAGES_DIR / "11_Live_Monitor.py").read_text(encoding="utf-8")
-        assert "CHART_PALETTE" in body, (
-            "Live Monitor's channel-bar should rotate through CHART_PALETTE, "
-            "not a hand-coded `ch_colors = {...}` dict"
+        assert "bar_chart(" in body and "line_chart(" in body, (
+            "Live Monitor must use the centralised bar_chart / line_chart "
+            "helpers (PR-CHART-2 migration), not raw plotly calls"
         )
-        # Old hand-coded channel colour dict should be gone.
         assert "ch_colors = {" not in body, (
-            "Hand-coded channel colour map should be replaced by CHART_PALETTE"
+            "Hand-coded channel colour map should be replaced by the centralised ECharts theme"
         )
 
     def test_customer360_pie_uses_chart_palette(self):
