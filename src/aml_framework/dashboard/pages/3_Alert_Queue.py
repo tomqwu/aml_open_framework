@@ -4,20 +4,47 @@ from __future__ import annotations
 
 from datetime import datetime as _dt
 
-import plotly.express as px
 import streamlit as st
 
+from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
-    SEVERITY_COLORS,
-    chart_layout,
+    bar_chart,
+    data_grid,
     kpi_card,
     page_header,
-    selectable_dataframe,
+    pie_chart,
     tooltip_banner,
     tour_panel,
 )
-from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.engine.constants import Event, Queue
+
+# Alert-status palette (`new` / `reviewed` / `snoozed`) — local to this
+# page; not part of the global severity / RAG / risk vocabulary so it
+# travels via data_grid's palette_cols= seam.
+ALERT_STATUS_PALETTE = {
+    "new": "#dc2626",
+    "reviewed": "#059669",
+    "snoozed": "#6b7280",
+}
+
+# Case-status palette — mirrors the queue vocabulary in spec.workflow.
+CASE_STATUS_PALETTE = {
+    "open": "#2563eb",
+    "l1_aml_analyst": "#2563eb",
+    "l1_analyst": "#2563eb",
+    "l2_investigator": "#7c3aed",
+    "str_filing": "#dc2626",
+    "sar_filing": "#dc2626",
+    "edd_review": "#d97706",
+    "closed_no_action": "#6b7280",
+}
+
+# SLA-state palette — values come from the `_sla_status()` derivation
+# below (OVERDUE / Resolved / "{sla_str} SLA" / N/A).
+SLA_PALETTE = {
+    "overdue": "#dc2626",
+    "resolved": "#059669",
+}
 
 
 def _bulk_action(case_ids: list[str], event: str, disposition: str) -> None:
@@ -185,41 +212,25 @@ for c in ["customer_id", "sum_amount", "count", "window_start", "window_end"]:
 available = [c for c in show_cols if c in display_df.columns]
 
 
-def _highlight_severity(val: str) -> str:
-    color = SEVERITY_COLORS.get(val, "")
-    if color:
-        return f"color: {color}; font-weight: 700;"
-    return ""
-
-
-def _status_style(val: str) -> str:
-    colors = {"new": "#dc2626", "reviewed": "#059669", "snoozed": "#6b7280"}
-    c = colors.get(val, "")
-    return f"color: {c}; font-weight: 700;" if c else ""
-
-
-styled = (
-    display_df[available].style.format(na_rep="—").map(_highlight_severity, subset=["severity"])
-)
-if "status" in available:
-    styled = styled.map(_status_style, subset=["status"])
-
-# Row-click drills into Customer 360 for the alert's customer; the
-# `selectable_dataframe` helper handles the on_select event + switch_page.
-selectable_dataframe(
-    styled,
+# Row-click drills into Customer 360 for the alert's customer.
+# data_grid handles severity colouring + status colouring + drill via
+# ag-grid's selection events; replaces the Styler+selectable_dataframe
+# stack (PR-CHART-2 pilot migration).
+data_grid(
+    display_df[available],
     key="alertqueue_alerts_table",
+    severity_col="severity",
+    palette_cols={"status": ALERT_STATUS_PALETTE},
+    pinned_left=["rule_id"],
     drill_target="pages/17_Customer_360.py" if "customer_id" in available else None,
     drill_param="customer_id",
     drill_column="customer_id",
+    height=400,
     hint=(
         "Click any alert row to open the customer's 360 view."
         if "customer_id" in available
         else None
     ),
-    use_container_width=True,
-    hide_index=True,
-    height=400,
 )
 
 # --- Acknowledge / Snooze ---
@@ -260,32 +271,30 @@ with col_left:
     chart = display_df.groupby("rule_id").size().reset_index(name="count")
     chart["severity"] = chart["rule_id"].map(sev_map)
     chart = chart.sort_values("count", ascending=True)
-    fig = px.bar(
+    # `color="severity"` paints each rule's bar with its rule severity
+    # via the global SEVERITY_PALETTE — no per-page colour map needed.
+    bar_chart(
         chart,
-        y="rule_id",
-        x="count",
+        x="rule_id",
+        y="count",
         color="severity",
         orientation="h",
-        color_discrete_map=SEVERITY_COLORS,
-        labels={"rule_id": "", "count": "Alerts"},
+        height=320,
+        key="alertqueue_volume_chart",
     )
-    fig.update_layout(yaxis_title="", showlegend=False)
-    st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
 
 with col_right:
     st.markdown("### Severity Distribution")
     sev_counts = display_df["severity"].value_counts().reset_index()
     sev_counts.columns = ["severity", "count"]
-    fig = px.pie(
+    pie_chart(
         sev_counts,
         names="severity",
         values="count",
-        color="severity",
-        color_discrete_map=SEVERITY_COLORS,
-        hole=0.45,
+        donut=True,
+        height=320,
+        key="alertqueue_severity_pie",
     )
-    fig.update_traces(textposition="inside", textinfo="percent+label")
-    st.plotly_chart(chart_layout(fig, 320), use_container_width=True)
 
 # --- Case Queue (Analyst Inbox) ---
 st.markdown("<br>", unsafe_allow_html=True)
@@ -297,22 +306,13 @@ if not df_cases.empty and "status" in df_cases.columns:
     status_counts = df_cases["status"].value_counts().reset_index()
     status_counts.columns = ["Status", "Count"]
 
-    status_colors_map = {
-        "open": "#2563eb",
-        "l1_aml_analyst": "#2563eb",
-        "l1_analyst": "#2563eb",
-        "l2_investigator": "#7c3aed",
-        "str_filing": "#dc2626",
-        "sar_filing": "#dc2626",
-        "edd_review": "#d97706",
-        "closed_no_action": "#6b7280",
-    }
-
-    # Show status summary as colored cards.
+    # Show status summary as colored cards. Reuses CASE_STATUS_PALETTE
+    # so KPI card colour matches the corresponding cell colour in the
+    # case table below.
     status_cols = st.columns(min(len(status_counts), 5))
     for i, row in status_counts.iterrows():
         with status_cols[i % len(status_cols)]:
-            color = status_colors_map.get(row["Status"], "#6b7280")
+            color = CASE_STATUS_PALETTE.get(row["Status"], "#6b7280")
             kpi_card(row["Status"].replace("_", " ").title(), int(row["Count"]), color)
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -349,31 +349,24 @@ if not df_cases.empty and "status" in df_cases.columns:
             show_cols.insert(3, "queue")
         available = [c for c in show_cols if c in active.columns]
 
-        def _status_color(val):
-            c = status_colors_map.get(val, "")
-            return f"color: {c}; font-weight: 700;" if c else ""
-
-        def _sla_color(val: str) -> str:
-            if val == "OVERDUE":
-                return "color: #dc2626; font-weight: 700;"
-            if val == "Resolved":
-                return "color: #059669; font-weight: 700;"
-            return ""
-
-        styled = active[available].style.map(_status_color, subset=["status"])
-        if "SLA" in available:
-            styled = styled.map(_sla_color, subset=["SLA"])
-
-        # Row-click drills into the full Case Investigation view.
-        selectable_dataframe(
-            styled,
+        # Row-click drills into the full Case Investigation view. Status
+        # column uses the workflow-queue palette (blue/purple/red/grey
+        # for L1/L2/STR/closed); SLA uses the OVERDUE-red / Resolved-
+        # green pair. Both ride data_grid's palette_cols= seam.
+        data_grid(
+            active[available],
             key="alertqueue_cases_table",
+            severity_col="severity",
+            palette_cols={
+                "status": CASE_STATUS_PALETTE,
+                "SLA": SLA_PALETTE,
+            },
+            pinned_left=["case_id"],
             drill_target="pages/4_Case_Investigation.py",
             drill_param="case_id",
             drill_column="case_id",
             hint="Click any case row to open the investigation package.",
-            use_container_width=True,
-            hide_index=True,
+            height=400,
         )
 
         # --- Bulk actions ---

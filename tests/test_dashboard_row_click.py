@@ -57,9 +57,16 @@ class TestSelectableDataframeHelper:
 
 
 class TestPagesMigrated:
-    def test_alert_queue_uses_selectable_dataframe(self):
+    def test_alert_queue_has_row_click_drill(self):
+        # PR-A introduced selectable_dataframe; PR-CHART-2 replaced it
+        # with the AG-Grid-backed data_grid (same drill_target /
+        # drill_param / drill_column contract). Either is acceptable —
+        # the invariant is that the table itself is the drill, not a
+        # selectbox below.
         body = (PAGES_DIR / "3_Alert_Queue.py").read_text(encoding="utf-8")
-        assert "selectable_dataframe(" in body, "Alert Queue must use selectable_dataframe"
+        assert ("selectable_dataframe(" in body) or ("data_grid(" in body), (
+            "Alert Queue must use selectable_dataframe or data_grid for row-click drill"
+        )
         # Old selectbox-below pattern should be gone for the customer + case drills.
         assert "alertqueue_customer_drill" not in body, (
             "Old customer-drill selectbox should be removed; row-click replaces it"

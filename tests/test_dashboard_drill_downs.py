@@ -40,9 +40,12 @@ class TestAlertQueueDrillDowns:
     def test_imports_drill_helper(self):
         body = ALERT_QUEUE.read_text(encoding="utf-8")
         assert "from aml_framework.dashboard.components import" in body
-        # Either the legacy link_to_page helper or the PR-A row-click
-        # helper is acceptable — both mirror to `selected_<param>`.
-        assert ("link_to_page" in body) or ("selectable_dataframe" in body)
+        # Three acceptable drill mechanisms — all mirror to
+        # `selected_<param>` and call `st.switch_page` on row click:
+        #   * legacy `link_to_page` helper
+        #   * PR-A `selectable_dataframe` helper
+        #   * PR-CHART-2 `data_grid` helper (AG Grid backed)
+        assert ("link_to_page" in body) or ("selectable_dataframe" in body) or ("data_grid" in body)
 
     def test_links_to_customer_360_with_customer_id(self):
         body = ALERT_QUEUE.read_text(encoding="utf-8")
@@ -59,13 +62,16 @@ class TestAlertQueueDrillDowns:
         assert ('drill_param="case_id"' in body) or ("case_id=" in body)
 
     def test_drill_is_table_native_or_below_table(self):
-        # Either the table itself is the drill (selectable_dataframe row
-        # click — preferred since PR-A) or there's a "Drill into ..."
-        # selectbox after the alert dataframe. Both should work — the
-        # invariant is that the alert table is followed by some drill
-        # surface, not just dead-end on the read-only frame.
+        # Either the table itself is the drill (row-click via the
+        # legacy selectable_dataframe or the PR-CHART-2 data_grid
+        # helper) or there's a "Drill into ..." selectbox after the
+        # alert dataframe. The invariant is that the alert table is
+        # followed by some drill surface, not just dead-end on the
+        # read-only frame.
         body = ALERT_QUEUE.read_text(encoding="utf-8")
-        has_row_click = "selectable_dataframe(" in body and 'drill_target="pages/' in body
+        has_row_click = (
+            "selectable_dataframe(" in body or "data_grid(" in body
+        ) and 'drill_target="pages/' in body
         has_legacy = (
             "Drill into customer" in body
             and "st.dataframe(styled" in body
@@ -73,7 +79,8 @@ class TestAlertQueueDrillDowns:
         )
         assert has_row_click or has_legacy, (
             "Alert Queue must give analysts SOME path off a row — "
-            "either row-click (selectable_dataframe) or selectbox-below-table"
+            "row-click (selectable_dataframe / data_grid) or "
+            "selectbox-below-table"
         )
 
 

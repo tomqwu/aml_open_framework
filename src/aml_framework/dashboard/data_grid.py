@@ -98,6 +98,7 @@ def data_grid(
     gradient_cols: list[str] | None = None,
     gradient_low: float = 0.5,
     gradient_high: float = 0.8,
+    palette_cols: dict[str, dict[str, str]] | None = None,
     pinned_left: list[str] | None = None,
     pinned_right: list[str] | None = None,
     drill_target: str | None = None,
@@ -126,6 +127,12 @@ def data_grid(
             the red→amber→green metric gradient.
         gradient_low / gradient_high: gradient thresholds (defaults
             mirror components.py ``metric_gradient_style``).
+        palette_cols: optional ``{column_name: {value: hex_color}}``
+            map for columns whose vocabulary doesn't match severity /
+            RAG / risk-rating (e.g. case-status ``new/reviewed/snoozed``,
+            workflow queues ``l1_aml_analyst/l2_investigator/...``,
+            SLA states ``OVERDUE/Resolved/N/A``). Lookup is
+            case-insensitive on the value.
         pinned_left / pinned_right: column names to pin to the left
             or right of the grid.
         drill_target: relative page path
@@ -169,6 +176,12 @@ def data_grid(
             builder.configure_column(
                 col, cellStyle=JsCode(_gradient_style_js(gradient_low, gradient_high))
             )
+    for col_name, palette in (palette_cols or {}).items():
+        if col_name in df.columns:
+            # Lower-case keys so the JS lookup is case-insensitive on
+            # the cell value (matches _cell_style_js behaviour).
+            normalised = {k.lower(): v for k, v in palette.items()}
+            builder.configure_column(col_name, cellStyle=JsCode(_cell_style_js(normalised)))
 
     for col in pinned_left or []:
         if col in df.columns:

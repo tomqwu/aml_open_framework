@@ -149,18 +149,28 @@ class TestFrameworkStatusLabels:
 
 
 class TestAlertQueueNanRendering:
-    def test_styler_uses_na_rep(self):
+    def test_table_is_data_grid_or_uses_na_rep(self):
+        # PR-CHART-2 swapped the Styler-based alerts table for AG-Grid-
+        # backed data_grid. AG Grid renders NaN as a blank cell by
+        # default — there's no "None" literal leak — so the data_grid
+        # call site satisfies the original "no literal 'None' in alert
+        # rows" intent without needing the Styler.format(na_rep="—")
+        # plumbing. Either path is acceptable.
         body = ALERT_QUEUE_FILE.read_text(encoding="utf-8")
-        assert "na_rep" in body, (
-            "Alert Queue Styler must set na_rep to render NaN as something "
-            "other than the literal string 'None'"
+        assert ("na_rep" in body) or ("data_grid(" in body), (
+            "Alert Queue must either set Styler na_rep or use data_grid "
+            "(both render NaN as something other than literal 'None')"
         )
 
-    def test_em_dash_used_for_na(self):
+    def test_em_dash_or_data_grid_for_na(self):
         body = ALERT_QUEUE_FILE.read_text(encoding="utf-8")
         # em-dash (U+2014) is the standard typographic placeholder for
-        # "no value" in financial reports.
-        assert "—" in body, "em-dash (—) should be the NaN placeholder"
+        # "no value" in financial reports. AG Grid's default blank-NaN
+        # rendering is also acceptable; data_grid satisfies that.
+        assert ("—" in body) or ("data_grid(" in body), (
+            "em-dash (—) Styler placeholder OR data_grid (blank-NaN by "
+            "default) should be the NaN handling mechanism"
+        )
 
 
 # ---------------------------------------------------------------------------
