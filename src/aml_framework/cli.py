@@ -490,6 +490,128 @@ def notify_digest_cmd(
             console.print(f"  {mark} {platform}")
 
 
+@app.command(name="queue-rank")
+def queue_rank_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    top: int = typer.Option(5, "--top", help="Top N cases to return."),
+    run_dir: Path | None = typer.Option(
+        None,
+        "--run-dir",
+        help="Run dir to read cases from. Defaults to the most recent under .artifacts/.",
+    ),
+    artifacts: Path = typer.Option(
+        Path(".artifacts"),
+        "--artifacts",
+        help="Artifacts root; only used when --run-dir is unset.",
+    ),
+    seed: int = typer.Option(
+        42,
+        "--seed",
+        help="Synthetic-data seed (used to load customers when --run-dir is unset).",
+    ),
+) -> None:
+    """Rank open cases by composite triage score (PR-PROC-2 / PROC-1).
+
+    Reads cases from a run dir (or the most recent .artifacts run if none
+    specified), composes SLA breach / severity / customer-risk / rule
+    precision into a single 0-100 urgency score, and prints the top N
+    with one-line "why this case first" justifications.
+
+    Same inputs always produce the same ranking — the score is
+    deterministic, so two analysts running the same command see the
+    same queue order.
+    """
+    import json as _json
+    from datetime import datetime as _dt
+    from datetime import timezone as _tz
+
+    from aml_framework.cases.triage import rank_queue
+    from aml_framework.data.sources import resolve_source
+
+    spec = load_spec(spec_path)
+
+    # Resolve run_dir: use --run-dir if given, otherwise newest under
+    # --artifacts. Refuse if no run dirs exist (operator should run
+    # `aml run` first).
+    if run_dir is None:
+        candidates = sorted(artifacts.glob("run-*"), reverse=True)
+        if not candidates:
+            console.print(
+                f"[red]No run dirs under {artifacts}/.[/red] "
+                f"Run [cyan]aml run {spec_path}[/cyan] first."
+            )
+            raise typer.Exit(code=1)
+        run_dir = candidates[0]
+    cases_dir = run_dir / "cases"
+    if not cases_dir.exists():
+        console.print(f"[red]No cases dir under {run_dir}.[/red]")
+        raise typer.Exit(code=1)
+
+    cases = []
+    for path in sorted(cases_dir.glob("*.json")):
+        if path.name.endswith("__filing.json"):
+            continue  # PR-DATA-9 sidecars; not cases
+        try:
+            cases.append(_json.loads(path.read_text(encoding="utf-8")))
+        except _json.JSONDecodeError:
+            continue
+
+    if not cases:
+        console.print(f"[yellow]No cases in {run_dir}.[/yellow] Nothing to rank.")
+        return
+
+    # Customers are needed for risk_rating lookup. Use the same data
+    # source the run was built from (synthetic with the given seed
+    # gives deterministic customers; real-data runs require the same
+    # source files to still be present).
+    #
+    # Engine-emitted cases serialise timestamps as naive ISO strings
+    # (no tz suffix). Use a naive UTC clock so SLA arithmetic doesn't
+    # crash on aware/naive subtraction. Mirrors dashboard pages 21 and 24.
+    as_of = _dt.now(tz=_tz.utc).replace(tzinfo=None)
+    try:
+        data = resolve_source(
+            source_type="synthetic",
+            spec=spec,
+            as_of=as_of,
+            seed=seed,
+            data_dir=None,
+        )
+        customers = data.get("customer", [])
+    except Exception:  # noqa: BLE001
+        customers = []
+
+    ranked = rank_queue(cases, spec, customers, as_of=as_of, top_n=top)
+
+    table = Table(title=f"Triage rank — top {len(ranked)} of {len(cases)} cases")
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Score", justify="right")
+    table.add_column("case_id")
+    table.add_column("Severity")
+    table.add_column("SLA")
+    table.add_column("Customer")
+    table.add_column("Why")
+
+    sla_style = {
+        "breached": "red",
+        "red": "red",
+        "amber": "yellow",
+        "green": "green",
+        "unknown": "dim",
+    }
+    for i, r in enumerate(ranked, start=1):
+        table.add_row(
+            str(i),
+            f"{r.score:.1f}",
+            r.case_id,
+            r.severity,
+            f"[{sla_style.get(r.sla_state, 'white')}]{r.sla_state}[/]",
+            f"{r.customer_id} ({r.customer_risk_rating})",
+            r.why,
+        )
+    console.print(table)
+
+
 @app.command(name="share-pattern")
 def share_pattern_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

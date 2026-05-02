@@ -7,6 +7,21 @@ that introduced them.
 
 ## [Unreleased]
 
+### Added
+
+- **PR-PROC-2 — composite triage queue rank (PROC-1)**
+  (`cases/triage.py`, `cli.py`, `dashboard/pages/0_Today.py`,
+  `tests/test_cases_triage.py`, `tests/test_cli_queue_rank.py`).
+  New `aml queue-rank` CLI command and "Next 5 to triage" widget on
+  the Today landing page rank open cases by a composite 0-100 urgency
+  score: 40% SLA breach window · 30% severity · 20% customer risk ·
+  10% rule precision. Each ranked case carries a one-line "why this
+  case first" justification (e.g. "SLA breached · critical severity ·
+  high-risk customer"). Tiebreaker is `case_id` ascending so two
+  analysts running the same command see the same queue order. Backs
+  PROC-1 in the process-and-ingestion research doc — operators no
+  longer face a wall of overnight alerts without a starting point.
+
 ### Changed
 
 - **Round 10 — Data layer hardening (7 PRs, #177 → #183)**
