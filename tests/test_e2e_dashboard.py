@@ -240,9 +240,18 @@ class TestExecutiveDashboard:
 
     def test_alerts_by_rule_chart(self, browser_page):
         _navigate(browser_page, "Executive Dashboard")
-        # Plotly charts render as SVG or canvas inside a div.
-        charts = browser_page.locator(".js-plotly-plot")
-        assert charts.count() >= 1, "No Plotly chart found on Executive Dashboard"
+        # PR-CHART-3 swapped Plotly for ECharts. ECharts mounts inside a
+        # streamlit-echarts iframe (component class) and the chart's
+        # SVG/canvas lives inside that iframe. Locating either the
+        # streamlit-echarts component wrapper OR an SVG/canvas element
+        # is sufficient evidence the chart rendered.
+        echarts = browser_page.locator(
+            "[data-testid='stCustomComponentV1'], [class*='streamlit-echarts'], "
+            "iframe[src*='streamlit-echarts'], canvas, svg"
+        )
+        assert echarts.count() >= 1, (
+            "No ECharts / canvas / svg surface found on Executive Dashboard"
+        )
 
 
 class TestNetworkExplorer:

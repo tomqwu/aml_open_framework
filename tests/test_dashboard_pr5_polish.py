@@ -102,9 +102,8 @@ class TestRiskGeographyStacked:
         # Either pattern is acceptable — the invariant is that the
         # risk-rating segments stay severity-coloured.
         body = RISK.read_text(encoding="utf-8")
-        ok = (
-            "color_discrete_map=RISK_RATING_COLORS" in body
-            or ("bar_chart(" in body and 'y=[c for c in ["high", "medium", "low"]' in body)
+        ok = "color_discrete_map=RISK_RATING_COLORS" in body or (
+            "bar_chart(" in body and 'y=[c for c in ["high", "medium", "low"]' in body
         )
         assert ok, (
             "Risk Geography stacked bars must keep severity colouring — "

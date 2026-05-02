@@ -308,26 +308,35 @@ if customer_id and not df_txns.empty:
             .reset_index()
         )
 
-        # ECharts sankey: nodes = list of names, edges = list of
-        # (source_name, target_name, value) tuples. Direction "in"
-        # flows channel → customer; "out" flows customer → channel.
-        channels_used = flow["channel"].unique().tolist()
-        nodes = [customer_id, *channels_used]
+        # ECharts sankey is a strict DAG — when a customer has both
+        # "in" AND "out" txns through the same channel, naive
+        # (channel → customer, customer → channel) edges form a cycle
+        # and the chart throws "Sankey is a DAG, the original data has
+        # cycle!". Split each direction into a distinct node label so
+        # the graph stays acyclic: "cash (in)" → customer → "cash (out)".
         edges: list[tuple[str, str, float]] = []
+        node_set: list[str] = []
         for _, row in flow.iterrows():
             value = float(row["total"])
+            if value <= 0:
+                continue
+            label = f"{row['channel']} ({row['direction']})"
             if row["direction"] == "in":
-                edges.append((str(row["channel"]), customer_id, value))
+                edges.append((label, customer_id, value))
             else:
-                edges.append((customer_id, str(row["channel"]), value))
+                edges.append((customer_id, label, value))
+            if label not in node_set:
+                node_set.append(label)
+        nodes = [customer_id, *node_set]
 
-        sankey_chart(
-            nodes=nodes,
-            edges=edges,
-            title=f"Transaction Flow by Channel — {customer_id}",
-            height=320,
-            key="case_investigation_flow_sankey",
-        )
+        if edges:
+            sankey_chart(
+                nodes=nodes,
+                edges=edges,
+                title=f"Transaction Flow by Channel — {customer_id}",
+                height=320,
+                key="case_investigation_flow_sankey",
+            )
 
 # --- Evidence Requested ---
 st.markdown("### Evidence Requested")

@@ -481,8 +481,15 @@ try:
                 (nodes[1], nodes[4], float(n_closed)),
                 (nodes[1], nodes[5], float(cases_pending)),
             ]
+            # ECharts sankey throws "Sankey is a DAG, the original data
+            # has cycle!" when fed zero-value edges (e2e bug caught on
+            # PR #189). Strip them and only render nodes with at least
+            # one connecting edge.
+            edges = [(s, t, v) for s, t, v in edges if v > 0]
+            connected_nodes = {n for s, t, _ in edges for n in (s, t)}
+            kept_nodes = [n for n in nodes if n in connected_nodes]
             sankey_chart(
-                nodes=nodes,
+                nodes=kept_nodes,
                 edges=edges,
                 title="Alert → case → STR flow",
                 height=360,
