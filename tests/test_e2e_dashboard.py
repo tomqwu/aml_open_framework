@@ -173,36 +173,24 @@ _PAGE_TO_SECTION: dict[str, str] = {
 
 
 def _navigate(page, title: str) -> None:
-    sidebar = page.locator("[data-testid='stSidebar']")
-    # Step 1: expand the "View N more" overflow if present.
-    view_more = sidebar.locator("button:has-text('View')")
-    if view_more.count() > 0:
-        view_more.first.click()
-        page.wait_for_timeout(800)
-    # Step 2: if the target link isn't visible, expand its section
-    # header. PR-NAV-1's hierarchical nav collapses non-active
-    # sections by default. Click the SPECIFIC section header for
-    # this title (not all of them — clicking an already-expanded
-    # section toggles it closed, and blind iteration leaves the nav
-    # in unpredictable state).
-    if sidebar.locator(f"a:has-text('{title}')").count() == 0:
-        section_name = _PAGE_TO_SECTION.get(title, "")
-        if section_name:
-            # stNavSectionHeader's text is the section name. Click
-            # the matching one to expand its group.
-            section = sidebar.locator(
-                f"[data-testid='stNavSectionHeader']:has-text('{section_name}')"
-            )
-            if section.count() > 0:
-                section.first.click()
-                page.wait_for_timeout(500)
-    # Step 3: click the link.
-    link = sidebar.locator(f"a:has-text('{title}')")
-    if link.count() > 0:
-        link.first.scroll_into_view_if_needed()
-        page.wait_for_timeout(300)
-        link.first.click()
-        page.wait_for_timeout(3500)
+    """Navigate to a page by URL — bypasses the sidebar entirely.
+
+    Pre-PR-NAV-1 this used sidebar `<a>` clicks. After hierarchical
+    nav landed (PR-NAV-1), pages in collapsed sections (Strategy &
+    Reporting / Audit & Reference / Detection & Tuning / Data /
+    FinTech) require expanding the section header first, AND
+    clicks against module-scoped browser_page leak state across
+    tests in unpredictable ways. Three rounds of patching the
+    sidebar-click approach (v3-v5) hit one edge case after another.
+
+    Direct URL navigation is the simpler answer:
+      - Streamlit slug = title with " & " → "_" and " " → "_"
+      - Always goes through main → page route, no sidebar dependency
+      - No state leakage from prior tests' nav expansion
+    """
+    slug = title.replace(" & ", "_").replace(" ", "_")
+    page.goto(f"http://localhost:{PORT}/{slug}", wait_until="networkidle", timeout=30000)
+    page.wait_for_timeout(3500)
 
 
 def _select_persona(page, persona_label: str) -> None:
