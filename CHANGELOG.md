@@ -7,6 +7,40 @@ that introduced them.
 
 ## [Unreleased]
 
+### Changed
+
+- **PR-CHART series — dashboard library swap, Plotly → ECharts + AG Grid Community
+  (5 PRs, #186 → #190)**. Every chart and table in `dashboard/pages/` now
+  routes through the wrapper helpers in `dashboard/charts.py` and
+  `dashboard/data_grid.py`. Brand-aligned theme (cream `#f7f4ec` / ink
+  `#1c1f26` / burnt-orange `#a44b30`) + per-cell severity / RAG / risk /
+  metric-gradient colouring + pinned columns + sort/filter/pagination +
+  row-click drill-through. Plotly dropped from `pyproject.toml`'s
+  `[dashboard]` extra. AG Grid Enterprise features (sparkline cells, row
+  grouping, master/detail) are intentionally NOT used — the open-source
+  distribution stays clean (no paid-licence requirement for downstream
+  deployers). 13 chart pages + 19 table pages migrated; 33 new
+  pure-function tests cover every helper's option-dict shape.
+  - **PR-CHART-1 (#186)** — foundation: `streamlit-echarts` +
+    `streamlit-aggrid` deps; `dashboard/chart_theme.py` (palette + theme);
+    `dashboard/charts.py` (13 helpers: bar/line/area/pie/scatter/radar/
+    heatmap/sankey/funnel/gauge/timeline/waterfall + escape hatch);
+    `dashboard/data_grid.py` (single helper, AG Grid Community wrapper);
+    audit doc at `docs/migration/chart-library-audit.md`.
+  - **PR-CHART-2 (#187)** — pilot: Live Monitor + Alert Queue. Quality gate
+    passed; before/after screenshots in `docs/screenshots/chart-migration/`.
+  - **PR-CHART-3 (#189)** — charts batch (12 pages). Discrete severity-band
+    colouring replaces Plotly's continuous gradients on Tuning Lab P/R
+    scatter + Model Performance + My Queue histograms.
+  - **PR-CHART-4 (#190)** — tables batch (17 pages). `data_grid()` gains
+    `palette_cols=` for custom-vocabulary status columns and
+    `gradient_invert=` for risk-score / breach-rate semantics.
+  - **PR-CHART-5 (this PR)** — drop Plotly from `pyproject.toml`, drop
+    `chart_layout()` / `responsive_plotly_config()` / `CHART_TEMPLATE`,
+    sync docs. `CHART_PALETTE` retained for backwards compat (now a
+    label-only constant; chart helpers source colours from
+    `chart_theme.CATEGORICAL_PALETTE`).
+
 ### Added
 
 - **PR-PROC-2 — composite triage queue rank (PROC-1)**

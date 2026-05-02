@@ -26,7 +26,10 @@ SEVERITY_COLORS = {
     "low": "#16a34a",
 }
 
-CHART_TEMPLATE = "plotly_white"
+# Categorical chart palette — kept for backwards compat with any
+# dashboard module still expecting `CHART_PALETTE`. New code routes
+# colours through `chart_theme.CATEGORICAL_PALETTE` (the single source
+# of truth for ECharts theming).
 CHART_PALETTE = ["#2563eb", "#7c3aed", "#db2777", "#d97706", "#059669", "#6b7280"]
 
 # SLA band colors — mirrors the cases/sla.py state vocabulary
@@ -619,21 +622,6 @@ def apply_theme() -> None:
     audience = st.session_state.get("selected_audience")
     if audience in EXECUTIVE_AUDIENCES:
         st.markdown(EXECUTIVE_CSS, unsafe_allow_html=True)
-
-
-def responsive_plotly_config() -> dict[str, Any]:
-    """Return a Plotly config dict that enables responsive resizing.
-
-    Pass to `st.plotly_chart(fig, config=responsive_plotly_config())`.
-    Plotly's `responsive: True` makes the chart re-layout when its
-    container resizes — without it, charts render at their initial
-    width and overflow on mobile when the user rotates or the
-    sidebar collapses.
-    """
-    return {
-        "responsive": True,
-        "displayModeBar": False,  # Cleaner mobile view; users can toggle if needed
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -1535,19 +1523,6 @@ def _fmt_value(m: MetricResult) -> str:
     if isinstance(m.value, float) and not m.value.is_integer():
         return f"{m.value:.3f}"
     return str(int(m.value)) if float(m.value).is_integer() else str(m.value)
-
-
-def chart_layout(fig: Any, height: int = 380) -> Any:
-    """Apply consistent chart styling."""
-    fig.update_layout(
-        template=CHART_TEMPLATE,
-        height=height,
-        margin=dict(t=30, b=30, l=20, r=20),
-        font=dict(family="Inter, system-ui, sans-serif", size=12),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
-    return fig
 
 
 # Glossary helpers live in `dashboard/glossary.py` (a pandas/streamlit-
