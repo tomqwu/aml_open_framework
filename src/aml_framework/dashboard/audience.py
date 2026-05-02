@@ -86,6 +86,10 @@ PERSONA_LABELS: dict[str, tuple[str, str]] = {
         "FinTech / EMI / VASP MLRO",
         "1-MLRO program. Lives with sponsor-bank cure notices and Series-B AML diligence questionnaires.",
     ),
+    "data_engineer": (
+        "Data Engineer / Head of Data",
+        "Owns the pipes. Cares about contracts, freshness, ISO 20022 ingestion, lineage walk-back.",
+    ),
 }
 
 
@@ -119,11 +123,15 @@ AUDIENCE_PAGES = {
     "cto": [
         # "Audit & Evidence" required for the executive Today cards
         # (replay verification is in the CTO's bailiwick). PR-R.
+        # Data Integration added (PR-DATAVIZ-1) — CTO owns vendor risk
+        # + deployability, both anchored in the source-catalogue and
+        # contract-roll-up sections. Cap was 7 → 8 with room.
         "Executive Dashboard",
         "Program Maturity",
         "Framework Alignment",
         "Audit & Evidence",
         "Model Performance",
+        "Data Integration",
         "Run History",
         "Transformation Roadmap",
     ],
@@ -233,14 +241,18 @@ AUDIENCE_PAGES = {
         # and need a place to see whether the wiring works.
         # Audit & Evidence added (PR-R) — developer Today cards link
         # there for the determinism/replay check.
+        # Data Integration added (PR-DATAVIZ-1) — devs see the wired
+        # source / ISO 20022 message-type counts when debugging
+        # ingestion. Run History dropped to stay under the 9-page cap;
+        # devs reach run history via direct URL.
         "Spec Editor",
         "Rule Performance",
         "Rule Tuning",
         "Tuning Lab",
         "Model Performance",
+        "Data Integration",
         "Data Quality",
         "Audit & Evidence",
-        "Run History",
         "AI Assistant",
     ],
     "business": [
@@ -296,6 +308,25 @@ AUDIENCE_PAGES = {
         "Regulator Pulse",
         "Spec Editor",
         "Metrics Taxonomy",
+        "AI Assistant",
+    ],
+    "data_engineer": [
+        # Data Engineer / Head of Data (PR-DATAVIZ-1). Owns the pipes:
+        # contracts, freshness pinning, ISO 20022 ingestion, lineage
+        # walk-back. Lands first on Data Integration — the single
+        # surface that answers "what's flowing?" — then the deep-dive
+        # surfaces (Data Quality for per-check detail, Customer 360
+        # for the per-attribute staleness view, Information Sharing
+        # for cross-bank exchange artifacts). Spec Editor + Run
+        # History close the engineering loop. Audit & Evidence is
+        # the lineage walk-back surface (DATA-4).
+        "Data Integration",
+        "Data Quality",
+        "Customer 360",
+        "Information Sharing",
+        "Spec Editor",
+        "Run History",
+        "Audit & Evidence",
         "AI Assistant",
     ],
 }

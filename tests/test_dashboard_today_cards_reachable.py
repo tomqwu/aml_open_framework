@@ -254,6 +254,11 @@ ALLOWED_GRACEFUL_GAPS: set[tuple[str, str, str]] = {
     # data-quality is their lane.
     ("developer", "Executive Dashboard", "Alert Queue"),
     ("developer", "Executive Dashboard", "Investigations"),
+    # Data Engineer (PR-DATAVIZ-1) is upstream of operations — owns the
+    # pipes, not the queues. Exec Dashboard's drill-downs to the
+    # operational queues gracefully degrade for this persona.
+    ("data_engineer", "Executive Dashboard", "Alert Queue"),
+    ("data_engineer", "Executive Dashboard", "Investigations"),
     # Auditor has Investigations but not Alert Queue (queue triage is
     # 1LoD's job; auditor consumes outputs). Graceful here.
     ("auditor", "Executive Dashboard", "Alert Queue"),

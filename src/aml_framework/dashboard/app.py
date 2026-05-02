@@ -303,6 +303,11 @@ ALL_PAGES = [
         icon=":material/smart_toy:",
     ),
     st.Page(
+        "pages/30_Data_Integration.py",
+        title="Data Integration",
+        icon=":material/lan:",
+    ),
+    st.Page(
         "pages/31_Information_Sharing.py",
         title="Information Sharing",
         icon=":material/share:",
