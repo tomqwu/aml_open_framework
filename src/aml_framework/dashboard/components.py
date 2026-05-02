@@ -263,6 +263,104 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a {
     color: var(--dna-accent) !important;
 }
 
+/* ---- Sidebar nav: brand-polish on the hierarchical sidebar (PR-NAV-2) ----
+ *
+ * PR-NAV-1 grouped 31 pages into 7 categories using Streamlit's
+ * native `st.navigation(Dict[str, List[st.Page]])`. The hierarchy is
+ * logically sound but visually it still reads as default Streamlit —
+ * section headers blend into items, no brand-accent on the active
+ * page, default-spacing list. This block aligns the nav to the
+ * dashboard's brand DNA (cream / ink / burnt-orange · Source Serif
+ * display · JetBrains Mono eyebrows · same `dna-eyebrow` pattern
+ * page_header() emits).
+ *
+ * Selectors come from the live Streamlit DOM (verified 2026-05-02).
+ * All four are stable testids:
+ *   stNavSectionHeader      — "Operations" / "Risk & Compliance" / …
+ *   stSidebarNavLink        — each <a> page link
+ *   stSidebarNavSeparator   — <hr> between sections
+ *   stSidebarNavViewButton  — "View N more" overflow toggle
+ *
+ * Active page: `aria-current="page"` is set by Streamlit on the link
+ * for the currently-rendered page. Used here as the selector for the
+ * burnt-orange "I am here" indicator that mirrors the landing site's
+ * accent-dot pattern.
+ */
+
+/* Section headers — JetBrains Mono uppercase eyebrow, brand accent
+ * dot prefix, thin rule below. Mirrors the .dna-eyebrow pattern that
+ * page_header() emits at the top of every page. */
+section[data-testid="stSidebar"] [data-testid="stNavSectionHeader"] {
+    font-family: var(--dna-mono) !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: var(--dna-ink-dim) !important;
+    padding: 18px 8px 6px 12px !important;
+    margin-top: 4px !important;
+    border-bottom: 1px solid var(--dna-rule);
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+/* Accent dot prefix — pure CSS, no DOM change. */
+section[data-testid="stSidebar"] [data-testid="stNavSectionHeader"]::before {
+    content: "";
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--dna-accent);
+    flex-shrink: 0;
+}
+
+/* Page links — comfortable spacing, brand-cream hover, smaller font
+ * than Streamlit default to densify without going Linear-tight. */
+section[data-testid="stSidebar"] [data-testid="stSidebarNavLink"] {
+    font-family: var(--dna-body) !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    padding: 6px 12px !important;
+    margin: 1px 6px !important;
+    border-radius: 6px !important;
+    border-left: 3px solid transparent !important;
+    transition: background 120ms ease, border-color 120ms ease;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarNavLink"]:hover {
+    background: var(--dna-bg) !important;  /* brand cream tint */
+}
+
+/* Active page — burnt-orange left border + bolder text. Mirrors the
+ * "I am here" indicator from docs/pitch/landing/index.html (the
+ * sticky topbar's brand-accent dot). No background change — keeps
+ * the active item visually quiet but unmistakable. */
+section[data-testid="stSidebar"] [data-testid="stSidebarNavLink"][aria-current="page"] {
+    border-left-color: var(--dna-accent) !important;
+    font-weight: 700 !important;
+    color: var(--dna-ink) !important;
+    background: transparent !important;
+}
+
+/* Separator between sections — match the brand rule colour, tighter. */
+section[data-testid="stSidebar"] [data-testid="stSidebarNavSeparator"] {
+    border-color: var(--dna-rule) !important;
+    margin: 2px 12px !important;
+}
+
+/* "View N more" overflow button when sections collapse. Subtle
+ * mono-styled chip rather than Streamlit's default button. */
+section[data-testid="stSidebar"] [data-testid="stSidebarNavViewButton"] {
+    font-family: var(--dna-mono) !important;
+    font-size: 10.5px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    color: var(--dna-accent) !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 6px 12px !important;
+}
+
 /* ---- KPI metric cards ---- */
 [data-testid="stMetricValue"] {
     font-size: clamp(1.2rem, 2.2vw, 1.8rem) !important;
