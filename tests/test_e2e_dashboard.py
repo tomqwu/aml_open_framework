@@ -134,12 +134,24 @@ def browser_page(dashboard_server):
 
 
 def _navigate(page, title: str) -> None:
-    # Expand collapsed nav if needed ("View N more" button).
     sidebar = page.locator("[data-testid='stSidebar']")
+    # Step 1: expand any "View N more" overflow first.
     view_more = sidebar.locator("button:has-text('View')")
     if view_more.count() > 0:
         view_more.first.click()
         page.wait_for_timeout(1000)
+    # Step 2: PR-NAV-1's hierarchical nav collapses non-active sections.
+    # If the target link isn't already in the DOM after View-More,
+    # click every section header to toggle them open. Section headers
+    # are testid `stNavSectionHeader`. The check-then-expand pattern
+    # avoids unnecessarily collapsing the active section.
+    if sidebar.locator(f"a:has-text('{title}')").count() == 0:
+        section_headers = sidebar.locator("[data-testid='stNavSectionHeader']")
+        for i in range(section_headers.count()):
+            section_headers.nth(i).click()
+            page.wait_for_timeout(150)
+        page.wait_for_timeout(500)
+    # Step 3: now the link should be in the DOM — click it.
     link = sidebar.locator(f"a:has-text('{title}')")
     if link.count() > 0:
         link.first.scroll_into_view_if_needed()
