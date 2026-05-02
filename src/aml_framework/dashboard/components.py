@@ -1560,6 +1560,27 @@ from aml_framework.dashboard.glossary import (  # noqa: E402,F401
     glossary_term,
 )
 
+# Chart + grid helpers live in their own modules (charts.py, data_grid.py)
+# to keep this file under control. Re-exported so pages can keep doing
+# `from aml_framework.dashboard.components import bar_chart, data_grid` —
+# the same import path the existing Plotly callers use today.
+from aml_framework.dashboard.charts import (  # noqa: E402,F401
+    area_chart,
+    bar_chart,
+    echarts_chart,
+    funnel_chart,
+    gauge_chart,
+    heatmap_chart,
+    line_chart,
+    pie_chart,
+    radar_chart,
+    sankey_chart,
+    scatter_chart,
+    timeline_chart,
+    waterfall_chart,
+)
+from aml_framework.dashboard.data_grid import data_grid  # noqa: E402,F401
+
 
 # ---------------------------------------------------------------------------
 # GenAI Assistant panel — PR-K MVP
