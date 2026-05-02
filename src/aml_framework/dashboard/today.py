@@ -282,6 +282,50 @@ def _developer_cards(spec: Any, result: Any) -> list[TodayCard]:
     ]
 
 
+def _data_engineer_cards(spec: Any, result: Any) -> list[TodayCard]:
+    """Data Engineer / Head of Data — contracts wired, freshness, ISO 20022.
+
+    Three cards keyed off the data-layer signals the engine emits on
+    every run: contract count, source-of-the-run, latest spec hash.
+    All three deep-link into the new Data Integration page (PR-DATAVIZ-1)
+    where the data engineer can drill into the per-contract roll-up.
+    """
+    contract_count = len(getattr(spec, "data_contracts", []) or [])
+    iso_msg_count = sum(
+        1
+        for rows in getattr(result, "data", {}).values()
+        if isinstance(rows, list)
+        for r in rows
+        if isinstance(r, dict) and "msg_kind" in r
+    )
+    return [
+        TodayCard(
+            label="Contracts validated",
+            value=str(contract_count),
+            hint="data_contracts in this spec",
+            rag="green" if contract_count > 0 else "amber",
+            cta="→ Data Integration",
+            target_page="pages/30_Data_Integration.py",
+        ),
+        TodayCard(
+            label="ISO 20022 messages",
+            value=str(iso_msg_count) if iso_msg_count else "—",
+            hint="parsed pacs.008 / pacs.009 / pain.001 this run",
+            rag=None,
+            cta="→ Data Integration",
+            target_page="pages/30_Data_Integration.py",
+        ),
+        TodayCard(
+            label="Last run hash",
+            value=getattr(result, "spec_hash", "—")[:8] if hasattr(result, "spec_hash") else "—",
+            hint="reproducibility checkpoint · DATA-11",
+            rag=None,
+            cta="→ Audit & Evidence",
+            target_page="pages/7_Audit_Evidence.py",
+        ),
+    ]
+
+
 def _pm_cards(spec: Any, result: Any) -> list[TodayCard]:
     """Programme manager — roadmap + maturity gap."""
     findings = _open_findings_count(spec)
@@ -390,6 +434,8 @@ def build_cards_for_audience(
         return _auditor_cards(spec, result)
     if audience == "developer":
         return _developer_cards(spec, result)
+    if audience == "data_engineer":
+        return _data_engineer_cards(spec, result)
     if audience == "pm":
         return _pm_cards(spec, result)
     return _generic_cards(spec, result, df_alerts)

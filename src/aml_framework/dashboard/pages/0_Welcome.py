@@ -211,6 +211,23 @@ NEXT_BY_PERSONA: dict[str, list[tuple[str, str, str]]] = {
         ("Tuning Lab", "Sweep thresholds; see precision/recall.", "23_Tuning_Lab"),
         ("Run History", "Inspect any run's outputs.", "15_Run_History"),
     ],
+    "data_engineer": [
+        (
+            "Data Integration",
+            "Sources wired, contracts validated, ISO 20022 message types — the 30-second answer.",
+            "30_Data_Integration",
+        ),
+        (
+            "Data Quality",
+            "Per-contract completeness + check detail.",
+            "14_Data_Quality",
+        ),
+        (
+            "Spec Editor",
+            "Edit `data_contracts` declarations + freshness pinning.",
+            "20_Spec_Editor",
+        ),
+    ],
     "pm": [
         ("Program Maturity", "Coverage gaps and where to invest next.", "2_Program_Maturity"),
         ("Transformation Roadmap", "Sequenced plan and dependencies.", "9_Transformation_Roadmap"),

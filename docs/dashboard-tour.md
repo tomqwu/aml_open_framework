@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **30 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **31 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -151,6 +151,12 @@ Executes data contract quality checks (`not_null`, `unique` constraints) against
 
 ![Data Quality](screenshots/14_data_quality.png)
 
+### Data Integration
+
+The 30-second answer to *"what data is flowing through this AML program?"* — built for the Data Engineer / Head of Data persona. Five sections: KPI strip (sources wired / contracts validated / freshness OK / checks passing), source catalogue (the 9 connectors `data/sources.py` ships, with per-connector status), contract roll-up in whitepaper vocabulary (completeness / staleness / checks — avoids the bare phrase "data quality" per the [whitepaper style guide](research/2026-05-aml-data-problem.md)), ISO 20022 message-type counts (pacs.008 / pacs.009 / pacs.004 / pain.001 parsed this run), and a DATA-N → framework artifact map linking each of the 11 whitepaper data pains to the page / CLI command that closes it.
+
+![Data Integration](screenshots/30_data_integration.png)
+
 ### Run History
 
 Past engine executions from the persistence layer (SQLite locally, PostgreSQL in production). Shows current session metadata, stored runs with spec hashes, and run manifest for audit traceability.
@@ -231,7 +237,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The same 29 pages serve 12 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 9 pages):
+The same 31 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 9 pages):
 
 | Persona | Primary pages |
 |---|---|

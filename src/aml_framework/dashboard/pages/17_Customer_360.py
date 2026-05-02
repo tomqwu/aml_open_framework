@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
@@ -63,6 +66,96 @@ st.markdown(
     f"</div>",
     unsafe_allow_html=True,
 )
+
+# Per-attribute staleness clock — DATA-2 surface (PR-DATAVIZ-1).
+# The whitepaper promises *"Customer 360 surfaces the staleness clock
+# per attribute"* — render a small expander that walks every
+# timestamp-shaped attribute on the customer record and shows
+# (value · age in days · within-window verdict) so the analyst can
+# spot a stale KYC field without leaving the page.
+#
+# Threshold: when the spec's data_contract declares
+# `max_staleness_days` for the column (PR-DATA-2), use that. Otherwise
+# fall back to 365 days (the FATF / FINTRAC default review cadence).
+_as_of_for_staleness = st.session_state.get("as_of") or pd.Timestamp.utcnow().to_pydatetime()
+_customer_contract = next(
+    (c for c in spec.data_contracts if c.id == "customer"),
+    None,
+)
+_staleness_pin: dict[str, int] = {}
+if _customer_contract is not None:
+    for _col in _customer_contract.columns:
+        if _col.max_staleness_days is not None:
+            _staleness_pin[_col.name] = _col.max_staleness_days
+
+_staleness_rows: list[dict[str, Any]] = []
+for _attr_name, _attr_value in cust.items():
+    # Only timestamp-shaped attributes — keyed by suffix conventions
+    # (`*_at`, `*_review`, `*_refreshed`). Avoids surfacing every
+    # numeric column as a clock.
+    if not (
+        _attr_name.endswith("_at")
+        or _attr_name.endswith("_review")
+        or _attr_name.endswith("_refreshed")
+    ):
+        continue
+    if pd.isna(_attr_value):
+        _staleness_rows.append(
+            {
+                "Attribute": _attr_name,
+                "Last refreshed": "—",
+                "Age (days)": None,
+                "Window (days)": _staleness_pin.get(_attr_name, 365),
+                "State": "missing",
+            }
+        )
+        continue
+    try:
+        _ts = pd.to_datetime(_attr_value).to_pydatetime().replace(tzinfo=None)
+    except (ValueError, TypeError):
+        continue
+    _age_days = max(0, (_as_of_for_staleness - _ts).days)
+    _window = _staleness_pin.get(_attr_name, 365)
+    if _age_days > _window:
+        _state = "stale"
+    elif _age_days > _window * 0.8:
+        _state = "warning"
+    else:
+        _state = "fresh"
+    _staleness_rows.append(
+        {
+            "Attribute": _attr_name,
+            "Last refreshed": str(_attr_value)[:10],
+            "Age (days)": _age_days,
+            "Window (days)": _window,
+            "State": _state,
+        }
+    )
+
+if _staleness_rows:
+    with st.expander("Per-attribute staleness clock (DATA-2)"):
+        st.caption(
+            "Each timestamp-shaped attribute on the customer record · age vs "
+            "the window declared by `data_contracts[customer].columns[*].max_staleness_days` "
+            "(falls back to the FATF/FINTRAC 365-day default). Spec-pinned columns "
+            "show their explicit window in the Window column."
+        )
+        from aml_framework.dashboard.components import data_grid as _data_grid
+
+        _data_grid(
+            pd.DataFrame(_staleness_rows),
+            key="customer360_staleness_clock",
+            palette_cols={
+                "State": {
+                    "stale": "#dc2626",
+                    "warning": "#d97706",
+                    "fresh": "#16a34a",
+                    "missing": "#6b7280",
+                }
+            },
+            pinned_left=["Attribute"],
+            height=min(35 * len(_staleness_rows) + 60, 260),
+        )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
