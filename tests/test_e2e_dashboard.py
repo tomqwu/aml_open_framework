@@ -45,6 +45,15 @@ PAGES = [
     "Comparative Analytics",
     "Spec Editor",
     "My Queue",
+    "Analyst Review Queue",
+    "Tuning Lab",
+    "Investigations",
+    "BOI Workflow",
+    "FinTech Cockpit",
+    "Regulator Pulse",
+    "Metrics Taxonomy",
+    "AI Assistant",
+    "Information Sharing",
 ]
 
 

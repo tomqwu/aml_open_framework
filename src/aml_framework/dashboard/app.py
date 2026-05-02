@@ -274,6 +274,39 @@ ALL_PAGES = [
         title="Investigations",
         icon=":material/group_work:",
     ),
+    # Pages 25-31 — exist on disk + audience routing + tour coverage but
+    # were never wired into runtime nav until this fix. Audience filter
+    # below already references their titles in AUDIENCE_PAGES.
+    st.Page(
+        "pages/25_BOI_Workflow.py",
+        title="BOI Workflow",
+        icon=":material/business:",
+    ),
+    st.Page(
+        "pages/26_FinTech_Cockpit.py",
+        title="FinTech Cockpit",
+        icon=":material/rocket_launch:",
+    ),
+    st.Page(
+        "pages/27_Regulator_Pulse.py",
+        title="Regulator Pulse",
+        icon=":material/podcasts:",
+    ),
+    st.Page(
+        "pages/28_Metrics_Taxonomy.py",
+        title="Metrics Taxonomy",
+        icon=":material/category:",
+    ),
+    st.Page(
+        "pages/29_AI_Assistant.py",
+        title="AI Assistant",
+        icon=":material/smart_toy:",
+    ),
+    st.Page(
+        "pages/31_Information_Sharing.py",
+        title="Information Sharing",
+        icon=":material/share:",
+    ),
 ]
 
 # Filter pages by audience if one is selected.
