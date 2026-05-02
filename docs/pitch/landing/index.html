@@ -1154,12 +1154,44 @@
         <div class="stat-strip">
           <span><strong>10</strong>example specs</span>
           <span><strong>8</strong>curated typologies</span>
-          <span><strong>30</strong>dashboard pages</span>
+          <span><strong>31</strong>dashboard pages</span>
           <span><strong>38</strong>CLI commands</span>
-          <span><strong>1,850+</strong>tests · all green</span>
+          <span><strong>1,910+</strong>tests · all green</span>
           <span><strong>5</strong>jurisdictions</span>
           <span><strong>Apache 2.0</strong>licence</span>
         </div>
+      </header>
+
+      <!-- Second hero variant — data-framed (PR-DATAVIZ-3). The
+           evidence hero above frames *what we ship* (replay,
+           manifest, hash chain). This second variant frames *the
+           binding constraint underneath* (data integration), per the
+           "Data is the AML problem" whitepaper. They're stacked, not
+           A/B-tested — a visitor reads evidence first, then drops
+           into the data layer that makes evidence possible. -->
+      <header class="hero hero-data" style="margin-top: 32px;">
+        <div class="eyebrow">The data layer underneath</div>
+        <h1 class="title"><em>Connect once.</em> Validate forever.</h1>
+        <p class="lede">
+          AML's binding constraint isn't detection — it's getting one clean view across
+          core banking, payment rails, KYC, sanctions, and fraud. The framework ships
+          <strong>9 connectors</strong> (CSV / Parquet / DuckDB / Snowflake / BigQuery /
+          S3 / GCS / synthetic / <strong>ISO 20022 native</strong>), <strong>data-contract
+          enforcement</strong> with per-attribute freshness pinning, and a <strong>DATA-N →
+          artifact map</strong> linking each of the 11 whitepaper data pains to the page
+          / CLI / module that closes it.
+        </p>
+        <div class="stat-strip">
+          <span><strong>9</strong>connectors out of the box</span>
+          <span><strong>ISO 20022</strong>pacs.008 · pacs.009 · pacs.004 · pain.001</span>
+          <span><strong>11</strong>data pains, one surface</span>
+          <span><strong>Fail-closed</strong>contract validation</span>
+        </div>
+        <p class="lede" style="margin-top: 16px;">
+          See it live: <a href="#/research/data-problem">Data Problem whitepaper</a> ·
+          <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration">Data Integration page</a> ·
+          <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/architecture.md#data-integration">Architecture · Data integration</a>.
+        </p>
       </header>
 
       <section class="block" id="picker">
@@ -1669,6 +1701,12 @@
             <h4>Data is the AML problem — 11 faces, primary-source only</h4>
             <p>The binding constraint underneath audit-defensibility is data — completeness, accuracy, lineage, sovereignty. Anchored in BCBS 239, FinCEN's April 2026 NPRM, OSFI E-23 / B-13, FCA Annex 1, and the largest 2024 enforcement orders (TD, RBC, HSBC's $670B unmonitored).</p>
             <span class="link">research/data-problem → opens in viewer</span>
+          </a>
+          <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration" target="_blank" rel="noopener">
+            <div class="kind">Framework · Dashboard surface</div>
+            <h4>Data Integration — 9 connectors, ISO 20022 native, contract-validated</h4>
+            <p>The operator-facing answer to <em>"what data is flowing through this AML program?"</em>. Source catalogue, contract roll-up in whitepaper vocabulary (completeness / staleness / checks), ISO 20022 message-type counts, and a DATA-N → artifact map linking each of the 11 whitepaper data pains to the page / CLI / module that closes it.</p>
+            <span class="link">docs/dashboard-tour.md#data-integration → GitHub</span>
           </a>
           <a class="more-card" href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener">
             <div class="kind">Source · GitHub</div>

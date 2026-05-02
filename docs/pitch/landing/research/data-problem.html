@@ -329,6 +329,56 @@
     </div>
   </div>
 
+  <div class="r-block">
+    <h2 class="r-block-h">Where the framework closes each pain — DATA-N → artifact map</h2>
+    <p class="r-block-dek">Every claim above maps to a concrete framework artifact: a dashboard page, a CLI command, or a Python module. The same map renders inside the dashboard on the <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration">Data Integration page</a> so operators can verify each row in one click.</p>
+
+    <div class="r-row">
+      <div class="row-key">DATA-1 · Fail-closed contract validation</div>
+      <div class="row-val"><strong>Page</strong>: Data Integration · contract roll-up · Data Quality. <strong>CLI</strong>: <code>aml validate-data</code> · <code>aml run --strict</code>. <strong>Module</strong>: <code>engine/runner.py::_validate_contracts</code>.</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-2 · Per-attribute freshness pinning</div>
+      <div class="row-val"><strong>Page</strong>: Customer 360 (staleness expander) · Data Integration. <strong>CLI</strong>: <code>aml run --strict</code> refuses stale attributes. <strong>Module</strong>: <code>spec/models.py::Column.max_staleness_days</code> + <code>engine/freshness.py</code>.</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-3 · Cross-system reconciliation</div>
+      <div class="row-val"><strong>Page</strong>: Audit & Evidence (decision log) — richer reconciliation view planned. <strong>CLI</strong>: <code>aml run</code> emits <code>reconciliation.jsonl</code> per contract.</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-4 · Lineage walk-back from KPI</div>
+      <div class="row-val"><strong>Page</strong>: Audit & Evidence · decision log. <strong>CLI</strong>: <code>aml export --include-lineage</code>. <strong>Module</strong>: <code>engine/audit.py::walk_lineage</code>.</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-5 · In-bank, not SaaS (data sovereignty)</div>
+      <div class="row-val"><strong>Page</strong>: Data Integration · source catalogue — the deployment topology IS the source list. <strong>Deploy</strong>: Docker / Helm. <strong>Module</strong>: <code>data/sources.py</code> (no SaaS dependency in any loader).</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-6 · AI presumes data (fail-closed gate)</div>
+      <div class="row-val">Closes transitively via DATA-1. <strong>CLI</strong>: <code>aml run --strict</code> halts on contract violation before any LLM call. <strong>Module</strong>: <code>assistant/factory.py</code> checks contract pass before backend invocation.</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-7 · Engineering vs Compliance ownership boundary</div>
+      <div class="row-val"><strong>Page</strong>: Spec Editor · Data Integration. <strong>CLI</strong>: <code>aml validate</code> (engineering) · <code>aml attest</code> (compliance). <strong>Module</strong>: <code>spec/models.py</code> — the boundary IS the spec.</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-8 · Payment-rail data (ISO 20022 native)</div>
+      <div class="row-val"><strong>Page</strong>: Data Integration · ISO 20022 message-type chart. <strong>CLI</strong>: <code>aml run --data-source iso20022 --data-dir &lt;xml-dir&gt;</code>. <strong>Module</strong>: <code>data/iso20022/parser.py</code> (pacs.008/009/004 + pain.001).</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-9 · STR/SAR filing-latency wall-clock</div>
+      <div class="row-val"><strong>Page</strong>: Audit & Evidence — <code>cases/&lt;id&gt;__filing.json</code> sidecars. <strong>CLI</strong>: <code>aml export</code> rolls filing latency into the bundle. <strong>Module</strong>: <code>cases/str_bundle.py</code>.</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-10 · Cross-bank information sharing</div>
+      <div class="row-val"><strong>Page</strong>: Information Sharing · share-pattern artifacts. <strong>CLI</strong>: <code>aml share-pattern</code> · <code>aml verify-pattern</code>. <strong>Module</strong>: <code>compliance/sandbox.py</code> (FATF R.18 / 314(b) seam).</div>
+    </div>
+    <div class="r-row">
+      <div class="row-key">DATA-11 · Spec as data contract (versioned, hashable)</div>
+      <div class="row-val"><strong>Page</strong>: Audit & Evidence — spec hash on every run. <strong>CLI</strong>: <code>aml validate</code> (JSON Schema + Pydantic two-layer). <strong>Module</strong>: <code>spec/loader.py</code> + <code>engine/audit.py</code> (hash-chained ledger).</div>
+    </div>
+  </div>
+
   <div class="r-foot">
     <a href="../#/">← back to resource hub</a>
     <span class="gh">view source on <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md">github</a></span>
