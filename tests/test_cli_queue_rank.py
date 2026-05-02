@@ -45,6 +45,13 @@ def _newest_run(artifacts: Path) -> Path:
     return sorted(artifacts.glob("run-*"), reverse=True)[0]
 
 
+def _normalise(output: str) -> str:
+    """Collapse whitespace so substring asserts survive Rich's
+    terminal-width wrapping (CI runs in narrower terminals than dev
+    laptops, and Rich will insert a newline mid-phrase)."""
+    return " ".join(output.split())
+
+
 class TestQueueRankCli:
     def test_prints_ranked_table(self, run_artifacts: Path) -> None:
         runner = CliRunner()
@@ -62,8 +69,9 @@ class TestQueueRankCli:
         assert result.exit_code == 0, result.output
         # Table title + score column header are stable strings rendered by
         # Rich. Check both — header alone could match an unrelated table.
-        assert "Triage rank" in result.output
-        assert "Score" in result.output
+        normalised = _normalise(result.output)
+        assert "Triage rank" in normalised
+        assert "Score" in normalised
 
     def test_top_n_caps_rendered_rows(self, run_artifacts: Path) -> None:
         runner = CliRunner()
@@ -78,7 +86,7 @@ class TestQueueRankCli:
             ["queue-rank", str(SPEC_CA), "--run-dir", str(run_dir), "--top", "1"],
         )
         assert result.exit_code == 0, result.output
-        assert f"top 1 of {cases_count}" in result.output
+        assert f"top 1 of {cases_count}" in _normalise(result.output)
 
     def test_artifacts_arg_finds_newest_run(self, run_artifacts: Path) -> None:
         # Operator runs `aml queue-rank spec.yaml` without --run-dir from
@@ -90,7 +98,7 @@ class TestQueueRankCli:
             ["queue-rank", str(SPEC_CA), "--artifacts", str(run_artifacts)],
         )
         assert result.exit_code == 0, result.output
-        assert "Triage rank" in result.output
+        assert "Triage rank" in _normalise(result.output)
 
     def test_missing_artifacts_dir_exits_with_actionable_error(self, tmp_path: Path) -> None:
         runner = CliRunner()
@@ -101,8 +109,9 @@ class TestQueueRankCli:
             ["queue-rank", str(SPEC_CA), "--artifacts", str(empty_artifacts)],
         )
         assert result.exit_code == 1
-        assert "No run dirs" in result.output
-        assert "aml run" in result.output  # tells operator what to do next
+        normalised = _normalise(result.output)
+        assert "No run dirs" in normalised
+        assert "aml run" in normalised  # tells operator what to do next
 
     def test_run_dir_without_cases_dir_exits_with_error(self, tmp_path: Path) -> None:
         # A run dir that exists but has no cases/ subdir — point at it
@@ -115,7 +124,7 @@ class TestQueueRankCli:
             ["queue-rank", str(SPEC_CA), "--run-dir", str(run_dir)],
         )
         assert result.exit_code == 1
-        assert "No cases dir" in result.output
+        assert "No cases dir" in _normalise(result.output)
 
     def test_empty_cases_dir_yields_friendly_message(self, tmp_path: Path) -> None:
         run_dir = tmp_path / "run-empty"
@@ -128,7 +137,7 @@ class TestQueueRankCli:
         # Empty cases is a not-an-error condition: the operator did the
         # right thing, the engine just emitted nothing this run.
         assert result.exit_code == 0
-        assert "No cases" in result.output
+        assert "No cases" in _normalise(result.output)
 
     def test_filing_sidecars_skipped(self, run_artifacts: Path, tmp_path: Path) -> None:
         # Drop a fake __filing.json into a cases dir alongside one real
@@ -152,5 +161,6 @@ class TestQueueRankCli:
         )
         assert result.exit_code == 0, result.output
         # Only the real case should be in the count.
-        assert "of 1 cases" in result.output
-        assert "C9999" not in result.output
+        normalised = _normalise(result.output)
+        assert "of 1 cases" in normalised
+        assert "C9999" not in normalised
