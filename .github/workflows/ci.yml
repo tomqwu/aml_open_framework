@@ -132,7 +132,9 @@ jobs:
               tenant_id="bank_a",
           )
           assert get_run("ci-postgres-smoke")["program"]["name"] == "ci"
-          assert get_run_alerts("ci-postgres-smoke")["rule_a"][0]["customer_id"] == "C1"
+          alerts = get_run_alerts("ci-postgres-smoke")
+          assert alerts[0]["rule_id"] == "rule_a"
+          assert alerts[0]["alerts"][0]["customer_id"] == "C1"
           assert get_run_metrics("ci-postgres-smoke")[0]["id"] == "m1"
           assert any(r["run_id"] == "ci-postgres-smoke" for r in list_runs("bank_a"))
           PY
