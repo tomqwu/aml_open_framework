@@ -457,6 +457,72 @@ class TestOIDCDisablesLogin:
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestOIDCValidation:
+    def test_json_url_requires_object_response(self, monkeypatch):
+        import json
+        import aml_framework.api.auth as auth_mod
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps(["not", "an", "object"]).encode("utf-8")
+
+        monkeypatch.setattr(auth_mod, "urlopen", lambda *args, **kwargs: FakeResponse())
+
+        with pytest.raises(ValueError, match="did not return an object"):
+            auth_mod._json_url("https://issuer.example.com/.well-known/openid-configuration")
+
+    def test_oidc_config_and_jwks_are_cached(self, monkeypatch):
+        import aml_framework.api.auth as auth_mod
+
+        calls = []
+
+        def fake_json_url(url):
+            calls.append(url)
+            if url.endswith("/.well-known/openid-configuration"):
+                return {"jwks_uri": "https://issuer.example.com/jwks"}
+            return {"keys": [{"kid": "1"}]}
+
+        monkeypatch.setattr(auth_mod, "_OIDC_ISSUER", "https://issuer.example.com/")
+        monkeypatch.setattr(auth_mod, "_OIDC_CONFIG_CACHE", None)
+        monkeypatch.setattr(auth_mod, "_OIDC_JWKS_CACHE", None)
+        monkeypatch.setattr(auth_mod, "_json_url", fake_json_url)
+
+        assert auth_mod._oidc_config() == {"jwks_uri": "https://issuer.example.com/jwks"}
+        assert auth_mod._oidc_config() == {"jwks_uri": "https://issuer.example.com/jwks"}
+        assert auth_mod._oidc_jwks() == {"keys": [{"kid": "1"}]}
+        assert auth_mod._oidc_jwks() == {"keys": [{"kid": "1"}]}
+        assert calls == [
+            "https://issuer.example.com/.well-known/openid-configuration",
+            "https://issuer.example.com/jwks",
+        ]
+
+    def test_oidc_jwks_requires_uri(self, monkeypatch):
+        import aml_framework.api.auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "_OIDC_CONFIG_CACHE", None)
+        monkeypatch.setattr(auth_mod, "_OIDC_JWKS_CACHE", None)
+        monkeypatch.setattr(auth_mod, "_oidc_config", lambda: {})
+
+        with pytest.raises(ValueError, match="no jwks_uri"):
+            auth_mod._oidc_jwks()
+
+    def test_claim_and_first_role_helpers(self, monkeypatch):
+        import aml_framework.api.auth as auth_mod
+
+        payload = {"realm_access": {"roles": ["manager"]}}
+        assert auth_mod._claim(payload, "realm_access.roles") == ["manager"]
+        assert auth_mod._claim(payload, "missing.path", default="fallback") == "fallback"
+        assert auth_mod._claim({"roles": []}, "roles.0", default="fallback") == "fallback"
+        assert auth_mod._first_role(["admin", "analyst"]) == "admin"
+        assert auth_mod._first_role("analyst auditor") == "analyst"
+        monkeypatch.setenv("OIDC_DEFAULT_ROLE", "auditor")
+        assert auth_mod._first_role([]) == "auditor"
+
     def test_oidc_claim_mapping(self, monkeypatch):
         import aml_framework.api.auth as auth_mod
 

@@ -24,4 +24,4 @@ class NarrativeDrafter(Protocol):
 
     def draft(self, evidence: CaseEvidence) -> DraftedNarrative:
         """Produce a structured narrative from case evidence."""
-        ...
+        ...  # pragma: no cover

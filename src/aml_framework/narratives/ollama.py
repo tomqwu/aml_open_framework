@@ -71,7 +71,9 @@ Case facts:
 """
 
 
-def _call_ollama(url: str, model: str, prompt: str, *, timeout: float = 60.0) -> dict[str, Any]:
+def _call_ollama(
+    url: str, model: str, prompt: str, *, timeout: float = 60.0
+) -> dict[str, Any]:  # pragma: no cover
     """POST to Ollama's /api/generate with format=json, return parsed body.
 
     Isolated so tests patch this single function. Returns the raw Ollama

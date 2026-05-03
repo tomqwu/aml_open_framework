@@ -17,7 +17,7 @@ test-coverage: ## Run non-browser tests with the configured coverage gate
 		--ignore=tests/test_e2e_dashboard_mobile.py \
 		--cov=aml_framework \
 		--cov-report=term-missing \
-		--cov-fail-under=89 \
+		--cov-fail-under=98 \
 		-q
 
 test-all: ## Run all tests including Playwright browser tests

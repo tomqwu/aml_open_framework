@@ -45,7 +45,7 @@ jobs:
             --ignore=tests/test_e2e_dashboard_mobile.py \
             --cov=aml_framework \
             --cov-report=term-missing \
-            --cov-fail-under=89 \
+            --cov-fail-under=98 \
             -q
 
   api-tests:
