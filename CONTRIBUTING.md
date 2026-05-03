@@ -9,6 +9,7 @@ python3 -m venv .venv && source .venv/bin/activate    # Python >= 3.10 required
 pip install -e ".[dev,dashboard,api]"
 make validate   # check all specs
 make test       # run unit + API tests (~20s)
+make test-coverage  # run the non-browser suite with the 89% coverage gate
 ```
 
 > **macOS note:** the system `python3` is 3.9 and fails the `>=3.10` pin. Install a current Python (`brew install python`) before creating the venv. Verified working on 3.12 and 3.14.
@@ -41,11 +42,12 @@ make test       # run unit + API tests (~20s)
    ```bash
    ruff format src/ tests/
    ruff check src/ tests/
-   pytest tests/ --ignore=tests/test_e2e_dashboard.py -q
-   pytest tests/test_e2e_dashboard.py -q   # Playwright (optional, runs in CI)
+   pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_dashboard_mobile.py -q
+   pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_dashboard_mobile.py --cov=aml_framework --cov-report=term-missing --cov-fail-under=89 -q
+   pytest tests/test_e2e_dashboard.py tests/test_e2e_dashboard_mobile.py -q   # Playwright (optional, runs in CI)
    ```
 4. Push and open a PR against `main`
-5. Wait for all 5 CI jobs to pass (lint, unit-tests, api-tests, e2e-dashboard, docker-build)
+5. Wait for all CI jobs to pass (lint, unit-tests, coverage, api-tests, e2e-dashboard, docker-build, postgres-integration, deployment-validation, security-audit)
 6. Get review and merge
 
 ## Key Rules

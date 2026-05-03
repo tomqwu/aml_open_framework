@@ -27,7 +27,7 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://aml:aml_dev_password@postgres:5432/aml
-      JWT_SECRET: ${JWT_SECRET:-aml-framework-dev-secret}
+      JWT_SECRET: ${JWT_SECRET:-aml-framework-dev-secret-32-bytes-minimum}
 
   dashboard:
     build: .

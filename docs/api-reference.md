@@ -25,9 +25,11 @@ docker-compose up api
 ## Authentication
 
 The reference implementation ships demo users (`admin`, `analyst`, `auditor`,
-`manager`, all with password equal to username). Replace the auth backend in
-`api/auth.py` before any non-demo deployment, or configure OIDC via
-`OIDC_ISSUER_URL` / `OIDC_AUDIENCE`.
+`manager`, all with password equal to username). Replace the auth backend before
+any non-demo deployment, or configure OIDC via `OIDC_ISSUER_URL` /
+`OIDC_AUDIENCE`. Role and tenant claims are configurable with
+`OIDC_ROLE_CLAIM` and `OIDC_TENANT_CLAIM`; use `OIDC_ALLOWED_TENANTS` to reject
+tokens from unexpected tenants.
 
 ### `POST /api/v1/login`
 
@@ -46,7 +48,7 @@ Response `200`:
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
   "token_type": "bearer",
   "role": "admin",
-  "tenant": "default"
+  "tenant": "bank_a"
 }
 ```
 
@@ -90,8 +92,13 @@ Fields:
 |-------|------|---------|-------|
 | `spec_path` | string | `examples/canadian_schedule_i_bank/aml.yaml` | Path relative to project root |
 | `seed` | integer | `42` | Synthetic data seed; ignored for non-synthetic sources |
-| `data_source` | string | `synthetic` | One of `synthetic`, `csv`, `parquet`, `duckdb`, `s3`, `gcs`, `snowflake`, `bigquery` |
-| `data_dir` | string \| null | `null` | Required for file-based sources |
+| `data_source` | string | `synthetic` | One of `synthetic`, `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery` |
+| `data_dir` | string \| null | `null` | Required for CSV, Parquet, ISO20022, S3, GCS, Snowflake, and BigQuery |
+| `db_path` | string \| null | `null` | Required for DuckDB |
+
+For API calls, local file inputs must resolve under `API_DATA_ROOTS` (default:
+`data`). Remote sources (`s3`, `gcs`, `snowflake`, `bigquery`) are disabled
+unless `API_ALLOW_REMOTE_DATA_SOURCES=1`.
 
 Response `200`:
 
@@ -160,7 +167,7 @@ Export alerts as Common Event Format for SIEM ingestion.
 Response `200`:
 
 ```json
-{ "cef": "CEF:0|AML Open Framework|engine|0.1.0|...|" }
+{ "format": "cef", "data": "CEF:0|AML Open Framework|engine|0.1.0|...|" }
 ```
 
 Errors: `404` when the run is unknown or has zero alerts.
@@ -189,7 +196,7 @@ Response `200` (valid):
 Response `200` (invalid):
 
 ```json
-{ "valid": false, "error": "rule 'foo' references unknown queue 'l3_review'" }
+{ "valid": false, "error": "Spec failed validation. See server logs for details." }
 ```
 
 Errors: `404` if `spec_path` is not found.
@@ -201,8 +208,10 @@ List spec versions stored for the calling user's tenant. Each entry includes
 
 ## Webhooks
 
-In-memory registration of HTTP callbacks fired on engine events. Suitable for
-demos and local integration tests; persist to your message bus in production.
+In-memory, tenant-scoped registration of HTTP callbacks fired on engine events.
+Suitable for demos and local integration tests; persist to your message bus in
+production. Webhook secrets are stored for signing only and are not returned by
+the list endpoint.
 
 ### `POST /api/v1/webhooks`
 
@@ -214,7 +223,8 @@ Request:
 {
   "name": "ops-slack",
   "url": "https://hooks.slack.com/services/...",
-  "events": ["alert_created", "run_completed"]
+  "events": ["alert_created", "run_completed"],
+  "secret": "optional-shared-signing-secret"
 }
 ```
 
@@ -222,17 +232,30 @@ Supported events: `alert_created`, `run_completed`.
 
 ### `GET /api/v1/webhooks`
 
-List registered webhooks.
+List registered webhooks for the calling user's tenant. The response includes
+`signed: true` when a signing secret is configured, but never returns the
+secret.
 
 ## Data upload
 
 ### `POST /api/v1/upload`
 
-Stub endpoint for `multipart/form-data` CSV uploads. Documents the intended
-flow: upload `txn.csv` and `customer.csv`, then call `POST /runs` with
-`data_source=csv` and `data_dir` pointing at the upload directory. The
-reference implementation does not yet persist the uploaded files — wire this
-to your storage layer before use.
+Tenant-scoped `multipart/form-data` CSV upload. Pass one or both file fields:
+`txn_file` and `customer_file`. The API stores them under `API_UPLOAD_ROOT`
+(default `data/uploads`) and returns a `data_dir` for a follow-up
+`POST /runs` request with `data_source=csv`.
+
+Response `200`:
+
+```json
+{
+  "status": "uploaded",
+  "tenant": "bank_a",
+  "upload_id": "a1b2c3d4",
+  "data_dir": "/abs/path/data/uploads/bank_a/a1b2c3d4",
+  "files": ["txn.csv", "customer.csv"]
+}
+```
 
 ## Endpoint summary
 

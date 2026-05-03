@@ -103,4 +103,6 @@ def test_demo_persona_steps_reference_correct_artifacts_dir(
     path, not a hardcoded .artifacts/demo. This matters when the demo
     is invoked from outside the repo."""
     output = _invoke_demo(runner, tmp_path, persona="auditor")
-    assert str(tmp_path / "demo") in output
+    # Rich may wrap long temp paths across lines, so compare without
+    # presentation whitespace.
+    assert str(tmp_path / "demo") in "".join(output.split())

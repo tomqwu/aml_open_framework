@@ -1,3 +1,6 @@
+{{- if and (not .Values.postgres.enabled) (not .Values.database.url) }}
+{{- fail "database.url is required when postgres.enabled=false" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,12 +26,41 @@ spec:
             - containerPort: {{ .Values.api.port }}
           env:
             - name: DATABASE_URL
+              {{- if .Values.postgres.enabled }}
               value: "postgresql://{{ .Values.postgres.username }}:{{ .Values.postgres.password }}@{{ .Release.Name }}-postgres:5432/{{ .Values.postgres.database }}"
+              {{- else }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-secrets
+                  key: database-url
+              {{- end }}
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-secrets
                   key: jwt-secret
+            - name: API_DATA_ROOTS
+              value: {{ .Values.api.dataRoots | quote }}
+            - name: API_UPLOAD_ROOT
+              value: {{ .Values.api.uploadRoot | quote }}
+            - name: API_ALLOW_REMOTE_DATA_SOURCES
+              value: {{ ternary "1" "0" .Values.api.allowRemoteDataSources | quote }}
+            {{- if .Values.oidc.issuerUrl }}
+            - name: OIDC_ISSUER_URL
+              value: {{ .Values.oidc.issuerUrl | quote }}
+            {{- end }}
+            {{- if .Values.oidc.audience }}
+            - name: OIDC_AUDIENCE
+              value: {{ .Values.oidc.audience | quote }}
+            {{- end }}
+            - name: OIDC_ROLE_CLAIM
+              value: {{ .Values.oidc.roleClaim | quote }}
+            - name: OIDC_TENANT_CLAIM
+              value: {{ .Values.oidc.tenantClaim | quote }}
+            {{- if .Values.oidc.allowedTenants }}
+            - name: OIDC_ALLOWED_TENANTS
+              value: {{ .Values.oidc.allowedTenants | quote }}
+            {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           livenessProbe:

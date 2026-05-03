@@ -1,4 +1,4 @@
-.PHONY: install test lint run dashboard api docker clean help demo
+.PHONY: install test test-coverage test-all test-e2e lint run dashboard api docker clean help demo
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -7,13 +7,24 @@ install: ## Install with all optional dependencies
 	pip install -e ".[dev,dashboard,api]"
 
 test: ## Run unit + API tests (fast, no browser)
-	pytest tests/ --ignore=tests/test_e2e_dashboard.py -q
+	pytest tests/ \
+		--ignore=tests/test_e2e_dashboard.py \
+		--ignore=tests/test_e2e_dashboard_mobile.py -q
+
+test-coverage: ## Run non-browser tests with the configured coverage gate
+	pytest tests/ \
+		--ignore=tests/test_e2e_dashboard.py \
+		--ignore=tests/test_e2e_dashboard_mobile.py \
+		--cov=aml_framework \
+		--cov-report=term-missing \
+		--cov-fail-under=89 \
+		-q
 
 test-all: ## Run all tests including Playwright browser tests
 	pytest tests/ -q
 
 test-e2e: ## Run Playwright browser tests only
-	pytest tests/test_e2e_dashboard.py -q
+	pytest tests/test_e2e_dashboard.py tests/test_e2e_dashboard_mobile.py -q
 
 lint: ## Run linter
 	ruff check src/ tests/

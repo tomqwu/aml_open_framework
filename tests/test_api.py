@@ -132,7 +132,7 @@ class TestRequireRole:
         from aml_framework.api.auth import require_role
 
         dep = require_role("admin")
-        result = asyncio.get_event_loop().run_until_complete(dep({"sub": "admin", "role": "admin"}))
+        result = asyncio.run(dep({"sub": "admin", "role": "admin"}))
         assert result["role"] == "admin"
 
     def test_require_role_rejects_analyst(self):
@@ -141,7 +141,7 @@ class TestRequireRole:
 
         dep = require_role("admin")
         with pytest.raises(HTTPException) as exc_info:
-            asyncio.get_event_loop().run_until_complete(dep({"sub": "analyst", "role": "analyst"}))
+            asyncio.run(dep({"sub": "analyst", "role": "analyst"}))
         assert exc_info.value.status_code == 403
 
 
@@ -229,6 +229,37 @@ class TestPathTraversal:
         body = resp.json()
         assert body["valid"] is False
         assert "server logs" in body["error"].lower()
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestAPIDataSourceValidation:
+    def test_file_source_rejects_data_dir_outside_allowed_roots(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "spec_path": "examples/canadian_schedule_i_bank/aml.yaml",
+                "data_source": "csv",
+                "data_dir": "/tmp",
+            },
+        )
+        assert resp.status_code == 400
+        assert "data_dir" in resp.json()["detail"]
+
+    def test_remote_sources_disabled_by_default(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/runs",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "spec_path": "examples/canadian_schedule_i_bank/aml.yaml",
+                "data_source": "s3",
+                "data_dir": "s3://example-bucket/data",
+            },
+        )
+        assert resp.status_code == 400
+        assert "Remote data sources are disabled" in resp.json()["detail"]
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
@@ -346,6 +377,75 @@ class TestTenantIsolation:
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestWebhookTenantIsolation:
+    def test_list_webhooks_filters_tenant_and_redacts_secret(self, monkeypatch):
+        import aml_framework.api.main as main_mod
+
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
+        main_mod._webhooks.clear()
+        token_a = _token("admin")
+        token_b = _token("bank_b_admin", "admin")
+
+        client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token_a}"},
+            json={
+                "name": "bank-a-hook",
+                "url": "https://hooks.example.com/a",
+                "events": ["run_completed"],
+                "secret": "secret-a",
+            },
+        )
+        client.post(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token_b}"},
+            json={
+                "name": "bank-b-hook",
+                "url": "https://hooks.example.com/b",
+                "events": ["run_completed"],
+                "secret": "secret-b",
+            },
+        )
+
+        hooks_a = client.get(
+            "/api/v1/webhooks",
+            headers={"Authorization": f"Bearer {token_a}"},
+        ).json()
+        assert {h["name"] for h in hooks_a} == {"bank-a-hook"}
+        assert "secret" not in hooks_a[0]
+        assert hooks_a[0]["signed"] is True
+        main_mod._webhooks.clear()
+
+    @patch("urllib.request.urlopen")
+    def test_fire_webhooks_filters_by_tenant(self, mock_urlopen, monkeypatch):
+        import aml_framework.api.main as main_mod
+
+        monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
+        main_mod._webhooks.clear()
+        main_mod._webhooks.extend(
+            [
+                {
+                    "name": "a",
+                    "url": "https://hooks.example.com/a",
+                    "events": ["run_completed"],
+                    "tenant_id": "bank_a",
+                },
+                {
+                    "name": "b",
+                    "url": "https://hooks.example.com/b",
+                    "events": ["run_completed"],
+                    "tenant_id": "bank_b",
+                },
+            ]
+        )
+        main_mod._fire_webhooks("run_completed", {"run_id": "r1"}, tenant_id="bank_b")
+        assert mock_urlopen.call_count == 1
+        request = mock_urlopen.call_args.args[0]
+        assert request.full_url == "https://hooks.example.com/b"
+        main_mod._webhooks.clear()
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestOIDCDisablesLogin:
     def test_login_returns_404_when_oidc_enabled(self, monkeypatch):
         import aml_framework.api.auth as auth_mod
@@ -353,6 +453,48 @@ class TestOIDCDisablesLogin:
         monkeypatch.setattr(auth_mod, "_OIDC_ISSUER", "https://example.com")
         resp = client.post("/api/v1/login", json={"username": "admin", "password": "admin"})
         assert resp.status_code == 404
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestOIDCValidation:
+    def test_oidc_claim_mapping(self, monkeypatch):
+        import aml_framework.api.auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "_OIDC_ISSUER", "https://issuer.example.com")
+        monkeypatch.setenv("OIDC_ROLE_CLAIM", "realm_access.roles")
+        monkeypatch.setenv("OIDC_TENANT_CLAIM", "tenant.id")
+        monkeypatch.setenv("OIDC_ALLOWED_TENANTS", "bank_a")
+        with (
+            patch.object(auth_mod, "_oidc_jwks", return_value={"keys": []}),
+            patch(
+                "jose.jwt.decode",
+                return_value={
+                    "sub": "user-1",
+                    "realm_access": {"roles": ["manager"]},
+                    "tenant": {"id": "bank_a"},
+                },
+            ),
+        ):
+            user = auth_mod._verify_oidc_token("token")
+        assert user == {"sub": "user-1", "role": "manager", "tenant": "bank_a"}
+
+    def test_oidc_rejects_unallowed_tenant_with_generic_error(self, monkeypatch):
+        from fastapi import HTTPException
+        import aml_framework.api.auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "_OIDC_ISSUER", "https://issuer.example.com")
+        monkeypatch.setenv("OIDC_ALLOWED_TENANTS", "bank_a")
+        with (
+            patch.object(auth_mod, "_oidc_jwks", return_value={"keys": []}),
+            patch(
+                "jose.jwt.decode",
+                return_value={"sub": "user-1", "roles": ["analyst"], "tid": "bank_b"},
+            ),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_mod._verify_oidc_token("token")
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.detail == "OIDC validation failed"
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
@@ -575,12 +717,38 @@ class TestDBSpecVersions:
             db._sqlite_initialized = False
 
 
-def test_db_list_spec_versions_pg_returns_empty():
+def test_db_list_spec_versions_pg_returns_rows():
     import aml_framework.api.db as db
 
-    with patch.object(db, "_use_postgres", return_value=True):
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    ts = MagicMock()
+    ts.isoformat.return_value = "2026-01-01T00:00:00"
+    mock_cursor.fetchall.return_value = [("hash123", "prog_a", "bank_a", ts)]
+    mock_conn.cursor.return_value.__enter__ = lambda s: mock_cursor
+    mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+    with (
+        patch.object(db, "_use_postgres", return_value=True),
+        patch.object(db, "_get_pg_conn", return_value=mock_conn),
+    ):
         result = db.list_spec_versions()
-        assert result == []
+        assert result == [
+            {
+                "spec_hash": "hash123",
+                "program_name": "prog_a",
+                "tenant_id": "bank_a",
+                "created_at": "2026-01-01T00:00:00",
+            }
+        ]
+
+
+def test_db_jsonb_values_may_already_be_decoded():
+    from aml_framework.api.db import _from_json
+
+    assert _from_json({"key": "val"}) == {"key": "val"}
+    assert _from_json([{"id": "m1"}]) == [{"id": "m1"}]
+    assert _from_json('{"key": "val"}') == {"key": "val"}
 
 
 class TestSQLitePersistence:
@@ -639,10 +807,21 @@ class TestAPIEndpoints:
         resp = client.get("/api/v1/specs", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
 
-    def test_upload_stub(self):
+    def test_upload_persists_tenant_scoped_csv(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("API_DATA_ROOTS", str(tmp_path))
+        monkeypatch.setenv("API_UPLOAD_ROOT", str(tmp_path / "uploads"))
         token = _token()
-        resp = client.post("/api/v1/upload", headers={"Authorization": f"Bearer {token}"})
+        resp = client.post(
+            "/api/v1/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"txn_file": ("txn.csv", b"txn_id,customer_id\nT1,C1\n", "text/csv")},
+        )
         assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "uploaded"
+        assert body["tenant"] == "bank_a"
+        assert body["files"] == ["txn.csv"]
+        assert (Path(body["data_dir"]) / "txn.csv").exists()
 
     def test_get_alerts_cef_not_found(self):
         token = _token()

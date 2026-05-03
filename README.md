@@ -177,12 +177,12 @@ tests/                          1,790+ tests across unit, API, e2e
 ## Testing
 
 ```bash
-pytest tests/ --ignore=tests/test_e2e_dashboard.py -q   # unit + API (~2 min)
-pytest tests/test_e2e_dashboard.py                       # Playwright e2e (~2 min)
-pytest tests/                                            # everything
+pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_dashboard_mobile.py -q
+pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_dashboard_mobile.py --cov=aml_framework --cov-report=term-missing --cov-fail-under=89 -q
+pytest tests/test_e2e_dashboard.py tests/test_e2e_dashboard_mobile.py
 ```
 
-CI runs 5 jobs on every PR: `lint`, `unit-tests`, `api-tests`, `e2e-dashboard`, `docker-build`. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the pre-commit checklist.
+CI runs lint, unit, coverage, API, dashboard e2e, Docker, live Postgres, deployment validation, and security-audit jobs on every PR. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the pre-commit checklist.
 
 ---
 

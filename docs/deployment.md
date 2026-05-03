@@ -17,10 +17,16 @@ Every deployment surface reads the same set of environment variables. Copy
 | Variable | Purpose | Required | Default |
 |----------|---------|----------|---------|
 | `DATABASE_URL` | Postgres URL for run / case persistence | yes (prod) | SQLite if unset |
-| `JWT_SECRET` | HMAC secret for API tokens | yes (prod) | `aml-framework-dev-secret` |
+| `JWT_SECRET` | HMAC secret for API tokens (32+ bytes) | yes (prod) | random per-process secret if unset |
 | `OIDC_ISSUER_URL` | OIDC discovery endpoint for SSO | optional | unset (built-in users) |
 | `OIDC_AUDIENCE` | Expected `aud` claim | optional | unset |
+| `OIDC_ROLE_CLAIM` | Claim path used for API role mapping | optional | `roles` |
+| `OIDC_TENANT_CLAIM` | Claim path used for tenant isolation | optional | `tid` |
+| `OIDC_ALLOWED_TENANTS` | Comma-separated tenant allowlist | optional | unset |
 | `API_RATE_LIMIT` | Per-IP requests per minute | no | `600` |
+| `API_DATA_ROOTS` | Local file roots allowed for API CSV/Parquet/ISO20022/DuckDB sources | no | `data` |
+| `API_UPLOAD_ROOT` | Tenant-scoped upload storage root | no | `data/uploads` |
+| `API_ALLOW_REMOTE_DATA_SOURCES` | Enable API access to S3/GCS/Snowflake/BigQuery sources | no | unset |
 | `SPEC_PATH` | Spec file the dashboard loads | no | `examples/canadian_schedule_i_bank/aml.yaml` |
 | `JIRA_URL`, `JIRA_TOKEN`, `JIRA_PROJECT` | Jira case sync | optional | unset (no-op) |
 | `SLACK_WEBHOOK_URL` | Slack alert push | optional | unset (no-op) |
@@ -28,7 +34,8 @@ Every deployment surface reads the same set of environment variables. Copy
 
 When `DATABASE_URL` is unset the API falls back to local SQLite — fine for
 demos, **never** for production. When `JWT_SECRET` is unset the API logs a
-warning and refuses to issue tokens against an OIDC-only configuration.
+warning and uses a random per-process secret, so locally issued JWTs do not
+survive a restart.
 
 ## Docker Compose
 
@@ -128,13 +135,14 @@ helm upgrade --install aml ./deploy/helm/ -f values-prod.yaml
 
 ### External Postgres
 
-Set `postgres.enabled=false` and provide `DATABASE_URL` via a Kubernetes
-secret (the API deployment template reads it from `aml-framework-secrets`):
+Set `postgres.enabled=false` and provide `database.url`. The chart stores it in
+the release secret as `database-url` and the API deployment reads from that key:
 
-```bash
-kubectl create secret generic aml-framework-secrets \
-  --from-literal=DATABASE_URL='postgresql://...' \
-  --from-literal=JWT_SECRET="$(openssl rand -hex 32)"
+```yaml
+postgres:
+  enabled: false
+database:
+  url: postgresql://...
 ```
 
 ### Uninstall
@@ -157,6 +165,8 @@ Before exposing any deployment to non-demo traffic:
 - [ ] Replace `JWT_SECRET` with a long random value (32+ bytes).
 - [ ] Replace `postgres.password` (or move to a managed database).
 - [ ] Replace the demo user backend (`api/main.py`) with OIDC or your IdP.
+- [ ] Configure `OIDC_ROLE_CLAIM`, `OIDC_TENANT_CLAIM`, and `OIDC_ALLOWED_TENANTS`.
+- [ ] Set `API_DATA_ROOTS` and leave remote API sources disabled unless explicitly needed.
 - [ ] Set `API_RATE_LIMIT` appropriate to expected load.
 - [ ] Mount your real `aml.yaml` from a ConfigMap, secret, or PVC.
 - [ ] Configure ingress TLS (cert-manager / managed cert).

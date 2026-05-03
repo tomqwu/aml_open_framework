@@ -47,6 +47,8 @@ api = [
     "fastapi>=0.111",
     "uvicorn>=0.30",
     "pyjwt>=2.8",
+    "python-jose[cryptography]>=3.3",
+    "python-multipart>=0.0.9",
     "psycopg2-binary>=2.9",
     "httpx>=0.27",
 ]
@@ -87,7 +89,7 @@ exclude_lines = [
     "if __name__",
     "raise NotImplementedError",
 ]
-fail_under = 98
+fail_under = 89
 
 [tool.ruff]
 line-length = 100

@@ -6,6 +6,9 @@ image:
 api:
   replicas: 1
   port: 8000
+  dataRoots: data
+  uploadRoot: data/uploads
+  allowRemoteDataSources: false
   resources:
     requests:
       cpu: 250m
@@ -34,8 +37,18 @@ postgres:
   username: aml
   password: aml_dev_password
 
+database:
+  url: ""
+
 jwt:
-  secret: change-me-in-production
+  secret: replace-with-32-plus-byte-random-secret
+
+oidc:
+  issuerUrl: ""
+  audience: ""
+  roleClaim: roles
+  tenantClaim: tid
+  allowedTenants: ""
 
 ingress:
   enabled: false
