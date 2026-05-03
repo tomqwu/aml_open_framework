@@ -1,0 +1,13 @@
+[theme]
+# Lock the dashboard to its light palette. The brand DNA in
+# src/aml_framework/dashboard/components.py is hand-tuned around a cream
+# canvas (#f7f4ec) with dark-navy ink (#1c1f26). Without this, browsers
+# in dark mode trigger Streamlit's auto-dark theme — Streamlit flips the
+# app background to dark while our injected CSS keeps painting dark text
+# on it, leaving the Welcome page unreadable.
+base = "light"
+backgroundColor = "#f7f4ec"
+secondaryBackgroundColor = "#fdfbf5"
+textColor = "#1c1f26"
+primaryColor = "#a44b30"
+font = "sans serif"
