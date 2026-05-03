@@ -200,8 +200,9 @@ def _select_persona(page, persona_label: str) -> None:
 
     The dropdown's label is the human-readable string (`Senior VP of
     Risk`, `Chief Compliance Officer`, etc.) that `format_func` puts in
-    the DOM. Clicks the selectbox, picks the option by text, waits for
-    Streamlit's rerun to settle.
+    the DOM. Streamlit virtualizes longer option lists, so this selects by
+    keyboard index from the deterministic registry order instead of relying on
+    lower options already being mounted as text nodes.
     """
     sidebar = page.locator("[data-testid='stSidebar']")
     # The persona selector lives below the program-info block; locate it
@@ -210,7 +211,11 @@ def _select_persona(page, persona_label: str) -> None:
     selector.scroll_into_view_if_needed()
     selector.click()
     page.wait_for_timeout(400)
-    page.get_by_text(persona_label, exact=False).first.click()
+    target_index = _PERSONA_LABEL_INDEX[persona_label]
+    page.keyboard.press("Home")
+    for _ in range(target_index):
+        page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
     page.wait_for_timeout(3500)  # let st.rerun() reload the nav
 
 
@@ -444,6 +449,7 @@ class TestSidebarCollapseExpand:
 # Persona coverage is derived from the dashboard registry so adding a
 # persona cannot silently bypass browser-level smoke coverage.
 _PERSONA_MATRIX = [(code, label) for code, (label, _description) in PERSONA_LABELS.items()]
+_PERSONA_LABEL_INDEX = {label: idx + 1 for idx, (_code, label) in enumerate(_PERSONA_MATRIX)}
 
 
 def _persona_smoke_pages(persona_code: str) -> tuple[str, ...]:
