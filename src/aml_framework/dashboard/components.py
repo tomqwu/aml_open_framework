@@ -294,27 +294,33 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a {
 
 /* Section headers — JetBrains Mono uppercase eyebrow, brand accent
  * dot prefix, thin rule below. Mirrors the .dna-eyebrow pattern that
- * page_header() emits at the top of every page. */
+ * page_header() emits at the top of every page.
+ *
+ * PR-NAV-3 (2026-05): bumped from 10px/600/ink-dim to 11.5px/700/ink so
+ * the eyebrow is no longer smaller than the 13.5px page links it
+ * introduces — that size inversion was making L1 read as caption rather
+ * than signpost. Dot 5→6px, border darker (rule-strong), top padding
+ * +4px so each section gets visible breathing room. */
 section[data-testid="stSidebar"] [data-testid="stNavSectionHeader"] {
     font-family: var(--dna-mono) !important;
-    font-size: 10px !important;
-    font-weight: 600 !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.12em !important;
-    color: var(--dna-ink-dim) !important;
-    padding: 18px 8px 6px 12px !important;
-    margin-top: 4px !important;
-    border-bottom: 1px solid var(--dna-rule);
+    letter-spacing: 0.14em !important;
+    color: var(--dna-ink) !important;
+    padding: 22px 8px 8px 12px !important;
+    margin-top: 6px !important;
+    border-bottom: 1px solid var(--dna-rule-strong);
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
+    gap: 9px !important;
 }
 /* Accent dot prefix — pure CSS, no DOM change. */
 section[data-testid="stSidebar"] [data-testid="stNavSectionHeader"]::before {
     content: "";
     display: inline-block;
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--dna-accent);
     flex-shrink: 0;
