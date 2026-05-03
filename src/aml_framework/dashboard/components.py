@@ -80,6 +80,11 @@ CUSTOM_CSS = """
  * the same brand's tech-deck surface, not its landing surface. PR-N
  * corrects this. */
 :root {
+    /* Declare the page as light-scheme so the browser UA doesn't dark-shift
+     * scrollbars, form controls, or autofill backgrounds when the OS is in
+     * dark mode. Pairs with .streamlit/config.toml's [theme] base = "light"
+     * (which stops Streamlit's own auto-dark switch). */
+    color-scheme: light;
     --dna-display: 'Source Serif 4', Georgia, serif;
     --dna-body:    'Inter', -apple-system, system-ui, sans-serif;
     --dna-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
