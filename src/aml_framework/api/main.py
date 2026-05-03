@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from aml_framework.api.auth import (
@@ -47,6 +47,71 @@ def _safe_spec_path(raw: str) -> Path:
     if not candidate.exists():
         raise HTTPException(status_code=404, detail=f"Spec not found: {raw}")
     return candidate
+
+
+_LOCAL_DATA_SOURCES = {"csv", "parquet", "iso20022"}
+_REMOTE_DATA_SOURCES = {"s3", "gcs", "snowflake", "bigquery"}
+_SUPPORTED_DATA_SOURCES = _LOCAL_DATA_SOURCES | _REMOTE_DATA_SOURCES | {"synthetic", "duckdb"}
+
+
+def _configured_data_roots() -> list[Path]:
+    raw = os.environ.get("API_DATA_ROOTS")
+    if raw:
+        roots = [Path(p.strip()) for p in raw.split(os.pathsep) if p.strip()]
+    else:
+        roots = [_PROJECT_ROOT / "data"]
+    return [p.resolve() if p.is_absolute() else (_PROJECT_ROOT / p).resolve() for p in roots]
+
+
+def _upload_root() -> Path:
+    raw = os.environ.get("API_UPLOAD_ROOT", "data/uploads")
+    root = Path(raw)
+    if not root.is_absolute():
+        root = _PROJECT_ROOT / root
+    resolved = root.resolve()
+    if not any(
+        resolved == data_root or resolved.is_relative_to(data_root)
+        for data_root in _configured_data_roots()
+    ):
+        raise RuntimeError("API_UPLOAD_ROOT must be under API_DATA_ROOTS")
+    return resolved
+
+
+def _safe_local_path(raw: str | None, *, field: str) -> str | None:
+    if raw is None:
+        return None
+    if not raw or ".." in raw.replace("\\", "/").split("/"):
+        raise HTTPException(status_code=400, detail=f"Invalid {field}")
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        candidate = _PROJECT_ROOT / candidate
+    resolved = candidate.resolve()
+    roots = _configured_data_roots()
+    if not any(resolved == root or resolved.is_relative_to(root) for root in roots):
+        allowed = ", ".join(str(root) for root in roots)
+        raise HTTPException(status_code=400, detail=f"{field} must be under one of: {allowed}")
+    return str(resolved)
+
+
+def _resolve_api_source_inputs(req: "RunRequest") -> tuple[str, str | None, str | None]:
+    source_type = req.data_source.lower()
+    if source_type not in _SUPPORTED_DATA_SOURCES:
+        raise HTTPException(status_code=400, detail=f"Unknown data source: {req.data_source}")
+    remote_enabled = os.environ.get("API_ALLOW_REMOTE_DATA_SOURCES") == "1"
+    if source_type in _REMOTE_DATA_SOURCES and not remote_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Remote data sources are disabled for the API. Set API_ALLOW_REMOTE_DATA_SOURCES=1."
+            ),
+        )
+    data_dir = req.data_dir
+    db_path = req.db_path
+    if source_type in _LOCAL_DATA_SOURCES:
+        data_dir = _safe_local_path(req.data_dir, field="data_dir")
+    if source_type == "duckdb":
+        db_path = _safe_local_path(req.db_path, field="db_path")
+    return source_type, data_dir, db_path
 
 
 @asynccontextmanager
@@ -139,6 +204,7 @@ class RunRequest(BaseModel):
     seed: int = 42
     data_source: str = "synthetic"
     data_dir: str | None = None
+    db_path: str | None = None
 
 
 # --- Endpoints ---
@@ -179,13 +245,18 @@ async def create_run(
 
     spec = load_spec(spec_path)
     as_of = datetime.now(tz=timezone.utc).replace(tzinfo=None)
-    data = resolve_source(
-        source_type=req.data_source,
-        spec=spec,
-        as_of=as_of,
-        seed=req.seed,
-        data_dir=req.data_dir,
-    )
+    source_type, data_dir, db_path = _resolve_api_source_inputs(req)
+    try:
+        data = resolve_source(
+            source_type=source_type,
+            spec=spec,
+            as_of=as_of,
+            seed=req.seed,
+            data_dir=data_dir,
+            db_path=db_path,
+        )
+    except (RuntimeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     artifacts = Path(tempfile.mkdtemp(prefix="aml_api_"))
     result = run_spec(
@@ -231,7 +302,8 @@ async def create_run(
     }
 
     # Fire registered webhooks.
-    _fire_webhooks("run_completed", run_summary)
+    tenant_id = user.get("tenant", "default")
+    _fire_webhooks("run_completed", run_summary, tenant_id=tenant_id)
     if result.total_alerts > 0:
         _fire_webhooks(
             "alert_created",
@@ -239,6 +311,7 @@ async def create_run(
                 "run_id": run_id,
                 "alert_count": result.total_alerts,
             },
+            tenant_id=tenant_id,
         )
 
     return run_summary
@@ -323,7 +396,7 @@ async def get_reports(
 
 
 # --- Webhook configuration ---
-_webhooks: list[dict[str, str]] = []
+_webhooks: list[dict[str, Any]] = []
 
 
 class WebhookConfig(BaseModel):
@@ -373,7 +446,9 @@ def _validate_webhook_url(url: str) -> None:
         ):
             raise HTTPException(
                 status_code=400,
-                detail="Webhook host resolves to a non-routable address (private/loopback/link-local).",
+                detail=(
+                    "Webhook host resolves to a non-routable address (private/loopback/link-local)."
+                ),
             )
 
 
@@ -390,6 +465,7 @@ async def register_webhook(
             "url": config.url,
             "events": config.events,
             "secret": config.secret,
+            "tenant_id": user.get("tenant", "default"),
         }
     )
     return {
@@ -404,21 +480,59 @@ async def register_webhook(
 async def list_webhooks(
     user: dict[str, Any] = Depends(get_current_user),
 ) -> list[dict]:
-    return _webhooks
+    tenant_id = user.get("tenant", "default")
+    return [
+        {
+            "name": hook.get("name"),
+            "url": hook.get("url"),
+            "events": hook.get("events", []),
+            "tenant_id": hook.get("tenant_id", "default"),
+            "signed": bool(hook.get("secret")),
+        }
+        for hook in _webhooks
+        if hook.get("tenant_id", "default") == tenant_id
+    ]
 
 
 @app.post("/api/v1/upload")
 async def upload_data(
-    txn_file: Any = None,
-    customer_file: Any = None,
+    txn_file: UploadFile | None = File(default=None),
+    customer_file: UploadFile | None = File(default=None),
     user: dict[str, Any] = Depends(require_role("admin", "manager", "analyst")),
-) -> dict[str, str]:
-    """Upload CSV files for a run. Use with multipart/form-data."""
-    # This is a stub — full implementation would save files to data/input/
-    # and trigger a run. For now, document the interface.
+) -> dict[str, Any]:
+    """Upload CSV files for a later CSV-backed run."""
+    files = {"txn": txn_file, "customer": customer_file}
+    provided = {name: f for name, f in files.items() if f is not None}
+    if not provided:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload at least one of txn_file or customer_file",
+        )
+
+    tenant_id = user.get("tenant", "default")
+    upload_id = str(uuid.uuid4())[:8]
+    dest_dir = _upload_root() / tenant_id / upload_id
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    saved: list[str] = []
+    try:
+        for contract_id, uploaded in provided.items():
+            content = await uploaded.read()
+            if not content:
+                raise HTTPException(status_code=400, detail=f"{contract_id}_file is empty")
+            dest = dest_dir / f"{contract_id}.csv"
+            dest.write_bytes(content)
+            saved.append(dest.name)
+    except HTTPException:
+        raise
+    except OSError as e:
+        raise HTTPException(status_code=500, detail="Failed to store uploaded data") from e
+
     return {
-        "status": "upload endpoint ready",
-        "note": "Use POST /api/v1/runs with data_source=csv and data_dir pointing to uploaded files",
+        "status": "uploaded",
+        "tenant": tenant_id,
+        "upload_id": upload_id,
+        "data_dir": str(dest_dir),
+        "files": saved,
     }
 
 
@@ -459,20 +573,22 @@ def _sign_webhook(secret: str, body: bytes) -> str:
     return hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
 
 
-def _fire_webhooks(event: str, payload: dict[str, Any]) -> None:
+def _fire_webhooks(event: str, payload: dict[str, Any], *, tenant_id: str = "default") -> None:
     """POST to all registered webhooks matching the event."""
     import logging
 
     logger = logging.getLogger("aml.webhooks")
     for hook in _webhooks:
-        if event in hook.get("events", []):
+        if event in hook.get("events", []) and hook.get("tenant_id", "default") == tenant_id:
             try:
                 # Re-validate before firing — guards against DNS rebinding between
                 # registration and dispatch.
                 _validate_webhook_url(hook["url"])
                 import urllib.request
 
-                data = json.dumps({"event": event, **payload}).encode("utf-8")
+                data = json.dumps({"event": event, "tenant_id": tenant_id, **payload}).encode(
+                    "utf-8"
+                )
                 headers = {"Content-Type": "application/json"}
                 secret = hook.get("secret")
                 if secret:

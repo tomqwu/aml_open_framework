@@ -31,7 +31,7 @@ def _call_openai(
     prompt: str,
     *,
     timeout: float = 60.0,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """POST to OpenAI chat completions with json_object response_format."""
     from urllib.error import HTTPError, URLError
     from urllib.request import Request, urlopen

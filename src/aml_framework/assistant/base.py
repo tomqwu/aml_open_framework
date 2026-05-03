@@ -30,4 +30,4 @@ class Assistant(Protocol):
 
     def reply(self, question: str, context: AssistantContext) -> AssistantReply:
         """Produce a structured reply from a question + page context."""
-        ...
+        ...  # pragma: no cover

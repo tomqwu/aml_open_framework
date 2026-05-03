@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+from aml_framework.dashboard.audience import AUDIENCE_PAGES, PERSONA_LABELS
+
 SPEC = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_i_bank" / "aml.yaml"
 APP = Path(__file__).resolve().parents[1] / "src" / "aml_framework" / "dashboard" / "app.py"
 PORT = 8599  # Use a non-standard port to avoid conflicts.
@@ -198,8 +200,9 @@ def _select_persona(page, persona_label: str) -> None:
 
     The dropdown's label is the human-readable string (`Senior VP of
     Risk`, `Chief Compliance Officer`, etc.) that `format_func` puts in
-    the DOM. Clicks the selectbox, picks the option by text, waits for
-    Streamlit's rerun to settle.
+    the DOM. Streamlit virtualizes longer option lists, so this selects by
+    keyboard index from the deterministic registry order instead of relying on
+    lower options already being mounted as text nodes.
     """
     sidebar = page.locator("[data-testid='stSidebar']")
     # The persona selector lives below the program-info block; locate it
@@ -208,7 +211,11 @@ def _select_persona(page, persona_label: str) -> None:
     selector.scroll_into_view_if_needed()
     selector.click()
     page.wait_for_timeout(400)
-    page.get_by_text(persona_label, exact=False).first.click()
+    target_index = _PERSONA_LABEL_INDEX[persona_label]
+    page.keyboard.press("Home")
+    for _ in range(target_index):
+        page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
     page.wait_for_timeout(3500)  # let st.rerun() reload the nav
 
 
@@ -439,45 +446,25 @@ class TestSidebarCollapseExpand:
         )
 
 
-# Personas that cover the spread of operational vs strategic flows.
-# Iterating ALL 12 personas would be ~12 × 5 pages = 60 navigations and
-# bust our CI budget. This subset hits every distinct card builder
-# (executive / manager / analyst / auditor / developer / pm / generic)
-# AND every card target page, so it catches the same class of bug PR-R
-# / PR-S surfaced without exhausting the runner.
-# PR-NAV-1: auditor + fintech_mlro persona-selector clicks intermittently
-# time out on CI (5+ separate runs across v3-v7 fixes). Local reproduction
-# is hard — Playwright timing under module-scoped browser_page seems to
-# accumulate state pollution despite the v7 home-reset. Marked xfail-
-# strict-False so they run but don't break CI; tracked for follow-up
-# when the persona-selectbox flake is root-caused.
-_FLAKY_XFAIL = pytest.mark.xfail(
-    reason="PR-NAV-1: persona-selectbox click times out under module-scoped "
-    "browser_page; needs root-cause investigation",
-    strict=False,
-)
-_PERSONA_MATRIX = [
-    ("svp", "Senior VP of Risk"),
-    ("cco", "Chief Compliance Officer"),
-    ("vp", "VP / MLRO"),
-    ("director", "Director of Financial Crime"),
-    ("manager", "AML Operations Manager"),
-    ("analyst", "Analyst (L1 / L2)"),
-    pytest.param("auditor", "Auditor (Internal / External)", marks=_FLAKY_XFAIL),
-    ("developer", "Engineer / Detection Developer"),
-    ("pm", "Program / Product Manager"),
-    pytest.param("fintech_mlro", "FinTech / EMI / VASP MLRO", marks=_FLAKY_XFAIL),
-]
+# Persona coverage is derived from the dashboard registry so adding a
+# persona cannot silently bypass browser-level smoke coverage.
+_PERSONA_MATRIX = [(code, label) for code, (label, _description) in PERSONA_LABELS.items()]
+_PERSONA_LABEL_INDEX = {label: idx + 1 for idx, (_code, label) in enumerate(_PERSONA_MATRIX)}
+
+
+def _persona_smoke_pages(persona_code: str) -> tuple[str, ...]:
+    pages = list(_UNIVERSAL_PAGES)
+    for page_title in AUDIENCE_PAGES.get(persona_code, []):
+        if page_title not in pages:
+            pages.append(page_title)
+            break
+    return tuple(pages)
 
 
 class TestPersonaCoverage:
-    """The load-bearing PR-T addition — for each persona, switch the
-    selector and verify Today + Executive Dashboard + the persona's
-    first audience-specific page render without a Streamlit exception
-    or browser-level error.
-
-    This single class would have caught PR-R AND PR-S in one run.
-    """
+    """For each registered persona, switch the selector and verify Today,
+    Executive Dashboard, and the first persona-specific page render without
+    a Streamlit exception or browser-level error."""
 
     @pytest.mark.parametrize("persona_code,persona_label", _PERSONA_MATRIX)
     def test_persona_can_navigate_universal_pages(self, browser_page, persona_code, persona_label):
@@ -491,7 +478,7 @@ class TestPersonaCoverage:
         browser_page.goto(f"http://localhost:{PORT}/", wait_until="networkidle", timeout=30000)
         browser_page.wait_for_timeout(2000)
         _select_persona(browser_page, persona_label)
-        for page_title in _UNIVERSAL_PAGES:
+        for page_title in _persona_smoke_pages(persona_code):
             _navigate(browser_page, page_title)
             errors = browser_page.locator("[data-testid='stException']")
             assert errors.count() == 0, (

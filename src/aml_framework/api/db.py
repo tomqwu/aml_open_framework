@@ -97,6 +97,14 @@ CREATE TABLE IF NOT EXISTS run_metrics (
     run_id TEXT REFERENCES runs(run_id),
     metrics JSONB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS spec_versions (
+    id SERIAL PRIMARY KEY,
+    spec_hash TEXT NOT NULL,
+    spec_content TEXT NOT NULL,
+    program_name TEXT,
+    tenant_id TEXT DEFAULT 'default',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 """
 
 
@@ -160,6 +168,21 @@ def _coerce_ts(value: Any) -> str:
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return str(value) if value is not None else ""
+
+
+def _from_json(value: Any) -> Any:
+    """Decode backend JSON values.
+
+    SQLite returns stored JSON as strings. Psycopg2 commonly returns JSONB as
+    already-decoded dict/list values.
+    """
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, (bytes, bytearray)):
+        value = value.decode("utf-8")
+    if isinstance(value, str):
+        return json.loads(value)
+    return value
 
 
 def init_db() -> None:
@@ -247,7 +270,7 @@ def get_run(run_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
                 (run_id, tenant_id),
             )
         row = cur.fetchone()
-        return json.loads(row[0]) if row else None
+        return _from_json(row[0]) if row else None
 
 
 def get_run_alerts(run_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
@@ -261,7 +284,7 @@ def get_run_alerts(run_id: str, tenant_id: str | None = None) -> list[dict[str, 
                 " WHERE ra.run_id = ? AND r.tenant_id = ?",
                 (run_id, tenant_id),
             )
-        return [{"rule_id": r[0], "alerts": json.loads(r[1])} for r in cur.fetchall()]
+        return [{"rule_id": r[0], "alerts": _from_json(r[1])} for r in cur.fetchall()]
 
 
 def get_run_metrics(run_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
@@ -276,7 +299,7 @@ def get_run_metrics(run_id: str, tenant_id: str | None = None) -> list[dict[str,
                 (run_id, tenant_id),
             )
         row = cur.fetchone()
-        return json.loads(row[0]) if row else []
+        return _from_json(row[0]) if row else []
 
 
 def store_spec_version(
@@ -285,44 +308,39 @@ def store_spec_version(
     program_name: str,
     tenant_id: str = "default",
 ) -> None:
-    """Store a spec version for tracking. SQLite-only — Postgres parity is
-    tracked but not implemented in the reference DB schema."""
-    if _use_postgres():
-        return
+    """Store a spec version for tracking."""
     now = datetime.now(tz=timezone.utc).isoformat()
-    conn = _get_sqlite_conn()
-    try:
-        existing = conn.execute(
-            "SELECT id FROM spec_versions WHERE spec_hash = ?", (spec_hash,)
-        ).fetchone()
-        if not existing:
-            conn.execute(
+    with _with_conn() as cur:
+        cur.execute(
+            "SELECT id FROM spec_versions WHERE spec_hash = ? AND tenant_id = ?",
+            (spec_hash, tenant_id),
+        )
+        if not cur.fetchone():
+            cur.execute(
                 "INSERT INTO spec_versions"
                 " (spec_hash, spec_content, program_name, tenant_id, created_at)"
                 " VALUES (?, ?, ?, ?, ?)",
                 (spec_hash, spec_content, program_name, tenant_id, now),
             )
-            conn.commit()
-    finally:
-        conn.close()
 
 
 def list_spec_versions(tenant_id: str | None = None) -> list[dict[str, Any]]:
-    """List stored spec versions. SQLite-only (see store_spec_version)."""
-    if _use_postgres():
-        return []
-    conn = _get_sqlite_conn()
-    try:
+    """List stored spec versions."""
+    with _with_conn() as cur:
         query = "SELECT spec_hash, program_name, tenant_id, created_at FROM spec_versions"
         params: tuple = ()
         if tenant_id:
             query += " WHERE tenant_id = ?"
             params = (tenant_id,)
         query += " ORDER BY created_at DESC LIMIT 50"
-        rows = conn.execute(query, params).fetchall()
+        cur.execute(query, params)
+        rows = cur.fetchall()
         return [
-            {"spec_hash": r[0], "program_name": r[1], "tenant_id": r[2], "created_at": r[3]}
+            {
+                "spec_hash": r[0],
+                "program_name": r[1],
+                "tenant_id": r[2],
+                "created_at": _coerce_ts(r[3]),
+            }
             for r in rows
         ]
-    finally:
-        conn.close()

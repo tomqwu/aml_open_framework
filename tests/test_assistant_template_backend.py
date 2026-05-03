@@ -7,11 +7,16 @@ network call. These tests pin those invariants.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
+from unittest import mock
+
+import pytest
 
 from aml_framework.assistant import (
     Assistant,
     AssistantContext,
+    AssistantError,
     AssistantReply,
     TemplateBackend,
     get_assistant,
@@ -70,6 +75,18 @@ class TestTemplateBackendBasics:
         # Focused-on-case line surfaces in the body too.
         assert "CASE-2026-04-001" in reply.text
 
+    def test_focus_line_covers_other_deep_link_entities(self):
+        assert "customer: `C-1`" in TemplateBackend._focus_line(
+            AssistantContext(page="Customer 360", selected_customer_id="C-1")
+        )
+        assert "rule: `R-1`" in TemplateBackend._focus_line(
+            AssistantContext(page="Rules", selected_rule_id="R-1")
+        )
+        assert "metric: `M-1`" in TemplateBackend._focus_line(
+            AssistantContext(page="Metrics", selected_metric_id="M-1")
+        )
+        assert TemplateBackend._focus_line(AssistantContext(page="Executive Dashboard")) == ""
+
 
 class TestAuditDict:
     def test_hash_only_mode_omits_full_text(self):
@@ -109,11 +126,173 @@ class TestFactoryEnvLookup:
         assert backend.name.startswith("template")
 
     def test_factory_unknown_backend_raises(self):
-        from aml_framework.assistant import AssistantError
-
         try:
             get_assistant("not_a_real_backend")
         except AssistantError as e:
             assert "not_a_real_backend" in str(e)
         else:
             raise AssertionError("expected AssistantError")
+
+    def test_factory_returns_ollama_backend(self):
+        backend = get_assistant("ollama", model="llama3.1:8b")
+        assert backend.name == "ollama:llama3.1:8b"
+
+    def test_factory_openai_requires_key(self, monkeypatch):
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        with pytest.raises(AssistantError, match="OPENAI_API_KEY"):
+            get_assistant("openai")
+
+
+class TestAssistantOllamaBackend:
+    def test_happy_path_returns_validated_reply(self):
+        from aml_framework.assistant.ollama import OllamaBackend
+
+        fake_response = {
+            "response": json.dumps(
+                {
+                    "text": "Alert volume is concentrated in case CASE-1.",
+                    "confidence": "high",
+                    "referenced_metric_ids": ["metric-alert-volume"],
+                    "referenced_case_ids": ["CASE-1"],
+                    "referenced_customer_ids": ["C-1"],
+                    "citations": [
+                        {
+                            "rule_id": "structuring_cash_deposits",
+                            "citation": "PCMLTFA s.11.1",
+                            "claim": "Structuring typology",
+                        }
+                    ],
+                }
+            )
+        }
+        ctx = AssistantContext(page="Executive Dashboard", persona="cco")
+        with mock.patch("aml_framework.assistant.ollama._call_ollama", return_value=fake_response):
+            reply = OllamaBackend(model="llama3.1:8b").reply("why is volume high?", ctx)
+
+        assert reply.text.startswith("Alert volume")
+        assert reply.backend == "ollama:llama3.1:8b"
+        assert reply.confidence == "high"
+        assert reply.referenced_metric_ids == ["metric-alert-volume"]
+        assert reply.referenced_case_ids == ["CASE-1"]
+        assert reply.referenced_customer_ids == ["C-1"]
+        assert reply.citations[0].citation == "PCMLTFA s.11.1"
+
+    def test_missing_optional_fields_get_defaults(self):
+        from aml_framework.assistant.ollama import OllamaBackend
+
+        fake = {"response": json.dumps({"text": "Short answer.", "confidence": "certain"})}
+        with mock.patch("aml_framework.assistant.ollama._call_ollama", return_value=fake):
+            reply = OllamaBackend().reply("summarize", AssistantContext(page="Run History"))
+
+        assert reply.text == "Short answer."
+        assert reply.confidence == "low"
+        assert reply.citations == []
+        assert reply.referenced_metric_ids == []
+
+    def test_invalid_citations_are_ignored(self):
+        from aml_framework.assistant.ollama import _build_reply
+
+        reply = _build_reply(
+            {
+                "text": "Answer",
+                "citations": [
+                    "not a citation",
+                    {"rule_id": "r1", "citation": "ref", "claim": "claim"},
+                    {"rule_id": 1, "citation": [], "claim": {}},
+                ],
+            },
+            AssistantContext(page="Case Investigation", persona="analyst"),
+            backend="test",
+        )
+
+        assert len(reply.citations) == 1
+        assert reply.citations[0].rule_id == "r1"
+
+    def test_unexpected_response_shape_raises(self):
+        from aml_framework.assistant.ollama import OllamaBackend
+
+        with (
+            mock.patch("aml_framework.assistant.ollama._call_ollama", return_value={}),
+            pytest.raises(AssistantError, match="response shape"),
+        ):
+            OllamaBackend().reply("hello", AssistantContext(page="Today"))
+
+    def test_non_json_response_raises(self):
+        from aml_framework.assistant.ollama import OllamaBackend
+
+        with (
+            mock.patch(
+                "aml_framework.assistant.ollama._call_ollama",
+                return_value={"response": "<html>oops</html>"},
+            ),
+            pytest.raises(AssistantError, match="non-JSON"),
+        ):
+            OllamaBackend().reply("hello", AssistantContext(page="Today"))
+
+
+class TestAssistantOpenAIBackend:
+    def test_refuses_without_api_key(self, monkeypatch):
+        from aml_framework.assistant.openai import OpenAIBackend
+
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        with pytest.raises(AssistantError, match="OPENAI_API_KEY"):
+            OpenAIBackend()
+
+    def test_constructor_arg_overrides_env(self, monkeypatch):
+        from aml_framework.assistant.openai import OpenAIBackend
+
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        backend = OpenAIBackend(api_key="sk-test", model="gpt-test")
+        assert backend.api_key == "sk-test"
+        assert backend.name == "openai:gpt-test"
+
+    def test_happy_path_with_mocked_call(self, monkeypatch):
+        from aml_framework.assistant.openai import OpenAIBackend
+
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        fake_response = {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "text": "Use the case queue trend.",
+                                "confidence": "medium",
+                                "referenced_case_ids": ["CASE-9"],
+                            }
+                        )
+                    }
+                }
+            ]
+        }
+        with mock.patch("aml_framework.assistant.openai._call_openai", return_value=fake_response):
+            reply = OpenAIBackend(model="gpt-4o-mini").reply(
+                "what should I inspect?", AssistantContext(page="Case Queue")
+            )
+
+        assert reply.backend == "openai:gpt-4o-mini"
+        assert reply.confidence == "medium"
+        assert reply.referenced_case_ids == ["CASE-9"]
+
+    def test_unexpected_response_shape_raises(self, monkeypatch):
+        from aml_framework.assistant.openai import OpenAIBackend
+
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        with (
+            mock.patch("aml_framework.assistant.openai._call_openai", return_value={"choices": []}),
+            pytest.raises(AssistantError, match="response shape"),
+        ):
+            OpenAIBackend().reply("hello", AssistantContext(page="Today"))
+
+    def test_non_json_response_raises(self, monkeypatch):
+        from aml_framework.assistant.openai import OpenAIBackend
+
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        with (
+            mock.patch(
+                "aml_framework.assistant.openai._call_openai",
+                return_value={"choices": [{"message": {"content": "not json"}}]},
+            ),
+            pytest.raises(AssistantError, match="non-JSON"),
+        ):
+            OpenAIBackend().reply("hello", AssistantContext(page="Today"))

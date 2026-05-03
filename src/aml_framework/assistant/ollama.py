@@ -64,7 +64,7 @@ def _call_ollama(
     prompt: str,
     *,
     timeout: float = 60.0,
-) -> dict[str, Any]:
+) -> dict[str, Any]:  # pragma: no cover
     """POST to Ollama generate endpoint with JSON format."""
     from urllib.error import HTTPError, URLError
     from urllib.request import Request, urlopen
