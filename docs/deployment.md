@@ -16,9 +16,11 @@ Every deployment surface reads the same set of environment variables. Copy
 
 | Variable | Purpose | Required | Default |
 |----------|---------|----------|---------|
+| `AML_ENV` / `API_ENV` | Set to `production` for non-demo API startup gates | yes (prod) | unset (dev/demo mode) |
 | `DATABASE_URL` | Postgres URL for run / case persistence | yes (prod) | SQLite if unset |
-| `JWT_SECRET` | HMAC secret for API tokens (32+ bytes) | yes (prod) | random per-process secret if unset |
-| `OIDC_ISSUER_URL` | OIDC discovery endpoint for SSO | optional | unset (built-in users) |
+| `JWT_SECRET` | HMAC secret for API tokens (32+ bytes) | yes (prod) | random per-process secret in dev/demo mode only |
+| `ALLOW_DEMO_AUTH` | Explicitly re-enable built-in demo users in production | no | unset / disabled in production |
+| `OIDC_ISSUER_URL` | OIDC discovery endpoint for SSO | recommended (prod) | unset (built-in users in dev only) |
 | `OIDC_AUDIENCE` | Expected `aud` claim | optional | unset |
 | `OIDC_ROLE_CLAIM` | Claim path used for API role mapping | optional | `roles` |
 | `OIDC_TENANT_CLAIM` | Claim path used for tenant isolation | optional | `tid` |
@@ -33,9 +35,12 @@ Every deployment surface reads the same set of environment variables. Copy
 | `TEAMS_WEBHOOK_URL` | Teams alert push | optional | unset (no-op) |
 
 When `DATABASE_URL` is unset the API falls back to local SQLite — fine for
-demos, **never** for production. When `JWT_SECRET` is unset the API logs a
-warning and uses a random per-process secret, so locally issued JWTs do not
-survive a restart.
+demos, **never** for production. Production mode is enabled with
+`AML_ENV=production` or `API_ENV=production`; in that mode the API refuses to
+start without `JWT_SECRET` and disables the built-in demo users unless
+`ALLOW_DEMO_AUTH=true` is set deliberately. Outside production mode, an unset
+`JWT_SECRET` logs a warning and uses a random per-process secret, so locally
+issued JWTs do not survive a restart.
 
 ## Docker Compose
 
@@ -69,9 +74,10 @@ curl http://localhost:8000/api/v1/health
 # {"status":"ok","version":"..."}
 ```
 
-The dashboard renders at <http://localhost:8501>. Default demo users for the
-API: `admin / admin`, `analyst / analyst`, `auditor / auditor`,
-`manager / manager`. Replace the auth backend before any non-demo use.
+The dashboard renders at <http://localhost:8501>. In local/demo mode the API
+ships default demo users: `admin / admin`, `analyst / analyst`,
+`auditor / auditor`, `manager / manager`. Do not use those credentials for
+production: set `AML_ENV=production`, configure `JWT_SECRET`, and prefer OIDC.
 
 ### Tear down
 
