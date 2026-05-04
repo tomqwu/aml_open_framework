@@ -40,6 +40,7 @@ PAGES = [
     "Sanctions Screening",
     "Model Performance",
     "Data Quality",
+    "Data Integration",
     "Run History",
     "Rule Tuning",
     "Customer 360",
@@ -57,6 +58,29 @@ PAGES = [
     "AI Assistant",
     "Information Sharing",
 ]
+
+
+def test_all_pages_in_e2e_list():
+    """All pages registered in app.py ALL_PAGES must be in the e2e PAGES list."""
+    # Parse app.py source to extract registered page titles without
+    # importing Streamlit (which fails outside `streamlit run`).
+    # Only match title="..." inside st.Page() calls.
+    app_src = APP.read_text()
+    import re
+
+    registered_titles = set()
+    for m in re.finditer(r'st\.Page\([^)]*title="([^"]+)"', app_src):
+        registered_titles.add(m.group(1))
+    expected = set(PAGES)
+    missing = registered_titles - expected
+    extra = expected - registered_titles
+    if missing or extra:
+        parts = []
+        if missing:
+            parts.append(f"  In ALL_PAGES but not PAGES: {sorted(missing)}")
+        if extra:
+            parts.append(f"  In PAGES but not ALL_PAGES: {sorted(extra)}")
+        pytest.fail("E2E PAGES out of sync with app.py ALL_PAGES.\n" + "\n".join(parts))
 
 
 @pytest.fixture(scope="module")

@@ -72,7 +72,7 @@ aml.yaml (spec)
   → metrics/engine.py      Compute metrics → RAG bands
   → engine/audit.py        Immutable evidence ledger (SHA-256 hash chain)
   → export.py              Regulator-ready ZIP bundle
-  → dashboard/             21-page Streamlit web app
+  → dashboard/             32-page Streamlit web app
   → api/                   FastAPI REST layer with JWT/OIDC auth
 ```
 
@@ -93,7 +93,7 @@ aml.yaml (spec)
 
 ### Dashboard
 
-29 Streamlit pages (plus 2 navigation surfaces — Welcome + Today). `state.py` runs the engine once, caches in `st.session_state`. `audience.py` maps personas to relevant pages. Sidebar audience selector hides non-relevant pages.
+32 Streamlit pages across 8 categories. `state.py` runs the engine once, caches in `st.session_state`. `audience.py` maps personas to relevant pages. Sidebar audience selector hides non-relevant pages.
 
 ### Specs
 

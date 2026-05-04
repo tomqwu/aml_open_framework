@@ -237,7 +237,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The same 31 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 9 pages):
+The same 32 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 9 pages):
 
 | Persona | Primary pages |
 |---|---|
