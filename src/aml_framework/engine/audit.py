@@ -112,7 +112,9 @@ def walk_lineage(run_dir: Path, case_id: str) -> dict[str, Any]:
 
     decisions_path = run_dir / "decisions.jsonl"
     if decisions_path.exists():
-        for line_num, line in enumerate(decisions_path.read_text(encoding="utf-8").splitlines(), start=1):
+        for line_num, line in enumerate(
+            decisions_path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
             if not line.strip():
                 continue
             try:
@@ -120,9 +122,7 @@ def walk_lineage(run_dir: Path, case_id: str) -> dict[str, Any]:
             except json.JSONDecodeError:
                 # Malformed lines are always surfaced — silent skip hides
                 # evidence integrity problems from operators (#210).
-                chain["decisions"].append(
-                    {"malformed_line": line_num, "raw": line[:200]}
-                )
+                chain["decisions"].append({"malformed_line": line_num, "raw": line[:200]})
                 continue
             if event.get("case_id") != case_id:
                 continue

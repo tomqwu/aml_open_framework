@@ -64,9 +64,9 @@ def _read_csv_entries(path: Path) -> list[SanctionEntry]:
     with path.open("r", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             aliases_raw = row.get("aliases", "")
-            aliases = tuple(
-                a.strip() for a in aliases_raw.split("|") if a.strip()
-            ) if aliases_raw else ()
+            aliases = (
+                tuple(a.strip() for a in aliases_raw.split("|") if a.strip()) if aliases_raw else ()
+            )
             out.append(
                 SanctionEntry(
                     name=row.get("name", ""),

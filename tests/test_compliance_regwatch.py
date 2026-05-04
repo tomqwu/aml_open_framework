@@ -345,7 +345,6 @@ class TestCitationMapCoverage:
 
     def test_all_bundled_example_citations_resolvable(self):
         """Every citation from every bundled example spec resolves offline."""
-        import os
         from aml_framework.spec import load_spec
 
         examples_dir = Path(__file__).resolve().parents[1] / "examples"
@@ -361,9 +360,7 @@ class TestCitationMapCoverage:
                 for ref in rule.regulation_refs:
                     url = citation_url(ref.citation, override=ref.url)
                     if url is None:
-                        unresolved.append(
-                            f"  {spec_dir.name}/{rule.id}: {ref.citation!r}"
-                        )
+                        unresolved.append(f"  {spec_dir.name}/{rule.id}: {ref.citation!r}")
         assert not unresolved, (
             f"{len(unresolved)} bundled example citation(s) not in "
             f"CITATION_URL_MAP:\n" + "\n".join(unresolved)
