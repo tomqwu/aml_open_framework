@@ -309,17 +309,27 @@ def _proxy_avg_resolution(ctx: "MetricContext") -> float:
     return sum(hours) / len(hours) if hours else 0.0
 
 
-# Token → handler. Order matters: the first match wins, mirroring the
-# original cascading if-chain. Keep new tokens specific so they don't shadow
-# earlier handlers.
+# Token → handler. Order matters: the first match wins. Each handler
+# gets one unambiguous token that appears in existing spec SQL strings.
+# Single-token groups with all() semantics ensure partial matches don't
+# misroute, and the tokens are unique enough to avoid cross-handler
+# collisions.
 _PROXY_DISPATCH: tuple[tuple[tuple[str, ...], Any], ...] = (
-    (("repeat", "closed_cases"), _proxy_repeat_alert),
-    (("filing", "percentile", "latency"), _proxy_filing_latency),
-    (("reportable", "lctr", "filed"), _proxy_lctr_completeness),
-    (("edd", "current_edd", "high_risk"), _proxy_edd_review),
-    (("sla", "on_time"), _proxy_sla_compliance),
-    (("resolution", "avg"), _proxy_avg_resolution),
+    (("closed_cases",), _proxy_repeat_alert),
+    (("filing",), _proxy_filing_latency),
+    (("reportable",), _proxy_lctr_completeness),
+    (("edd",), _proxy_edd_review),
+    (("on_time",), _proxy_sla_compliance),
+    (("resolution",), _proxy_avg_resolution),
 )
+
+def _sql_proxy_status(formula: "SQLFormula") -> str:
+    """Return the proxy dispatch status for an SQL formula."""
+    sql_lower = formula.sql.lower()
+    for tokens, _handler in _PROXY_DISPATCH:
+        if all(tok in sql_lower for tok in tokens):
+            return "proxy_matched"
+    return "unsupported"
 
 
 def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
@@ -331,7 +341,7 @@ def _compute_sql_proxy(formula: "SQLFormula", ctx: "MetricContext") -> float:
     """
     sql_lower = formula.sql.lower()
     for tokens, handler in _PROXY_DISPATCH:
-        if any(tok in sql_lower for tok in tokens):
+        if all(tok in sql_lower for tok in tokens):
             return handler(ctx)
     return 0.0  # Unknown SQL formula.
 
@@ -370,6 +380,9 @@ def evaluate_metrics(
     for metric in spec.metrics:
         value = _compute(metric.formula, ctx)
         rag, target_met = _rag_band(value, metric)
+        breakdown: dict[str, Any] = {}
+        if isinstance(metric.formula, SQLFormula):
+            breakdown["proxy_status"] = _sql_proxy_status(metric.formula)
         results.append(
             MetricResult(
                 id=metric.id,
@@ -382,6 +395,7 @@ def evaluate_metrics(
                 rag=rag,
                 target_met=target_met,
                 formula_type=metric.formula.type,
+                breakdown=breakdown,
             )
         )
     return results

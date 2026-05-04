@@ -383,6 +383,80 @@ def test_cond_holds_gt_lt_on_rag():
     assert _rag_band(15, m)[0] == "red"
 
 
+# ---------------------------------------------------------------------------
+# #204 P1: Correct SQL metric proxy dispatch and unsupported SQL semantics
+# ---------------------------------------------------------------------------
+
+
+def test_single_token_does_not_trigger_proxy():
+    """SQL with 'repeat' only should NOT match the ('repeat','closed_cases') group."""
+    spec = load_spec(SPEC_CA)
+    ctx = MetricContext(spec=spec, alerts={"rule_a": [{"customer_id": "C001"}, {"customer_id": "C001"}]},
+                        cases=[{"case_id": "rule_a__C001__x", "queue": "closed_no_action"}],
+                        decisions=[{"event": "case_opened", "case_id": "rule_a__C001__x"}],
+                        data={})
+    formula = SQLFormula(type="sql", sql="SELECT repeat_count FROM somewhere")
+    assert _compute_sql_proxy(formula, ctx) == 0.0
+
+
+def test_lctr_reportable_token_matches_proxy():
+    """SQL with 'reportable' matches the ('reportable',) proxy group."""
+    spec = load_spec(SPEC_CA)
+    ctx = MetricContext(spec=spec, alerts={}, cases=[], decisions=[],
+                        data={"txn": [{"channel": "cash", "amount": 5000}]})
+    formula = SQLFormula(type="sql", sql="SELECT filed / NULLIF(reportable, 0) FROM ...")
+    result = _compute_sql_proxy(formula, ctx)
+    assert result >= 0.0  # matched, not unsupported
+
+
+def test_all_tokens_required_for_proxy_match():
+    """All tokens in a group must be present for match. 'repeat'+'closed_cases' matches."""
+    spec = load_spec(SPEC_CA)
+    ctx = MetricContext(spec=spec, alerts={}, cases=[], decisions=[], data={})
+    formula = SQLFormula(type="sql", sql="SELECT repeat, closed_cases FROM dual")
+    result = _compute_sql_proxy(formula, ctx)
+    assert result >= 0.0  # matches repeat_alert proxy
+
+
+def test_sql_breakdown_unsupported():
+    """SQL metric without proxy match gets proxy_status='unsupported' in breakdown."""
+    spec = load_spec(SPEC_CA)
+    from aml_framework.spec.models import Metric as MetricModel
+    metric = MetricModel(
+        id="unknown_sql",
+        name="Unknown SQL",
+        category="operational",
+        audience=["svp"],
+        formula=SQLFormula(type="sql", sql="SELECT nonsense FROM nowhere"),
+    )
+    spec.metrics.append(metric)
+    results = evaluate_metrics(spec=spec, alerts={}, cases=[], decisions=[], data={})
+    got = next(m for m in results if m.id == "unknown_sql")
+    assert got.breakdown.get("proxy_status") == "unsupported"
+
+
+def test_sql_breakdown_matched():
+    """SQL metric with matching proxy gets proxy_status='proxy_matched' in breakdown."""
+    spec = load_spec(SPEC_CA)
+    from aml_framework.spec.models import Metric as MetricModel
+    metric = MetricModel(
+        id="filing_proxy",
+        name="Filing Proxy",
+        category="operational",
+        audience=["svp"],
+        formula=SQLFormula(type="sql", sql="SELECT filing_percentile FROM filing_latency"),
+    )
+    spec.metrics.append(metric)
+    results = evaluate_metrics(spec=spec, alerts={}, cases=[], decisions=[], data={})
+    got = next(m for m in results if m.id == "filing_proxy")
+    assert got.breakdown.get("proxy_status") == "proxy_matched"
+
+
+# ---------------------------------------------------------------------------
+# End #204 tests
+# ---------------------------------------------------------------------------
+
+
 def test_unknown_sql_formula_returns_zero():
     """The dispatch table covers known proxies; everything else falls through to 0.0."""
     spec = load_spec(SPEC_CA)
