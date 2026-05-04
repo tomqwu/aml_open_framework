@@ -262,7 +262,7 @@ if _lineage_case.strip():
         if _chain["input_files"]:
             import pandas as _pd
 
-            st.dataframe(
+            data_grid(
                 _pd.DataFrame(_chain["input_files"]).rename(
                     columns={
                         "contract_id": "Contract",
@@ -270,8 +270,8 @@ if _lineage_case.strip():
                         "content_hash": "Content hash",
                     }
                 ),
-                use_container_width=True,
-                hide_index=True,
+                key="lineage_input_files",
+                height=200,
             )
         else:
             st.caption("No input manifest recorded for this run.")
@@ -279,10 +279,10 @@ if _lineage_case.strip():
         if _chain["decisions"]:
             import pandas as _pd
 
-            st.dataframe(
+            data_grid(
                 _pd.DataFrame(_chain["decisions"]),
-                use_container_width=True,
-                hide_index=True,
+                key="lineage_decisions",
+                height=300,
             )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -393,7 +393,7 @@ try:
     else:
         import pandas as _pd
 
-        st.dataframe(_pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        data_grid(_pd.DataFrame(rows), key="regwatch_citations", height=300)
 except Exception as _e:  # noqa: BLE001 — drift panel must never crash the page
     st.caption(f"Regwatch unavailable: {_e}")
 
