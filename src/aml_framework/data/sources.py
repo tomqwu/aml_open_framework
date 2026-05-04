@@ -57,15 +57,19 @@ _PARSERS: dict[ColumnType, Any] = {
 
 
 def _parse_value(value: str, col_type: ColumnType, nullable: bool) -> Any:
-    """Parse a CSV string value to the appropriate Python type."""
+    """Parse a CSV string value to the appropriate Python type.
+
+    Raises ValueError on blank non-nullable values or parse failures
+    so row-level validation can pinpoint the problem.
+    """
     if not value or value.strip() == "":
         if nullable:
             return None
-        return "" if col_type == "string" else 0
+        raise ValueError(f"non-nullable column must not be empty (got {value!r})")
     try:
         return _PARSERS[col_type](value.strip())
-    except (ValueError, InvalidOperation, KeyError):
-        return value
+    except (ValueError, InvalidOperation, KeyError) as e:
+        raise ValueError(f"cannot parse {value[:50]!r} as {col_type}: {e}") from e
 
 
 def validate_csv(csv_path: Path, spec: AMLSpec, contract_id: str) -> list[str]:
@@ -79,6 +83,8 @@ def validate_csv(csv_path: Path, spec: AMLSpec, contract_id: str) -> list[str]:
     if not csv_path.exists():
         errors.append(f"File not found: {csv_path}")
         return errors
+
+    col_type_map = {c.name: (c.type, c.nullable) for c in contract.columns}
 
     with csv_path.open("r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -95,6 +101,18 @@ def validate_csv(csv_path: Path, spec: AMLSpec, contract_id: str) -> list[str]:
         extra = headers - declared
         if extra:
             errors.append(f"Extra columns not in contract: {sorted(extra)} (will be ignored)")
+
+        # Row-level type and nullability validation.
+        for row_num, row in enumerate(reader, start=2):  # 1-indexed, header is row 1
+            for col_name, (col_type, nullable) in col_type_map.items():
+                raw = row.get(col_name, "")
+                try:
+                    _parse_value(raw, col_type, nullable)
+                except ValueError as e:
+                    errors.append(
+                        f"csv {csv_path.name} row {row_num} column '{col_name}' "
+                        f"(type={col_type}, nullable={nullable}): {e}"
+                    )
 
     return errors
 
@@ -122,11 +140,19 @@ def load_csv_source(
         rows: list[dict[str, Any]] = []
         types = col_types[contract.id]
         with csv_path.open("r", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
+            for row_num, row in enumerate(csv.DictReader(f), start=2):
                 parsed: dict[str, Any] = {}
                 for col_name, (col_type, nullable) in types.items():
                     raw = row.get(col_name, "")
-                    parsed[col_name] = _parse_value(raw, col_type, nullable)
+                    try:
+                        parsed[col_name] = _parse_value(raw, col_type, nullable)
+                    except ValueError as e:
+                        raise DataSourceLoadError(
+                            "csv",
+                            contract.id,
+                            f"{csv_path.name} row {row_num} column '{col_name}' "
+                            f"(type={col_type}, nullable={nullable}): {e}",
+                        ) from e
                 rows.append(parsed)
         data[contract.id] = rows
 
