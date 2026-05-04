@@ -39,6 +39,20 @@ def _allowed_python_ref_prefixes() -> tuple[str, ...]:
     return tuple(p.strip() for p in env.split(",") if p.strip())
 
 
+def _is_strict_python_ref(strict_python_ref: bool | None = None) -> bool:
+    """Determine whether python_ref failures should abort the run.
+
+    Resolution order:
+    1. Explicit parameter (via CLI or programmatic call)
+    2. AML_STRICT_PYTHON_REF environment variable ("0" → permissive)
+    3. Default: strict (True)
+    """
+    if strict_python_ref is not None:
+        return strict_python_ref
+    env = os.environ.get("AML_STRICT_PYTHON_REF", "1").strip()
+    return env != "0"
+
+
 def _harden_duckdb(con: duckdb.DuckDBPyConnection) -> None:
     """Lock down a DuckDB connection so a malicious custom_sql rule cannot
     reach the network or filesystem. The reference engine only needs
@@ -89,10 +103,32 @@ class RunResult:
     case_ids: list[str] = field(default_factory=list)
     metrics: list[MetricResult] = field(default_factory=list)
     reports: dict[str, str] = field(default_factory=dict)
+    python_ref_failures: dict[str, str] = field(default_factory=dict)
 
     @property
     def total_alerts(self) -> int:
         return sum(len(v) for v in self.alerts.values())
+
+
+class PythonRefFailure(Exception):
+    """A python_ref scorer failed at execution time.
+
+    In strict mode (default), the engine aborts the run rather than
+    silently recording zero alerts.  The audit ledger still captures the
+    failure event before the exception propagates.
+    """
+
+    def __init__(
+        self,
+        rule_id: str,
+        module_path: str,
+        func_name: str,
+        message: str = "",
+    ):
+        self.rule_id = rule_id
+        self.module_path = module_path
+        self.func_name = func_name
+        super().__init__(message or f"python_ref scorer failed for rule '{rule_id}'")
 
 
 class ContractViolation(Exception):
@@ -687,6 +723,7 @@ def run_spec(
     data: dict[str, list[dict[str, Any]]],
     as_of: datetime,
     artifacts_root: Path,
+    strict_python_ref: bool | None = None,
 ) -> RunResult:
     """Execute every active rule, persist alerts + cases + audit ledger."""
     ledger = AuditLedger.create(
@@ -733,6 +770,7 @@ def run_spec(
 
     alerts_by_rule: dict[str, list[dict[str, Any]]] = {}
     case_ids: list[str] = []
+    python_ref_failures: dict[str, str] = {}
 
     for rule in spec.rules:
         if rule.status != "active":
@@ -760,15 +798,15 @@ def run_spec(
                 scorer = getattr(mod, func_name)
                 alerts = scorer(con, as_of)
             except Exception as exc:
-                # A scorer that raises (missing module, missing attr, runtime
-                # error inside the model) must not abort the whole run — that
-                # would leave the audit ledger half-written. Log, record zero
-                # alerts, emit a rule_failed event, continue.
+                # Always record the failure in the audit ledger so the
+                # run directory documents what went wrong regardless of
+                # whether the engine aborts.
                 logger.exception(
                     "python_ref rule '%s' failed: %s — recording zero alerts",
                     rule.id,
                     exc,
                 )
+                error_msg = f"{type(exc).__name__}: {exc}"
                 alerts = []
                 alerts_by_rule[rule.id] = alerts
                 ledger.record_alerts(rule.id, alerts)
@@ -777,9 +815,17 @@ def run_spec(
                         "event": Event.RULE_FAILED,
                         "rule_id": rule.id,
                         "logic_type": "python_ref",
-                        "error": f"{type(exc).__name__}: {exc}",
+                        "error": error_msg,
                     }
                 )
+                python_ref_failures[rule.id] = error_msg
+                if _is_strict_python_ref(strict_python_ref):
+                    raise PythonRefFailure(
+                        rule_id=rule.id,
+                        module_path=module_path,
+                        func_name=func_name,
+                        message=error_msg,
+                    ) from exc
                 continue
             alerts_by_rule[rule.id] = alerts
             ledger.record_alerts(rule.id, alerts)
@@ -844,7 +890,7 @@ def run_spec(
     # decision events, resolution times, and SLA compliance data.
     _simulate_case_resolution(spec, case_ids, ledger, as_of)
 
-    return _finalize_run(spec, ledger, alerts_by_rule, case_ids, data)
+    return _finalize_run(spec, ledger, alerts_by_rule, case_ids, data, python_ref_failures)
 
 
 def _finalize_run(
@@ -853,6 +899,7 @@ def _finalize_run(
     alerts_by_rule: dict[str, list[dict[str, Any]]],
     case_ids: list[str],
     data: dict[str, list[dict[str, Any]]],
+    python_ref_failures: dict[str, str] | None = None,
 ) -> RunResult:
     """Evaluate metrics, render reports, and write the final manifest."""
     cases_rows: list[dict[str, Any]] = []
@@ -888,6 +935,8 @@ def _finalize_run(
     manifest = ledger.finalize()
     manifest["metrics"] = [m.to_dict() for m in metric_results]
     manifest["reports"] = sorted(reports.keys())
+    if python_ref_failures:
+        manifest["python_ref_failures"] = python_ref_failures
     (ledger.run_dir / "manifest.json").write_bytes(
         json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
     )
@@ -899,4 +948,5 @@ def _finalize_run(
         case_ids=case_ids,
         metrics=metric_results,
         reports=reports,
+        python_ref_failures=python_ref_failures or {},
     )

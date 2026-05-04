@@ -588,7 +588,7 @@ class TestNetworkPattern:
 
 
 class TestPythonRefErrorBoundary:
-    """A scorer that raises must NOT abort the whole run."""
+    """A scorer that raises must NOT abort the run when permissive mode is enabled."""
 
     def _spec_with_failing_scorer(self, tmp_path: Path, callable_str: str) -> Path:
         import yaml as _yaml
@@ -614,7 +614,12 @@ class TestPythonRefErrorBoundary:
         as_of = datetime(2026, 4, 23, 12, 0, 0)
         data = generate_dataset(as_of=as_of, seed=42)
         result = run_spec(
-            spec=spec, spec_path=spec_path, data=data, as_of=as_of, artifacts_root=tmp_path / "x"
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path / "x",
+            strict_python_ref=False,
         )
         # Run completed despite the missing module — manifest exists, other
         # rules produced their normal alerts.
@@ -627,7 +632,12 @@ class TestPythonRefErrorBoundary:
         as_of = datetime(2026, 4, 23, 12, 0, 0)
         data = generate_dataset(as_of=as_of, seed=42)
         result = run_spec(
-            spec=spec, spec_path=spec_path, data=data, as_of=as_of, artifacts_root=tmp_path / "x"
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path / "x",
+            strict_python_ref=False,
         )
         # Find the python_ref rule that failed and assert its alert list is empty.
         py_ref_rules = [r for r in spec.rules if r.logic.type == "python_ref"]
@@ -641,7 +651,12 @@ class TestPythonRefErrorBoundary:
         as_of = datetime(2026, 4, 23, 12, 0, 0)
         data = generate_dataset(as_of=as_of, seed=42)
         result = run_spec(
-            spec=spec, spec_path=spec_path, data=data, as_of=as_of, artifacts_root=tmp_path / "x"
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path / "x",
+            strict_python_ref=False,
         )
         run_dir = Path(result.manifest["run_dir"])
         decisions = [
@@ -682,6 +697,7 @@ class TestPythonRefErrorBoundary:
                 data=data,
                 as_of=as_of,
                 artifacts_root=tmp_path / "x",
+                strict_python_ref=False,
             )
             # Run completed.
             assert "rule_outputs" in result.manifest
@@ -695,6 +711,151 @@ class TestPythonRefErrorBoundary:
             assert any("RuntimeError" in d.get("error", "") for d in failed)
         finally:
             sys.modules.pop("aml_framework.models.crashing_scorer", None)
+
+
+class TestPythonRefStrictMode:
+    """Strict mode (default): python_ref scorer failure aborts the run."""
+
+    def _spec_with_failing_scorer(self, tmp_path: Path, callable_str: str) -> Path:
+        import yaml as _yaml
+
+        spec_raw = _yaml.safe_load(SPEC_CA.read_text())
+        replaced = False
+        for rule in spec_raw["rules"]:
+            if rule.get("logic", {}).get("type") == "python_ref":
+                rule["logic"]["callable"] = callable_str
+                replaced = True
+                break
+        if not replaced:
+            pytest.skip("CA spec has no python_ref rule to hijack")
+        bad = tmp_path / "aml.yaml"
+        bad.write_text(_yaml.safe_dump(spec_raw))
+        return bad
+
+    def test_missing_module_fails_run_by_default(self, tmp_path):
+        """In strict mode (default), a missing module raises PythonRefFailure."""
+        from aml_framework.engine.runner import PythonRefFailure
+
+        spec_path = self._spec_with_failing_scorer(
+            tmp_path, "aml_framework.models.does_not_exist:score"
+        )
+        spec = load_spec(spec_path)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        with pytest.raises(PythonRefFailure) as exc_info:
+            run_spec(
+                spec=spec,
+                spec_path=spec_path,
+                data=data,
+                as_of=as_of,
+                artifacts_root=tmp_path / "x",
+            )
+        exc = exc_info.value
+        assert exc.rule_id is not None
+        assert "ModuleNotFoundError" in str(exc) or "No module" in str(exc)
+
+    def test_runtime_error_fails_run_by_default(self, tmp_path, monkeypatch):
+        """In strict mode (default), a scorer runtime error raises PythonRefFailure."""
+        import sys
+        import types
+
+        from aml_framework.engine.runner import PythonRefFailure
+
+        mod = types.ModuleType("aml_framework.models.crashing_scorer")
+
+        def _crash(con, as_of):
+            raise RuntimeError("simulated model failure")
+
+        mod.score = _crash
+        sys.modules["aml_framework.models.crashing_scorer"] = mod
+        try:
+            spec_path = self._spec_with_failing_scorer(
+                tmp_path, "aml_framework.models.crashing_scorer:score"
+            )
+            spec = load_spec(spec_path)
+            as_of = datetime(2026, 4, 23, 12, 0, 0)
+            data = generate_dataset(as_of=as_of, seed=42)
+            with pytest.raises(PythonRefFailure) as exc_info:
+                run_spec(
+                    spec=spec,
+                    spec_path=spec_path,
+                    data=data,
+                    as_of=as_of,
+                    artifacts_root=tmp_path / "x",
+                )
+            exc = exc_info.value
+            assert "simulated" in str(exc) or "RuntimeError" in str(exc)
+        finally:
+            sys.modules.pop("aml_framework.models.crashing_scorer", None)
+
+    def test_permissive_mode_does_not_abort_run(self, tmp_path):
+        """AML_STRICT_PYTHON_REF=0 preserves the legacy tolerant behavior."""
+        spec_path = self._spec_with_failing_scorer(tmp_path, "aml_framework.models.nope:score")
+        spec = load_spec(spec_path)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path / "x",
+            strict_python_ref=False,
+        )
+        assert "rule_outputs" in result.manifest
+        assert result.total_alerts > 0  # other rules ran
+
+    def test_runresult_carries_python_ref_failures(self, tmp_path):
+        """RunResult exposes which rules failed and why."""
+        spec_path = self._spec_with_failing_scorer(tmp_path, "aml_framework.models.nope:score")
+        spec = load_spec(spec_path)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=as_of,
+            artifacts_root=tmp_path / "x",
+            strict_python_ref=False,
+        )
+        assert len(result.python_ref_failures) == 1
+        py_ref_rules = [r for r in spec.rules if r.logic.type == "python_ref"]
+        assert any(r.id in result.python_ref_failures for r in py_ref_rules)
+
+    def test_strict_abort_writes_audit_ledger_first(self, tmp_path):
+        """Strict abort records the failure in decisions.jsonl before raising."""
+        from aml_framework.engine.runner import PythonRefFailure
+
+        spec_path = self._spec_with_failing_scorer(
+            tmp_path, "aml_framework.models.does_not_exist:score"
+        )
+        spec = load_spec(spec_path)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42)
+        artifacts_root = tmp_path / "x"
+        try:
+            run_spec(
+                spec=spec,
+                spec_path=spec_path,
+                data=data,
+                as_of=as_of,
+                artifacts_root=artifacts_root,
+            )
+        except PythonRefFailure:
+            pass
+        # The run directory still exists and decisions.jsonl has the failure.
+        run_dirs = sorted(artifacts_root.glob("run-*"))
+        assert len(run_dirs) >= 1
+        run_dir = run_dirs[-1]
+        decisions_path = run_dir / "decisions.jsonl"
+        assert decisions_path.exists()
+        decisions = [
+            json.loads(line) for line in decisions_path.read_text().splitlines() if line.strip()
+        ]
+        failed = [d for d in decisions if d.get("event") == "rule_failed"]
+        assert len(failed) == 1
+        assert failed[0]["logic_type"] == "python_ref"
 
 
 class TestWindowDST:
