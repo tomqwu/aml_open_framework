@@ -14,9 +14,36 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from aml_framework.spec.models import AMLSpec, ColumnType
+from aml_framework.spec.models import AMLSpec, ColumnType, DataContract
 
 logger = logging.getLogger("aml.data.sources")
+
+
+class DataSourceLoadError(RuntimeError):
+    """Raised when a declared non-synthetic data contract cannot be loaded."""
+
+    def __init__(self, source_type: str, contract_id: str, cause: str) -> None:
+        self.source_type = source_type
+        self.contract_id = contract_id
+        self.cause = cause
+        super().__init__(
+            f"Failed to load contract '{contract_id}' from {source_type}: {cause}. "
+            "Set allow_empty: true on the data contract only when an empty or "
+            "missing source is an intentional, regulator-reviewable condition."
+        )
+
+
+def _empty_or_raise(source_type: str, contract: DataContract, cause: str) -> list[dict[str, Any]]:
+    if contract.allow_empty:
+        logger.warning(
+            "%s: allowed empty data for contract '%s': %s",
+            source_type,
+            contract.id,
+            cause,
+        )
+        return []
+    raise DataSourceLoadError(source_type, contract.id, cause)
+
 
 # Type parsers for CSV string values.
 _PARSERS: dict[ColumnType, Any] = {
@@ -89,7 +116,7 @@ def load_csv_source(
 
         csv_path = data_dir / f"{contract.id}.csv"
         if not csv_path.exists():
-            data[contract.id] = []
+            data[contract.id] = _empty_or_raise("csv", contract, f"missing file {csv_path}")
             continue
 
         rows: list[dict[str, Any]] = []
@@ -116,17 +143,20 @@ def load_parquet_source(
     data: dict[str, list[dict[str, Any]]] = {}
     con = duckdb.connect(":memory:")
 
-    for contract in spec.data_contracts:
-        parquet_path = data_dir / f"{contract.id}.parquet"
-        if not parquet_path.exists():
-            data[contract.id] = []
-            continue
+    try:
+        for contract in spec.data_contracts:
+            parquet_path = data_dir / f"{contract.id}.parquet"
+            if not parquet_path.exists():
+                data[contract.id] = _empty_or_raise(
+                    "parquet", contract, f"missing file {parquet_path}"
+                )
+                continue
 
-        rows = con.execute(f"SELECT * FROM '{parquet_path}'").fetchall()
-        cols = [d[0] for d in con.description] if con.description else []
-        data[contract.id] = [dict(zip(cols, r)) for r in rows]
-
-    con.close()
+            rows = con.execute(f"SELECT * FROM '{parquet_path}'").fetchall()
+            cols = [d[0] for d in con.description] if con.description else []
+            data[contract.id] = [dict(zip(cols, r)) for r in rows]
+    finally:
+        con.close()
     return data
 
 
@@ -145,17 +175,18 @@ def load_duckdb_source(
     data: dict[str, list[dict[str, Any]]] = {}
     con = duckdb.connect(db_path, read_only=True)
 
-    for contract in spec.data_contracts:
-        sql = (queries or {}).get(contract.id, f"SELECT * FROM {contract.id}")
-        try:
-            rows = con.execute(sql).fetchall()
-            cols = [d[0] for d in con.description] if con.description else []
-            data[contract.id] = [dict(zip(cols, r)) for r in rows]
-        except Exception:
-            logger.warning("duckdb: failed to load contract '%s'", contract.id)
-            data[contract.id] = []
-
-    con.close()
+    try:
+        for contract in spec.data_contracts:
+            sql = (queries or {}).get(contract.id, f"SELECT * FROM {contract.id}")
+            try:
+                rows = con.execute(sql).fetchall()
+                cols = [d[0] for d in con.description] if con.description else []
+                data[contract.id] = [dict(zip(cols, r)) for r in rows]
+            except Exception as e:
+                logger.warning("duckdb: failed to load contract '%s': %s", contract.id, e)
+                data[contract.id] = _empty_or_raise("duckdb", contract, str(e))
+    finally:
+        con.close()
     return data
 
 
@@ -253,16 +284,24 @@ def _load_warehouse_via_duckdb(  # pragma: no cover
         except Exception:  # pragma: no cover
             logger.debug("%s_attach not required for this connection", extension)
 
-    for contract in spec.data_contracts:
-        try:
-            rows = con.execute(f"SELECT * FROM {contract.source}").fetchall()  # pragma: no cover
-            cols = [d[0] for d in con.description] if con.description else []
-            data[contract.id] = [dict(zip(cols, r)) for r in rows]
-        except Exception:
-            logger.warning("warehouse: failed to load contract '%s' via %s", contract.id, extension)
-            data[contract.id] = []
-
-    con.close()
+    try:
+        for contract in spec.data_contracts:
+            try:
+                rows = con.execute(
+                    f"SELECT * FROM {contract.source}"
+                ).fetchall()  # pragma: no cover
+                cols = [d[0] for d in con.description] if con.description else []
+                data[contract.id] = [dict(zip(cols, r)) for r in rows]
+            except Exception as e:
+                logger.warning(
+                    "warehouse: failed to load contract '%s' via %s: %s",
+                    contract.id,
+                    extension,
+                    e,
+                )
+                data[contract.id] = _empty_or_raise(extension, contract, str(e))
+    finally:
+        con.close()
     return data
 
 
@@ -283,19 +322,24 @@ def _load_cloud_storage(  # pragma: no cover
     except Exception as e:
         raise RuntimeError(f"DuckDB httpfs extension required for {provider}: {e}") from e
 
-    for contract in spec.data_contracts:
-        for ext in ("csv", "parquet"):
-            path = f"{bucket_path.rstrip('/')}/{contract.id}.{ext}"
-            try:
-                rows = con.execute(f"SELECT * FROM '{path}'").fetchall()
-                cols = [d[0] for d in con.description] if con.description else []
-                data[contract.id] = [dict(zip(cols, r)) for r in rows]
-                break
-            except Exception:  # pragma: no cover
-                logger.debug("cloud: %s.%s not found at %s", contract.id, ext, bucket_path)
-                continue
-        if contract.id not in data:
-            data[contract.id] = []
-
-    con.close()
+    try:
+        for contract in spec.data_contracts:
+            for ext in ("csv", "parquet"):
+                path = f"{bucket_path.rstrip('/')}/{contract.id}.{ext}"
+                try:
+                    rows = con.execute(f"SELECT * FROM '{path}'").fetchall()
+                    cols = [d[0] for d in con.description] if con.description else []
+                    data[contract.id] = [dict(zip(cols, r)) for r in rows]
+                    break
+                except Exception:  # pragma: no cover
+                    logger.debug("cloud: %s.%s not found at %s", contract.id, ext, bucket_path)
+                    continue
+            if contract.id not in data:
+                data[contract.id] = _empty_or_raise(
+                    provider,
+                    contract,
+                    f"no csv or parquet object under {bucket_path.rstrip('/')}",
+                )
+    finally:
+        con.close()
     return data

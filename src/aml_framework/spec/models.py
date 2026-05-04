@@ -126,6 +126,7 @@ class DataContract(_Base):
     id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     source: str
     freshness_sla: str | None = Field(default=None, pattern=r"^[0-9]+[smhd]$")
+    allow_empty: bool = False
     columns: list[Column]
     quality_checks: list[dict[str, Any]] = Field(default_factory=list)
 

@@ -70,6 +70,17 @@ def test_missing_required_field_fails_schema(tmp_path):
         load_spec(bad)
 
 
+def test_data_contract_allow_empty_loads_through_schema(tmp_path):
+    raw = yaml.safe_load(EXAMPLE.read_text())
+    raw["data_contracts"][0]["allow_empty"] = True
+    spec_path = tmp_path / "aml.yaml"
+    spec_path.write_text(yaml.safe_dump(raw))
+
+    spec = load_spec(spec_path)
+
+    assert spec.data_contracts[0].allow_empty is True
+
+
 class TestEvaluationMode:
     """`rule.evaluation_mode` records institution intent (batch / streaming /
     both) so an operator can route at deployment time. v1 engine only runs

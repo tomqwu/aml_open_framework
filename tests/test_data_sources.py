@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 import duckdb
 import pytest
 
 from aml_framework.data import generate_dataset
 from aml_framework.data.sources import (
+    _load_cloud_storage,
+    _load_warehouse_via_duckdb,
     _parse_value,
     load_csv_source,
     load_duckdb_source,
@@ -22,6 +26,17 @@ from aml_framework.engine import run_spec
 from aml_framework.spec import load_spec
 
 SPEC = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_i_bank" / "aml.yaml"
+
+
+def _spec_with_allow_empty(*contract_ids: str):
+    """Return test spec with selected contracts explicitly allowed to load empty."""
+    spec = load_spec(SPEC)
+    allowed = set(contract_ids)
+    contracts = [
+        contract.model_copy(update={"allow_empty": contract.id in allowed})
+        for contract in spec.data_contracts
+    ]
+    return spec.model_copy(update={"data_contracts": contracts})
 
 
 def _create_test_csvs(tmp_path: Path) -> Path:
@@ -54,9 +69,16 @@ class TestCSVSource:
         assert len(data["txn"]) == 3
         assert isinstance(data["txn"][0]["amount"], Decimal)
 
-    def test_load_csv_missing_file_returns_empty(self, tmp_path):
+    def test_load_csv_missing_file_fails_closed(self, tmp_path):
         spec = load_spec(SPEC)
+        with pytest.raises(RuntimeError, match="contract 'txn'.*csv"):
+            load_csv_source(tmp_path, spec)
+
+    def test_load_csv_missing_file_allowed_empty_contract(self, tmp_path):
+        spec = _spec_with_allow_empty("txn", "customer")
+
         data = load_csv_source(tmp_path, spec)
+
         assert data["customer"] == []
         assert data["txn"] == []
 
@@ -148,18 +170,34 @@ class TestSourcesParsing:
         assert _parse_value("", "string", True) is None
         assert _parse_value("", "integer", False) == 0
 
-    def test_parquet_missing_file(self, tmp_path):
+    def test_parquet_missing_file_fails_closed(self, tmp_path):
         spec = load_spec(SPEC)
+        with pytest.raises(RuntimeError, match="contract 'txn'.*parquet"):
+            load_parquet_source(tmp_path, spec)
+
+    def test_parquet_missing_file_allowed_empty_contract(self, tmp_path):
+        spec = _spec_with_allow_empty("txn", "customer")
+
         data = load_parquet_source(tmp_path, spec)
+
         assert data["txn"] == []
         assert data["customer"] == []
 
-    def test_duckdb_source_missing_table(self, tmp_path):
+    def test_duckdb_source_missing_table_fails_closed(self, tmp_path):
         db_path = str(tmp_path / "test.duckdb")
         con = duckdb.connect(db_path)
         con.close()
 
         spec = load_spec(SPEC)
+        with pytest.raises(RuntimeError, match="contract 'txn'.*duckdb"):
+            load_duckdb_source(db_path, spec)
+
+    def test_duckdb_source_missing_table_allowed_empty_contract(self, tmp_path):
+        db_path = str(tmp_path / "test.duckdb")
+        con = duckdb.connect(db_path)
+        con.close()
+
+        spec = _spec_with_allow_empty("txn", "customer")
         data = load_duckdb_source(db_path, spec)
         assert data["txn"] == []
 
@@ -250,7 +288,7 @@ class TestParquetAndDuckDB:
         con.execute(f"COPY test TO '{tmp_path}/txn.parquet' (FORMAT PARQUET)")
         con.close()
 
-        spec = load_spec(SPEC)
+        spec = _spec_with_allow_empty("customer")
         data = load_parquet_source(tmp_path, spec)
         assert len(data["txn"]) == 1
         assert data["txn"][0]["txn_id"] == "T001"
@@ -261,23 +299,30 @@ class TestParquetAndDuckDB:
         con.execute("CREATE TABLE my_txns AS SELECT 'T001' AS txn_id, 'C001' AS customer_id")
         con.close()
 
-        spec = load_spec(SPEC)
+        spec = _spec_with_allow_empty("customer")
         data = load_duckdb_source(db_path, spec, queries={"txn": "SELECT * FROM my_txns"})
         assert len(data["txn"]) == 1
 
-    def test_resolve_parquet(self, tmp_path):
+    def test_resolve_parquet_missing_files_fail_closed(self, tmp_path):
         spec = load_spec(SPEC)
+        with pytest.raises(RuntimeError, match="contract 'txn'.*parquet"):
+            resolve_source("parquet", spec, datetime(2026, 4, 23), data_dir=str(tmp_path))
+
+    def test_resolve_parquet_allowed_empty_contracts(self, tmp_path):
+        spec = _spec_with_allow_empty("txn", "customer")
+
         data = resolve_source("parquet", spec, datetime(2026, 4, 23), data_dir=str(tmp_path))
+
         assert data["txn"] == []
 
-    def test_resolve_duckdb(self, tmp_path):
+    def test_resolve_duckdb_missing_tables_fail_closed(self, tmp_path):
         db_path = str(tmp_path / "test.duckdb")
         con = duckdb.connect(db_path)
         con.close()
 
         spec = load_spec(SPEC)
-        data = resolve_source("duckdb", spec, datetime(2026, 4, 23), db_path=db_path)
-        assert isinstance(data, dict)
+        with pytest.raises(RuntimeError, match="contract 'txn'.*duckdb"):
+            resolve_source("duckdb", spec, datetime(2026, 4, 23), db_path=db_path)
 
 
 # ---------------------------------------------------------------------------
@@ -333,6 +378,51 @@ class TestCloudSources:
         spec = load_spec(SPEC)
         with pytest.raises(ValueError, match="data-dir"):
             resolve_source("gcs", spec, datetime(2026, 4, 23))
+
+    def test_warehouse_contract_failure_fails_closed(self, monkeypatch):
+        class FailingWarehouseConnection:
+            description = None
+
+            def execute(self, sql):
+                if sql.startswith("SELECT"):
+                    raise RuntimeError("warehouse permission denied")
+                return self
+
+            def close(self):
+                return None
+
+        monkeypatch.setitem(
+            sys.modules,
+            "duckdb",
+            SimpleNamespace(connect=lambda _: FailingWarehouseConnection()),
+        )
+        spec = load_spec(SPEC)
+
+        with pytest.raises(RuntimeError, match="contract 'txn'.*snowflake.*permission denied"):
+            _load_warehouse_via_duckdb(spec, "snowflake", "", "snowflake unavailable")
+
+    def test_cloud_contract_failure_allowed_empty(self, monkeypatch):
+        class MissingCloudConnection:
+            description = None
+
+            def execute(self, sql):
+                if sql.startswith("SELECT"):
+                    raise RuntimeError("object not found")
+                return self
+
+            def close(self):
+                return None
+
+        monkeypatch.setitem(
+            sys.modules,
+            "duckdb",
+            SimpleNamespace(connect=lambda _: MissingCloudConnection()),
+        )
+        spec = _spec_with_allow_empty("txn", "customer")
+
+        data = _load_cloud_storage("s3", "s3://bucket/prefix", spec)
+
+        assert data == {"txn": [], "customer": []}
 
 
 # ---------------------------------------------------------------------------

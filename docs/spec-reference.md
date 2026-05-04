@@ -40,13 +40,17 @@ Other audit fields (`ts`, `page`, `persona`, `backend`, `citations`, `confidence
 ## `data_contracts`
 
 Declared inputs. The engine refuses to run if the warehouse schema does not
-satisfy the contract.
+satisfy the contract. External data sources (CSV, Parquet, DuckDB, warehouse,
+S3/GCS) also fail closed when a declared contract is missing or unloadable;
+use `allow_empty: true` only for contracts that are intentionally optional or
+empty in a reviewed deployment.
 
 ```yaml
 data_contracts:
   - id: txn
     source: raw.transactions          # fully-qualified source table/view
     freshness_sla: 1h                 # max lag before alerting
+    allow_empty: false                # fail closed if source is missing/unloadable
     columns:
       - { name: txn_id,      type: string,    nullable: false, pii: false }
       - { name: customer_id, type: string,    nullable: false, pii: true  }
