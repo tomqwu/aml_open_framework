@@ -80,8 +80,10 @@ def initialize_session() -> None:
         from aml_framework.data.sources import load_csv_source
 
         data = load_csv_source(data_input_dir, spec, as_of)
+        data_source_mode = "csv"
     else:
         data = generate_dataset(as_of=as_of, seed=seed)
+        data_source_mode = "synthetic"
 
     artifacts = Path(tempfile.mkdtemp(prefix="aml_dashboard_"))
     result = run_spec(
@@ -142,6 +144,7 @@ def initialize_session() -> None:
         run_dir=run_dir,
         as_of=as_of,
         seed=seed,
+        data_source_mode=data_source_mode,
         df_alerts=df_alerts,
         df_customers=df_customers,
         df_txns=df_txns,

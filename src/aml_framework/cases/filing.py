@@ -11,12 +11,11 @@ and gives the MLRO a number that doesn't match the regulator's record.
 This module adds a sidecar artifact, written when a filing actually
 happens:
 
-    <run_dir>/cases/<case_id>__filing.json
+    <run_dir>/cases/<case_id>__filing.jsonl
 
-with the wall-clock timestamp of submission, the channel (goAML upload,
-FinCEN BSA E-Filing, manual-PDF, etc.), and an optional reference id
-returned by the receiving system. The metrics engine reads these
-sidecars first; the proxy stays as a fallback so legacy runs (no
+in JSONL format so every submission attempt (initial, retry, correction,
+confirmation) is append-only. The metrics engine reads the most recent
+record for latency; the proxy stays as a fallback so legacy runs (no
 sidecars) still produce a number.
 
 Why a sidecar (not the bundle):
@@ -80,10 +79,9 @@ class FilingRecord:
 
 
 def filing_path(run_dir: Path, case_id: str) -> Path:
-    """Sidecar path for a case's filing record. Lives next to the case
-    JSON so a regulator pulling the run dir gets case + filing together.
-    """
-    return run_dir / "cases" / f"{case_id}__filing.json"
+    """Sidecar path for a case's filing records. JSONL so every
+    submission attempt is append-only."""
+    return run_dir / "cases" / f"{case_id}__filing.jsonl"
 
 
 def record_filing(
@@ -95,19 +93,14 @@ def record_filing(
     reference_id: str = "",
     notes: str = "",
 ) -> FilingRecord:
-    """Write a filing sidecar for `case_id` in `run_dir`.
+    """Append a filing record to the sidecar for `case_id`.
 
-    Idempotent: writing twice with the same `filed_at` overwrites the
-    file with identical bytes (used by re-tries that re-submit on
-    transport failure). If `filed_at` differs, the new record wins —
-    the latest filing time is the authoritative one for latency
-    calculations. The previous record is overwritten silently; if you
-    need an audit trail of every submission attempt, append to the
-    `notes` field.
+    Each call adds a line to `<case_id>__filing.jsonl` (JSONL), so
+    submissions, retries, corrections, and confirmations all survive
+    in an append-only audit trail. Callers that only want the latest
+    filing read `get_filing` (returns the most recent record).
     """
     if filed_at.tzinfo is None:
-        # Normalise naive timestamps to UTC so latency math doesn't
-        # get tripped up by a half-set timezone.
         filed_at = filed_at.replace(tzinfo=timezone.utc)
     record = FilingRecord(
         case_id=case_id,
@@ -118,37 +111,41 @@ def record_filing(
     )
     path = filing_path(run_dir, case_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(record.to_dict(), indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record.to_dict(), sort_keys=True, default=str) + "\n")
     return record
 
 
 def get_filing(run_dir: Path, case_id: str) -> FilingRecord | None:
-    """Read the filing sidecar for `case_id`, or None if no filing has
-    been recorded yet (most cases — only filed STR/SAR cases have one).
-    """
+    """Read the most recent filing record for `case_id`, or None."""
     path = filing_path(run_dir, case_id)
     if not path.exists():
         return None
-    try:
-        return FilingRecord.from_dict(json.loads(path.read_text(encoding="utf-8")))
-    except (json.JSONDecodeError, KeyError, ValueError):
-        return None
+    last: FilingRecord | None = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            last = FilingRecord.from_dict(json.loads(line))
+        except (json.JSONDecodeError, KeyError, ValueError):
+            continue
+    return last
 
 
 def list_filings(run_dir: Path) -> list[FilingRecord]:
-    """Every filing sidecar under a run dir, sorted by case_id."""
+    """Every filing record across all case sidecars, sorted by case_id."""
     cases_dir = run_dir / "cases"
     if not cases_dir.exists():
         return []
     out: list[FilingRecord] = []
-    for path in sorted(cases_dir.glob("*__filing.json")):
-        try:
-            out.append(FilingRecord.from_dict(json.loads(path.read_text(encoding="utf-8"))))
-        except (json.JSONDecodeError, KeyError, ValueError):
-            continue
+    for path in sorted(cases_dir.glob("*__filing.jsonl")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                out.append(FilingRecord.from_dict(json.loads(line)))
+            except (json.JSONDecodeError, KeyError, ValueError):
+                continue
     return out
 
 
