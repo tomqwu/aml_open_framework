@@ -182,7 +182,7 @@ The validator catches typos, broken cross-references, and structural errors befo
 aml export examples/community_bank/aml.yaml --out evidence.zip
 ```
 
-Produces a regulator-ready ZIP containing:
+Produces an evidence ZIP containing:
 - The spec snapshot at execution time
 - Every input dataset's SHA-256 hash
 - Every rule's output (alerts, cases)

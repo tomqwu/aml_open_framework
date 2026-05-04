@@ -84,7 +84,7 @@ if _run_dir is not None:
     _cases_dir = _Path(_run_dir) / "cases"
     if _cases_dir.exists():
         for _p in sorted(_cases_dir.glob("*.json")):
-            if _p.name.endswith("__filing.json"):
+            if _p.name.endswith("__filing.jsonl"):
                 continue
             try:
                 _cases_for_rank.append(_json.loads(_p.read_text(encoding="utf-8")))

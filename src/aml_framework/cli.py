@@ -549,7 +549,7 @@ def queue_rank_cmd(
 
     cases = []
     for path in sorted(cases_dir.glob("*.json")):
-        if path.name.endswith("__filing.json"):
+        if path.name.endswith("__filing.jsonl"):
             continue  # PR-DATA-9 sidecars; not cases
         try:
             cases.append(_json.loads(path.read_text(encoding="utf-8")))

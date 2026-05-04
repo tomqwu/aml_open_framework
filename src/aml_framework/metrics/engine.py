@@ -198,7 +198,7 @@ def _proxy_repeat_alert(ctx: "MetricContext") -> float:
 def _proxy_filing_latency(ctx: "MetricContext") -> float:
     """p95 STR/SAR filing latency in days.
 
-    PR-DATA-9 promotion: when filing sidecars exist (`cases/<case_id>__filing.json`,
+    PR-DATA-9 promotion: when filing sidecars exist (`cases/<case_id>__filing.jsonl`,
     written by `cases.filing.record_filing`), use the wall-clock latency
     from case-open to actual filing — that's the regulator-defensible
     number the whitepaper's DATA-9 calls for. Falls back to the proxy
@@ -323,6 +323,7 @@ _PROXY_DISPATCH: tuple[tuple[tuple[str, ...], Any], ...] = (
     (("resolution",), _proxy_avg_resolution),
 )
 
+
 def _sql_proxy_status(formula: "SQLFormula") -> str:
     """Return the proxy dispatch status for an SQL formula."""
     sql_lower = formula.sql.lower()
@@ -354,7 +355,7 @@ class MetricContext:
     decisions: list[dict[str, Any]]
     data: dict[str, list[dict[str, Any]]]
     # PR-DATA-9: optional run dir lets the filing-latency metric read
-    # filing sidecars (`cases/<case_id>__filing.json`) for real
+    # filing sidecars (`cases/<case_id>__filing.jsonl`) for real
     # wall-clock latency. Backwards-compatible — None falls back to
     # the proxy implementation.
     run_dir: Any = None  # actually `Path | None`; Any keeps the dataclass importable without pathlib in callers

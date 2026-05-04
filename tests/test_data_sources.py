@@ -469,8 +469,6 @@ def test_python_ref_creates_cases(tmp_path):
     assert len(ml_cases) >= 1, "scorer alerts must create case files"
 
 
-
-
 # ---------------------------------------------------------------------------
 # #205 P1: Enforce strict row-level CSV data contract validation
 # ---------------------------------------------------------------------------
