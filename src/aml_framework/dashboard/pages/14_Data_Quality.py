@@ -198,7 +198,7 @@ for cr in contract_results:
                 col_info["Non-Null"] = int(series.notna().sum())
                 col_info["Unique"] = int(series.nunique())
             col_rows.append(col_info)
-        st.dataframe(pd.DataFrame(col_rows), use_container_width=True, hide_index=True)
+        data_grid(pd.DataFrame(col_rows), key=f"dq_{contract.id}_columns", height=300)
 
         # Contract compliance — check actual data matches declared schema.
         if not df.empty:

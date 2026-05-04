@@ -196,4 +196,4 @@ else:
             kpi_card(_outcome, _count, _vop_outcome_colors[_outcome])
     # Show the table in case operators want to see counts for non-canonical
     # outcome values (e.g. "not_set" or institution-specific extensions).
-    st.dataframe(_vop_counts, use_container_width=True, hide_index=True)
+    data_grid(_vop_counts, key="vop_counts", height=200)

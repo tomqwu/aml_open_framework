@@ -171,7 +171,7 @@ st.caption(selected_record.reason)
 
 owners = synthesise_owners_from_customer(selected_customer)
 st.markdown("**Beneficial owners on file (synthesised for demo):**")
-st.dataframe(pd.DataFrame([o.to_dict() for o in owners]), use_container_width=True, hide_index=True)
+data_grid(pd.DataFrame([o.to_dict() for o in owners]), key="boi_owners", height=200)
 
 payload = export_fincen_boi(selected_customer, owners, filing_type="initial")
 st.download_button(
