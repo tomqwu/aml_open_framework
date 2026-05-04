@@ -179,12 +179,60 @@ class TestSecretValidation:
     def test_unset_secret_uses_random(self, monkeypatch):
         import importlib
 
+        monkeypatch.delenv("AML_ENV", raising=False)
+        monkeypatch.delenv("API_ENV", raising=False)
         monkeypatch.delenv("JWT_SECRET", raising=False)
         import aml_framework.api.auth as auth_mod
 
         importlib.reload(auth_mod)
         assert len(auth_mod._SECRET) >= 32
         # Reload once more so subsequent tests see the same module identity.
+        importlib.reload(auth_mod)
+
+    def test_production_requires_configured_jwt_secret(self, monkeypatch):
+        import importlib
+
+        monkeypatch.setenv("AML_ENV", "production")
+        monkeypatch.delenv("JWT_SECRET", raising=False)
+
+        with pytest.raises(RuntimeError, match="JWT_SECRET.*production"):
+            import aml_framework.api.auth as auth_mod
+
+            importlib.reload(auth_mod)
+
+        monkeypatch.delenv("AML_ENV", raising=False)
+        monkeypatch.delenv("JWT_SECRET", raising=False)
+        importlib.reload(auth_mod)
+
+    def test_production_disables_demo_users_without_explicit_opt_in(self, monkeypatch):
+        import importlib
+
+        monkeypatch.setenv("AML_ENV", "production")
+        monkeypatch.setenv("JWT_SECRET", "x" * 48)
+        monkeypatch.delenv("ALLOW_DEMO_AUTH", raising=False)
+        import aml_framework.api.auth as auth_mod
+
+        importlib.reload(auth_mod)
+        assert auth_mod.DEMO_USERS == {}
+
+        monkeypatch.delenv("AML_ENV", raising=False)
+        monkeypatch.delenv("JWT_SECRET", raising=False)
+        importlib.reload(auth_mod)
+
+    def test_production_allows_demo_users_only_with_explicit_opt_in(self, monkeypatch):
+        import importlib
+
+        monkeypatch.setenv("AML_ENV", "production")
+        monkeypatch.setenv("JWT_SECRET", "x" * 48)
+        monkeypatch.setenv("ALLOW_DEMO_AUTH", "true")
+        import aml_framework.api.auth as auth_mod
+
+        importlib.reload(auth_mod)
+        assert "admin" in auth_mod.DEMO_USERS
+
+        monkeypatch.delenv("AML_ENV", raising=False)
+        monkeypatch.delenv("JWT_SECRET", raising=False)
+        monkeypatch.delenv("ALLOW_DEMO_AUTH", raising=False)
         importlib.reload(auth_mod)
 
 

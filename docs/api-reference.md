@@ -24,12 +24,15 @@ docker-compose up api
 
 ## Authentication
 
-The reference implementation ships demo users (`admin`, `analyst`, `auditor`,
-`manager`, all with password equal to username). Replace the auth backend before
-any non-demo deployment, or configure OIDC via `OIDC_ISSUER_URL` /
-`OIDC_AUDIENCE`. Role and tenant claims are configurable with
-`OIDC_ROLE_CLAIM` and `OIDC_TENANT_CLAIM`; use `OIDC_ALLOWED_TENANTS` to reject
-tokens from unexpected tenants.
+The reference implementation ships demo users for local development (`admin`,
+`analyst`, `auditor`, `manager`, all with password equal to username). Demo auth
+is enabled by default only outside production mode. Set `AML_ENV=production` (or
+`API_ENV=production`) for non-demo deployments; in that mode the API requires a
+32+ byte `JWT_SECRET` and disables demo users unless `ALLOW_DEMO_AUTH=true` is
+set explicitly. Production deployments should use OIDC via `OIDC_ISSUER_URL` /
+`OIDC_AUDIENCE`. Role and tenant claims are configurable with `OIDC_ROLE_CLAIM`
+and `OIDC_TENANT_CLAIM`; use `OIDC_ALLOWED_TENANTS` to reject tokens from
+unexpected tenants.
 
 ### `POST /api/v1/login`
 

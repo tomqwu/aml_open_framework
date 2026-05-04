@@ -22,6 +22,23 @@ _EXPIRY_HOURS = 24
 _OIDC_CACHE_SECONDS = int(os.environ.get("OIDC_CACHE_SECONDS", "300"))
 
 
+def _truthy_env(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def is_production_mode() -> bool:
+    """Return True when the API is explicitly running outside local/dev mode."""
+    mode = (os.environ.get("AML_ENV") or os.environ.get("API_ENV") or "").strip().lower()
+    return mode in {"prod", "production"}
+
+
+def is_demo_auth_enabled() -> bool:
+    """Demo users are enabled by default only outside production mode."""
+    if is_production_mode():
+        return _truthy_env("ALLOW_DEMO_AUTH")
+    return not _truthy_env("DISABLE_DEMO_AUTH")
+
+
 def _resolve_secret() -> str:
     env = os.environ.get("JWT_SECRET")
     if env is not None:
@@ -31,6 +48,11 @@ def _resolve_secret() -> str:
                 "Generate a strong value: python -c 'import secrets; print(secrets.token_urlsafe(48))'"
             )
         return env
+    if is_production_mode():
+        raise RuntimeError(
+            "JWT_SECRET is required in production mode. "
+            "Generate a strong value: python -c 'import secrets; print(secrets.token_urlsafe(48))'"
+        )
     _logger.warning(
         "JWT_SECRET is not set; using a random per-process secret. "
         "Issued tokens will not survive a restart. Set JWT_SECRET in any non-dev deployment."
@@ -42,7 +64,7 @@ _SECRET = _resolve_secret()
 
 # Demo users — production MUST use OIDC_ISSUER_URL for real authentication.
 # Passwords default to username for local development only.
-DEMO_USERS: dict[str, dict[str, Any]] = {
+_DEMO_USERS: dict[str, dict[str, Any]] = {
     "admin": {
         "password": os.environ.get("DEMO_ADMIN_PASSWORD", "admin"),
         "role": "admin",
@@ -74,6 +96,9 @@ DEMO_USERS: dict[str, dict[str, Any]] = {
         "tenant": "bank_b",
     },
 }
+DEMO_USERS: dict[str, dict[str, Any]] = _DEMO_USERS if is_demo_auth_enabled() else {}
+if is_production_mode() and DEMO_USERS:
+    _logger.warning("Demo API users are enabled in production because ALLOW_DEMO_AUTH is set.")
 
 # Role-based permissions.
 ROLE_PERMISSIONS: dict[str, set[str]] = {
