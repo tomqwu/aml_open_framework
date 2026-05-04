@@ -342,3 +342,29 @@ class TestCitationMapCoverage:
             assert url.startswith("https://"), (
                 f"citation {citation!r} mapped to non-HTTPS URL {url!r}"
             )
+
+    def test_all_bundled_example_citations_resolvable(self):
+        """Every citation from every bundled example spec resolves offline."""
+        import os
+        from aml_framework.spec import load_spec
+
+        examples_dir = Path(__file__).resolve().parents[1] / "examples"
+        unresolved: list[str] = []
+        for spec_dir in sorted(examples_dir.iterdir()):
+            if not spec_dir.is_dir():
+                continue
+            spec_path = spec_dir / "aml.yaml"
+            if not spec_path.exists():
+                continue
+            spec = load_spec(spec_path)
+            for rule in spec.rules:
+                for ref in rule.regulation_refs:
+                    url = citation_url(ref.citation, override=ref.url)
+                    if url is None:
+                        unresolved.append(
+                            f"  {spec_dir.name}/{rule.id}: {ref.citation!r}"
+                        )
+        assert not unresolved, (
+            f"{len(unresolved)} bundled example citation(s) not in "
+            f"CITATION_URL_MAP:\n" + "\n".join(unresolved)
+        )

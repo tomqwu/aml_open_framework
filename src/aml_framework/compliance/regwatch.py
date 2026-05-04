@@ -1,6 +1,6 @@
 """Regulation drift watcher.
 
-Round-7 PR #1. The framework ships 7 example specs that collectively cite
+Round-7 PR #1. The framework ships 10 example specs that collectively cite
 60+ regulations (FinCEN, FINTRAC, OFAC, AMLD6, EBA, FCA, POCA, FATF,
 Wolfsberg, Basel). Those URLs change silently:
 
@@ -65,17 +65,33 @@ CITATION_URL_MAP: dict[str, str] = {
     "31 CFR 1010.314": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1010/subpart-D/section-1010.314",
     "31 CFR 1010.311": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1010/subpart-D/section-1010.311",
     "31 CFR 1010.610": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1010/subpart-G/section-1010.610",
+    "31 CFR § 1010.658": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1010/subpart-F/section-1010.658",
+    "31 CFR § 1020.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
     "31 CFR 1020.315": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.315",
     "31 CFR 1020.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
     "FinCEN Advisory FIN-2014-A005": "https://www.fincen.gov/sites/default/files/advisory/FIN-2014-A005.pdf",
     "FinCEN Advisory FIN-2006-A003": "https://www.fincen.gov/sites/default/files/shared/Advisory_2.pdf",
     "FinCEN FIN-2023-Alert005": "https://www.fincen.gov/sites/default/files/2023-09/FinCEN_Alert_Pig_Butchering_FINAL_508c.pdf",
     "FIN-2019-G001": "https://www.fincen.gov/sites/default/files/2019-05/FinCEN%20Guidance%20CVC%20FINAL%20508.pdf",
+    "FinCEN Section 311 (Huione Group, May 2025)": "https://www.fincen.gov/news/news-releases/fincen-issues-order-prohibit-transmittals-funds-involving-huione-group",
+    "FinCEN-FBI Joint Advisory Jan 2026": "https://www.fincen.gov/sites/default/files/shared/FinCEN-FBI_Joint_Advisory_January_2026.pdf",
+    "OFAC SDN — virtual currency addenda": "https://ofac.treasury.gov/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists",
     # Canada
     "PCMLTFA s.7": "https://laws-lois.justice.gc.ca/eng/acts/p-24.501/section-7.html",
+    "PCMLTFA s.7.1": "https://laws-lois.justice.gc.ca/eng/acts/p-24.501/section-7.1.html",
     "PCMLTFA s.9.4": "https://laws-lois.justice.gc.ca/eng/acts/p-24.501/section-9.4.html",
     "PCMLTFA s.11.1": "https://laws-lois.justice.gc.ca/eng/acts/p-24.501/section-11.1.html",
+    "PCMLTFR s.7(1)": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2002-184/section-7.html",
+    "PCMLTFR s.7.7": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2002-184/section-7.7.html",
+    "PCMLTFR s.12(1)": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2002-184/section-12.html",
+    "PCMLTFR s.123.1": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2002-184/section-123.1.html",
+    "PCMLTFR s.132": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2002-184/section-132.html",
+    "PCMLTFR s.138": "https://laws-lois.justice.gc.ca/eng/regulations/SOR-2002-184/section-138.html",
     "FINTRAC Guideline 8A": "https://fintrac-canafe.canada.ca/guidance-directives/transaction-operation/Guide8A/8A-eng",
+    "OSFI Guideline B-8 s.3": "https://www.osfi-bsif.gc.ca/Eng/fi-if/rg-ro/gdn-ort/gl-ld/Pages/b8.aspx",
+    "OSFI Guideline B-8 s.4": "https://www.osfi-bsif.gc.ca/Eng/fi-if/rg-ro/gdn-ort/gl-ld/Pages/b8.aspx",
+    "OSFI Guideline E-23": "https://www.osfi-bsif.gc.ca/Eng/fi-if/rg-ro/gdn-ort/gl-ld/Pages/e23.aspx",
+    "SEMA s.4": "https://laws-lois.justice.gc.ca/eng/acts/S-14.5/section-4.html",
     # European Union
     "AMLD6 Art. 50": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L1673",
     "AMLD6 Art. 18a": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L0843",
@@ -90,14 +106,29 @@ CITATION_URL_MAP: dict[str, str] = {
     "FATF R.16 (June 2025 revision)": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Travel-rule.html",
     "FATF R.16 (revised June 2025)": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Travel-rule.html",
     "FATF R.16 nested service guidance": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Travel-rule.html",
+    "FATF Recommendation 16 — wire transfer information": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
     "FATF Recommendation 19": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
     "FATF Cyber-Enabled Fraud (Feb 2026)": "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Cyber-enabled-fraud.html",
+    "FATF Trade-Based Money Laundering (Sep 2025 update)": "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Trade-based-money-laundering.html",
+    "FATF High-Risk Jurisdictions Subject to Call for Action": "https://www.fatf-gafi.org/en/publications/High-risk-and-other-monitored-jurisdictions/Call-for-action-june-2025.html",
+    "Egmont Group TBML Indicators (Sep 2024)": "https://egmontgroup.org/wp-content/uploads/2024/11/Egmont-Group-TBML-Indicators-2024.pdf",
     # Canada — FINTRAC reports
     "FINTRAC LVCTR (Large Virtual Currency Transaction Report)": "https://fintrac-canafe.canada.ca/reporting-declaration/Info/rpt-eng",
     "FINTRAC ML/TF Indicators": "https://fintrac-canafe.canada.ca/guidance-directives/transaction-operation/indicators/eng",
     "FINTRAC Operational Alert 2016-01": "https://fintrac-canafe.canada.ca/intel/operation/oai-eng",
-    # UK
     "Criminal Code s.83.08": "https://laws-lois.justice.gc.ca/eng/acts/c-46/section-83.08.html",
+    # UK
+    "MLR 2017 reg. 28": "https://www.legislation.gov.uk/uksi/2017/692/regulation/28",
+    "MLR 2017 reg. 33": "https://www.legislation.gov.uk/uksi/2017/692/regulation/33",
+    "POCA 2002 s.330": "https://www.legislation.gov.uk/ukpga/2002/29/section/330",
+    "OFSI Financial Sanctions": "https://www.gov.uk/government/organisations/office-of-financial-sanctions-implementation",
+    "FCA FG24/4 — APP fraud detection expectations": "https://www.fca.org.uk/publications/finalised-guidance/fg24-4",
+    "FCA Vulnerable Customer Guidance FG21/1": "https://www.fca.org.uk/publication/finalised-guidance/fg21-1.pdf",
+    "PSR CRS Annex 4 — consumer standard of caution": "https://www.psr.org.uk/media/zqdhrm1g/crs-annex-4-consumer-standard-of-caution.pdf",
+    "PSR Specific Direction SD17 (Confirmation of Payee)": "https://www.psr.org.uk/our-rules/specific-directions/specific-direction-17-confirmation-of-payee/",
+    "PSR Specific Direction SD20 (APP scams reimbursement)": "https://www.psr.org.uk/our-rules/specific-directions/specific-direction-20-app-scams-reimbursement/",
+    # South Africa
+    "SAMLA 2018": "https://www.fic.gov.za/Documents/Financial%20Intelligence%20Centre%20Act,%202001%20(Act%2038%20of%202001)_UNOFFICIAL%20text.pdf",
 }
 
 
