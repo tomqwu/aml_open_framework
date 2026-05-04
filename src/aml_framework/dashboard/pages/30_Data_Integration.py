@@ -130,7 +130,7 @@ DATA_N_MAP: list[dict[str, str]] = [
     },
     {
         "DATA-N": "DATA-9 · STR/SAR filing-latency wall-clock",
-        "See in framework": "Audit & Evidence · `cases/<id>__filing.json` sidecars",
+        "See in framework": "Audit & Evidence · `cases/<id>__filing.jsonl` sidecars",
         "CLI": "`aml export` rolls filing latency into the bundle",
     },
     {

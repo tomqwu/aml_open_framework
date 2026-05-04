@@ -26,7 +26,7 @@ src/aml_framework/
 ├── attestations/     MLRO sign-off ledger — hash-chained attestations.jsonl (Round 10)
 ├── cases/            Investigation aggregator, SLA timer, STR bundling, filing sidecars (Round 6/10)
 ├── assistant/        GenAI co-pilot (template/ollama/openai backends, sidebar on every page)
-├── dashboard/        29-page Streamlit web app (mobile-responsive, multi-tenant, GenAI panel)
+├── dashboard/        32-page Streamlit web app (mobile-responsive, multi-tenant, GenAI panel)
 ├── data/             Synthetic generator + 8 source loaders + ISO 20022 parser
 │   ├── iso20022/     pacs.008, pacs.009, pain.001, pacs.004 ingestion (Round 5)
 │   └── lists/        Sanctions, adverse media, sanctioned wallets, purpose codes
@@ -196,7 +196,7 @@ The whitepaper's three remaining claims (DATA-3 reconciliation, DATA-5 sovereign
 - Schema validation at load time
 
 ### For the analyst (L1/L2)
-- 29-page web dashboard with persona-filtered navigation
+- 32-page web dashboard with persona-filtered navigation
 - Row-click drill-through on every triage table (no more selectbox-below-table)
 - Investigation-level review (not just alerts)
 - Per-case live SLA + escalation recommendations
@@ -330,7 +330,7 @@ Every doc has a single-line "use when" hook in [`README.md`](../README.md). The 
 - `README.md` — hub-style entry point with documentation map
 - `docs/getting-started.md` — 15-min onboarding path
 - `docs/architecture.md` — reference design
-- `docs/dashboard-tour.md` — all 29 pages organized by workflow (drift-protected by `test_dashboard_tour_coverage.py`)
+- `docs/dashboard-tour.md` — all 32 pages organized by workflow (drift-protected by `test_dashboard_tour_coverage.py`)
 - `docs/jurisdictions.md` — US / CA / EU / UK / crypto / cyber-fraud specs
 - `docs/personas.md` — role-based workflows
 - `docs/spec-reference.md` — field-by-field `aml.yaml` guide

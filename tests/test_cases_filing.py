@@ -80,7 +80,7 @@ class TestFilingSidecar:
         # bundle assembly.
         path = filing_path(tmp_path, "C0001")
         assert path.parent.name == "cases"
-        assert path.name == "C0001__filing.json"
+        assert path.name == "C0001__filing.jsonl"
 
     def test_list_filings_empty_dir(self, tmp_path: Path):
         assert list_filings(tmp_path) == []
@@ -94,7 +94,7 @@ class TestFilingSidecar:
     def test_corrupt_sidecar_skipped_in_list(self, tmp_path: Path):
         record_filing(tmp_path, "C0001", filed_at=_AS_OF, channel="goaml")
         # Drop a malformed file in the same dir.
-        (tmp_path / "cases" / "C-CORRUPT__filing.json").write_text("not json", encoding="utf-8")
+        (tmp_path / "cases" / "C-CORRUPT__filing.jsonl").write_text("not json", encoding="utf-8")
         records = list_filings(tmp_path)
         # Healthy sidecar surfaces; corrupt one is silently dropped.
         assert [r.case_id for r in records] == ["C0001"]
@@ -213,7 +213,7 @@ class TestFilingLatencyMetric:
         cases_rows = [
             json.loads(p.read_text(encoding="utf-8"))
             for p in sorted(cases_dir.glob("*.json"))
-            if not p.name.endswith("__filing.json")
+            if not p.name.endswith("__filing.jsonl")
         ]
 
         new_metrics = evaluate_metrics(

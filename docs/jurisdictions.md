@@ -1,6 +1,6 @@
 # Multi-Jurisdiction Support
 
-The framework supports **geo-based default policies** — the same architecture adapts to different regulatory regimes based on the `jurisdiction` field in `aml.yaml`. The dashboard, regulator-export formats, and Framework Alignment tab all auto-switch based on this field.
+The framework supports **geo-based default policies** — the same architecture adapts to different regulatory regimes based on the `jurisdiction` field in `aml.yaml`. The dashboard Framework Alignment tab switches CA/EU specially; other jurisdictions fall back to FinCEN BSA-style tabs. Regulator export formats are per-jurisdiction: goAML (FATF/FINTRAC), CA-FINTRAC audit pack, and AMLA RTS draft (EU — non-submittable pending final RTS). See the individual export commands in the [API/CLI reference](api-reference.md).
 
 ## Bundled Example Specs
 

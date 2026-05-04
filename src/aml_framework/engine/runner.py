@@ -329,7 +329,7 @@ def _fuzzy_match(value: str, list_entries: list[str], threshold: float) -> tuple
 
 
 def _load_reference_list(list_name: str) -> list[str] | None:
-    """Load a reference list CSV, returning uppercased names or None if missing."""
+    """Load a reference list CSV, returning uppercased names + aliases or None if missing."""
     import csv
 
     from aml_framework.paths import REFERENCE_LISTS_DIR
@@ -337,8 +337,22 @@ def _load_reference_list(list_name: str) -> list[str] | None:
     list_path = REFERENCE_LISTS_DIR / f"{list_name}.csv"
     if not list_path.exists():
         return None
+    names: list[str] = []
     with list_path.open("r", encoding="utf-8") as f:
-        return [row["name"].strip().upper() for row in csv.DictReader(f)]
+        for row in csv.DictReader(f):
+            name = row.get("name", "").strip().upper()
+            if name:
+                names.append(name)
+            # #209: include aliases in the matchable set so alias-only
+            # entries can trigger list_match while the canonical name
+            # and list_id survive in the alert payload.
+            aliases_raw = row.get("aliases", "")
+            if aliases_raw:
+                for alias in aliases_raw.split("|"):
+                    alias = alias.strip().upper()
+                    if alias and alias not in names:
+                        names.append(alias)
+    return names
 
 
 def _execute_list_match(

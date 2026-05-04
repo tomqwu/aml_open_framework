@@ -174,7 +174,7 @@ that introduced them.
   (`tests/test_e2e_dashboard_persona_pages.py` — new file,
   `tests/test_e2e_dashboard.py`, several dashboard pages with
   KPI render fixes). New persona × page coverage matrix exercises
-  every (persona, page) combination — 31 pages × 12 personas with
+  every (persona, page) combination — 32 pages × 12 personas with
   the audience filter applied — catching the class of bugs PR-R /
   PR-S found before they ship. Also adds an HTML-leak detector
   that fails the test if any rendered page contains unrendered

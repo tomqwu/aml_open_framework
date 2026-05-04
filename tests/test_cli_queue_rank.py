@@ -77,7 +77,7 @@ class TestQueueRankCli:
         runner = CliRunner()
         run_dir = _newest_run(run_artifacts)
         cases_count = sum(
-            1 for p in (run_dir / "cases").glob("*.json") if not p.name.endswith("__filing.json")
+            1 for p in (run_dir / "cases").glob("*.json") if not p.name.endswith("__filing.jsonl")
         )
         assert cases_count >= 2, "demo spec should produce at least 2 cases for this test"
 
@@ -140,7 +140,7 @@ class TestQueueRankCli:
         assert "No cases" in _normalise(result.output)
 
     def test_filing_sidecars_skipped(self, run_artifacts: Path, tmp_path: Path) -> None:
-        # Drop a fake __filing.json into a cases dir alongside one real
+        # Drop a fake __filing.jsonl into a cases dir alongside one real
         # case — the sidecar is PR-DATA-9's filing-latency artifact and
         # must not be ranked as a case.
         run_dir = tmp_path / "run-sidecar"
@@ -149,7 +149,7 @@ class TestQueueRankCli:
 
         real = next(p for p in (_newest_run(run_artifacts) / "cases").glob("*.json"))
         (cases_dir / real.name).write_text(real.read_text(encoding="utf-8"), encoding="utf-8")
-        (cases_dir / "C9999__filing.json").write_text(
+        (cases_dir / "C9999__filing.jsonl").write_text(
             json.dumps({"case_id": "C9999", "filed_at": "2026-04-24T00:00:00Z"}),
             encoding="utf-8",
         )

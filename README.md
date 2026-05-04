@@ -88,7 +88,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 🎬 [Live Pitch Deck](https://tomqwu.github.io/aml_open_framework_demo/) | 27 slides · architecture, dashboard tour, animated workflows · runs in browser |
 | 📖 [Getting Started](docs/getting-started.md) | First install through your first audit bundle (15 min) |
 | 👥 [Personas & Workflows](docs/personas.md) | Map your role (CCO / MLRO / Analyst / Auditor / Developer) to the framework |
-| 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 29 pages with screenshots + audience filtering — incl. GenAI assistant on every page |
+| 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 32 pages with screenshots (partial coverage; 22 of 32) + audience filtering — incl. GenAI assistant on every page |
 | 🤔 [10 Daily Pain Points](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) | The real reasons AML leaders feel stuck — primary-source quotes only |
 | 📐 [Data is the AML Problem](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) | The layer underneath the pain — 11 faces of the data problem, BCBS 239 + 2024-26 enforcement |
 
@@ -157,7 +157,7 @@ src/aml_framework/
   cases/                        Investigation aggregator, SLA timer, STR bundling, fraud↔AML linkage
   data/                         Synthetic generator + ISO 20022 ingestion
   models/                       ML scoring callables for python_ref rules + travel-rule validator
-  dashboard/                    Streamlit web dashboard (29 pages, persona-aware, GenAI co-pilot)
+  dashboard/                    Streamlit web dashboard (32 pages, persona-aware, GenAI co-pilot)
   assistant/                    GenAI assistant — pluggable backend (template / ollama / openai)
   narratives/                   STR/SAR narrative drafter — same backend abstraction
   pkyc/                         Perpetual KYC trigger engine

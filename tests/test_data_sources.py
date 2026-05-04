@@ -168,7 +168,9 @@ class TestSourcesParsing:
         assert _parse_value("42", "integer", True) == 42
         assert _parse_value("true", "boolean", True) is True
         assert _parse_value("", "string", True) is None
-        assert _parse_value("", "integer", False) == 0
+        assert _parse_value("", "integer", True) is None  # nullable blank → None
+        with pytest.raises(ValueError, match="must not be empty"):
+            _parse_value("", "integer", False)  # non-nullable blank → raise
 
     def test_parquet_missing_file_fails_closed(self, tmp_path):
         spec = load_spec(SPEC)
@@ -226,8 +228,8 @@ class TestSourcesParsingExtended:
         assert _parse_value("0", "boolean", True) is False
 
     def test_parse_invalid_decimal(self):
-        result = _parse_value("not_a_number", "decimal", True)
-        assert result == "not_a_number"
+        with pytest.raises(ValueError, match="cannot parse"):
+            _parse_value("not_a_number", "decimal", True)
 
     def test_validate_unknown_contract(self, tmp_path):
         (tmp_path / "x.csv").write_text("a,b\n1,2\n")
@@ -465,6 +467,90 @@ def test_python_ref_creates_cases(tmp_path):
     run_dir = Path(result.manifest["run_dir"])
     ml_cases = list((run_dir / "cases").glob("ml_risk_scorer__*"))
     assert len(ml_cases) >= 1, "scorer alerts must create case files"
+
+
+# ---------------------------------------------------------------------------
+# #205 P1: Enforce strict row-level CSV data contract validation
+# ---------------------------------------------------------------------------
+
+
+def test_parse_blank_non_null_integer_is_strict():
+    """Blank value in a non-null integer column should raise, not coerce to 0."""
+    with pytest.raises(ValueError, match="must not be empty"):
+        _parse_value("", "integer", nullable=False)
+
+
+def test_parse_blank_non_null_decimal_is_strict():
+    """Blank value in a non-null decimal column should raise, not coerce to 0."""
+    with pytest.raises(ValueError, match="must not be empty"):
+        _parse_value("", "decimal", nullable=False)
+
+
+def test_parse_blank_non_null_date_is_strict():
+    """Blank value in a non-null date column should raise, not coerce to None."""
+    with pytest.raises(ValueError, match="must not be empty"):
+        _parse_value("", "date", nullable=False)
+
+
+def test_parse_blank_non_null_boolean_is_strict():
+    """Blank value in a non-null boolean column should raise, not coerce to 0."""
+    with pytest.raises(ValueError, match="must not be empty"):
+        _parse_value("", "boolean", nullable=False)
+
+
+def test_parse_blank_non_null_timestamp_is_strict():
+    """Blank value in a non-null timestamp column should raise."""
+    with pytest.raises(ValueError, match="must not be empty"):
+        _parse_value("", "timestamp", nullable=False)
+
+
+def test_parse_nullable_blank_is_none():
+    """Blank value in a nullable column should return None."""
+    assert _parse_value("", "integer", nullable=True) is None
+    assert _parse_value("", "string", nullable=True) is None
+
+
+def test_validate_csv_row_level_errors_reported(tmp_path):
+    """Row-level validation reports file, row, column, type, and raw value."""
+    (tmp_path / "txn.csv").write_text(
+        "txn_id,customer_id,amount,currency,channel,direction,booked_at\n"
+        "T001,C001,,CAD,cash,in,2026-04-01T10:00:00\n"  # Row 1: blank non-null amount
+    )
+    spec = load_spec(SPEC)
+    errors = validate_csv(tmp_path / "txn.csv", spec, "txn")
+    row_errors = [e for e in errors if "row" in e.lower()]
+    assert len(row_errors) >= 1
+    assert "amount" in row_errors[0]
+
+
+def test_validate_csv_invalid_type_parse_error(tmp_path):
+    """Invalid type parse should be reported at row level."""
+    (tmp_path / "txn.csv").write_text(
+        "txn_id,customer_id,amount,currency,channel,direction,booked_at\n"
+        "T001,C001,not_a_number,CAD,cash,in,2026-04-01T10:00:00\n"
+    )
+    spec = load_spec(SPEC)
+    errors = validate_csv(tmp_path / "txn.csv", spec, "txn")
+    row_errors = [e for e in errors if "row" in e.lower()]
+    assert len(row_errors) >= 1
+    assert "amount" in row_errors[0]
+
+
+def test_validate_csv_nullable_blank_passes(tmp_path):
+    """Nullable columns with blank values should pass validation."""
+    (tmp_path / "customer.csv").write_text(
+        "customer_id,full_name,country,risk_rating,onboarded_at,business_activity,edd_last_review\n"
+        "C001,Test,CA,low,2025-01-01T00:00:00,none,\n"  # edd_last_review is nullable
+    )
+    spec = load_spec(SPEC)
+    errors = validate_csv(tmp_path / "customer.csv", spec, "customer")
+    row_errors = [e for e in errors if "row" in e.lower()]
+    assert len(row_errors) == 0
+
+
+# ---------------------------------------------------------------------------
+# End #205 tests
+# ---------------------------------------------------------------------------
 
 
 def test_python_ref_audit_trail(tmp_path):
