@@ -31,6 +31,9 @@ class SanctionEntry:
             "list_source": self.list_source,
             "country": self.country,
             "type": self.type,
+            "aliases": "|".join(self.aliases) if self.aliases else "",
+            "program": self.program or "",
+            "list_id": self.list_id or "",
         }
 
 
