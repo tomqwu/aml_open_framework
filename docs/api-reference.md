@@ -29,10 +29,12 @@ The reference implementation ships demo users for local development (`admin`,
 is enabled by default only outside production mode. Set `AML_ENV=production` (or
 `API_ENV=production`) for non-demo deployments; in that mode the API requires a
 32+ byte `JWT_SECRET` and disables demo users unless `ALLOW_DEMO_AUTH=true` is
-set explicitly. Production deployments should use OIDC via `OIDC_ISSUER_URL` /
-`OIDC_AUDIENCE`. Role and tenant claims are configurable with `OIDC_ROLE_CLAIM`
-and `OIDC_TENANT_CLAIM`; use `OIDC_ALLOWED_TENANTS` to reject tokens from
-unexpected tenants.
+set explicitly. Production deployments should use OIDC; when `OIDC_ISSUER_URL`
+is set, `OIDC_AUDIENCE` is required so tokens minted for other clients are
+rejected. Role and tenant claims are configurable with `OIDC_ROLE_CLAIM` and
+`OIDC_TENANT_CLAIM`; use `OIDC_ALLOWED_TENANTS` to reject tokens from unexpected
+tenants. `OIDC_ALLOW_MISSING_AUDIENCE=1` is accepted only outside production
+mode for local IdP tests.
 
 ### `POST /api/v1/login`
 
@@ -102,6 +104,9 @@ Fields:
 For API calls, local file inputs must resolve under `API_DATA_ROOTS` (default:
 `data`). Remote sources (`s3`, `gcs`, `snowflake`, `bigquery`) are disabled
 unless `API_ALLOW_REMOTE_DATA_SOURCES=1`.
+
+Run audit artifacts are written under `API_ARTIFACT_ROOT` (default
+`data/api-artifacts`).
 
 Response `200`:
 
@@ -246,7 +251,8 @@ secret.
 Tenant-scoped `multipart/form-data` CSV upload. Pass one or both file fields:
 `txn_file` and `customer_file`. The API stores them under `API_UPLOAD_ROOT`
 (default `data/uploads`) and returns a `data_dir` for a follow-up
-`POST /runs` request with `data_source=csv`.
+`POST /runs` request with `data_source=csv`. Each file is capped by
+`API_MAX_UPLOAD_BYTES` (default 25 MiB).
 
 Response `200`:
 
@@ -277,7 +283,7 @@ Response `200`:
 | `GET` | `/api/v1/specs` | required | List stored spec versions |
 | `POST` | `/api/v1/webhooks` | required | Register a webhook |
 | `GET` | `/api/v1/webhooks` | required | List webhooks |
-| `POST` | `/api/v1/upload` | required | Upload data (stub) |
+| `POST` | `/api/v1/upload` | required | Upload data |
 
 See [`deployment.md`](deployment.md) for environment variables and
 [`audit-evidence.md`](audit-evidence.md) for the run-manifest contract.

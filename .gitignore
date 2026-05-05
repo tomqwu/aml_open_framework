@@ -12,6 +12,8 @@ build/
 *.duckdb
 *.duckdb.wal
 .artifacts/
+data/api-artifacts/
+data/uploads/
 .coverage
 htmlcov/
 .DS_Store

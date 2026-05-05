@@ -21,13 +21,16 @@ Every deployment surface reads the same set of environment variables. Copy
 | `JWT_SECRET` | HMAC secret for API tokens (32+ bytes) | yes (prod) | random per-process secret in dev/demo mode only |
 | `ALLOW_DEMO_AUTH` | Explicitly re-enable built-in demo users in production | no | unset / disabled in production |
 | `OIDC_ISSUER_URL` | OIDC discovery endpoint for SSO | recommended (prod) | unset (built-in users in dev only) |
-| `OIDC_AUDIENCE` | Expected `aud` claim | optional | unset |
+| `OIDC_AUDIENCE` | Expected `aud` claim | required when `OIDC_ISSUER_URL` is set | unset |
+| `OIDC_ALLOW_MISSING_AUDIENCE` | Disable OIDC audience verification for local-only testing | no (dev only) | unset |
 | `OIDC_ROLE_CLAIM` | Claim path used for API role mapping | optional | `roles` |
 | `OIDC_TENANT_CLAIM` | Claim path used for tenant isolation | optional | `tid` |
 | `OIDC_ALLOWED_TENANTS` | Comma-separated tenant allowlist | optional | unset |
 | `API_RATE_LIMIT` | Per-IP requests per minute | no | `600` |
 | `API_DATA_ROOTS` | Local file roots allowed for API CSV/Parquet/ISO20022/DuckDB sources | no | `data` |
 | `API_UPLOAD_ROOT` | Tenant-scoped upload storage root | no | `data/uploads` |
+| `API_ARTIFACT_ROOT` | API run artifact storage root | no | `data/api-artifacts` |
+| `API_MAX_UPLOAD_BYTES` | Max size for each uploaded CSV file | no | `26214400` |
 | `API_ALLOW_REMOTE_DATA_SOURCES` | Enable API access to S3/GCS/Snowflake/BigQuery sources | no | unset |
 | `SPEC_PATH` | Spec file the dashboard loads | no | `examples/canadian_schedule_i_bank/aml.yaml` |
 | `JIRA_URL`, `JIRA_TOKEN`, `JIRA_PROJECT` | Jira case sync | optional | unset (no-op) |
