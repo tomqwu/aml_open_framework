@@ -169,7 +169,7 @@ src/aml_framework/
   cli.py                        `aml` command-line entry point
 deploy/helm/                    Helm chart for Kubernetes
 docs/                           Architecture, persona, spec, API, deployment guides
-tests/                          1,790+ tests across unit, API, e2e
+tests/                          1,980+ tests across unit, API, e2e
 ```
 
 ---

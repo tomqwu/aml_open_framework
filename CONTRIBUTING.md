@@ -32,7 +32,7 @@ make test-coverage  # run the non-browser suite with the 89% coverage gate
 5. Add to the `PAGES` list in `tests/test_e2e_dashboard.py`
 6. Add to `AUDIENCE_PAGES` in `src/aml_framework/dashboard/audience.py`
 7. Take a screenshot and add to `docs/screenshots/`
-8. Update page count in README.md and CLAUDE.md
+8. Update page count in README.md and docs/dashboard-tour.md
 
 ## PR Process
 

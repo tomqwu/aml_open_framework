@@ -9,6 +9,23 @@ that introduced them.
 
 ### Changed
 
+- **Compliance hardening gap-review batch (#216).**
+  8 issues from the post-PR-NAV-3 gap review: SQL proxy dispatch with
+  all() token matching + unsupported status (#204), strict CSV row-level
+  validation (#205), dashboard page inventory sync + drift test (#208),
+  jurisdiction/export docs accuracy (#206), 20 missing citation URLs +
+  offline resolve test (#207), 7-column sanctions CSV with aliases in
+  list_match (#209), malformed-decision surfacing + append-only JSONL
+  filing (#210), dashboard data_source_mode surfaced (#211).
+  Tracking issue #212 closed.
+
+- **PR-CHART cleanup (#217).**
+  Replaced all remaining st.dataframe calls with data_grid (AG Grid)
+  across 4 pages. Zero Plotly or st.dataframe calls remain across all
+  32 pages. Docs + landing site refreshed: 21 stale metrics unified
+  (page count, persona cap, test count, jurisdiction count, Plotly
+  references, deck slides).
+
 - **PR-CHART series — dashboard library swap, Plotly → ECharts + AG Grid Community
   (5 PRs, #186 → #190)**. Every chart and table in `dashboard/pages/` now
   routes through the wrapper helpers in `dashboard/charts.py` and

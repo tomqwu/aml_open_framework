@@ -36,7 +36,7 @@ aml --help
 
 > **macOS note:** the system `python3` shipped with macOS is 3.9, which fails the `>=3.10` pin and surfaces as `ERROR: Package 'aml-open-framework' requires a different Python: 3.9.x not in '>=3.10'`. Install a current Python first (`brew install python`), then re-run the venv step. Verified working on 3.12 and 3.14.
 
-If you only need the engine + CLI, drop the extras: `pip install -e ".[dev]"`. The `dashboard` extra pulls in Streamlit + Plotly; the `api` extra pulls in FastAPI + Uvicorn.
+If you only need the engine + CLI, drop the extras: `pip install -e ".[dev]"`. The `dashboard` extra pulls in Streamlit + ECharts + AG Grid; the `api` extra pulls in FastAPI + Uvicorn.
 
 ---
 
