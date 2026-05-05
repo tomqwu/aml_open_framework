@@ -1,6 +1,9 @@
 {{- if and (not .Values.postgres.enabled) (not .Values.database.url) }}
 {{- fail "database.url is required when postgres.enabled=false" }}
 {{- end }}
+{{- if and .Values.oidc.issuerUrl (not .Values.oidc.audience) }}
+{{- fail "oidc.audience is required when oidc.issuerUrl is set" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,6 +46,10 @@ spec:
               value: {{ .Values.api.dataRoots | quote }}
             - name: API_UPLOAD_ROOT
               value: {{ .Values.api.uploadRoot | quote }}
+            - name: API_ARTIFACT_ROOT
+              value: {{ .Values.api.artifactRoot | quote }}
+            - name: API_MAX_UPLOAD_BYTES
+              value: {{ .Values.api.maxUploadBytes | quote }}
             - name: API_ALLOW_REMOTE_DATA_SOURCES
               value: {{ ternary "1" "0" .Values.api.allowRemoteDataSources | quote }}
             {{- if .Values.oidc.issuerUrl }}

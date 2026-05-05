@@ -8,6 +8,8 @@ api:
   port: 8000
   dataRoots: data
   uploadRoot: data/uploads
+  artifactRoot: data/api-artifacts
+  maxUploadBytes: 26214400
   allowRemoteDataSources: false
   resources:
     requests:

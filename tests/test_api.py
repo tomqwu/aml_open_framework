@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -575,6 +576,7 @@ class TestOIDCValidation:
         import aml_framework.api.auth as auth_mod
 
         monkeypatch.setattr(auth_mod, "_OIDC_ISSUER", "https://issuer.example.com")
+        monkeypatch.setenv("OIDC_AUDIENCE", "api://aml-framework")
         monkeypatch.setenv("OIDC_ROLE_CLAIM", "realm_access.roles")
         monkeypatch.setenv("OIDC_TENANT_CLAIM", "tenant.id")
         monkeypatch.setenv("OIDC_ALLOWED_TENANTS", "bank_a")
@@ -597,6 +599,7 @@ class TestOIDCValidation:
         import aml_framework.api.auth as auth_mod
 
         monkeypatch.setattr(auth_mod, "_OIDC_ISSUER", "https://issuer.example.com")
+        monkeypatch.setenv("OIDC_AUDIENCE", "api://aml-framework")
         monkeypatch.setenv("OIDC_ALLOWED_TENANTS", "bank_a")
         with (
             patch.object(auth_mod, "_oidc_jwks", return_value={"keys": []}),
@@ -609,6 +612,29 @@ class TestOIDCValidation:
                 auth_mod._verify_oidc_token("token")
         assert exc_info.value.status_code == 401
         assert exc_info.value.detail == "OIDC validation failed"
+
+    def test_oidc_requires_audience_by_default(self, monkeypatch):
+        from fastapi import HTTPException
+        import aml_framework.api.auth as auth_mod
+
+        monkeypatch.setattr(auth_mod, "_OIDC_ISSUER", "https://issuer.example.com")
+        monkeypatch.delenv("OIDC_AUDIENCE", raising=False)
+        monkeypatch.delenv("OIDC_ALLOW_MISSING_AUDIENCE", raising=False)
+
+        with pytest.raises(HTTPException) as exc_info:
+            auth_mod._verify_oidc_token("token")
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.detail == "OIDC validation failed"
+
+    def test_missing_oidc_audience_can_only_be_dev_overridden(self, monkeypatch):
+        import aml_framework.api.auth as auth_mod
+
+        monkeypatch.delenv("AML_ENV", raising=False)
+        monkeypatch.delenv("API_ENV", raising=False)
+        monkeypatch.delenv("OIDC_AUDIENCE", raising=False)
+        monkeypatch.setenv("OIDC_ALLOW_MISSING_AUDIENCE", "1")
+
+        assert auth_mod._oidc_audience() is None
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
@@ -937,6 +963,37 @@ class TestAPIEndpoints:
         assert body["files"] == ["txn.csv"]
         assert (Path(body["data_dir"]) / "txn.csv").exists()
 
+    def test_upload_rejects_tenant_path_traversal(self, tmp_path, monkeypatch):
+        from aml_framework.api.auth import create_token
+
+        monkeypatch.setenv("API_DATA_ROOTS", str(tmp_path / "data"))
+        monkeypatch.setenv("API_UPLOAD_ROOT", str(tmp_path / "data" / "uploads"))
+        token = create_token("evil", "analyst", "../../escaped")
+
+        resp = client.post(
+            "/api/v1/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"txn_file": ("txn.csv", b"txn_id,customer_id\nT1,C1\n", "text/csv")},
+        )
+
+        assert resp.status_code == 400
+        assert not (tmp_path / "escaped").exists()
+
+    def test_upload_enforces_size_limit_and_removes_partial_file(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("API_DATA_ROOTS", str(tmp_path))
+        monkeypatch.setenv("API_UPLOAD_ROOT", str(tmp_path / "uploads"))
+        monkeypatch.setenv("API_MAX_UPLOAD_BYTES", "10")
+        token = _token()
+
+        resp = client.post(
+            "/api/v1/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"txn_file": ("txn.csv", b"01234567890", "text/csv")},
+        )
+
+        assert resp.status_code == 413
+        assert list((tmp_path / "uploads").rglob("*.csv")) == []
+
     def test_get_alerts_cef_not_found(self):
         token = _token()
         resp = client.get(
@@ -970,6 +1027,38 @@ class TestRunEndpoint:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 404
+
+    def test_create_run_uses_configured_artifact_root(self, tmp_path, monkeypatch):
+        import aml_framework.api.main as main_mod
+
+        def fake_run_spec(*, artifacts_root, **kwargs):
+            (artifacts_root / "report.txt").write_text("temporary", encoding="utf-8")
+            return SimpleNamespace(
+                manifest={"spec_content_hash": "hash"},
+                alerts={},
+                metrics=[],
+                total_alerts=0,
+                case_ids=[],
+                reports={},
+            )
+
+        artifact_root = tmp_path / "data" / "api-artifacts"
+        monkeypatch.setenv("API_DATA_ROOTS", str(tmp_path / "data"))
+        monkeypatch.setenv("API_ARTIFACT_ROOT", str(artifact_root))
+        monkeypatch.setattr(main_mod, "run_spec", fake_run_spec)
+        monkeypatch.setattr(main_mod, "store_run", lambda **kwargs: None)
+        monkeypatch.setattr(main_mod, "store_spec_version", lambda **kwargs: None)
+        monkeypatch.setattr(main_mod, "_fire_webhooks", lambda *args, **kwargs: None)
+
+        result = asyncio.run(
+            main_mod.create_run(
+                main_mod.RunRequest(spec_path="examples/canadian_schedule_i_bank/aml.yaml"),
+                user={"role": "analyst", "tenant": "bank_a"},
+            )
+        )
+
+        assert "run_id" in result
+        assert len(list(artifact_root.glob("*/report.txt"))) == 1
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")

@@ -190,12 +190,25 @@ def _first_role(raw: Any) -> str:
     return os.environ.get("OIDC_DEFAULT_ROLE", "analyst")
 
 
+def _oidc_audience() -> str | None:
+    audience = os.environ.get("OIDC_AUDIENCE", "").strip()
+    if audience:
+        return audience
+    if _truthy_env("OIDC_ALLOW_MISSING_AUDIENCE") and not is_production_mode():
+        _logger.warning(
+            "OIDC_AUDIENCE is unset; audience verification is disabled because "
+            "OIDC_ALLOW_MISSING_AUDIENCE is set outside production mode."
+        )
+        return None
+    raise ValueError("OIDC_AUDIENCE is required when OIDC token validation is enabled")
+
+
 def _verify_oidc_token(token: str) -> dict[str, Any]:  # pragma: no cover
     """Validate a token against an OIDC identity provider."""
     try:
         from jose import jwt as jose_jwt
 
-        audience = os.environ.get("OIDC_AUDIENCE") or None
+        audience = _oidc_audience()
         payload = jose_jwt.decode(
             token,
             _oidc_jwks(),

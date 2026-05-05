@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
+import re
+import shutil
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -52,6 +53,9 @@ def _safe_spec_path(raw: str) -> Path:
 _LOCAL_DATA_SOURCES = {"csv", "parquet", "iso20022"}
 _REMOTE_DATA_SOURCES = {"s3", "gcs", "snowflake", "bigquery"}
 _SUPPORTED_DATA_SOURCES = _LOCAL_DATA_SOURCES | _REMOTE_DATA_SOURCES | {"synthetic", "duckdb"}
+_UPLOAD_CHUNK_BYTES = 1024 * 1024
+_DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+_TENANT_SEGMENT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")
 
 
 def _configured_data_roots() -> list[Path]:
@@ -75,6 +79,58 @@ def _upload_root() -> Path:
     ):
         raise RuntimeError("API_UPLOAD_ROOT must be under API_DATA_ROOTS")
     return resolved
+
+
+def _artifact_root() -> Path:
+    raw = os.environ.get("API_ARTIFACT_ROOT", "data/api-artifacts")
+    root = Path(raw)
+    if not root.is_absolute():
+        root = _PROJECT_ROOT / root
+    resolved = root.resolve()
+    if not any(
+        resolved == data_root or resolved.is_relative_to(data_root)
+        for data_root in _configured_data_roots()
+    ):
+        raise RuntimeError("API_ARTIFACT_ROOT must be under API_DATA_ROOTS")
+    resolved.mkdir(parents=True, exist_ok=True)
+    return resolved
+
+
+def _max_upload_bytes() -> int:
+    raw = os.environ.get("API_MAX_UPLOAD_BYTES", str(_DEFAULT_MAX_UPLOAD_BYTES))
+    try:
+        value = int(raw)
+    except ValueError as e:
+        raise RuntimeError("API_MAX_UPLOAD_BYTES must be an integer") from e
+    if value <= 0:
+        raise RuntimeError("API_MAX_UPLOAD_BYTES must be positive")
+    return value
+
+
+def _safe_tenant_segment(raw: Any) -> str:
+    tenant = str(raw or "default")
+    if tenant in {".", ".."} or not _TENANT_SEGMENT_RE.fullmatch(tenant):
+        raise HTTPException(status_code=400, detail="Invalid tenant identifier")
+    return tenant
+
+
+async def _save_upload(uploaded: UploadFile, dest: Path, *, field: str) -> int:
+    max_bytes = _max_upload_bytes()
+    total = 0
+    saw_content = False
+    with dest.open("wb") as f:
+        while True:
+            chunk = await uploaded.read(_UPLOAD_CHUNK_BYTES)
+            if not chunk:
+                break
+            saw_content = True
+            total += len(chunk)
+            if total > max_bytes:
+                raise HTTPException(status_code=413, detail=f"{field} exceeds upload size limit")
+            f.write(chunk)
+    if not saw_content:
+        raise HTTPException(status_code=400, detail=f"{field} is empty")
+    return total
 
 
 def _safe_local_path(raw: str | None, *, field: str) -> str | None:
@@ -258,7 +314,9 @@ async def create_run(
     except (RuntimeError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    artifacts = Path(tempfile.mkdtemp(prefix="aml_api_"))
+    run_id = str(uuid.uuid4())[:8]
+    artifacts = _artifact_root() / run_id
+    artifacts.mkdir(parents=True, exist_ok=True)
     result = run_spec(
         spec=spec,
         spec_path=spec_path,
@@ -267,7 +325,6 @@ async def create_run(
         artifacts_root=artifacts,
     )
 
-    run_id = str(uuid.uuid4())[:8]
     manifest = result.manifest
     manifest["run_id"] = run_id
 
@@ -509,22 +566,24 @@ async def upload_data(
             detail="Upload at least one of txn_file or customer_file",
         )
 
-    tenant_id = user.get("tenant", "default")
+    tenant_id = _safe_tenant_segment(user.get("tenant", "default"))
     upload_id = str(uuid.uuid4())[:8]
-    dest_dir = _upload_root() / tenant_id / upload_id
+    upload_root = _upload_root()
+    dest_dir = (upload_root / tenant_id / upload_id).resolve()
+    if not (dest_dir == upload_root or dest_dir.is_relative_to(upload_root)):
+        raise HTTPException(status_code=400, detail="Invalid upload destination")
     dest_dir.mkdir(parents=True, exist_ok=True)
     saved: list[str] = []
     try:
         for contract_id, uploaded in provided.items():
-            content = await uploaded.read()
-            if not content:
-                raise HTTPException(status_code=400, detail=f"{contract_id}_file is empty")
             dest = dest_dir / f"{contract_id}.csv"
-            dest.write_bytes(content)
+            await _save_upload(uploaded, dest, field=f"{contract_id}_file")
             saved.append(dest.name)
     except HTTPException:
+        shutil.rmtree(dest_dir, ignore_errors=True)
         raise
     except OSError as e:
+        shutil.rmtree(dest_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail="Failed to store uploaded data") from e
 
     return {

@@ -35,6 +35,8 @@ See `values.yaml` for all configurable options:
 | `api.port` | `8000` | API port |
 | `api.dataRoots` | `data` | API local data source roots |
 | `api.uploadRoot` | `data/uploads` | API upload storage root |
+| `api.artifactRoot` | `data/api-artifacts` | API run artifact storage root |
+| `api.maxUploadBytes` | `26214400` | Max size for each uploaded CSV file |
 | `api.allowRemoteDataSources` | `false` | Enable API S3/GCS/Snowflake/BigQuery sources |
 | `dashboard.replicas` | `1` | Dashboard replicas |
 | `dashboard.port` | `8501` | Dashboard port |
@@ -44,7 +46,7 @@ See `values.yaml` for all configurable options:
 | `database.url` | `""` | External Postgres URL when `postgres.enabled=false` |
 | `jwt.secret` | `replace-with-32-plus-byte-random-secret` | JWT signing secret (32+ bytes) |
 | `oidc.issuerUrl` | `""` | OIDC issuer URL |
-| `oidc.audience` | `""` | OIDC audience |
+| `oidc.audience` | `""` | OIDC audience; required when `oidc.issuerUrl` is set |
 | `oidc.roleClaim` | `roles` | OIDC role claim path |
 | `oidc.tenantClaim` | `tid` | OIDC tenant claim path |
 | `oidc.allowedTenants` | `""` | Comma-separated allowed OIDC tenants |
