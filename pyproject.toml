@@ -115,7 +115,7 @@ exclude_lines = [
     "if __name__",
     "raise NotImplementedError",
 ]
-fail_under = 98
+fail_under = 99
 
 [tool.ruff]
 line-length = 100
