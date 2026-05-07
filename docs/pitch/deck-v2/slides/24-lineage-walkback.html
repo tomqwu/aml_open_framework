@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lineage walk-back · trace every alert · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .layout {
+    position: absolute;
+    top: 460px;
+    left: 96px;
+    right: 96px;
+    bottom: 200px;
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 56px;
+    z-index: 1;
+  }
+
+  /* Left · the 7-link chain */
+  .chain-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 4px;
+  }
+  .chain-link {
+    display: grid;
+    grid-template-columns: 36px 200px 1fr;
+    gap: 18px;
+    align-items: baseline;
+  }
+  .chain-link .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    text-align: right;
+    padding-top: 2px;
+  }
+  .chain-link .key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--ink);
+    text-transform: lowercase;
+  }
+  .chain-link .val {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--ink-dim);
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+  .chain-link .val strong { color: var(--ink); font-weight: 600; }
+
+  /* Right · the call + return */
+  .demo-block {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 24px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .demo-call {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .demo-call .py-fn { color: var(--accent); }
+  .demo-call .py-str { color: var(--rag-green); }
+  .demo-call .py-comm { color: var(--ink-faint); font-style: italic; }
+
+  .demo-return {
+    border-top: 1px solid var(--panel-border);
+    padding-top: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-dim);
+  }
+  .demo-return .field { color: var(--accent); }
+  .demo-return .out { color: var(--rag-green); }
+  .demo-return .ts { color: var(--chapter-warm); }
+
+  .punchline {
+    position: absolute;
+    bottom: 96px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 26px;
+    color: var(--chapter-warm);
+    line-height: 1.5;
+    z-index: 1;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">15 / 23</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act IV · The Detection Substrate</div>
+    <h1 class="fade-in d2">
+      Trace every alert. <em>Down to the row.</em>
+    </h1>
+    <p style="margin-top:14px;font-family:Inter,sans-serif;font-size:18px;color:var(--ink-dim);max-width:1180px;line-height:1.5;">
+      The audit question regulators actually ask: <em>"show me why this alert fired"</em>. The framework's <strong style="color:var(--ink)">walk_lineage(case_id)</strong> answers in 7 hash-stamped links — every one reproducible from spec + data + as_of alone.
+    </p>
+  </div>
+
+  <div class="layout">
+
+    <div class="chain-list fade-in d3">
+      <div class="chain-link">
+        <div class="num">01</div>
+        <div class="key">source file</div>
+        <div class="val"><strong>data/input/txn.csv</strong> · path + content_hash + earliest/latest ts</div>
+      </div>
+      <div class="chain-link">
+        <div class="num">02</div>
+        <div class="key">contract</div>
+        <div class="val"><strong>txn</strong> · schema_columns + schema_hash · column drift detected automatically</div>
+      </div>
+      <div class="chain-link">
+        <div class="num">03</div>
+        <div class="key">duckdb table</div>
+        <div class="val"><strong>txn</strong> · physical table built per-run, named by contract id</div>
+      </div>
+      <div class="chain-link">
+        <div class="num">04</div>
+        <div class="key">rule (sql)</div>
+        <div class="val"><strong>cash_structuring</strong> · post-substitution SQL captured verbatim</div>
+      </div>
+      <div class="chain-link">
+        <div class="num">05</div>
+        <div class="key">alert</div>
+        <div class="val"><strong>matched_row_ids: [3742, 5891, 7123, 9445, ...]</strong> · the exact rows that fired the rule</div>
+      </div>
+      <div class="chain-link">
+        <div class="num">06</div>
+        <div class="key">case</div>
+        <div class="val"><strong>C0042-cash_structuring-001</strong> · rule_version stamped on case_opened AND every resolution event</div>
+      </div>
+      <div class="chain-link">
+        <div class="num">07</div>
+        <div class="key">str bundle</div>
+        <div class="val"><strong>investigation → goAML XML</strong> · Mermaid network diagram + manifest hash</div>
+      </div>
+    </div>
+
+    <div class="demo-block fade-in d4">
+      <div class="demo-call">
+        <span class="py-comm"># A 2LoD reviewer pastes one case_id.</span><br>
+        chain = <span class="py-fn">walk_lineage</span>(run_dir, <span class="py-str">"C0042-cash_structuring-001"</span>)
+      </div>
+      <div class="demo-return">
+        <span class="field">case_id</span>            : <span class="out">"C0042-cash_structuring-001"</span><br>
+        <span class="field">rule_version</span>       : <span class="out">"a1b2c3d4e5f6g7h8"</span>   <span class="ts">// 16-hex SHA-256</span><br>
+        <span class="field">spec_content_hash</span>  : <span class="out">"9f3a..."</span>   <span class="ts">// MLRO-attested</span><br>
+        <span class="field">source_path</span>        : <span class="out">"data/input/txn.csv"</span><br>
+        <span class="field">schema_hash</span>        : <span class="out">"44a8..."</span>   <span class="ts">// changes if columns rename</span><br>
+        <span class="field">rule_sql</span>           : <span class="out">"SELECT customer_id, ..."</span><br>
+        <span class="field">matched_row_ids</span>    : <span class="out">[3742, 5891, 7123, ...]</span><br>
+        <span class="field">decisions</span>          : <span class="out">[case_opened, escalate, escalated_to_str]</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="punchline">
+    Every link <strong>hash-stamped</strong>, every chain <strong>reproducible</strong>, every chain <strong>downloadable</strong> as JSON.
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · engine/audit.py · pages/32_Lineage_Explorer.py</span>
+  </div>
+
+</body>
+</html>
