@@ -53,6 +53,18 @@ variable "postgres_admin_login" {
   default     = ""
 }
 
+variable "postgres_location" {
+  description = "Override location for the Postgres Flexible Server. Some Sponsorship subscriptions restrict Postgres provisioning in certain regions (eastus is commonly locked); set this to a working region (e.g. eastus2, westus2). Empty string falls back to the app RG's location."
+  type        = string
+  default     = ""
+}
+
+variable "enable_postgres" {
+  description = "Provision Postgres Flexible Server. Set false to deploy Container Apps with SQLite fallback (in-container, non-persistent — fine for demos). Useful when Sponsorship subscriptions lock the platform's allowed region."
+  type        = bool
+  default     = true
+}
+
 # --- Landing zone tfstate location -----------------------------------------
 # These three variables tell the data source where to read the
 # landing zone's platform outputs. Pull them from

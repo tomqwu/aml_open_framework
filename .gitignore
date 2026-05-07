@@ -18,3 +18,7 @@ data/uploads/
 htmlcov/
 .DS_Store
 .claude/
+deploy/terraform/terraform.tfvars
+deploy/terraform/.terraform/
+deploy/terraform/.terraform.lock.hcl
+deploy/terraform/tfplan

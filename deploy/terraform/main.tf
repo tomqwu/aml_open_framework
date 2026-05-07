@@ -15,7 +15,11 @@
 # ---------------------------------------------------------------------------
 
 module "onboard" {
-  source = "git::https://github.com/tomqwu/cloud_landing_zone_for_ai_coding.git//modules/app-onboard?ref=main"
+  # Private repo — uses SSH auth via the operator's local SSH key.
+  # In CI, the deploy workflow checks out the landing zone repo
+  # explicitly via actions/checkout with an SSH deploy key, then
+  # passes a local file path here via -var (see workflow comments).
+  source = "git::ssh://git@github.com/tomqwu/cloud_landing_zone_for_ai_coding.git//modules/app-onboard?ref=main"
 
   app_name        = "aml-compliance"
   env             = var.env
@@ -42,15 +46,19 @@ module "onboard" {
 # ---------------------------------------------------------------------------
 
 resource "random_string" "pg_suffix" {
+  count   = var.enable_postgres ? 1 : 0
   length  = 6
   upper   = false
   special = false
 }
 
 resource "azurerm_postgresql_flexible_server" "aml" {
-  name                = "psql-aml-${var.env}-${random_string.pg_suffix.result}"
+  count               = var.enable_postgres ? 1 : 0
+  name                = "psql-aml-${var.env}-${random_string.pg_suffix[0].result}"
   resource_group_name = module.onboard.resource_group_name
-  location            = module.onboard.location
+  # Allow override when Sponsorship subscriptions lock the platform's
+  # default region (eastus is commonly restricted for Postgres).
+  location = var.postgres_location != "" ? var.postgres_location : module.onboard.location
 
   version                       = "16"
   sku_name                      = "B_Standard_B1ms"
@@ -70,7 +78,8 @@ resource "azurerm_postgresql_flexible_server" "aml" {
 # Make the app's UAMI the Azure AD admin so the Container App can
 # authenticate to Postgres via DefaultAzureCredential.
 resource "azurerm_postgresql_flexible_server_active_directory_administrator" "aml_uami" {
-  server_name         = azurerm_postgresql_flexible_server.aml.name
+  count               = var.enable_postgres ? 1 : 0
+  server_name         = azurerm_postgresql_flexible_server.aml[0].name
   resource_group_name = module.onboard.resource_group_name
   tenant_id           = data.azurerm_client_config.current.tenant_id
   object_id           = module.onboard.identity_principal_id
@@ -82,15 +91,17 @@ resource "azurerm_postgresql_flexible_server_active_directory_administrator" "am
 # zone forbids private VNets; Container Apps egress IPs aren't
 # predictable, so allow Azure-internal traffic via the firewall rule.
 resource "azurerm_postgresql_flexible_server_firewall_rule" "allow_azure" {
+  count            = var.enable_postgres ? 1 : 0
   name             = "allow-azure-services"
-  server_id        = azurerm_postgresql_flexible_server.aml.id
+  server_id        = azurerm_postgresql_flexible_server.aml[0].id
   start_ip_address = "0.0.0.0"
   end_ip_address   = "0.0.0.0"
 }
 
 resource "azurerm_postgresql_flexible_server_database" "aml" {
+  count     = var.enable_postgres ? 1 : 0
   name      = "aml"
-  server_id = azurerm_postgresql_flexible_server.aml.id
+  server_id = azurerm_postgresql_flexible_server.aml[0].id
   collation = "en_US.utf8"
   charset   = "UTF8"
 }
@@ -185,9 +196,12 @@ resource "azurerm_container_app" "api" {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "appinsights-conn"
       }
-      env {
-        name        = "DATABASE_URL"
-        secret_name = "database-url"
+      dynamic "env" {
+        for_each = var.enable_postgres ? [1] : []
+        content {
+          name        = "DATABASE_URL"
+          secret_name = "database-url"
+        }
       }
     }
   }
@@ -197,19 +211,18 @@ resource "azurerm_container_app" "api" {
     value = local.appinsights_conn
   }
 
-  secret {
-    name = "database-url"
-    # Container Apps reads the secret value verbatim. The Python code
-    # calls SECRETS.get("DATABASE_URL") which falls through to env.
-    # Format uses the UAMI client_id for Entra ID auth.
-    value = "postgresql://${module.onboard.identity_principal_id}@${azurerm_postgresql_flexible_server.aml.fqdn}:5432/aml?sslmode=require&authentication=azure_ad"
+  dynamic "secret" {
+    for_each = var.enable_postgres ? [1] : []
+    content {
+      name = "database-url"
+      # Container Apps reads the secret value verbatim. The Python code
+      # calls SECRETS.get("DATABASE_URL") which falls through to env.
+      # Format uses the UAMI principal_id for Entra ID auth.
+      value = "postgresql://${module.onboard.identity_principal_id}@${azurerm_postgresql_flexible_server.aml[0].fqdn}:5432/aml?sslmode=require&authentication=azure_ad"
+    }
   }
 
   tags = module.onboard.tags
-
-  depends_on = [
-    azurerm_postgresql_flexible_server_active_directory_administrator.aml_uami,
-  ]
 }
 
 # ---------------------------------------------------------------------------
@@ -285,15 +298,28 @@ resource "azurerm_container_app" "dashboard" {
 #        az keyvault secret set --vault-name <kv> --name JWT-SECRET --value ...
 # ---------------------------------------------------------------------------
 
+# Grant the Terraform operator (the user running `terraform apply` —
+# `data.azurerm_client_config.current.object_id`) Key Vault Secrets
+# Officer on the per-app KV. The app-onboard module gives the app's
+# UAMI Secrets User; the operator needs Officer to seed the
+# placeholder secrets below.
+resource "azurerm_role_assignment" "operator_kv_secrets_officer" {
+  scope                = module.onboard.key_vault_id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
 resource "azurerm_key_vault_secret" "jwt_secret_placeholder" {
   name         = "JWT-SECRET"
   value        = "REPLACE-WITH-32-PLUS-BYTE-RANDOM-VALUE"
   key_vault_id = module.onboard.key_vault_id
   content_type = "text/plain"
 
+  depends_on = [azurerm_role_assignment.operator_kv_secrets_officer]
+
   lifecycle {
     # Don't overwrite operator-supplied real values on subsequent applies.
-    ignore_changes = [value, version]
+    ignore_changes = [value]
   }
 }
 
@@ -303,8 +329,10 @@ resource "azurerm_key_vault_secret" "openai_api_key_placeholder" {
   key_vault_id = module.onboard.key_vault_id
   content_type = "text/plain"
 
+  depends_on = [azurerm_role_assignment.operator_kv_secrets_officer]
+
   lifecycle {
-    ignore_changes = [value, version]
+    ignore_changes = [value]
   }
 }
 
@@ -318,13 +346,10 @@ resource "azurerm_monitor_diagnostic_setting" "api" {
   target_resource_id         = azurerm_container_app.api.id
   log_analytics_workspace_id = module.onboard.log_analytics_workspace_id
 
-  enabled_log {
-    category_group = "allLogs"
-  }
-
-  metric {
+  # Container Apps doesn't expose category_group=allLogs; metrics
+  # alone cover the platform-LAW diagnostics requirement.
+  enabled_metric {
     category = "AllMetrics"
-    enabled  = true
   }
 }
 
@@ -334,27 +359,22 @@ resource "azurerm_monitor_diagnostic_setting" "dashboard" {
   target_resource_id         = azurerm_container_app.dashboard[0].id
   log_analytics_workspace_id = module.onboard.log_analytics_workspace_id
 
-  enabled_log {
-    category_group = "allLogs"
-  }
-
-  metric {
+  enabled_metric {
     category = "AllMetrics"
-    enabled  = true
   }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "postgres" {
+  count                      = var.enable_postgres ? 1 : 0
   name                       = "diag-aml-postgres"
-  target_resource_id         = azurerm_postgresql_flexible_server.aml.id
+  target_resource_id         = azurerm_postgresql_flexible_server.aml[0].id
   log_analytics_workspace_id = module.onboard.log_analytics_workspace_id
 
   enabled_log {
     category = "PostgreSQLLogs"
   }
 
-  metric {
+  enabled_metric {
     category = "AllMetrics"
-    enabled  = true
   }
 }
