@@ -50,6 +50,16 @@ Never push without all tests passing locally. CI runs 5 jobs: lint, unit-tests, 
 - If a PR has been open for a while with no review comment, the right action is to ping the user, not to merge anyway.
 - This rule applies to every repo this assistant works in (including the landing zone), not just `aml_open_framework`.
 
+## Responding to PR Comments
+
+**When a comment lands on a PR, address it.** Don't leave reviewer feedback hanging. This includes Codex review notes, user inline comments, and review threads on individual lines.
+
+- After opening a PR, periodically check `gh pr view <num>` and `gh api repos/<owner>/<repo>/pulls/<num>/comments` for new comments.
+- For each comment: either fix the issue and push a follow-up commit, or reply explaining why it doesn't apply (with reasoning). Don't silently ignore.
+- Reply on the PR itself (`gh pr comment` or inline review reply) — not just in the local conversation. Keep the audit trail visible to whoever reviews next.
+- For multi-issue reviews (e.g. Codex with several findings), fix all issues in one follow-up commit when feasible, then post a single response comment summarising what changed and which finding each change addresses.
+- If a comment requests a behaviour the user explicitly approved earlier in the conversation, push back with the rationale before changing direction — don't flip on every reviewer suggestion.
+
 ## Project-Specific Rules
 
 - **Lazy imports**: Dashboard modules (audience.py, data_layer.py, pages/) must NOT import `streamlit` at module level. Unit-test CI only installs `.[dev]`.
