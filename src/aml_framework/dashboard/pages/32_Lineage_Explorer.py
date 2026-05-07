@@ -46,6 +46,17 @@ page_header(
 )
 show_audience_context("Lineage Explorer")
 
+# When the user lands here via direct URL on a persona that doesn't
+# carry Lineage Explorer in their nav (e.g. cco / svp / cto), the
+# entry-point app.py may not have populated session_state on this
+# script run. Defensively re-run initialize_session() to set up
+# run_dir / df_cases / df_txns before we read them. Cheap no-op when
+# state is already cached (active_cache_key check inside the helper).
+if "run_dir" not in st.session_state:
+    from aml_framework.dashboard.state import initialize_session as _init_state
+
+    _init_state()
+
 run_dir = Path(st.session_state.run_dir)
 
 # --- Input: case_id (deep-link or paste) -----------------------------------
