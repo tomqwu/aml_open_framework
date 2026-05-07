@@ -56,6 +56,17 @@ ml = [
     "xgboost>=2.0",
     "scikit-learn>=1.4",
 ]
+azure = [
+    # PR-AZ-1: Blob/ADLS via DuckDB azure extension; Synapse + Azure
+    # SQL via pyodbc. azure-identity for DefaultAzureCredential when
+    # workload identity is the auth mode.
+    "azure-identity>=1.14",
+    "azure-storage-blob>=12.19",
+    "pyodbc>=5.0",
+    # PR-AZ-2: Key Vault secrets adapter (lazy-imported by
+    # aml_framework.secrets when AZURE_KEY_VAULT_NAME is set).
+    "azure-keyvault-secrets>=4.7",
+]
 
 [project.scripts]
 aml = "aml_framework.cli:app"
