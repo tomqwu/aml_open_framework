@@ -236,6 +236,10 @@ def infer_source_paths(
       - snowflake     → "snowflake:{conn}#{contract.source}"
       - bigquery      → "bigquery:{conn}#{contract.source}"
       - iso20022      → "iso20022:{data_dir}" (txn only)
+      - azure_blob    → "azure_blob:{abfss_uri}/{contract_id}" (PR-AZ-1)
+      - adls          → "adls:{abfss_uri}/{contract_id}" (PR-AZ-1)
+      - synapse       → "synapse:{conn}#{contract.source}" (PR-AZ-1)
+      - azuresql      → "azuresql:{conn}#{contract.source}" (PR-AZ-1)
     """
     paths: dict[str, str] = {}
     for contract in spec.data_contracts:
@@ -249,6 +253,13 @@ def infer_source_paths(
         elif source_type in ("s3", "gcs"):
             paths[contract.id] = f"{(data_dir or '').rstrip('/')}/{contract.id}"
         elif source_type in ("snowflake", "bigquery"):
+            paths[contract.id] = f"{source_type}:{data_dir or ''}#{contract.source}"
+        elif source_type in ("azure_blob", "adls"):
+            # PR-AZ-1: abfss:// URIs end at the container; per-contract
+            # path appends the contract id (CSV/Parquet detected at load).
+            paths[contract.id] = f"{source_type}:{(data_dir or '').rstrip('/')}/{contract.id}"
+        elif source_type in ("synapse", "azuresql"):
+            # PR-AZ-1: warehouse-shaped — same shape as snowflake/bigquery.
             paths[contract.id] = f"{source_type}:{data_dir or ''}#{contract.source}"
         elif source_type == "iso20022":
             if contract.id == "txn":
@@ -307,6 +318,31 @@ def resolve_source(
         if not data_dir:
             raise ValueError(f"--data-dir required for {source_type} (bucket URI)")
         return _load_cloud_storage(source_type, data_dir, spec)  # pragma: no cover
+
+    if source_type in ("azure_blob", "adls"):
+        # PR-AZ-1: Azure Blob Storage / ADLS Gen2 via DuckDB's `azure`
+        # extension. Authenticated via DefaultAzureCredential when
+        # running on AKS with workload identity; falls back to
+        # AZURE_STORAGE_CONNECTION_STRING for local dev.
+        if not data_dir:
+            raise ValueError(f"--data-dir required for {source_type} (abfss:// URI)")
+        return _load_azure_storage(source_type, data_dir, spec)  # pragma: no cover
+
+    if source_type == "synapse":
+        # PR-AZ-1: Azure Synapse via pyodbc connection string.
+        return _load_azure_warehouse(  # pragma: no cover
+            spec,
+            "synapse",
+            data_dir or "",
+        )
+
+    if source_type == "azuresql":
+        # PR-AZ-1: Azure SQL DB via pyodbc connection string.
+        return _load_azure_warehouse(  # pragma: no cover
+            spec,
+            "azuresql",
+            data_dir or "",
+        )
 
     if source_type == "iso20022":
         # Round-5 #1: ingest pacs.008 / pacs.009 XML messages from a
@@ -408,6 +444,118 @@ def _load_cloud_storage(  # pragma: no cover
                     contract,
                     f"no csv or parquet object under {bucket_path.rstrip('/')}",
                 )
+    finally:
+        con.close()
+    return data
+
+
+def _load_azure_storage(  # pragma: no cover
+    provider: str,
+    bucket_path: str,
+    spec: AMLSpec,
+) -> dict[str, list[dict[str, Any]]]:
+    """Load CSV/Parquet from Azure Blob Storage or ADLS Gen2 via DuckDB's
+    `azure` extension (PR-AZ-1).
+
+    `bucket_path` accepts:
+      - `abfss://container@account.dfs.core.windows.net/path` (preferred,
+        ADLS Gen2 hierarchical namespace)
+      - `az://container/path` (Blob Storage shorthand)
+
+    Auth: DuckDB picks up `DefaultAzureCredential` automatically when
+    running inside AKS with workload identity (the recommended bank
+    deployment shape). Falls back to `AZURE_STORAGE_CONNECTION_STRING`
+    env var for local dev. No connection string is set here — DuckDB
+    inherits from the environment.
+    """
+    import duckdb
+
+    data: dict[str, list[dict[str, Any]]] = {}
+    con = duckdb.connect(":memory:")
+
+    try:
+        con.execute("INSTALL azure")
+        con.execute("LOAD azure")
+    except Exception as e:
+        raise RuntimeError(
+            f"DuckDB azure extension required for {provider}: {e}. "
+            "Install via `INSTALL azure;` or pre-bundle the extension."
+        ) from e
+
+    try:
+        for contract in spec.data_contracts:
+            for ext in ("csv", "parquet"):
+                path = f"{bucket_path.rstrip('/')}/{contract.id}.{ext}"
+                try:
+                    rows = con.execute(f"SELECT * FROM '{path}'").fetchall()
+                    cols = [d[0] for d in con.description] if con.description else []
+                    data[contract.id] = [dict(zip(cols, r)) for r in rows]
+                    break
+                except Exception:
+                    logger.debug("azure: %s.%s not found at %s", contract.id, ext, bucket_path)
+                    continue
+            if contract.id not in data:
+                data[contract.id] = _empty_or_raise(
+                    provider,
+                    contract,
+                    f"no csv or parquet object under {bucket_path.rstrip('/')}",
+                )
+    finally:
+        con.close()
+    return data
+
+
+def _load_azure_warehouse(  # pragma: no cover
+    spec: AMLSpec,
+    provider: str,
+    connection_string: str,
+) -> dict[str, list[dict[str, Any]]]:
+    """Load tables from Azure Synapse or Azure SQL DB via pyodbc (PR-AZ-1).
+
+    Connection string follows ODBC convention:
+        DRIVER={ODBC Driver 18 for SQL Server};SERVER=...;DATABASE=...;
+        Authentication=ActiveDirectoryMsi (recommended on AKS) or
+        Authentication=ActiveDirectoryServicePrincipal;UID=...;PWD=...
+
+    The `contract.source` field (already in the spec) names the
+    fully-qualified table; we issue `SELECT * FROM {contract.source}`
+    per contract, matching the Snowflake / BigQuery loop shape.
+    """
+    if not connection_string:
+        raise ValueError(
+            f"--data-dir required for {provider} (ODBC connection string). "
+            "Set Authentication=ActiveDirectoryMsi for AKS workload identity."
+        )
+
+    import pyodbc
+
+    data: dict[str, list[dict[str, Any]]] = {}
+    try:
+        con = pyodbc.connect(connection_string)
+    except Exception as e:
+        raise RuntimeError(
+            f"{provider}: failed to connect via pyodbc — install the "
+            f"Microsoft ODBC Driver 18 for SQL Server (`msodbcsql18`). Error: {e}"
+        ) from e
+
+    try:
+        for contract in spec.data_contracts:
+            table = contract.source
+            try:
+                cur = con.cursor()
+                cur.execute(f"SELECT * FROM {table}")
+                cols = [d[0] for d in cur.description] if cur.description else []
+                rows = cur.fetchall()
+                data[contract.id] = [dict(zip(cols, r)) for r in rows]
+            except Exception as e:
+                logger.warning(
+                    "%s: failed to load contract '%s' from table '%s': %s",
+                    provider,
+                    contract.id,
+                    table,
+                    e,
+                )
+                data[contract.id] = _empty_or_raise(provider, contract, str(e))
     finally:
         con.close()
     return data
