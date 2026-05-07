@@ -37,7 +37,7 @@ cd deploy/terraform
 terraform init \
   -backend-config="resource_group_name=<bootstrap.tfstate_resource_group>" \
   -backend-config="storage_account_name=<bootstrap.tfstate_storage_account>" \
-  -backend-config="container_name=<bootstrap.tfstate_container>" \
+  -backend-config="container_name=platform-tfstate" \
   -backend-config="key=aml-compliance.tfstate"
 
 cat > terraform.tfvars <<EOF
@@ -46,7 +46,7 @@ owner_email                      = "you@example.com"
 github_repo                      = "tomqwu/aml_open_framework"
 platform_tfstate_resource_group  = "<from bootstrap>"
 platform_tfstate_storage_account = "<from bootstrap>"
-platform_tfstate_container       = "tfstate"
+platform_tfstate_container       = "platform-tfstate"
 EOF
 
 terraform plan

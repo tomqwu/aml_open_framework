@@ -33,8 +33,8 @@ output "dashboard_url" {
 }
 
 output "postgres_fqdn" {
-  description = "Postgres Flexible Server FQDN. Use with the UAMI client_id for Entra ID auth."
-  value       = azurerm_postgresql_flexible_server.aml.fqdn
+  description = "Postgres Flexible Server FQDN. Null when enable_postgres=false."
+  value       = var.enable_postgres ? azurerm_postgresql_flexible_server.aml[0].fqdn : null
 }
 
 output "github_actions_variables" {
