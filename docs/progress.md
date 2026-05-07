@@ -1,20 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-05-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-05-07. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
 ---
 
 ## At a Glance
 
-| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) | Dashboard UX + GenAI push (2026-04-30) | Brand + UX consolidation (2026-05-01) | Round 10 — Data layer (2026-05-02) | Round 11 — Hardening + charts (2026-05-04) |
+| Metric | Round 6 (2026-04-27) | Round 7 closed | Dashboard plan closed (2026-04-29) | Dashboard UX + GenAI push (2026-04-30) | Brand + UX consolidation (2026-05-01) | Round 10 — Data layer (2026-05-02) | Round 11 — Hardening + API + charts + docs (2026-05-04 → 2026-05-05) |
 |---|---|---|---|---|---|---|---|---|
-| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC | + ~700 LOC | + ~3,500 LOC (PR-A → PR-L) | + ~2,650 LOC (PR-M → PR-T, 31 files) | + ~2,920 LOC (PR-DATA-1 → PR-DATA-10b, 19 files) | + ~1,500 LOC (PR #204-#211 + #217, 25 files) |
-| Tests | 991 | + ~110 | 1,161 passing | **1,750 passing** | **1,791 passing** | **1,848 passing** | **1,980 passing** |
+| Source code | 19,642 LOC across 18 modules | + ~2,500 LOC | + ~700 LOC | + ~3,500 LOC (PR-A → PR-L) | + ~2,650 LOC (PR-M → PR-T, 31 files) | + ~2,920 LOC (PR-DATA-1 → PR-DATA-10b, 19 files) | + ~1,700 LOC (PR #204-#211 + #217-#219, 26 files) |
+| Tests | 991 | + ~110 | 1,161 passing | **1,750 passing** | **1,791 passing** | **1,848 passing** | **1,985 passing** (unit + API; +98 e2e collected separately) |
 | Test files | 34 | 39 | 43 | 56 | 90 | 96 | 100 |
 | Example specs | 7 | 9 | 9 | 9 | **10** | 10 | 10 |
 | Unique regulation citations | 61+ | ~75+ | ~75+ | ~75+ | ~80+ | ~85+ (BCBS 239, FATF R.18, OSFI E-23/B-13, EBA outsourcing, Wolfsberg CBDDQ) | ~105+ (added PCMLTFR/OSFI/SEMA/FCA/PSR/OFSI) |
 | Dashboard pages | 24 | 24 | 24 | **29** (+ Metrics Taxonomy, AI Assistant, screenshots-pending) | 29 (count unchanged; 31 page files inc. 2 nav surfaces) | **30** (+ Information Sharing) | **32** (sync + Data Integration in e2e; all counts unified) |
-| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 | + #150–#161 (PR-A → PR-L) | + #162–#168 (PR-M → PR-T) | + #177–#183 (PR-DATA-1 → PR-DATA-10b) | + #204-#211 (#216) + #217 |
+| Merged PRs (cumulative) | 18 (#46–#73) | + #74–#79 | + #80–#87 | + #150–#161 (PR-A → PR-L) | + #162–#168 (PR-M → PR-T) | + #177–#183 (PR-DATA-1 → PR-DATA-10b) | + #204-#211 (#216) + #217 + #218 + #219 |
 
 ---
 
@@ -178,6 +178,23 @@ Goal: close the gap between the "Data is the AML problem" whitepaper's claims (`
 **Result**: 6 DATA-N sections promoted from stub/partial to strong. New module `attestations/` (17 modules total). New engine submodule `engine/freshness.py`. New cases sidecar `cases/<case_id>__filing.json`. Three new CLI commands (`attest`, `share-pattern`, `verify-pattern`); two new audit-event types (`contract_violation`, `pkyc_trigger`). Audit-ledger schema bumped to version 2 with `rule_version` stamped on every `case_opened` event. Tests grew 1,791 → 1,848 (+57) across 6 new test files; test files went 90 → 96. The `aml run --strict` opt-in flag refuses to execute against unattested specs — the first concrete Manifest-version gate the framework ships.
 
 The whitepaper's three remaining claims (DATA-3 reconciliation, DATA-5 sovereignty, DATA-11 spec-as-data-contract) were already STRONG; DATA-6 (AI presumes data) is closed transitively by PR-DATA-1's fail-closed validation; DATA-7 (Engineering vs Compliance ownership) is technical-pattern-strong via the data-contract architecture, with the residual gap being organisational and out of code scope.
+
+### Round 11 — Hardening + API + charts + docs (10 PRs, 2026-05-04 → 2026-05-05)
+
+Goal: close the residual gaps surfaced by a fail-closed / compliance-posture review (#204-#211), finish the chart-library migration started in Round-9, harden the REST API surface for production deploys, and unify the 21 stale page/test/jurisdiction counts that had drifted across docs and the landing site.
+
+| PR | Workstream |
+|---|---|
+| #213 | `fix(api)`: gate demo auth in production — refuse demo-mode credentials when `ENV=production` |
+| #214 | `fix(data)`: fail closed on unloadable data contracts (raise instead of silent fallback) |
+| #215 | `fix(engine)`: fail closed on `python_ref` scorer failure by default — opt-in to soft-fail |
+| #216 | Compliance hardening — gap-review batch closing #204-#211: SQL proxy dispatch correctness, strict CSV row validation, dashboard page-inventory drift test, jurisdiction overclaim cleanup, citation-URL completeness (PCMLTFR/OSFI/SEMA/FCA/PSR/OFSI), sanctions alias persistence, audit/filing JSONL append-only ledger, dashboard data-source mode tracking |
+| #217 | `fix(charts)`: finish ECharts + AG Grid migration — zero Plotly references, zero `st.dataframe` calls remain |
+| #218 | `fix(api)`: harden uploads + OIDC — strict audience validation, configurable artifact root for run persistence, Helm `values.yaml` keys + deployment template, `.env.example` + deployment.md updates, +89 lines of new API tests |
+| #218 | `docs`: refresh all docs and landing site — 21 stale metrics unified across README/landing/dashboard-tour/getting-started/CONTRIBUTING/CHANGELOG/progress.md (page count 31→32, test count 1,790/1,910/1,850 → 1,980, jurisdictions claim → "5 jurisdictions with 10 bundled specs", deck slide page-counts) |
+| #219 | `fix(ci)`: filter the exact transient browser-only `Failed to fetch` pageerror in dashboard e2e while preserving Streamlit exception and other pageerror failures |
+
+**Result**: the framework now fails *closed* across three more boundaries (demo-auth in prod, data-contract load, python_ref scorer error) — completing the policy that started with PR-DATA-1. Every chart and every table on the dashboard is now ECharts / AG Grid (no Plotly, no `st.dataframe`). The REST API artifact-root configuration unblocks production K8s deploys where pod ephemerality requires runs to persist outside `/tmp`. Twenty-one stale numeric claims across docs were reconciled in a single sweep so future drift is detectable; CI flake on transient browser fetch errors no longer noise-trips the e2e gate. Tests grew 1,848 → 1,985 (+137) across 10 PRs.
 
 ---
 
