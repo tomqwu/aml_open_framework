@@ -71,6 +71,9 @@ demo: ## One-command end-to-end demo (validate, run, launch dashboard)
 	@echo "Press Ctrl+C to stop."
 	@aml dashboard examples/canadian_schedule_i_bank/aml.yaml
 
+sync-demo: ## Sync docs/pitch/ to the aml_open_framework_demo repo (opens + auto-merges a PR)
+	@./scripts/sync_demo_site.sh
+
 clean: ## Remove build artifacts and temp files
 	rm -rf .artifacts/ dist/ build/ *.egg-info .pytest_cache .ruff_cache htmlcov
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
