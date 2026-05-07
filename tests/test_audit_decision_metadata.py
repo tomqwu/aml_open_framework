@@ -126,6 +126,47 @@ class TestCaseOpenedCarriesRuleVersion:
             assert ev.get("rule_version"), f"case_opened missing rule_version: {ev}"
             assert len(ev["rule_version"]) == 16
 
+    def test_resolution_events_carry_rule_version(self, tmp_path: Path):
+        """PR-LIN-3: case-resolution events (escalate / closed / etc) must
+        also carry rule_version, not just case_opened. Lets walk_lineage
+        answer 'did this case escalate under the same rule version it
+        opened under?' — relevant when a spec edit lands mid-investigation.
+        """
+        spec = load_spec(_COMMUNITY_BANK)
+        data = generate_dataset(as_of=_AS_OF, seed=42)
+        run_spec(
+            spec=spec,
+            spec_path=_COMMUNITY_BANK,
+            data=data,
+            as_of=_AS_OF,
+            artifacts_root=tmp_path,
+        )
+        run_dirs = sorted(tmp_path.glob("run-*"))
+        decisions = _read_decisions(run_dirs[-1])
+        # _simulate_case_resolution emits one of these per case.
+        resolution_events = [
+            d
+            for d in decisions
+            if d.get("event") in {"escalate", "escalated_to_str", "closed"} and d.get("rule_id")
+        ]
+        assert resolution_events, "community_bank run should resolve at least one case"
+        for ev in resolution_events:
+            assert ev.get("rule_version"), f"resolution event missing rule_version: {ev}"
+            assert len(ev["rule_version"]) == 16
+        # And the rule_version on resolution must match case_opened for
+        # the same case_id — the spec didn't change mid-run.
+        opened_by_case = {
+            d["case_id"]: d["rule_version"]
+            for d in decisions
+            if d.get("event") == "case_opened" and d.get("case_id")
+        }
+        for ev in resolution_events:
+            cid = ev.get("case_id")
+            if cid in opened_by_case:
+                assert ev["rule_version"] == opened_by_case[cid], (
+                    f"resolution rule_version for case {cid} disagrees with case_opened"
+                )
+
     def test_rule_version_consistent_per_rule(self, tmp_path: Path):
         spec = load_spec(_COMMUNITY_BANK)
         data = generate_dataset(as_of=_AS_OF, seed=42)
