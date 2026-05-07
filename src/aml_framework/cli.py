@@ -1974,6 +1974,86 @@ def export(
     console.print(f"[green]Bundle[/green] {out_path} (from {run_dir})")
 
 
+@app.command(name="lineage")
+def lineage_cmd(
+    case_id: str = typer.Argument(..., help="case_id to walk back."),
+    run_dir: Path | None = typer.Option(None, help="Specific run dir; defaults to latest."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+    format: str = typer.Option(
+        "json",
+        help="Output format: 'json' (default, machine-readable) or 'table' (human-readable).",
+    ),
+) -> None:
+    """Walk the lineage chain for one case_id (PR-LIN-19).
+
+    Wraps `walk_lineage()` so the chain (rule_sql + source_path +
+    schema_hash + rule_version + matched_row_ids + decisions) is
+    scriptable from CLI. Pipe to `jq` for ad-hoc queries:
+
+        aml lineage C0042-cash_structuring-001 | jq '.matched_row_ids | length'
+    """
+    import json as _json
+
+    from aml_framework.engine.audit import walk_lineage
+
+    run_dir = _resolve_run_dir(run_dir, artifacts)
+    chain = walk_lineage(run_dir, case_id)
+    if chain.get("case") is None:
+        console.print(f"[yellow]No case file found for {case_id!r} in {run_dir}.[/yellow]")
+        raise typer.Exit(code=1)
+
+    if format == "json":
+        console.print_json(_json.dumps(chain, default=str))
+        return
+
+    # Human-readable table mode.
+    console.print(f"[bold]Lineage chain for[/bold] [cyan]{case_id}[/cyan]")
+    console.print(f"  rule_id            : {chain.get('rule_id') or '—'}")
+    console.print(f"  rule_version       : {chain.get('rule_version') or '—'}")
+    console.print(f"  spec_content_hash  : {(chain.get('spec_content_hash') or '—')[:16]}…")
+    console.print(f"  engine_version     : {chain.get('engine_version') or '—'}")
+    console.print(f"  as_of              : {chain.get('as_of') or '—'}")
+    matched = (chain.get("case") or {}).get("alert", {}).get("matched_row_ids") or []
+    console.print(f"  matched source rows: {len(matched)}")
+    if chain.get("input_files"):
+        console.print("  input_files:")
+        for inp in chain["input_files"]:
+            console.print(
+                f"    - {inp.get('contract_id')} ← {inp.get('source_path') or '—'} "
+                f"({inp.get('row_count') or 0:,} rows, schema {(inp.get('schema_hash') or '—')[:16]})"
+            )
+    console.print(f"  decisions: {len(chain.get('decisions') or [])}")
+
+
+@app.command(name="verify-decisions")
+def verify_decisions_cmd(
+    run_dir: Path | None = typer.Option(None, help="Specific run dir; defaults to latest."),
+    artifacts: Path = typer.Option(Path(".artifacts")),
+    expected_hash: str | None = typer.Option(
+        None,
+        help=(
+            "Out-of-band hash to verify against. If omitted, compares against "
+            "the manifest.json's decisions_hash (catches partial tampering only)."
+        ),
+    ),
+) -> None:
+    """Verify the decisions.jsonl hash chain hasn't been tampered with (PR-LIN-19).
+
+    Wraps `AuditLedger.verify_decisions()` so an examiner can run
+    integrity checks from CLI. Exits 0 on a clean chain, 1 on tamper
+    detection. The recommended path passes `--expected-hash` from a
+    trusted out-of-band store (database, signed log, WORM bucket).
+    """
+    from aml_framework.engine.audit import AuditLedger
+
+    run_dir = _resolve_run_dir(run_dir, artifacts)
+    valid, msg = AuditLedger.verify_decisions(run_dir, expected_hash)
+    color = "green" if valid else "red"
+    console.print(f"[{color}]{msg}[/{color}]")
+    if not valid:
+        raise typer.Exit(code=1)
+
+
 @app.command(name="export-goaml")
 def export_goaml_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
