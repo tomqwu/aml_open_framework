@@ -218,6 +218,24 @@ Goal: close the gap between "we have a hash-chained audit log" and "we can walk 
 
 **Result**: the audit question "show me why this alert fired" now has a one-paste-box answer. The 7-link chain (source file → contract → DuckDB table → rule → alert with `matched_row_ids` → case → STR) is hash-stamped end-to-end, reproducible from spec + data + as_of, and downloadable as JSON for offline review. Three existing dashboard pages got the relevant slice of the chain inline; the new Lineage Explorer page consolidates the deeper drill. The 12-field per-decision payload is now the framework's documented audit shape. DATA-3 (cross-system reconciliation) and DATA-4 (lineage walk-back from KPI) are shipped, not stubs. Tests grew 1,985 → ~2,020 (+35) across 11 PRs.
 
+### Round 13 — Lineage coverage gaps · dashboard, exports, CLI, API (9 PRs, 2026-05-07)
+
+Goal: close the gap between "the lineage primitives exist" and "every surface a regulator, analyst, or integration consumer might touch shows the chain." A 3-pronged audit after Round 12 found that 14 of 32 dashboard pages carried zero lineage, all 3 regulator-facing exports were lineage-blind, and there were no CLI commands or API endpoints for lineage at all.
+
+| PR | Phase | Workstream |
+|---|---|---|
+| #237 | E | PR-LIN-12 · Triage path lineage — Alert Queue + My Queue + Analyst Review Queue gain `Matched rows` + `Rule version` columns / Source-lineage expander; Case Investigation deep-links to Lineage Explorer |
+| #238 | E | PR-LIN-13 · Entity-context lineage — Investigations + Network Explorer + Customer 360 gain inline columns + per-case Lineage Explorer deep-links |
+| #239 | E | PR-LIN-14 · Analytical-arc lineage — Rule Performance gains `Rule version` (via `rule_version_hash`) column; Sanctions Screening gains `Source rowid` from `matched_row_ids[0]`; Run History + Tuning Lab gain Lineage Explorer pointers |
+| #240 | E | PR-LIN-15 · Headline + AI lineage — Today + Executive Dashboard + AI Assistant gain Lineage Explorer entry-points; AI Assistant citations get a "Verify against audit trail" deep-link per `referenced_case_id` |
+| #241 | F | PR-LIN-16 · STR bundle `manifest.json` carries a `case_lineage` block (rule_version + matched_row_ids + per-contract source_path/schema_hash/content_hash). Regulator extracting the ZIP can answer "which rule version, which source rows" without re-running |
+| #242 | F | PR-LIN-17 · Audit pack ships a new `case_lineage_summary.json` section. FINTRAC examiner gets the chain per case from the bundle alone |
+| #243 | F | PR-LIN-18 · Effectiveness pack — Control Output Quality pillar gains `alerts_by_rule_with_lineage` finding (per-rule alert_count + rule_version + sample_matched_rows). Closes FinCEN April 2026 NPRM standard's "show your work" gap on aggregate metrics |
+| #244 | G | PR-LIN-19 · CLI — `aml lineage <case_id>` (JSON or table) + `aml verify-decisions [--expected-hash]`. Wraps `walk_lineage()` and `AuditLedger.verify_decisions()` for scriptable use; tamper detection exits non-zero |
+| #245 | G | PR-LIN-20 · API — `GET /api/v1/runs/{run_id}/cases/{case_id}/lineage`. Auth gated; tenant-isolated; 404s on unknown run / missing run_dir / unknown case_id; 401 without auth |
+
+**Result**: lineage is now reachable from every dashboard surface (14 pages updated), every regulator-facing export (STR bundle / FINTRAC audit pack / FinCEN effectiveness pack), the CLI (`aml lineage`, `aml verify-decisions`), and the API (`GET .../cases/{id}/lineage`). The audit chain is no longer "primitives in the data" — it's "addressable from anywhere a consumer might be." Tests grew ~2,020 → 2,050 (+30) across 9 PRs.
+
 ---
 
 ## What the Framework Does Today
@@ -248,7 +266,7 @@ Goal: close the gap between "we have a hash-chained audit log" and "we can walk 
 - Reproducible runs (same spec + data + seed → identical hashes)
 - Regulator-ready evidence ZIP (`aml export`)
 - goAML 5.0.2 XML and AMLA RTS JSON exports
-- **End-to-end lineage walk-back** (Round 12): paste any `case_id` → 7-link chain (source file → contract → DuckDB table → rule SQL → matched source rowids → alert → case → STR), each link hash-stamped + reproducible, downloadable as JSON. Surfaces on Audit & Evidence, Case Investigation "Why this fired" panel, and the dedicated Lineage Explorer page (#32).
+- **End-to-end lineage walk-back** (Round 12 + 13): paste any `case_id` → 7-link chain (source file → contract → DuckDB table → rule SQL → matched source rowids → alert → case → STR), each link hash-stamped + reproducible, downloadable as JSON. Surfaces on Audit & Evidence, Case Investigation "Why this fired" panel, the dedicated Lineage Explorer page (#32), AND on Alert Queue / My Queue / Investigations / Customer 360 / Network Explorer / Sanctions Screening / Rule Performance / Run History / Tuning Lab / Today / Executive Dashboard / AI Assistant / Analyst Review Queue inline columns + breadcrumbs (Round 13). STR bundle / FINTRAC audit pack / FinCEN effectiveness pack carry the chain in their manifests. CLI: `aml lineage <case_id>` + `aml verify-decisions`. API: `GET /api/v1/runs/{run_id}/cases/{case_id}/lineage`.
 
 ### For the ML modeler
 - `python_ref` rule type with security gate (callables restricted to `aml_framework.models.*`)
