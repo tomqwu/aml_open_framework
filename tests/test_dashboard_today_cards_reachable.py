@@ -266,6 +266,13 @@ ALLOWED_GRACEFUL_GAPS: set[tuple[str, str, str]] = {
     # which manager doesn't carry (Phase D moved manager to Investigations
     # as the single drill point). Defensive caption degrades cleanly.
     ("manager", "My Queue", "Case Investigation"),
+    # PR-LIN-12: Lineage Explorer is the auditor's deep-drill page.
+    # Carried by analyst + auditor personas (within 9-page cap).
+    # Manager / pm get the in-workflow "Why this fired" panel on Case
+    # Investigation / Analyst Review Queue but don't carry Lineage
+    # Explorer in their nav — link_to_page degrades to plain text.
+    ("manager", "Analyst Review Queue", "Lineage Explorer"),
+    ("pm", "Case Investigation", "Lineage Explorer"),
 }
 
 

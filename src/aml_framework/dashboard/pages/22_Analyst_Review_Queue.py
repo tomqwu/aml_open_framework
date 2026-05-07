@@ -171,6 +171,41 @@ for row in visible_rows[:50]:  # cap render to keep page responsive
             )
             st.code(to_mermaid(row.explanation), language="mermaid")
 
+        # PR-LIN-12: source lineage trace — paste-box-free walk-back so
+        # 2LoD reviewer can answer "which rule version, which source
+        # rows" without opening Audit & Evidence or Lineage Explorer.
+        # Collapsed by default; opens cheap walk_lineage() lookup only
+        # when the analyst expands the case.
+        with st.expander("🔗 Source lineage (rule version + matched rows + source path)"):
+            from pathlib import Path as _LinPath
+
+            from aml_framework.dashboard.components import link_to_page
+            from aml_framework.engine.audit import walk_lineage as _walk_lineage
+
+            _chain = _walk_lineage(_LinPath(run_dir), row.case_id)
+            _matched = (_chain.get("case") or {}).get("alert", {}).get("matched_row_ids") or []
+            st.markdown(
+                f"- **rule_version**: `{(_chain.get('rule_version') or '—')[:16]}`\n"
+                f"- **matched source rows**: `{len(_matched)}` "
+                f"(`{(_matched[:5] + ['…'] * (len(_matched) > 5))}`)\n"
+                f"- **spec_content_hash**: `{(_chain.get('spec_content_hash') or '—')[:16]}…`\n"
+                f"- **engine_version**: `{_chain.get('engine_version') or '—'}`"
+            )
+            if _chain.get("input_files"):
+                st.markdown("**Source files (per contract):**")
+                for inp in _chain["input_files"]:
+                    src = inp.get("source_path") or "—"
+                    schema_h = (inp.get("schema_hash") or "—")[:16]
+                    st.markdown(
+                        f"- `{inp.get('contract_id')}` ← `{src}` "
+                        f"({inp.get('row_count') or 0:,} rows, schema `{schema_h}`)"
+                    )
+            link_to_page(
+                "pages/32_Lineage_Explorer.py",
+                "→ Open full lineage chain in Lineage Explorer",
+                case_id=row.case_id,
+            )
+
         # pKYC triggers
         if row.triggers:
             st.markdown("##### pKYC triggers for this customer")
