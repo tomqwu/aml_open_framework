@@ -199,6 +199,35 @@ def _pillar_control_quality(
     tuning_events = [d for d in decisions if d.get("event") == "tuning_run"]
     best_f1_records = [d.get("best_f1") for d in tuning_events if d.get("best_f1") is not None]
 
+    # PR-LIN-18: per-rule lineage roll-up. FinCEN's April 2026 NPRM
+    # effectiveness standard requires regulators to verify "this 15%
+    # FP rate is computed from [these N case_ids] with [these rule
+    # versions]". Surface the rule_version + first 5 sample alert
+    # signatures per rule so the metric value can be cross-walked
+    # against the underlying alert population without grepping the
+    # run dir.
+    alerts_by_rule_lineage: dict[str, dict[str, Any]] = {}
+    for rule_id, alerts in sorted(alerts_by_rule.items()):
+        # rule_version is constant across alerts from the same rule
+        # in a single run (the rule didn't change mid-run). Pick the
+        # first alert's stamp; fall back to "—" for alerts that
+        # pre-date PR-LIN-3 / PR-LIN-4.
+        rule_version = next(
+            (
+                a.get("rule_version")
+                for a in alerts
+                if isinstance(a, dict) and a.get("rule_version")
+            ),
+            None,
+        )
+        alerts_by_rule_lineage[rule_id] = {
+            "alert_count": len(alerts),
+            "rule_version": rule_version,
+            "sample_matched_rows": [
+                a.get("matched_row_ids") or [] for a in alerts[:5] if isinstance(a, dict)
+            ],
+        }
+
     findings = [
         PillarFinding(
             key="total_alerts",
@@ -209,6 +238,12 @@ def _pillar_control_quality(
             key="alerts_by_rule",
             label="Alerts grouped by rule",
             value={k: len(v) for k, v in sorted(alerts_by_rule.items())},
+        ),
+        PillarFinding(
+            key="alerts_by_rule_with_lineage",
+            label="Alerts per rule with rule_version + sample matched_row_ids",
+            value=alerts_by_rule_lineage,
+            status="informational",
         ),
         PillarFinding(
             key="false_positive_proxy",
