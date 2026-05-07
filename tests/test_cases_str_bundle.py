@@ -255,6 +255,46 @@ class TestManifest:
         ):
             assert key in m, f"missing manifest key {key!r}"
 
+    def test_manifest_carries_case_lineage_block(self):
+        """PR-LIN-16: manifest.case_lineage maps case_id → rule_version
+        + matched_row_ids + per-contract source_path / schema_hash so
+        a regulator extracting the bundle can answer 'which rule
+        version fired?' without re-running the engine."""
+        spec = load_spec(SPEC_CA)
+        case = _case(case_id="c1", window_end=datetime(2026, 4, 15))
+        # Stamp the Round 12 lineage primitives on the alert + input_hash
+        # the same way the engine does at runtime.
+        case["alert"]["rule_version"] = "a1b2c3d4e5f6g7h8"
+        case["alert"]["matched_row_ids"] = [3742, 5891, 7123]
+        case["input_hash"] = {
+            "txn": {
+                "row_count": 12847,
+                "content_hash": "b2c1d2e3f4a5b6c7",
+                "source_path": "data/input/txn.csv",
+                "schema_hash": "44a8c1d2e3f4b5a6",
+            }
+        }
+        invs = aggregate_investigations([case])
+        bundle = bundle_investigation_to_str(
+            invs[0],
+            cases=[case],
+            spec=spec,
+            customers=[_customer()],
+            transactions=[_txn(txn_id="t1")],
+        )
+        m = self._manifest(bundle)
+        assert "case_lineage" in m, "manifest must carry a case_lineage block"
+        assert "c1" in m["case_lineage"], "case_lineage must key on case_id"
+        chain = m["case_lineage"]["c1"]
+        assert chain["rule_version"] == "a1b2c3d4e5f6g7h8"
+        assert chain["matched_row_ids"] == [3742, 5891, 7123]
+        assert chain["rule_id"] == "structuring_cash"
+        assert chain["input_files"], "input_files must be non-empty"
+        first = chain["input_files"][0]
+        assert first["contract_id"] == "txn"
+        assert first["source_path"] == "data/input/txn.csv"
+        assert first["schema_hash"] == "44a8c1d2e3f4b5a6"
+
     def test_manifest_version_matches_constant(self):
         spec = load_spec(SPEC_CA)
         case = _case(case_id="c1", window_end=datetime(2026, 4, 15))
