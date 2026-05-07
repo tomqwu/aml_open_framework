@@ -356,6 +356,11 @@ ALL_PAGES: dict[str, list[st.Page]] = {
     "Audit & Reference": [
         # Auditor lane + GenAI provenance surface.
         st.Page("pages/7_Audit_Evidence.py", title="Audit & Evidence", icon=":material/verified:"),
+        st.Page(
+            "pages/32_Lineage_Explorer.py",
+            title="Lineage Explorer",
+            icon=":material/account_tree:",
+        ),
         st.Page("pages/15_Run_History.py", title="Run History", icon=":material/history:"),
         st.Page(
             "pages/29_AI_Assistant.py",

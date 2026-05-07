@@ -57,6 +57,7 @@ PAGES = [
     "Metrics Taxonomy",
     "AI Assistant",
     "Information Sharing",
+    "Lineage Explorer",
 ]
 
 

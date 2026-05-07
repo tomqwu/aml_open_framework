@@ -206,8 +206,12 @@ AUDIENCE_PAGES = {
         "Metrics Taxonomy",
     ],
     "analyst": [
+        # Lineage Explorer added (PR-LIN-8) — analyst's deep-drill from
+        # the Case Investigation "Why this fired" panel into the full
+        # source-row → query → alert chain. Within the 9-page cap.
         "Alert Queue",
         "Case Investigation",
+        "Lineage Explorer",
         "Investigations",
         "Network Explorer",
         "Sanctions Screening",
