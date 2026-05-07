@@ -1062,6 +1062,76 @@ class TestRunEndpoint:
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestLineageEndpoint:
+    """PR-LIN-20: GET /api/v1/runs/{run_id}/cases/{case_id}/lineage
+
+    Wraps walk_lineage() so SIEM / integration consumers can fetch
+    the chain programmatically. Auth gated by get_current_user;
+    tenant isolation enforced via get_run().
+    """
+
+    def _create_run(self) -> tuple[str, str, str]:
+        """Create a run and return (token, run_id, sample_case_id)."""
+        token = _token()
+        resp = client.post(
+            "/api/v1/runs",
+            json={"spec_path": "examples/community_bank/aml.yaml", "seed": 42},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        run_id = body["run_id"]
+        # Pull a real case_id off the on-disk artifacts; cases live on
+        # disk in run_dir/cases/, not in the API DB.
+        from pathlib import Path
+
+        from aml_framework.api.db import get_run
+
+        manifest = get_run(run_id, tenant_id="bank_a")
+        run_dir = Path(manifest["run_dir"])
+        cases_dir = run_dir / "cases"
+        case_files = sorted(cases_dir.glob("*.json"))
+        assert case_files, "community_bank should produce at least one case"
+        case_id = case_files[0].stem
+        return token, run_id, case_id
+
+    def test_returns_chain_for_valid_case(self):
+        token, run_id, case_id = self._create_run()
+        resp = client.get(
+            f"/api/v1/runs/{run_id}/cases/{case_id}/lineage",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200, resp.text
+        chain = resp.json()
+        assert chain["case_id"] == case_id
+        assert chain["rule_id"]
+        assert chain["rule_version"]
+        assert "input_files" in chain
+        assert "decisions" in chain
+
+    def test_returns_404_for_unknown_case(self):
+        token, run_id, _ = self._create_run()
+        resp = client.get(
+            f"/api/v1/runs/{run_id}/cases/C-DOES-NOT-EXIST/lineage",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 404
+
+    def test_returns_404_for_unknown_run(self):
+        token = _token()
+        resp = client.get(
+            "/api/v1/runs/no-such-run/cases/any/lineage",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 404
+
+    def test_unauthenticated_returns_401(self):
+        # No bearer token.
+        resp = client.get("/api/v1/runs/x/cases/y/lineage")
+        assert resp.status_code == 401
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestAPIMainExtended:
     def test_webhook_fire_and_list(self, monkeypatch):
         monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
