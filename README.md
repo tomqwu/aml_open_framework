@@ -25,6 +25,8 @@ The dominant AML AI-vendor model is hosted SaaS: the bank ships transactions, KY
 
 This framework is built for the opposite shape: it runs **inside the bank's environment**. Apache 2.0, single Python package, deployable into existing VPCs, on-prem clusters, or air-gapped environments. Data does not move. The bank owns the spec, the engine, the audit ledger, and the operating cost — no per-event meter, no perpetual data-export contract.
 
+**Three deployment shapes ship today.** On-prem K8s / EKS / GKE / self-managed AKS via the Helm chart in `deploy/helm/`. Azure cloud-landing-zone via the Terraform module in `deploy/terraform/` (Container Apps + Postgres, **federated identity end-to-end — no client secrets**). See [`docs/deployment.md`](docs/deployment.md) for cookbooks.
+
 Practical implications:
 
 - **No data leaves the perimeter** — detection runs against the bank's warehouse, audit bundles land in the bank's storage, reports render in the bank's dashboards.

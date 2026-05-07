@@ -279,6 +279,23 @@ Goal: make the framework deployable on Microsoft Azure with zero static secrets.
 
 **Round 16 (queued, not shipped):** Azure OpenAI as a 4th assistant backend; Microsoft Sentinel SIEM via Log Analytics Data Collector; Azure Monitor / Application Insights via OpenTelemetry; Microsoft Purview lineage push via Atlas API. The Purview piece is the **differentiated** one — pushing `walk_lineage()` chains to Purview means AML lineage shows up in the same governance pane as a bank's other data assets.
 
+### Round 16 — Land on the user's Azure backbone, Phase A (4 PRs, 2026-05-07)
+
+Goal: deploy the framework on the user's prebuilt landing zone at [tomqwu/cloud_landing_zone_for_ai_coding](https://github.com/tomqwu/cloud_landing_zone_for_ai_coding). Round 15 shipped the AKS Helm chart for self-managed Azure / on-prem K8s; this round adds the **Container Apps** path that the landing zone constrains us to.
+
+Surprise constraint: the landing zone's `CLAUDE.md` explicitly forbids AKS — *"compute: only Azure Functions Flex Consumption, Container Apps, or Static Web Apps."* Round 15's Helm chart still ships for non-landing-zone deployments; Round 16 Phase A adds an alternative.
+
+| PR | Workstream |
+|---|---|
+| #255 | PR-AZ-5 · Terraform deployment module under `deploy/terraform/` calling `module.onboard` from the landing zone (vends RG + UAMI + per-app Key Vault + FICs). Provisions Postgres Flexible Server B1ms with Entra-ID-only auth, Container Apps for API + dashboard with UAMI assigned, diagnostic settings → platform Log Analytics workspace, Key Vault secret placeholders for JWT-SECRET / OPENAI-API-KEY (with `lifecycle.ignore_changes` so operator-set values survive). |
+| #256 | PR-AZ-6 · GitHub Actions pipeline `deploy-azure-landing-zone.yml` — three jobs: `plan` (PR comments) → `build_and_push` (ACR via OIDC) → `apply` (gated by `platform-prod` Environment, with revision-rollover nudge + `/health` smoke check). All auth via federated identity credential — no secrets stored in the repo. |
+| #257 | PR-AZ-7 · OpenTelemetry → Azure Monitor wiring. New `src/aml_framework/observability/` module with `init_observability()` — lazy-imports `azure.monitor.opentelemetry`, no-op when `APPLICATIONINSIGHTS_CONNECTION_STRING` is unset, idempotent + exception-swallowing. Wired from `api/main.py` + `dashboard/app.py`. New `azure-monitor-opentelemetry` in `[azure]` extras. |
+| #258 | PR-AZ-8 · Round 16 Phase A docs sync (this entry). |
+
+**Result**: a `terraform apply` against the user's tenant lands the framework end-to-end on Container Apps + Postgres + per-app Key Vault, with the Round-12 lineage chain intact (case_id → Lineage Explorer renders against cloud-deployed dashboard) and the Round-15 Azure data sources working unchanged. Cost ~$33/mo idle on top of the landing zone's $5 baseline. Tests grew 2,076 → 2,084 (+8) across 4 PRs.
+
+**Phase B (queued, not shipped):** Azure OpenAI as 4th assistant backend, Microsoft Sentinel via the platform Log Analytics workspace, Microsoft Purview lineage push. Lives in a future plan.
+
 ---
 
 ## What the Framework Does Today

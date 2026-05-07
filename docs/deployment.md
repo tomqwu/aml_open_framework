@@ -273,5 +273,57 @@ The Round-12 lineage chain (`walk_lineage(case_id)`) picks up Azure-sourced runs
 - [ ] AKS cluster RBAC scoped per-namespace; the Key Vault role binding is on the managed identity, not the SA token.
 - [ ] Storage account configured with Hierarchical Namespace (ADLS Gen2) for `azure_blob`/`adls` sources.
 
+## Deploying on Azure via the cloud landing zone (Container Apps)
+
+For banks consuming the prebuilt landing zone at
+[tomqwu/cloud_landing_zone_for_ai_coding](https://github.com/tomqwu/cloud_landing_zone_for_ai_coding),
+the framework ships a Terraform module under `deploy/terraform/`
+that deploys to Container Apps + Postgres Flexible Server. This is
+the alternative path to the AKS Helm chart above.
+
+The landing zone's CLAUDE.md forbids AKS, so this is the *required*
+path when consuming that landing zone. For self-managed Azure (no
+landing zone) the AKS Helm chart above remains the recommended
+shape.
+
+Detailed cookbook: [`deploy/terraform/README.md`](../deploy/terraform/README.md).
+Quick version:
+
+```bash
+cd deploy/terraform
+
+terraform init \
+  -backend-config="resource_group_name=<from landing zone bootstrap>" \
+  -backend-config="storage_account_name=<from landing zone bootstrap>" \
+  -backend-config="container_name=tfstate" \
+  -backend-config="key=aml-compliance.tfstate"
+
+cat > terraform.tfvars <<EOF
+env                              = "dev"
+owner_email                      = "you@example.com"
+github_repo                      = "tomqwu/aml_open_framework"
+platform_tfstate_resource_group  = "<from landing zone>"
+platform_tfstate_storage_account = "<from landing zone>"
+platform_tfstate_container       = "tfstate"
+EOF
+
+terraform apply
+```
+
+Cost expectations on top of the landing zone's $5/mo baseline:
+
+| Component | Approx. monthly |
+|---|---|
+| Container App API (min 1 replica) | ~$10 |
+| Container App dashboard | ~$10 |
+| Postgres Flexible Server B1ms | ~$13 |
+| **Total** | **~$33/mo** |
+
+After install, populate the per-app Key Vault with `JWT-SECRET` (and
+optionally `OPENAI-API-KEY` for the GenAI co-pilot). Subsequent
+deploys go through `.github/workflows/deploy-azure-landing-zone.yml` —
+push to main, federated-identity OIDC handles auth, revision rolls
+over automatically.
+
 See [`audit-evidence.md`](audit-evidence.md) for the evidence bundle contract
 and [`architecture.md`](architecture.md) for the layered runtime view.
