@@ -95,8 +95,16 @@ jobs:
             --exclude='_export_pdf.mjs' \
             "$SRC/deck-v2/" "$DST/technical/"
 
-          # business-slides → business/, full mirror.
+          # business-slides → business/, mirror BUT preserve
+          # demo-only paths that don't exist on main:
+          #   - video/ — published board video + frame stills served
+          #     by the landing page's #/business/video route. Lives
+          #     in main at deck-v2/board-video/ (intentionally
+          #     excluded from the technical mirror above) and gets
+          #     synced via a manual workflow when the video is
+          #     re-rendered.
           rsync -a --delete \
+            --exclude='video/' \
             "$SRC/deck-v2/business-slides/" "$DST/business/"
 
           # Show what changed for the action log.
