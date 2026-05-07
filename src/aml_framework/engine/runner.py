@@ -680,6 +680,12 @@ def _simulate_case_resolution(
     from aml_framework.generators.sql import parse_window
 
     queue_map = {q.id: q for q in spec.workflow.queues}
+    # PR-LIN-3: precompute rule_version per rule_id so resolution events
+    # carry the same `rule_version` that case_opened events do. Lets
+    # walk_lineage answer "did this case escalate under the same rule
+    # version it opened under?" — relevant when a spec edit lands
+    # mid-investigation.
+    rule_version_by_id = {r.id: rule_version_hash(r) for r in spec.rules}
 
     for idx, case_id in enumerate(case_ids):
         case_path = ledger.run_dir / "cases" / f"{case_id}.json"
@@ -709,11 +715,13 @@ def _simulate_case_resolution(
 
         # Record the resolution decision. `ts` is derived from `as_of` so the
         # decisions_hash is deterministic for a given (spec, data, as_of).
+        rule_id = case.get("rule_id", "")
         ledger.append_decision(
             {
                 "event": event,
                 "case_id": case_id,
-                "rule_id": case.get("rule_id", ""),
+                "rule_id": rule_id,
+                "rule_version": rule_version_by_id.get(rule_id),
                 "queue": current_queue,
                 "disposition": disposition,
                 "resolution_hours": round(resolution_hours, 2),
@@ -847,6 +855,7 @@ def run_spec(
                     {
                         "event": Event.RULE_FAILED,
                         "rule_id": rule.id,
+                        "rule_version": rule_version_hash(rule),
                         "logic_type": "python_ref",
                         "error": error_msg,
                     }
