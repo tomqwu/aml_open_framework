@@ -38,6 +38,9 @@ in the CLI flags (`aml run --data-source <type> --data-dir <path>`).
 
 from __future__ import annotations
 
+import json as _json_lin7
+from pathlib import Path as _Path_lin7
+
 import pandas as pd
 import streamlit as st
 
@@ -100,12 +103,18 @@ DATA_N_MAP: list[dict[str, str]] = [
     },
     {
         "DATA-N": "DATA-3 · Cross-system reconciliation",
-        "See in framework": "Stub — surfaced via `audit_evidence` page; richer view planned",
+        "See in framework": (
+            "Shipped — Source → Contract → Table mapping above · "
+            "schema_hash detects column drift across runs"
+        ),
         "CLI": "`aml run` emits `reconciliation.jsonl` per contract",
     },
     {
         "DATA-N": "DATA-4 · Lineage walk-back from KPI",
-        "See in framework": "Audit & Evidence → decision log · `walk_lineage()`",
+        "See in framework": (
+            "Shipped — Audit & Evidence walk-back · Case Investigation 'Why this fired' · "
+            "`walk_lineage()` now returns rule_sql + source_path + schema_hash + matched_row_ids"
+        ),
         "CLI": "`aml export --include-lineage`",
     },
     {
@@ -365,7 +374,66 @@ data_grid(
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Section 4 — ISO 20022 message types
+# Section 4 — Source → Contract → Table (PR-LIN-7)
+# ---------------------------------------------------------------------------
+# Surfaces the new fields PR-LIN-2 added to input_manifest.json so the
+# auditor can answer "which file fed which DuckDB table, with what
+# schema?" without leaving the dashboard. The DuckDB table name equals
+# the contract ID by convention (engine/runner.py:_build_warehouse).
+st.markdown("### Source → Contract → Table")
+st.caption(
+    "End-to-end mapping: the file (or warehouse table) that fed each contract, "
+    "the DuckDB table the engine queries, the column shape it had on this run, "
+    "and the schema hash. A column rename or drop changes the schema hash even "
+    "when row content is unchanged — answers 'why did the same source produce "
+    "different alerts after a Tuesday DDL change?'."
+)
+_run_dir_lin7 = _Path_lin7(st.session_state.run_dir)
+_input_manifest_path = _run_dir_lin7 / "input_manifest.json"
+if _input_manifest_path.exists():
+    _input_manifest = _json_lin7.loads(_input_manifest_path.read_text(encoding="utf-8"))
+    _mapping_rows = []
+    for cid, meta in sorted(_input_manifest.items()):
+        cols = meta.get("schema_columns")
+        cols_str = ", ".join(cols) if isinstance(cols, list) and cols else "—"
+        _mapping_rows.append(
+            {
+                "Source": meta.get("source_path") or "—",
+                "Contract": cid,
+                "DuckDB table": cid,
+                "Rows": meta.get("row_count") or 0,
+                "Schema hash": (meta.get("schema_hash") or "—")[:16],
+                "Columns": cols_str,
+                "Content hash": (meta.get("content_hash") or "—")[:16],
+            }
+        )
+    if _mapping_rows:
+        data_grid(
+            pd.DataFrame(_mapping_rows),
+            key="data_integration_source_mapping",
+            pinned_left=["Source", "Contract"],
+            height=min(35 * len(_mapping_rows) + 60, 320),
+        )
+    else:
+        empty_state(
+            "Input manifest is empty.",
+            icon="📂",
+            detail="The run produced an input_manifest.json but no contracts were stamped.",
+        )
+else:
+    empty_state(
+        "No input manifest found in this run.",
+        icon="📂",
+        detail=(
+            "PR-LIN-2 stamps source_path + schema_hash on every loaded contract. "
+            "Re-run with `aml run` (CLI) or refresh the dashboard to populate."
+        ),
+    )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# Section 5 — ISO 20022 message types
 # ---------------------------------------------------------------------------
 st.markdown("### ISO 20022 message types")
 # Look for an `msg_kind` column anywhere in the loaded data — the
