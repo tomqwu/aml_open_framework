@@ -7,6 +7,49 @@ that introduced them.
 
 ## [Unreleased]
 
+### Added
+
+- **Round 12 — End-to-end lineage (PR-LIN-1 through PR-LIN-11, #222–#232).**
+  The audit question "show me why this alert fired" now has a
+  one-paste-box answer. Eleven PRs across backend, dashboard, and
+  marketing:
+  - **Backend (Phase A, PR #222–#225).** `walk_lineage()` now
+    surfaces rendered SQL (PR-LIN-1), source path + schema columns +
+    schema hash (PR-LIN-2), and `rule_version` on every decision
+    event including escalate / closed / rule_failed (PR-LIN-3, was
+    just `case_opened`). Alerts now carry `matched_row_ids` —
+    DuckDB rowids of source rows that fired the rule — across
+    `aggregation_window` / `custom_sql` / `list_match` /
+    `network_pattern` (PR-LIN-4; python_ref deferred to avoid
+    breaking the user-callable contract). New helper
+    `data.sources.infer_source_paths()` returns per-contract logical
+    paths for all 8 source types.
+  - **Dashboard (Phase B, PR #226–#228).** Audit & Evidence's
+    lineage walk-back panel gains rule-SQL block + matched-rows
+    grid + source-provenance columns (PR-LIN-5). Case Investigation
+    gets a "Why this fired" panel above the transaction timeline
+    (PR-LIN-6). Data Integration adds a Source → Contract →
+    DuckDB Table mapping section; DATA-3 / DATA-4 status flips
+    from "stub" to "shipped" (PR-LIN-7).
+  - **New page (Phase C, PR #229).** Dedicated Lineage Explorer
+    page #32 (`32_Lineage_Explorer.py`) — Mermaid lineage graph +
+    run anchors + source provenance + collapsible rule SQL +
+    matched rows AG Grid + decision timeline + JSON download. Deep-
+    linkable via `?case_id=...` from any source page. Registered in
+    app.py + e2e PAGES list + analyst persona (8 → 9 within cap).
+  - **Marketing (Phase D, PR #230–#232).** Landing site adds a
+    third Lineage hero ("Trace every alert. Down to the row.") +
+    research card + `#/research/lineage` hash route (PR-LIN-9).
+    New `research/lineage.html` deep-dive walks the 7-link chain
+    + 12 stamped fields + regulator anchors (BCBS 239 P3-P5,
+    FinCEN April 2026 NPRM, SR 26-2 / OCC 2026-13, OSFI E-23)
+    (PR-LIN-10). New technical deck slide `24-lineage-walkback.html`
+    in Act IV; by-the-numbers slide refresh (test count 1,632 →
+    2,000+, pages 26 → 32, specs 9 → 10, CLI 24 → 38, licence
+    MIT → Apache 2.0) (PR-LIN-11).
+
+  Tests grew 1,985 → ~2,020 (+35) across 11 PRs.
+
 ### Changed
 
 - **Compliance hardening gap-review batch (#216).**

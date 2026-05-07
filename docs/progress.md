@@ -2,6 +2,8 @@
 
 Snapshot of where the AML Open Framework is as of 2026-05-07. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **Round 12 — Lineage end-to-end** (#222–#232) shipped 2026-05-07: walk_lineage now surfaces rendered SQL + source path + schema hash + rule_version on every event + matched_row_ids per alert. Three dashboard pages (Audit & Evidence, Case Investigation, Data Integration) extended; new Lineage Explorer page (#32) ships the deep walk-back. Landing site adds a third Lineage hero + research deep-dive + technical deck slide. Tests grew 1,985 → ~2,020.
+
 ---
 
 ## At a Glance
@@ -196,6 +198,26 @@ Goal: close the residual gaps surfaced by a fail-closed / compliance-posture rev
 
 **Result**: the framework now fails *closed* across three more boundaries (demo-auth in prod, data-contract load, python_ref scorer error) — completing the policy that started with PR-DATA-1. Every chart and every table on the dashboard is now ECharts / AG Grid (no Plotly, no `st.dataframe`). The REST API artifact-root configuration unblocks production K8s deploys where pod ephemerality requires runs to persist outside `/tmp`. Twenty-one stale numeric claims across docs were reconciled in a single sweep so future drift is detectable; CI flake on transient browser fetch errors no longer noise-trips the e2e gate. Tests grew 1,848 → 1,985 (+137) across 10 PRs.
 
+### Round 12 — End-to-end lineage (11 PRs, 2026-05-07)
+
+Goal: close the gap between "we have a hash-chained audit log" and "we can walk an examiner from any alert to its source row." Eleven PRs across backend (Phase A), dashboard surfacing (Phase B), a new dedicated page (Phase C), and marketing (Phase D).
+
+| PR | Phase | Workstream |
+|---|---|---|
+| #222 | A | PR-LIN-1 · Surface rendered SQL via `walk_lineage()` (lifts `rules/<rule_id>.sql` into the chain dict) |
+| #223 | A | PR-LIN-2 · Stamp source path + schema_columns + schema_hash on `record_input()` (8 source types via new `infer_source_paths()` helper) |
+| #224 | A | PR-LIN-3 · Stamp `rule_version` on every decision event (escalate / closed / rule_failed), not just `case_opened` |
+| #225 | A | PR-LIN-4 · Capture `matched_row_ids` per alert across `aggregation_window` / `custom_sql` / `list_match` / `network_pattern` (python_ref deferred — would break callable contract) |
+| #226 | B | PR-LIN-5 · Audit & Evidence — SQL viewer + matched-row grid + source-provenance columns on the existing lineage walk-back panel |
+| #227 | B | PR-LIN-6 · Case Investigation — "Why this fired" panel above Transaction Timeline (matched-row count + severity + rule_version + collapsible rule SQL) |
+| #228 | B | PR-LIN-7 · Data Integration — Source → Contract → DuckDB Table mapping section; DATA-3 / DATA-4 status flipped from "stub" to "shipped" |
+| #229 | C | PR-LIN-8 · New Lineage Explorer page #32 — Mermaid graph + run anchors + source provenance + rule SQL + matched rows + decision timeline + JSON download. Registered in app.py + e2e PAGES + analyst persona |
+| #230 | D | PR-LIN-9 · Landing page — third hero "Trace every alert. Down to the row." + new research card + `#/research/lineage` hash route |
+| #231 | D | PR-LIN-10 · `research/lineage.html` deep-dive — 7-link evidence chain, 12 stamped fields, regulator anchors (BCBS 239 P3-P5, FinCEN April 2026 NPRM, SR 26-2, OSFI E-23) |
+| #232 | D | PR-LIN-11 · New technical slide `24-lineage-walkback.html` (Act IV) + by-the-numbers slide refresh (test count 1,632 → 2,000+, pages 26 → 32, specs 9 → 10, CLI 24 → 38, licence MIT → Apache 2.0) |
+
+**Result**: the audit question "show me why this alert fired" now has a one-paste-box answer. The 7-link chain (source file → contract → DuckDB table → rule → alert with `matched_row_ids` → case → STR) is hash-stamped end-to-end, reproducible from spec + data + as_of, and downloadable as JSON for offline review. Three existing dashboard pages got the relevant slice of the chain inline; the new Lineage Explorer page consolidates the deeper drill. The 12-field per-decision payload is now the framework's documented audit shape. DATA-3 (cross-system reconciliation) and DATA-4 (lineage walk-back from KPI) are shipped, not stubs. Tests grew 1,985 → ~2,020 (+35) across 11 PRs.
+
 ---
 
 ## What the Framework Does Today
@@ -226,6 +248,7 @@ Goal: close the residual gaps surfaced by a fail-closed / compliance-posture rev
 - Reproducible runs (same spec + data + seed → identical hashes)
 - Regulator-ready evidence ZIP (`aml export`)
 - goAML 5.0.2 XML and AMLA RTS JSON exports
+- **End-to-end lineage walk-back** (Round 12): paste any `case_id` → 7-link chain (source file → contract → DuckDB table → rule SQL → matched source rowids → alert → case → STR), each link hash-stamped + reproducible, downloadable as JSON. Surfaces on Audit & Evidence, Case Investigation "Why this fired" panel, and the dedicated Lineage Explorer page (#32).
 
 ### For the ML modeler
 - `python_ref` rule type with security gate (callables restricted to `aml_framework.models.*`)

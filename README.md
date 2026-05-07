@@ -39,7 +39,7 @@ Practical implications:
 | **CCO / Head of FCC** | Board reports compute themselves from the live program — no more 18-month-stale risk assessment in a binder |
 | **MLRO / 2LoD** | You read the same artifact 1LoD ships. "Is this rule still earning its keep?" is one command, not a six-week vendor study |
 | **Analyst** | Each alert opens with the transaction list, KYC, sanctions hit, network neighbours, and prior STRs already attached |
-| **Auditor** | Replay any historical run; verify the hash chain; pull the FINTRAC / OSFI / FinCEN exam pack in 60 seconds |
+| **Auditor** | Replay any historical run; verify the hash chain; **paste any case_id and walk the 7-link lineage chain to its source rows**; pull the FINTRAC / OSFI / FinCEN exam pack in 60 seconds |
 | **CRO / CFO** | Apache 2.0 — runs in your perimeter, no per-seat licence. Effectiveness pack quantifies what the spend bought |
 
 A live multi-audience pitch deck walking the framework slide by slide is at [`docs/pitch/deck/index.html`](https://github.com/tomqwu/aml_open_framework/blob/docs/pitch-deck/docs/pitch/deck/index.html) — start there if you have 5 minutes.
