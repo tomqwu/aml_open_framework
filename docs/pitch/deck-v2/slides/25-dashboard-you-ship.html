@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The dashboard you ship · AML Open Framework V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens-v2.css">
+<style>
+  .mosaic {
+    position: absolute;
+    top: 380px;
+    left: 96px;
+    right: 96px;
+    bottom: 180px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: 32px;
+    z-index: 1;
+  }
+  .surface {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 0 48px rgba(0,0,0,0.06);
+  }
+  .surface .label {
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    z-index: 2;
+    background: rgba(28, 31, 38, 0.92);
+    color: #f7f4ec;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 6px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .surface .label .accent { color: var(--accent); }
+  .surface .frame {
+    flex: 1;
+    overflow: hidden;
+    background: #f8fafc;
+    position: relative;
+  }
+  .surface img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+  .surface .caption {
+    background: var(--panel);
+    border-top: 1px solid var(--panel-border);
+    padding: 12px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.45;
+  }
+  .surface .caption strong { color: var(--ink); font-weight: 600; }
+
+  .punchline {
+    position: absolute;
+    bottom: 88px;
+    left: 96px;
+    right: 96px;
+    text-align: center;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-style: italic;
+    font-size: 24px;
+    color: var(--chapter-warm);
+    line-height: 1.5;
+    z-index: 1;
+  }
+  .punchline strong { font-style: normal; font-weight: 600; color: var(--accent); }
+</style>
+</head>
+<body>
+
+  <div class="wordmark">AML · OPEN FRAMEWORK</div>
+  <div class="slide-num">22 / 24</div>
+  <div class="header-rule"></div>
+
+  <div style="position: absolute; top: 200px; left: 96px; right: 96px; z-index: 1;">
+    <div class="eyebrow fade-in">Act V · Institution-Fit</div>
+    <h1 class="fade-in d2">
+      The dashboard you <em>ship</em> — 32 pages, six shown.
+    </h1>
+    <p style="margin-top:14px;font-family:Inter,sans-serif;font-size:18px;color:var(--ink-dim);max-width:1180px;line-height:1.5;">
+      Not a wireframe. Not a roadmap. <strong style="color:var(--ink)">aml dashboard examples/community_bank/aml.yaml</strong> on a fresh checkout — these are the live surfaces against synthetic data. Every chart is ECharts; every table is AG Grid; every cell honours the same severity / RAG / risk colour tokens.
+    </p>
+  </div>
+
+  <div class="mosaic fade-in d3">
+
+    <div class="surface">
+      <div class="label"><span class="accent">page 0</span> · today</div>
+      <div class="frame"><img src="../assets/screens/00_today.png" alt="Today page — persona-aware Today cards (CCO, MLRO, Analyst, Auditor)" /></div>
+      <div class="caption"><strong>Today</strong> · persona-aware open-of-day cards. Click anywhere → drills to the page that answers it.</div>
+    </div>
+
+    <div class="surface">
+      <div class="label"><span class="accent">page 3</span> · alert queue</div>
+      <div class="frame"><img src="../assets/screens/03_alert_queue.png" alt="Alert Queue — severity-coloured triage table with rule + severity bars" /></div>
+      <div class="caption"><strong>Alert Queue</strong> · row-click drill-through to Case Investigation. Severity / RAG cell colouring from a single token source.</div>
+    </div>
+
+    <div class="surface">
+      <div class="label"><span class="accent">page 4</span> · case investigation</div>
+      <div class="frame"><img src="../assets/screens/04_case_investigation.png" alt="Case Investigation — entity profile, transaction timeline, channel flow Sankey" /></div>
+      <div class="caption"><strong>Case Investigation</strong> · entity profile + Why-this-fired + transaction timeline + Sankey + STR draft + filing actions.</div>
+    </div>
+
+    <div class="surface">
+      <div class="label"><span class="accent">page 7</span> · audit & evidence</div>
+      <div class="frame"><img src="../assets/screens/07_audit_evidence.png" alt="Audit & Evidence — run manifest, hash chain, decision log, evidence bundle" /></div>
+      <div class="caption"><strong>Audit & Evidence</strong> · the auditor's read. Hash-verified rule outputs + lineage walk-back + decision log.</div>
+    </div>
+
+    <div class="surface">
+      <div class="label"><span class="accent">page 10</span> · network explorer</div>
+      <div class="frame"><img src="../assets/screens/10_network_explorer.png" alt="Network Explorer — entity-relationship graph, ego-network walks, ring detection" /></div>
+      <div class="caption"><strong>Network Explorer</strong> · ego-network walks for component-size and shared-attribute typologies. Mermaid graph rendered live.</div>
+    </div>
+
+    <div class="surface">
+      <div class="label"><span class="accent">page 30</span> · data integration</div>
+      <div class="frame"><img src="../assets/screens/30_data_integration.png" alt="Data Integration — source catalogue, contract roll-up, ISO 20022 message types, DATA-N → artifact map" /></div>
+      <div class="caption"><strong>Data Integration</strong> · 9 connectors · source → contract → DuckDB table mapping · DATA-N → artifact map.</div>
+    </div>
+
+  </div>
+
+  <div class="punchline">
+    Every page <strong>regenerates</strong> from one Compliance Manifest — same spec, same data, same hashes, every time.
+  </div>
+
+  <div class="footer">
+    <span>github.com/tomqwu/aml_open_framework</span>
+    <span>SOURCE · src/aml_framework/dashboard/pages/* · 32 purpose-built pages</span>
+  </div>
+
+</body>
+</html>
