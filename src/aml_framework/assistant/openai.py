@@ -81,7 +81,11 @@ class OpenAIBackend:
         model: str | None = None,
         timeout: float = 60.0,
     ) -> None:
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
+        # PR-AZ-2: route through SecretsProvider so the API key can
+        # live in Azure Key Vault on AKS deployments.
+        from aml_framework.secrets import SECRETS
+
+        self.api_key = api_key or SECRETS.get("OPENAI_API_KEY", "") or ""
         if not self.api_key:
             raise AssistantError("OpenAIBackend requires OPENAI_API_KEY (env or constructor arg).")
         self.url = url

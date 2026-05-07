@@ -40,7 +40,12 @@ def is_demo_auth_enabled() -> bool:
 
 
 def _resolve_secret() -> str:
-    env = os.environ.get("JWT_SECRET")
+    # PR-AZ-2: route through SecretsProvider so JWT_SECRET can live in
+    # Azure Key Vault on AKS deployments. Behaviorally identical to
+    # `os.environ.get("JWT_SECRET")` when AZURE_KEY_VAULT_NAME is unset.
+    from aml_framework.secrets import SECRETS
+
+    env = SECRETS.get("JWT_SECRET")
     if env is not None:
         if len(env.encode("utf-8")) < _MIN_SECRET_BYTES:
             raise RuntimeError(
@@ -64,33 +69,37 @@ _SECRET = _resolve_secret()
 
 # Demo users — production MUST use OIDC_ISSUER_URL for real authentication.
 # Passwords default to username for local development only.
+# PR-AZ-2: passwords resolve through SecretsProvider so production can
+# pin them to Key Vault when running with demo-auth in stage envs.
+from aml_framework.secrets import SECRETS as _SECRETS  # noqa: E402
+
 _DEMO_USERS: dict[str, dict[str, Any]] = {
     "admin": {
-        "password": os.environ.get("DEMO_ADMIN_PASSWORD", "admin"),
+        "password": _SECRETS.get("DEMO_ADMIN_PASSWORD", "admin"),
         "role": "admin",
         "audience": "svp",
         "tenant": "bank_a",
     },
     "analyst": {
-        "password": os.environ.get("DEMO_ANALYST_PASSWORD", "analyst"),
+        "password": _SECRETS.get("DEMO_ANALYST_PASSWORD", "analyst"),
         "role": "analyst",
         "audience": "analyst",
         "tenant": "bank_a",
     },
     "auditor": {
-        "password": os.environ.get("DEMO_AUDITOR_PASSWORD", "auditor"),
+        "password": _SECRETS.get("DEMO_AUDITOR_PASSWORD", "auditor"),
         "role": "auditor",
         "audience": "auditor",
         "tenant": "bank_a",
     },
     "manager": {
-        "password": os.environ.get("DEMO_MANAGER_PASSWORD", "manager"),
+        "password": _SECRETS.get("DEMO_MANAGER_PASSWORD", "manager"),
         "role": "manager",
         "audience": "manager",
         "tenant": "bank_a",
     },
     "bank_b_admin": {
-        "password": os.environ.get("DEMO_BANK_B_PASSWORD", "admin"),
+        "password": _SECRETS.get("DEMO_BANK_B_PASSWORD", "admin"),
         "role": "admin",
         "audience": "svp",
         "tenant": "bank_b",
