@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trace every alert. Down to the row. — AML Open Framework</title>
+<meta name="description" content="The 7-link evidence chain regulators ask for: source file path → schema hash → DuckDB table → rendered SQL → matched source rowids → alert → case → STR. Every link hash-stamped, reproducible, downloadable as JSON.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_research.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="r-frame">
+    <span>Research <span class="num">·</span> 08</span>
+    <span style="margin-left:auto"><a href="../#/">← back to resource hub</a></span>
+  </div>
+
+  <div class="r-eyebrow">Walk-back · 2026 edition</div>
+  <h1 class="r-title"><em>Trace every alert.</em> Down to the row.</h1>
+  <p class="r-lede">
+    When an examiner asks "show me why alert N fired", most AML platforms can answer at the level of "this customer, this rule, this severity." The framework answers at the level of <em>this file path, this column, this row index, this rendered SQL, this rule version, this case_id, this STR</em> — every link hash-stamped, every chain reproducible. This doc walks the chain link by link.
+  </p>
+  <div class="r-meta">
+    <span><strong>Audience</strong> · MLRO · CCO · 2LoD · Internal Audit · Examiner</span>
+    <span><strong>Anchors</strong> · BCBS 239 P3-P5 · FinCEN April 2026 NPRM · OSFI E-23 · SR 26-2</span>
+    <span><strong>Last refresh</strong> · May 2026</span>
+  </div>
+
+  <h2 class="r-h2">The <em>question</em> regulators actually ask.</h2>
+  <p class="r-p">
+    Walk into any AML examination from the last five years and the question lands in the first hour: <em>"Show me alert N. Show me the rule that fired it. Show me the data the rule looked at. Show me the version of the rule on that day. Show me the analyst's decision and when they made it. Show me that you can produce the same result if I ask you to re-run."</em> Every word of that sentence is a different stamp on a different artifact, and most platforms keep them in different systems — separately searchable, never cross-walkable. The framework treats the answer as a single chain.
+  </p>
+
+  <div class="r-callout">
+    <span class="label">The chain has 7 links</span>
+    <strong>Source file</strong> → <strong>Contract</strong> → <strong>DuckDB table</strong> → <strong>Rule (SQL or callable)</strong> → <strong>Alert (with matched rowids)</strong> → <strong>Case</strong> → <strong>Investigation / STR</strong>. Each link carries its own hash. Each link is reproducible from the spec + data + as_of triple. <em>Same inputs, same hashes — every time.</em>
+  </p></div>
+
+  <h2 class="r-h2">What gets <em>stamped</em>.</h2>
+  <p class="r-p">
+    Every alert decision the engine writes carries 12 fields. The shape lives in <code>src/aml_framework/engine/audit.py</code>; the canonical reader is <code>walk_lineage(run_dir, case_id)</code>. Twelve fields, one chain:
+  </p>
+
+  <div class="r-card">
+    <div class="card-tag">Stamped · per decision</div>
+    <h3 class="card-title">The 12-field per-decision payload.</h3>
+    <div class="r-rows">
+      <div class="row-key"><code>case_id</code></div>
+      <div class="row-val">Deterministic from <code>rule_id + customer_id + window_end</code>. Same inputs → same case_id.</div>
+
+      <div class="row-key"><code>rule_id</code></div>
+      <div class="row-val">The human-authored rule name from the spec. Stable across versions.</div>
+
+      <div class="row-key"><code>rule_version</code></div>
+      <div class="row-val">SHA-256[:16] over the rule's serialised content. A threshold change, filter change, or even field reordering produces a different version. Stamped on <em>every</em> decision event (PR-LIN-3) — not just <code>case_opened</code> — so an escalate or close event proves the rule version was unchanged mid-investigation.</div>
+
+      <div class="row-key"><code>spec_content_hash</code></div>
+      <div class="row-val">SHA-256 of the entire spec snapshot at execution time. The Manifest hash MLRO sign-off chains to via <code>aml attest</code>.</div>
+
+      <div class="row-key"><code>engine_version</code></div>
+      <div class="row-val">Version of the runtime that produced the run. Pinned in <code>manifest.json</code>.</div>
+
+      <div class="row-key"><code>as_of</code></div>
+      <div class="row-val">The wall-clock anchor the spec was evaluated against. Decision timestamps default to <code>as_of</code> for run-to-run determinism.</div>
+
+      <div class="row-key"><code>source_path</code></div>
+      <div class="row-val">Per-contract logical source — file path, warehouse table, or <code>"synthetic"</code>. Added in PR-LIN-2 so the auditor can answer "which file did this row come from?"</div>
+
+      <div class="row-key"><code>schema_columns</code> + <code>schema_hash</code></div>
+      <div class="row-val">The contract's column list at load time, plus a 16-hex SHA-256 over the sorted column names. <em>A column rename or drop produces a different schema_hash even when row content is unchanged.</em> Answers "why did the same source produce different alerts after a Tuesday DDL change?"</div>
+
+      <div class="row-key"><code>row_count</code> + <code>content_hash</code></div>
+      <div class="row-val">Per-contract row count and SHA-256 over the canonicalised, sorted row content. Two runs with the same source but different content produce different content_hashes — the data-drift signal.</div>
+
+      <div class="row-key"><code>matched_row_ids</code></div>
+      <div class="row-val">DuckDB rowids of the source rows that fired the rule. Added in PR-LIN-4 across <code>aggregation_window</code> / <code>custom_sql</code> / <code>list_match</code> / <code>network_pattern</code>. Lets the dashboard show <em>"these are the 7 transactions that triggered this alert"</em> rather than just <em>"this customer."</em></div>
+
+      <div class="row-key"><code>rule_sql</code></div>
+      <div class="row-val">The post-substitution rendered SQL the engine actually executed. Captured by <code>record_rule_sql()</code> on every rule, surfaced into the lineage chain by PR-LIN-1's <code>walk_lineage()</code> extension.</div>
+
+      <div class="row-key"><code>schema_version</code></div>
+      <div class="row-val">Constant <code>2</code>. Lets future readers detect old runs and apply default values for fields that didn't exist yet.</div>
+    </div>
+  </div>
+
+  <h2 class="r-h2">The <em>walk-back</em>.</h2>
+  <p class="r-p">
+    A 2LoD reviewer pastes a <code>case_id</code> into the Audit & Evidence page (or, deeper, the new Lineage Explorer page). The framework returns the chain.
+  </p>
+
+  <div class="r-card">
+    <div class="card-tag">walk_lineage(run_dir, "C0042-cash_structuring-001")</div>
+    <h3 class="card-title">A worked example.</h3>
+    <div class="r-rows">
+      <div class="row-key">Case</div>
+      <div class="row-val"><code>{ case_id: "C0042-...", rule_id: "cash_structuring", rule_version: "a1b2c3d4e5f6g7h8", queue: "L1" }</code></div>
+
+      <div class="row-key">Run anchors</div>
+      <div class="row-val"><code>{ run_dir: "run-20260507T101500Z", spec_content_hash: "9f3a...", engine_version: "1.0.0", as_of: "2026-05-07T00:00:00Z" }</code></div>
+
+      <div class="row-key">Source files (1 of N)</div>
+      <div class="row-val"><code>{ contract_id: "txn", source_path: "data/input/txn.csv", row_count: 12847, schema_hash: "44a8...", content_hash: "b2c1...", schema_columns: [txn_id, customer_id, amount, ...] }</code></div>
+
+      <div class="row-key">Rule SQL</div>
+      <div class="row-val"><code>SELECT customer_id, SUM(amount) AS sum_amount, COUNT(*) AS count, '2026-04-07' AS window_start, '2026-05-07' AS window_end FROM txn WHERE channel='cash' AND amount &gt;= 9000 AND booked_at &gt;= TIMESTAMP '2026-04-07 00:00:00' AND booked_at &lt; TIMESTAMP '2026-05-07 00:00:00' GROUP BY customer_id HAVING SUM(amount) &gt; 25000</code></div>
+
+      <div class="row-key">Matched source rows</div>
+      <div class="row-val"><code>[3742, 5891, 7123, 9445, 11203, 11856, 12410]</code> — seven rowids from <code>txn</code> that contributed to the aggregation. The dashboard renders them in an AG Grid sliced from the in-memory frame.</div>
+
+      <div class="row-key">Decision timeline</div>
+      <div class="row-val"><code>case_opened</code> (rule_version a1b2c3d4...) → <code>escalate</code> (same rule_version, queue L2) → <code>escalated_to_str</code> (same rule_version, queue STR_FILING). PR-LIN-3 stamps <code>rule_version</code> on every event so the chain is unbroken across the investigation.</div>
+
+      <div class="row-key">Export</div>
+      <div class="row-val">One click downloads <code>lineage_C0042-...json</code> — round-trippable, attachable to a SAR, hash-comparable against an earlier export of the same case_id from the same run.</div>
+    </div>
+  </div>
+
+  <h2 class="r-h2"><em>Reproducibility</em>, proven.</h2>
+  <p class="r-p">
+    The chain only matters if it's stable. The framework's reproducibility contract — <code>same spec + same data + same seed → identical hashes</code> — is enforced as a test (<code>test_run_is_reproducible</code> in <code>tests/test_audit_decision_metadata.py</code>). Re-run the same spec against the same data with the same as_of and seed, and every artifact in the run dir is byte-identical: the <code>decisions.jsonl</code> hash, the <code>alerts/&lt;rule_id&gt;.hash</code>, the <code>manifest.json</code>'s <code>spec_content_hash</code> and <code>decisions_hash</code>, the rendered SQL files, the input manifest's content hashes. <em>If anything in the input changed, exactly one hash diverges, and the chain says where.</em>
+  </p>
+
+  <div class="r-callout">
+    <span class="label">Why MLROs care</span>
+    The hash chain is the primitive. <code>aml attest</code> chains a signed MLRO sign-off to <code>spec_content_hash</code>. <code>aml run --strict</code> refuses to execute against unattested specs. Re-running with <code>--seed 42</code> after an examiner asks "show me again" produces the same output — verifiable bit-for-bit.
+  </div>
+
+  <h2 class="r-h2">What this <em>replaces</em>.</h2>
+  <p class="r-p">
+    Vendor "audit log" features typically capture the <em>fact</em> of a decision (analyst X clicked escalate at time T) but not the <em>chain underneath</em> the decision. The rule version isn't stamped. The source path isn't recorded. The matched rows are gone the moment the alert lands. The rendered SQL was never written down. Re-running to verify is impossible because the data has rotated and the rule has been edited.
+  </p>
+  <p class="r-p">
+    The framework keeps every link addressable from <code>case_id</code> alone. The 12 fields above are the difference between "we have a log" and "we have a chain." A log answers <em>did it happen?</em>; a chain answers <em>why did this specific output exist on this specific day given this specific input?</em>
+  </p>
+
+  <h2 class="r-h2">Where to <em>see it live</em>.</h2>
+  <p class="r-p">
+    Three surfaces, each at a different depth:
+  </p>
+  <ol class="r-rules">
+    <li>
+      <strong>Case Investigation → "Why this fired" panel.</strong> The in-workflow answer for the L1/L2 analyst. Shows matched-row count + severity + rule_version + the rule SQL in a collapsible block, above the existing transaction timeline. <em>Picks up the most-asked question without leaving the case.</em>
+    </li>
+    <li>
+      <strong>Audit & Evidence → Lineage walk-back panel.</strong> The auditor's read. Paste a <code>case_id</code>, get the full chain — case anchors, run anchors, source provenance (path + schema hash + content hash + columns), rule SQL, matched source rows from the in-memory <code>txn</code> frame, and the full decision timeline.
+    </li>
+    <li>
+      <strong>Lineage Explorer (page #32, new).</strong> The deep drill. Mermaid graph of the 7-link chain, the same data the walk-back panel surfaces, and a JSON download for offline review. Deep-linkable from any case_id via <code>?case_id=...</code>.
+    </li>
+  </ol>
+
+  <h2 class="r-h2">Cited <em>regulator anchors</em>.</h2>
+  <ol class="r-rules">
+    <li><strong>BCBS 239 Principle 3 — Accuracy and Integrity.</strong> "Risk data should be aggregated on a largely automated basis to minimise the probability of errors." A walk-back chain is what aggregation discipline looks like in evidence form. — <a href="https://www.bis.org/publ/bcbs239.pdf">BCBS 239, BIS, January 2013</a>.</li>
+    <li><strong>BCBS 239 Principle 4 — Completeness.</strong> "Banks should be able to capture and aggregate all material risk data across the banking group." Source-path + schema_hash stamps make the gap detectable, not silent. — <a href="https://www.bis.org/bcbs/publ/d559.htm">BCBS d559 progress report, 2023</a>.</li>
+    <li><strong>FinCEN April 2026 NPRM — Effectiveness.</strong> Measures effectiveness per investigation, requires walk-back to the underlying alerts. The framework's <code>aml effectiveness-pack</code> generator pulls the lineage chain into the regulator-format JSON. — <a href="https://www.fincen.gov/">FinCEN</a>.</li>
+    <li><strong>SR 26-2 / OCC Bulletin 2026-13 — Model Risk Management.</strong> Requires a documented audit trail from model output to model input to model version. The lineage chain is the audit trail. The MRM bundle generator consumes <code>walk_lineage()</code> output. — <a href="https://www.federalreserve.gov/">Federal Reserve SR 26-2</a>.</li>
+    <li><strong>OSFI E-23 (revised) — Model Risk Management.</strong> Requires institutions to demonstrate "consistent, reproducible outcomes" from models — the framework's reproducibility contract proves this property as a CI-enforced test. — <a href="https://www.osfi-bsif.gc.ca/">OSFI E-23</a>.</li>
+  </ol>
+
+  <div class="r-frame" style="margin-top:48px">
+    <span><strong>Cite this as</strong> · AML Open Framework · "Trace every alert. Down to the row." · May 2026</span>
+    <span style="margin-left:auto"><a href="../#/">← resource hub</a></span>
+  </div>
+
+</div>
+
+</body>
+</html>
