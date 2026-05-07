@@ -416,6 +416,42 @@ async def get_metrics(
     return get_run_metrics(run_id, tenant_id=user.get("tenant", "default"))
 
 
+@app.get("/api/v1/runs/{run_id}/cases/{case_id}/lineage")
+async def get_case_lineage(
+    run_id: str,
+    case_id: str,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Return the lineage chain for one case (PR-LIN-20).
+
+    Wraps `walk_lineage()` so SIEM / integration consumers can fetch
+    the chain (rule_sql + source_path + schema_hash + rule_version +
+    matched_row_ids + decisions) programmatically. Auth gated by the
+    same `get_current_user` dep the rest of `/api/v1/runs/...` uses;
+    tenant isolation enforced via `get_run()`.
+
+    404s when the run is unknown OR when the case_id has no case file
+    in the run's artifacts dir.
+    """
+    from pathlib import Path
+
+    from aml_framework.engine.audit import walk_lineage
+
+    manifest = get_run(run_id, tenant_id=user.get("tenant", "default"))
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Run not found")
+    run_dir_str = manifest.get("run_dir")
+    if not run_dir_str:
+        raise HTTPException(
+            status_code=404,
+            detail="Run manifest has no run_dir; cannot walk lineage.",
+        )
+    chain = walk_lineage(Path(run_dir_str), case_id)
+    if chain.get("case") is None:
+        raise HTTPException(status_code=404, detail=f"Case {case_id!r} not found in run.")
+    return chain
+
+
 @app.post("/api/v1/validate")
 async def validate_spec(
     req: RunRequest,
