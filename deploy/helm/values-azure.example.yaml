@@ -1,0 +1,112 @@
+# Azure Kubernetes Service (AKS) example values.
+#
+# Reference deployment for a regulated bank running the framework on
+# their Azure tenant. Combines:
+#   - Workload identity (no static secrets in pods)
+#   - Key Vault for JWT signing key + OPENAI_API_KEY (PR-AZ-2)
+#   - Microsoft Entra ID OIDC for API auth (uses generic OIDC config)
+#   - Azure Blob Storage / ADLS for AML data (PR-AZ-1)
+#   - Azure Synapse OR Azure SQL for warehouse-backed data (optional)
+#
+# Prerequisite: AKS cluster with workload identity enabled
+#   az aks update --resource-group <rg> --name <cluster> \
+#     --enable-oidc-issuer --enable-workload-identity
+#
+# Federate the user-assigned managed identity to the ServiceAccounts
+# this chart creates (`{Release.Name}-api` and `{Release.Name}-dashboard`)
+# before installing.
+
+image:
+  repository: <your-acr>.azurecr.io/aml-framework
+  tag: 1.0.0
+  pullPolicy: IfNotPresent
+
+# Disable bundled Postgres — use Azure Database for PostgreSQL
+# Flexible Server. Connection string here is a placeholder; in
+# production, override via Helm `--set` or set the secret-backed
+# DATABASE_URL via Key Vault and remove this line.
+postgres:
+  enabled: false
+
+database:
+  url: "postgresql://aml_user@<server>.postgres.database.azure.com:5432/aml?sslmode=require"
+
+api:
+  replicas: 2
+  port: 8000
+  dataRoots: data
+  uploadRoot: data/uploads
+  artifactRoot: data/api-artifacts
+  maxUploadBytes: 26214400
+  allowRemoteDataSources: false
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+dashboard:
+  replicas: 1
+  port: 8501
+  spec: examples/canadian_schedule_i_bank/aml.yaml
+  seed: 42
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+# JWT secret comes from Key Vault via the SecretsProvider when
+# AZURE_KEY_VAULT_NAME is set in the pod (see azure.keyVaultName
+# below). The value here is only used as the in-cluster Secret
+# fallback during chart install — keep a strong placeholder so the
+# chart's validation gate accepts it.
+jwt:
+  secret: replace-with-32-plus-byte-random-secret
+
+# Microsoft Entra ID OIDC config. The generic oidc.* fields work
+# unchanged — Entra ID is a standards-compliant OIDC provider.
+#   issuerUrl  → https://login.microsoftonline.com/{TENANT_ID}/v2.0
+#   audience   → app registration (client) ID
+#   roleClaim  → "roles" (Azure App Roles)
+#   tenantClaim → "tid" (Azure tenant ID claim)
+#   allowedTenants → comma-sep list of tenant IDs (single-tenant in most cases)
+oidc:
+  issuerUrl: "https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0"
+  audience: "00000000-0000-0000-0000-000000000000"
+  roleClaim: roles
+  tenantClaim: tid
+  allowedTenants: "00000000-0000-0000-0000-000000000000"
+
+ingress:
+  enabled: true
+  host: aml.bank.example.com
+
+# Azure-specific options (PR-AZ-3).
+azure:
+  # User-assigned managed identity client ID. Federate this with
+  # the {Release.Name}-api and {Release.Name}-dashboard
+  # ServiceAccounts before installing the chart:
+  #   az identity federated-credential create \
+  #     --name aml-api-fic --identity-name <mi> --resource-group <rg> \
+  #     --issuer "$(az aks show ... --query oidcIssuerProfile.issuerUrl -o tsv)" \
+  #     --subject "system:serviceaccount:<ns>:<release>-api" \
+  #     --audiences api://AzureADTokenExchange
+  workloadIdentityClientId: "00000000-0000-0000-0000-000000000000"
+
+  # Key Vault that holds JWT_SECRET, OPENAI_API_KEY, etc. The
+  # SecretsProvider (PR-AZ-2) translates `_` → `-` in secret names.
+  keyVaultName: "kv-bank-aml-prod"
+
+  # Storage account where AML data CSV / Parquet files live.
+  # Pass to `aml run` via --data-dir abfss://aml-data@<account>.dfs.core.windows.net/
+  storageAccountName: "<your-storage-account>"
+
+  # ODBC connection string for Synapse / Azure SQL. Use
+  # Authentication=ActiveDirectoryMsi to leverage workload identity.
+  synapseConnString: ""    # "DRIVER={ODBC Driver 18 for SQL Server};SERVER=...;DATABASE=...;Authentication=ActiveDirectoryMsi"
+  azureSqlConnString: ""

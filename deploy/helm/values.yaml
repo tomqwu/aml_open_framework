@@ -55,3 +55,25 @@ oidc:
 ingress:
   enabled: false
   host: aml.example.com
+
+# Azure Kubernetes Service deployment options (PR-AZ-3).
+# All fields are optional — leaving them blank produces an Azure-
+# agnostic chart identical to the on-prem deployment shape.
+#
+# When `workloadIdentityClientId` is set, the API + dashboard pods
+# pick up the `azure.workload.identity/use=true` label and a
+# ServiceAccount with the federated-identity annotation. Combined
+# with `keyVaultName`, the SecretsProvider (PR-AZ-2) resolves
+# JWT_SECRET / OPENAI_API_KEY etc. from Key Vault without static
+# credentials.
+#
+# `storageAccountName`, `synapseConnString`, `azureSqlConnString`
+# are passed through as env vars so the data-source loaders
+# (PR-AZ-1) can connect to Azure Blob / ADLS Gen2 / Synapse /
+# Azure SQL.
+azure:
+  workloadIdentityClientId: ""
+  keyVaultName: ""
+  storageAccountName: ""
+  synapseConnString: ""
+  azureSqlConnString: ""
