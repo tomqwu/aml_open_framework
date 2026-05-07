@@ -65,6 +65,18 @@ variable "enable_postgres" {
   default     = true
 }
 
+variable "enable_cosmos" {
+  description = "Provision a Cosmos DB serverless account + database + 4 containers (runs, run_alerts, run_metrics, spec_versions) and inject COSMOS_ENDPOINT/COSMOS_DATABASE into the Container Apps. The Python layer (src/aml_framework/api/db.py) selects Cosmos over Postgres/SQLite when COSMOS_ENDPOINT is set. Use as an alternative to Postgres on Sponsorship subs that block Postgres Flexible Server in every available region."
+  type        = bool
+  default     = false
+}
+
+variable "cosmos_database_name" {
+  description = "Cosmos DB database name. Default 'aml' matches the COSMOS_DATABASE Python default."
+  type        = string
+  default     = "aml"
+}
+
 # --- Landing zone tfstate location -----------------------------------------
 # These three variables tell the data source where to read the
 # landing zone's platform outputs. Pull them from

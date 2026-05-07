@@ -1,5 +1,8 @@
-{{- if and (not .Values.postgres.enabled) (not .Values.database.url) }}
-{{- fail "database.url is required when postgres.enabled=false" }}
+{{- if and (not .Values.postgres.enabled) (not .Values.database.url) (not .Values.cosmos.enabled) }}
+{{- fail "Set one of: postgres.enabled=true, database.url, or cosmos.enabled=true with cosmos.endpoint" }}
+{{- end }}
+{{- if and .Values.cosmos.enabled (not .Values.cosmos.endpoint) }}
+{{- fail "cosmos.endpoint is required when cosmos.enabled=true" }}
 {{- end }}
 {{- if and .Values.oidc.issuerUrl (not .Values.oidc.audience) }}
 {{- fail "oidc.audience is required when oidc.issuerUrl is set" }}
@@ -52,6 +55,12 @@ spec:
           ports:
             - containerPort: {{ .Values.api.port }}
           env:
+            {{- if .Values.cosmos.enabled }}
+            - name: COSMOS_ENDPOINT
+              value: {{ .Values.cosmos.endpoint | quote }}
+            - name: COSMOS_DATABASE
+              value: {{ .Values.cosmos.database | quote }}
+            {{- else }}
             - name: DATABASE_URL
               {{- if .Values.postgres.enabled }}
               value: "postgresql://{{ .Values.postgres.username }}:{{ .Values.postgres.password }}@{{ .Release.Name }}-postgres:5432/{{ .Values.postgres.database }}"
@@ -61,6 +70,7 @@ spec:
                   name: {{ .Release.Name }}-secrets
                   key: database-url
               {{- end }}
+            {{- end }}
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

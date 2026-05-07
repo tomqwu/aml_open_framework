@@ -37,6 +37,11 @@ output "postgres_fqdn" {
   value       = var.enable_postgres ? azurerm_postgresql_flexible_server.aml[0].fqdn : null
 }
 
+output "cosmos_endpoint" {
+  description = "Cosmos DB account endpoint. Null when enable_cosmos=false. Wired into the Container Apps as COSMOS_ENDPOINT env var."
+  value       = var.enable_cosmos ? azurerm_cosmosdb_account.aml[0].endpoint : null
+}
+
 output "github_actions_variables" {
   description = "Set these as GitHub repo Variables (not Secrets). Pass to the deploy workflow."
   value = merge(module.onboard.github_actions_variables, {

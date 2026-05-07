@@ -107,6 +107,95 @@ resource "azurerm_postgresql_flexible_server_database" "aml" {
 }
 
 # ---------------------------------------------------------------------------
+# 2b. Cosmos DB serverless (alternative persistence backend).
+#    Used when enable_cosmos=true — typically on Sponsorship subs that
+#    block Postgres Flexible Server in every available region. The Python
+#    layer (src/aml_framework/api/db.py) selects Cosmos over
+#    Postgres/SQLite when COSMOS_ENDPOINT is set.
+#    Free-tier-friendly: serverless billing has no idle compute charge.
+# ---------------------------------------------------------------------------
+
+resource "random_string" "cosmos_suffix" {
+  count   = var.enable_cosmos ? 1 : 0
+  length  = 6
+  upper   = false
+  special = false
+}
+
+resource "azurerm_cosmosdb_account" "aml" {
+  count               = var.enable_cosmos ? 1 : 0
+  name                = "cosmos-aml-${var.env}-${random_string.cosmos_suffix[0].result}"
+  resource_group_name = module.onboard.resource_group_name
+  location            = module.onboard.location
+  offer_type          = "Standard"
+  kind                = "GlobalDocumentDB"
+
+  # Serverless mode: no provisioned RU/s, billed per-operation. Idle ≈ $0.
+  capabilities {
+    name = "EnableServerless"
+  }
+
+  consistency_policy {
+    consistency_level = "Session"
+  }
+
+  geo_location {
+    location          = module.onboard.location
+    failover_priority = 0
+  }
+
+  # AAD-only access — no key-based auth from the app side. The UAMI gets
+  # data plane access via the SQL role assignment below.
+  local_authentication_disabled = true
+  public_network_access_enabled = true
+
+  tags = module.onboard.tags
+}
+
+resource "azurerm_cosmosdb_sql_database" "aml" {
+  count               = var.enable_cosmos ? 1 : 0
+  name                = var.cosmos_database_name
+  resource_group_name = module.onboard.resource_group_name
+  account_name        = azurerm_cosmosdb_account.aml[0].name
+}
+
+# 4 containers matching the schema in src/aml_framework/api/db.py.
+# Partition key /tenant_id everywhere so tenant-scoped queries stay
+# single-partition. Document `id` shape: run_id, run_id:rule_id,
+# run_id, tenant_id:spec_hash respectively.
+locals {
+  cosmos_containers = var.enable_cosmos ? toset([
+    "runs",
+    "run_alerts",
+    "run_metrics",
+    "spec_versions",
+  ]) : toset([])
+}
+
+resource "azurerm_cosmosdb_sql_container" "aml" {
+  for_each              = local.cosmos_containers
+  name                  = each.value
+  resource_group_name   = module.onboard.resource_group_name
+  account_name          = azurerm_cosmosdb_account.aml[0].name
+  database_name         = azurerm_cosmosdb_sql_database.aml[0].name
+  partition_key_paths   = ["/tenant_id"]
+  partition_key_version = 2
+}
+
+# Grant the app's UAMI the built-in "Cosmos DB Built-in Data Contributor"
+# role on the account. ID 00000000-0000-0000-0000-000000000002 is fixed
+# for that built-in role; documented in
+# https://learn.microsoft.com/azure/cosmos-db/nosql/security/how-to-grant-data-plane-role-based-access
+resource "azurerm_cosmosdb_sql_role_assignment" "aml_uami" {
+  count               = var.enable_cosmos ? 1 : 0
+  resource_group_name = module.onboard.resource_group_name
+  account_name        = azurerm_cosmosdb_account.aml[0].name
+  role_definition_id  = "${azurerm_cosmosdb_account.aml[0].id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002"
+  principal_id        = module.onboard.identity_principal_id
+  scope               = azurerm_cosmosdb_account.aml[0].id
+}
+
+# ---------------------------------------------------------------------------
 # 3. Container Apps Environment — single env shared by API + dashboard.
 #    Linked to platform Log Analytics workspace per CLAUDE.md mandate.
 # ---------------------------------------------------------------------------
@@ -203,6 +292,20 @@ resource "azurerm_container_app" "api" {
           secret_name = "database-url"
         }
       }
+      dynamic "env" {
+        for_each = var.enable_cosmos ? [1] : []
+        content {
+          name  = "COSMOS_ENDPOINT"
+          value = azurerm_cosmosdb_account.aml[0].endpoint
+        }
+      }
+      dynamic "env" {
+        for_each = var.enable_cosmos ? [1] : []
+        content {
+          name  = "COSMOS_DATABASE"
+          value = azurerm_cosmosdb_sql_database.aml[0].name
+        }
+      }
     }
   }
 
@@ -280,6 +383,20 @@ resource "azurerm_container_app" "dashboard" {
       env {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "appinsights-conn"
+      }
+      dynamic "env" {
+        for_each = var.enable_cosmos ? [1] : []
+        content {
+          name  = "COSMOS_ENDPOINT"
+          value = azurerm_cosmosdb_account.aml[0].endpoint
+        }
+      }
+      dynamic "env" {
+        for_each = var.enable_cosmos ? [1] : []
+        content {
+          name  = "COSMOS_DATABASE"
+          value = azurerm_cosmosdb_sql_database.aml[0].name
+        }
       }
     }
   }

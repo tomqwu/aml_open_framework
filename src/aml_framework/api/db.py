@@ -79,6 +79,22 @@ def _cosmos_container(name: str):
     return _get_cosmos_db().get_container_client(name)  # pragma: no cover
 
 
+# Narrow exception type for "the document doesn't exist" — separate from
+# auth failures, throttling (429), and outages, all of which should bubble
+# up as server errors rather than be silently absorbed as 404. Aliased at
+# module load so both production code and tests reference the same symbol;
+# falls back to a stub when azure-cosmos isn't installed (unit-test CI
+# only installs [.dev], not [.azure]).
+try:
+    from azure.cosmos.exceptions import (
+        CosmosResourceNotFoundError as _CosmosNotFound,
+    )
+except ImportError:
+
+    class _CosmosNotFound(Exception):  # type: ignore[no-redef]
+        pass
+
+
 _sqlite_initialized = False
 
 
@@ -234,10 +250,13 @@ def _from_json(value: Any) -> Any:
 def init_db() -> None:
     """Create tables if they don't exist. Multi-statement scripts need
     backend-specific entry points (executescript on SQLite, single execute
-    on psycopg2). Cosmos containers are created by Terraform — confirm
-    the database handle resolves so misconfiguration surfaces at startup."""
+    on psycopg2). Cosmos containers are created by Terraform — make a
+    network round-trip via `database.read()` so misconfiguration (wrong
+    endpoint, missing RBAC, missing database) fails fast at startup
+    instead of silently degrading to empty results on first use."""
     if _use_cosmos():
-        _get_cosmos_db()  # pragma: no cover -- live Cosmos handshake
+        database = _get_cosmos_db()  # pragma: no cover -- live Cosmos handshake
+        database.read()  # pragma: no cover -- raises CosmosHttpResponseError on misconfig
         return
     if _use_postgres():
         conn = _get_pg_conn()
@@ -370,7 +389,7 @@ def get_run(run_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
         if tenant_id is not None:
             try:
                 doc = runs.read_item(item=run_id, partition_key=tenant_id)
-            except Exception:
+            except _CosmosNotFound:
                 return None
             return doc.get("manifest")
         query = "SELECT TOP 1 c.manifest FROM c WHERE c.run_id = @r"
@@ -427,7 +446,7 @@ def get_run_metrics(run_id: str, tenant_id: str | None = None) -> list[dict[str,
         if tenant_id is not None:
             try:
                 doc = run_metrics.read_item(item=run_id, partition_key=tenant_id)
-            except Exception:
+            except _CosmosNotFound:
                 return []
             return doc.get("metrics", [])
         query = "SELECT TOP 1 c.metrics FROM c WHERE c.run_id = @r"
@@ -469,7 +488,7 @@ def store_spec_version(
         try:
             specs.read_item(item=item_id, partition_key=tenant_id)
             return  # already stored — preserve original created_at
-        except Exception:
+        except _CosmosNotFound:
             pass
         specs.create_item(
             {

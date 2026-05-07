@@ -858,7 +858,11 @@ class TestDBCosmosPaths:
             _cosmos_container=MagicMock(side_effect=_resolve),
         )
 
-    def test_cosmos_init_db_resolves_handle(self):
+    def test_cosmos_init_db_probes_database(self):
+        """init_db must do a network round-trip (database.read()) so
+        misconfiguration fails fast at startup, not silently on first
+        call. Pure handle resolution doesn't catch wrong-endpoint or
+        missing-RBAC mistakes."""
         from unittest.mock import MagicMock, patch
 
         import aml_framework.api.db as db
@@ -870,6 +874,26 @@ class TestDBCosmosPaths:
         ):
             db.init_db()
             mock_get.assert_called_once()
+            handle.read.assert_called_once()
+
+    def test_cosmos_init_db_propagates_misconfig(self):
+        """If the database isn't reachable (wrong endpoint, missing RBAC,
+        wrong database name), init_db must surface the error so the
+        startup probe fails fast rather than silently degrading."""
+        from unittest.mock import MagicMock, patch
+
+        import pytest
+
+        import aml_framework.api.db as db
+
+        handle = MagicMock()
+        handle.read.side_effect = RuntimeError("Unauthorized")
+        with (
+            patch.object(db, "_use_cosmos", return_value=True),
+            patch.object(db, "_get_cosmos_db", return_value=handle),
+            pytest.raises(RuntimeError, match="Unauthorized"),
+        ):
+            db.init_db()
 
     def test_cosmos_store_run_writes_three_containers(self):
         from unittest.mock import MagicMock
@@ -945,9 +969,23 @@ class TestDBCosmosPaths:
         import aml_framework.api.db as db
 
         runs = MagicMock()
-        runs.read_item.side_effect = Exception("NotFound")
+        runs.read_item.side_effect = db._CosmosNotFound("NotFound")
         with self._patch(runs=runs):
             assert db.get_run("missing", tenant_id="bank_x") is None
+
+    def test_cosmos_get_run_propagates_non_404_errors(self):
+        """Auth failures, throttling (429), and outages must surface as
+        server errors, not be silently translated to 'not found'."""
+        from unittest.mock import MagicMock
+
+        import pytest
+
+        import aml_framework.api.db as db
+
+        runs = MagicMock()
+        runs.read_item.side_effect = RuntimeError("auth failed")
+        with self._patch(runs=runs), pytest.raises(RuntimeError, match="auth failed"):
+            db.get_run("r1", tenant_id="bank_x")
 
     def test_cosmos_get_run_alerts(self):
         from unittest.mock import MagicMock
@@ -977,9 +1015,21 @@ class TestDBCosmosPaths:
         import aml_framework.api.db as db
 
         run_metrics = MagicMock()
-        run_metrics.read_item.side_effect = Exception("NotFound")
+        run_metrics.read_item.side_effect = db._CosmosNotFound("NotFound")
         with self._patch(run_metrics=run_metrics):
             assert db.get_run_metrics("missing", tenant_id="bank_x") == []
+
+    def test_cosmos_get_run_metrics_propagates_non_404_errors(self):
+        from unittest.mock import MagicMock
+
+        import pytest
+
+        import aml_framework.api.db as db
+
+        run_metrics = MagicMock()
+        run_metrics.read_item.side_effect = RuntimeError("throttled")
+        with self._patch(run_metrics=run_metrics), pytest.raises(RuntimeError):
+            db.get_run_metrics("r1", tenant_id="bank_x")
 
     def test_cosmos_store_spec_version_idempotent(self):
         from unittest.mock import MagicMock
@@ -998,10 +1048,23 @@ class TestDBCosmosPaths:
         import aml_framework.api.db as db
 
         specs = MagicMock()
-        specs.read_item.side_effect = Exception("NotFound")
+        specs.read_item.side_effect = db._CosmosNotFound("NotFound")
         with self._patch(spec_versions=specs):
             db.store_spec_version("abc", "content", "prog", "bank_x")
         specs.create_item.assert_called_once()
+
+    def test_cosmos_store_spec_version_propagates_non_404_errors(self):
+        from unittest.mock import MagicMock
+
+        import pytest
+
+        import aml_framework.api.db as db
+
+        specs = MagicMock()
+        specs.read_item.side_effect = RuntimeError("server error")
+        with self._patch(spec_versions=specs), pytest.raises(RuntimeError):
+            db.store_spec_version("abc", "content", "prog", "bank_x")
+        specs.create_item.assert_not_called()
 
     def test_cosmos_list_spec_versions(self):
         from unittest.mock import MagicMock

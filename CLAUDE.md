@@ -41,6 +41,15 @@ pytest tests/test_e2e_dashboard.py -q                            # Playwright (~
 
 Never push without all tests passing locally. CI runs 5 jobs: lint, unit-tests, api-tests, e2e-dashboard, docker-build.
 
+## Before Every Merge
+
+**Do not merge any PR without an `LGTM` comment.** Even when CI is green, even when auto-merge is available, even on small PRs. The user routes PRs through Codex for an independent review pass and posts `LGTM` (or equivalent approval) on the PR when it's safe to merge.
+
+- After opening a PR: open the PR URL, push the branch, wait. Don't enable auto-merge.
+- If auto-merge was enabled by mistake, disable it.
+- If a PR has been open for a while with no review comment, the right action is to ping the user, not to merge anyway.
+- This rule applies to every repo this assistant works in (including the landing zone), not just `aml_open_framework`.
+
 ## Project-Specific Rules
 
 - **Lazy imports**: Dashboard modules (audience.py, data_layer.py, pages/) must NOT import `streamlit` at module level. Unit-test CI only installs `.[dev]`.
