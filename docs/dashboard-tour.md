@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **31 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **32 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -172,6 +172,10 @@ Past engine executions from the persistence layer (SQLite locally, PostgreSQL in
 Full run manifest with JSON viewer, SHA-256 hash verification for every rule output, append-only decision log, evidence bundle file tree with byte sizes, and the spec snapshot captured at execution time. This is the auditor and regulator view.
 
 ![Audit & Evidence](screenshots/07_audit_evidence.png)
+
+### Lineage Explorer
+
+End-to-end "source → DuckDB table → rendered SQL → matched rows → alert → case → STR" walk-back, deep-linkable from Audit & Evidence and Case Investigation via `?case_id=...`. Mermaid graph + run anchors + source provenance (path + schema_hash + content_hash) + collapsible rule SQL + matched-rows AG Grid + decision timeline + JSON download. Powered by `walk_lineage()` after PR-LIN-1..4 lifted rule_sql, source_path, schema_hash, rule_version (every event), and matched_row_ids into the lineage chain.
 
 ### Analyst Review Queue
 
