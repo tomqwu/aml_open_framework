@@ -22,6 +22,11 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 EXTERNAL_PREFIXES = ("http://", "https://", "mailto:", "ftp://")
+# Directories optionally excluded from the runtime Docker image. When the
+# whole directory is absent (i.e., we're running tests inside the slim
+# image rather than the source repo), allow links pointing into them
+# without flagging — the source repo run still validates them.
+OPTIONAL_DIRS = ("deploy",)
 
 
 def _markdown_files() -> list[Path]:
@@ -77,8 +82,18 @@ def test_all_local_links_resolve(md_file: Path):
         if not _is_local_link(target):
             continue
         resolved = _resolve(md_file, target)
-        if not resolved.exists():
-            broken.append(f"  L{line_num}: {target!r} → {resolved}")
+        if resolved.exists():
+            continue
+        try:
+            relative = resolved.relative_to(PROJECT_ROOT)
+        except ValueError:
+            relative = None
+        if relative and relative.parts and relative.parts[0] in OPTIONAL_DIRS:
+            top = PROJECT_ROOT / relative.parts[0]
+            if not top.exists():
+                # Whole directory absent (slim Docker image) — skip
+                continue
+        broken.append(f"  L{line_num}: {target!r} → {resolved}")
     assert not broken, f"{md_file.relative_to(PROJECT_ROOT)} has broken local links:\n" + "\n".join(
         broken
     )
