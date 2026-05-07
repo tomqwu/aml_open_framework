@@ -371,10 +371,12 @@ def _execute_list_match(
     if list_entries is None:
         return []
 
-    # Get source data.
+    # Get source data — pull rowid alongside so each alert can carry
+    # `matched_row_ids` (PR-LIN-4) for the dashboard's "show me which
+    # rows fired this" affordance.
     source_table = logic.source
     try:
-        rows = con.execute(f"SELECT * FROM {source_table}").fetchall()
+        rows = con.execute(f"SELECT rowid AS __row_id, * FROM {source_table}").fetchall()
         cols = [d[0] for d in con.description] if con.description else []
     except Exception:
         logger.warning("list_match: table '%s' not found for rule '%s'", source_table, rule.id)
@@ -394,6 +396,8 @@ def _execute_list_match(
         if not value:
             continue
         customer_id = row.get("customer_id", "")
+        row_id = row.get("__row_id")
+        matched_row_ids = [int(row_id)] if row_id is not None else []
 
         if match_type == "exact" and value in list_entries:
             alerts.append(
@@ -403,6 +407,7 @@ def _execute_list_match(
                     "matched_name": value,
                     "match_type": "exact",
                     "match_score": 1.0,
+                    "matched_row_ids": matched_row_ids,
                 }
             )
         elif match_type == "fuzzy":
@@ -417,6 +422,7 @@ def _execute_list_match(
                         "list_entry": entry,
                         "match_type": "fuzzy",
                         "match_score": score,
+                        "matched_row_ids": matched_row_ids,
                     }
                 )
     return alerts
@@ -508,6 +514,23 @@ def _execute_network_pattern(
                 break
         if passes:
             subgraph = _capture_subgraph(con, record["customer_id"], max_hops)
+            # PR-LIN-4: matched_row_ids for network_pattern is the
+            # customer-table rowid of every entity in the reached
+            # subgraph (the "evidence" rows for component_size /
+            # counterparty_count). Empty list rather than None when
+            # the lookup fails so callers don't need a special case.
+            customer_ids = [n["id"] for n in subgraph.get("nodes", [])]
+            matched_row_ids: list[int] = []
+            if customer_ids:
+                try:
+                    placeholders = ",".join(["?"] * len(customer_ids))
+                    rid_rows = con.execute(
+                        f"SELECT rowid FROM customer WHERE customer_id IN ({placeholders})",
+                        customer_ids,
+                    ).fetchall()
+                    matched_row_ids = [int(r[0]) for r in rid_rows]
+                except Exception:
+                    matched_row_ids = []
             alerts.append(
                 {
                     "rule_id": rule.id,
@@ -519,6 +542,7 @@ def _execute_network_pattern(
                     "window_start": as_of,
                     "window_end": as_of,
                     "subgraph": subgraph,
+                    "matched_row_ids": matched_row_ids,
                 }
             )
     return alerts
@@ -922,6 +946,29 @@ def run_spec(
         rows = con.execute(sql).fetchall()
         cols = [d[0] for d in con.description] if con.description else []
         alerts = [dict(zip(cols, r)) for r in rows]
+        # PR-LIN-4: for each alert produced by an aggregation_window /
+        # custom_sql rule, look up the source rowids that contributed
+        # to it (customer + window). One follow-up SELECT per alert; the
+        # alert sample is bounded so this is fine for FI-scale runs.
+        # Fails silently per-alert (matched_row_ids stays []) when the
+        # source table doesn't expose the expected customer_id /
+        # booked_at shape — better than crashing the whole run.
+        if source_table:
+            for alert in alerts:
+                cid = alert.get("customer_id")
+                w_start = alert.get("window_start")
+                w_end = alert.get("window_end")
+                alert["matched_row_ids"] = []
+                if cid and w_start and w_end:
+                    try:
+                        rid_rows = con.execute(
+                            f"SELECT rowid FROM {source_table} "
+                            f"WHERE customer_id = ? AND booked_at >= ? AND booked_at < ?",
+                            [cid, w_start, w_end],
+                        ).fetchall()
+                        alert["matched_row_ids"] = [int(r[0]) for r in rid_rows]
+                    except Exception:
+                        pass
         alerts_by_rule[rule.id] = alerts
         ledger.record_alerts(rule.id, alerts)
 

@@ -126,6 +126,57 @@ class TestCaseOpenedCarriesRuleVersion:
             assert ev.get("rule_version"), f"case_opened missing rule_version: {ev}"
             assert len(ev["rule_version"]) == 16
 
+    def test_alerts_carry_matched_row_ids(self, tmp_path: Path):
+        """PR-LIN-4: alerts produced by aggregation_window / custom_sql /
+        list_match rules carry `matched_row_ids` so the dashboard can
+        show 'these are the source rows that fired this rule' rather
+        than just 'this customer'. Round-trip the rowids back to rows
+        in the source table to prove they're real, not random ints.
+        """
+        import duckdb
+
+        spec = load_spec(_COMMUNITY_BANK)
+        data = generate_dataset(as_of=_AS_OF, seed=42)
+        result = run_spec(
+            spec=spec,
+            spec_path=_COMMUNITY_BANK,
+            data=data,
+            as_of=_AS_OF,
+            artifacts_root=tmp_path,
+        )
+        # Find at least one alert (across all rules) that has non-empty
+        # matched_row_ids — community_bank is dominated by
+        # aggregation_window rules so this must be non-empty.
+        alerts_with_rowids: list[tuple[str, list[int]]] = []
+        for rule_id, alerts in result.alerts.items():
+            for a in alerts:
+                ids = a.get("matched_row_ids")
+                if ids:
+                    alerts_with_rowids.append((rule_id, ids))
+        assert alerts_with_rowids, (
+            "expected at least one alert with non-empty matched_row_ids "
+            "(community_bank fires aggregation_window rules with txns)"
+        )
+        # Round-trip the first one against a fresh DuckDB built the same
+        # way the runner does. The rowids must resolve to rows in the
+        # txn table — proves matched_row_ids are not random ints.
+        from aml_framework.engine.runner import _build_warehouse
+
+        con = duckdb.connect(":memory:")
+        _build_warehouse(con, spec, data)
+        rule_id, ids = alerts_with_rowids[0]
+        placeholders = ",".join(["?"] * len(ids))
+        rows = con.execute(
+            f"SELECT customer_id FROM txn WHERE rowid IN ({placeholders})",
+            ids,
+        ).fetchall()
+        assert rows, "matched_row_ids should resolve to real source rows"
+        # And each contributing row must belong to the same customer the
+        # alert names — sanity check the rowid lookup logic.
+        a = next(a for a in result.alerts[rule_id] if a.get("matched_row_ids") == ids)
+        for (cid,) in rows:
+            assert cid == a["customer_id"]
+
     def test_resolution_events_carry_rule_version(self, tmp_path: Path):
         """PR-LIN-3: case-resolution events (escalate / closed / etc) must
         also carry rule_version, not just case_opened. Lets walk_lineage
