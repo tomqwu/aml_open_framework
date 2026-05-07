@@ -143,6 +143,19 @@ if _cases_for_rank:
                 unsafe_allow_html=True,
             )
 
+        # PR-LIN-15: deep-link to the lineage walk-back for the top
+        # ranked case. Today's "Next 5 to triage" header is the most-
+        # opened surface; surfacing the auditor path here closes the
+        # gap between "I see what to triage" and "I see why each fired".
+        if _ranked:
+            from aml_framework.dashboard.components import link_to_page as _link_lin15_today
+
+            _link_lin15_today(
+                "pages/32_Lineage_Explorer.py",
+                "→ Walk lineage chain for the top-ranked case",
+                case_id=_ranked[0].case_id,
+            )
+
 # A tighter "what changed since last run?" hook lives below the cards
 # and pulls the latest two run-history entries when available. Falls
 # back to silence if there's only one run on disk — so the page never

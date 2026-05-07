@@ -143,6 +143,38 @@ class TestTuningLabLineagePointer:
         assert "32_Lineage_Explorer.py" in body
 
 
+class TestTodayLineageLink:
+    """PR-LIN-15: Today's 'Next 5 to triage' section deep-links to
+    Lineage Explorer for the top-ranked case."""
+
+    def test_lineage_explorer_link_present(self):
+        body = (PAGES / "0_Today.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+        assert "case_id=_ranked[0].case_id" in body
+
+
+class TestExecutiveDashboardLineagePointer:
+    """PR-LIN-15: Executive Dashboard surfaces the lineage entry-point
+    on the headline page so board readers can ask 'why this number?'"""
+
+    def test_lineage_explorer_link_present(self):
+        body = (PAGES / "1_Executive_Dashboard.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+        assert "matched_row_ids" in body
+
+
+class TestAIAssistantVerifyLink:
+    """PR-LIN-15: AI Assistant citations link to Lineage Explorer for
+    the first referenced_case_id — closes the 'AI claim → audit chain'
+    gap."""
+
+    def test_verify_against_audit_trail_link_present(self):
+        body = (PAGES / "29_AI_Assistant.py").read_text(encoding="utf-8")
+        assert "Verify against audit trail" in body
+        assert "32_Lineage_Explorer.py" in body
+        assert "reply.referenced_case_ids[0]" in body
+
+
 class TestCaseInvestigationDeepLink:
     def test_links_to_lineage_explorer(self):
         body = CASE_INV.read_text(encoding="utf-8")

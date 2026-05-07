@@ -281,6 +281,21 @@ ALLOWED_GRACEFUL_GAPS: set[tuple[str, str, str]] = {
     ("pm", "Tuning Lab", "Lineage Explorer"),
     ("developer", "Tuning Lab", "Lineage Explorer"),
     ("fintech_mlro", "Tuning Lab", "Lineage Explorer"),
+    # PR-LIN-15: Executive Dashboard surfaces a Lineage Explorer
+    # entry-point on the headline page. Most exec personas don't
+    # carry Lineage Explorer in their nav (it's an audit-deep-drill
+    # surface, not a board-tier surface) — link gracefully degrades.
+    ("svp", "Executive Dashboard", "Lineage Explorer"),
+    ("cto", "Executive Dashboard", "Lineage Explorer"),
+    ("cco", "Executive Dashboard", "Lineage Explorer"),
+    ("vp", "Executive Dashboard", "Lineage Explorer"),
+    ("director", "Executive Dashboard", "Lineage Explorer"),
+    ("manager", "Executive Dashboard", "Lineage Explorer"),
+    ("pm", "Executive Dashboard", "Lineage Explorer"),
+    ("developer", "Executive Dashboard", "Lineage Explorer"),
+    ("business", "Executive Dashboard", "Lineage Explorer"),
+    ("fintech_mlro", "Executive Dashboard", "Lineage Explorer"),
+    ("data_engineer", "Executive Dashboard", "Lineage Explorer"),
 }
 
 
