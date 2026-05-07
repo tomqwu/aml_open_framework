@@ -969,7 +969,7 @@ class TestDBCosmosPaths:
         import aml_framework.api.db as db
 
         runs = MagicMock()
-        runs.read_item.side_effect = db._CosmosNotFound("NotFound")
+        runs.read_item.side_effect = db._CosmosNotFound(404, "Not Found")
         with self._patch(runs=runs):
             assert db.get_run("missing", tenant_id="bank_x") is None
 
@@ -1015,7 +1015,7 @@ class TestDBCosmosPaths:
         import aml_framework.api.db as db
 
         run_metrics = MagicMock()
-        run_metrics.read_item.side_effect = db._CosmosNotFound("NotFound")
+        run_metrics.read_item.side_effect = db._CosmosNotFound(404, "Not Found")
         with self._patch(run_metrics=run_metrics):
             assert db.get_run_metrics("missing", tenant_id="bank_x") == []
 
@@ -1048,7 +1048,7 @@ class TestDBCosmosPaths:
         import aml_framework.api.db as db
 
         specs = MagicMock()
-        specs.read_item.side_effect = db._CosmosNotFound("NotFound")
+        specs.read_item.side_effect = db._CosmosNotFound(404, "Not Found")
         with self._patch(spec_versions=specs):
             db.store_spec_version("abc", "content", "prog", "bank_x")
         specs.create_item.assert_called_once()
