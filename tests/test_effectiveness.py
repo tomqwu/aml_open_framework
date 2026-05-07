@@ -245,6 +245,33 @@ class TestControlQualityPillar:
         assert keys["total_alerts"]["value"] == 3
         assert keys["alerts_by_rule"]["value"] == {"r1": 2, "r2": 1}
 
+    def test_alerts_by_rule_with_lineage_present(self):
+        """PR-LIN-18: alerts_by_rule_with_lineage finding maps each
+        rule_id to {alert_count, rule_version, sample_matched_rows}
+        so a regulator can validate 'this metric was computed from
+        these N alerts under rule version V firing on rows R'."""
+        spec = load_spec(EXAMPLE_US)
+        pack = build_effectiveness_pack(
+            spec,
+            alerts_by_rule={
+                "r1": [
+                    {"customer_id": "C1", "rule_version": "ver-r1", "matched_row_ids": [10, 11]},
+                    {"customer_id": "C2", "rule_version": "ver-r1", "matched_row_ids": [12]},
+                ],
+                "r2": [
+                    {"customer_id": "C3", "rule_version": "ver-r2", "matched_row_ids": [99]},
+                ],
+            },
+        )
+        pillar = next(p for p in pack["pillars"] if p["pillar"] == "control_output_quality")
+        finding = next(f for f in pillar["findings"] if f["key"] == "alerts_by_rule_with_lineage")
+        chain = finding["value"]
+        assert chain["r1"]["alert_count"] == 2
+        assert chain["r1"]["rule_version"] == "ver-r1"
+        assert chain["r1"]["sample_matched_rows"] == [[10, 11], [12]]
+        assert chain["r2"]["alert_count"] == 1
+        assert chain["r2"]["rule_version"] == "ver-r2"
+
     def test_fp_proxy_computed_from_decisions(self):
         spec = load_spec(EXAMPLE_US)
         decisions = [
