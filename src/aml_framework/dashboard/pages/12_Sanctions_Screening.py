@@ -90,6 +90,14 @@ filtered_alerts = [
 if filtered_alerts:
     st.markdown(f"### Match Results ({len(filtered_alerts)} of {len(sanctions_alerts)} shown)")
     match_df = pd.DataFrame(filtered_alerts)
+    # PR-LIN-14: matched_row_ids is stamped on every list_match alert
+    # by the engine (PR-LIN-4). Show it as a count column so the
+    # auditor sees "this match originated from row N of the txn / kyc
+    # source table" — answers "where did this match come from?".
+    if "matched_row_ids" in match_df.columns:
+        match_df["Source rowid"] = match_df["matched_row_ids"].apply(
+            lambda v: str(v[0]) if isinstance(v, list) and v else "—"
+        )
     show_cols = [
         "customer_id",
         "matched_name",
@@ -97,6 +105,7 @@ if filtered_alerts:
         "match_type",
         "match_score",
         "severity",
+        "Source rowid",
     ]
     available = [c for c in show_cols if c in match_df.columns]
     if "list_entry" in match_df.columns:

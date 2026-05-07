@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
+from aml_framework.engine.audit import rule_version_hash
 from aml_framework.dashboard.components import (
     bar_chart,
     citation_link,
@@ -116,6 +117,11 @@ for rule in spec.rules:
             "Name": rule.name,
             "Severity": rule.severity,
             "Logic": rule.logic.type,
+            # PR-LIN-14: rule_version is the 16-hex SHA-256 of the
+            # serialised rule body. Stamping it on the analytics row
+            # lets a 2LoD reviewer prove "the threshold quoted in this
+            # MRM dossier matches the version that actually fired."
+            "Rule version": rule_version_hash(rule),
             "Alerts": alert_count,
             "Customers": cust_alerted,
             "Detection %": f"{detection_rate:.1%}",
