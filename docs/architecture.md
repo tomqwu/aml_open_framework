@@ -140,6 +140,23 @@ and a DATA-N → artifact map that lets a data engineer verify each
 whitepaper claim against the concrete framework artifact that closes
 it.
 
+### Tier-1 deployment targets
+
+The framework is deployment-agnostic — same artefacts, different glue
+per cloud:
+
+| Tier | Target | Glue |
+|---|---|---|
+| **On-prem** | Bare K8s + Postgres + S3-compatible store | Helm chart in `deploy/helm/`; `JWT_SECRET` + `DATABASE_URL` from K8s Secrets |
+| **Microsoft Azure** | AKS + Azure Database for PostgreSQL + Blob/ADLS Gen2 + Key Vault + Entra ID | Same Helm chart with `azure:` block populated. Workload identity = no static secrets. Round 15 (PRs #251–#254) |
+| **AWS** *(community-supported)* | EKS + RDS + S3 + Secrets Manager + IAM | Same chart; `azure:` block stays empty. S3 source already shipped |
+| **Google Cloud** *(community-supported)* | GKE + Cloud SQL + GCS + Secret Manager + IAP | Same chart; GCS source already shipped |
+| **Snowflake / BigQuery** | Either as a data plane behind any of the above | DuckDB extensions; no warehouse-specific deploy code |
+
+The Round-12 lineage chain (`walk_lineage(case_id)`) is data-source-
+agnostic — `source_path` reflects whichever URI the data was loaded
+from (`abfss://...`, `s3://...`, `data/input/txn.csv`, etc.).
+
 ## Determinism & reproducibility
 
 Every rule execution records:

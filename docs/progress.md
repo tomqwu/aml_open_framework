@@ -264,6 +264,21 @@ Goal: after Round 13, audit every dashboard page for lineage suitability and clo
 
 **Result**: every page where lineage is *meaningful* now reaches Lineage Explorer. The 10 excluded pages remain link-free deliberately — adding generic pointers there would dilute the meaning of "lineage." After Round 14, the lineage workstream is **closed.** Future page additions follow the established pattern (link_to_page with case_id when available, generic pointer otherwise). Tests grew 2,050 → 2,055 (+5) across 2 PRs.
 
+### Round 15 — Azure bank-deploy stack (4 PRs, 2026-05-07)
+
+Goal: make the framework deployable on Microsoft Azure with zero static secrets. After Rounds 12–14 closed the lineage workstream, the user asked to integrate with Azure platform tools/systems. Azure spans 7+ surfaces (data, identity, secrets, deploy, AI, SIEM, governance); user picked all four high-value buckets and split them across two rounds — bank-deploy now (Round 15), AI + Sentinel + Purview later (Round 16).
+
+| PR | Workstream |
+|---|---|
+| #251 | PR-AZ-1 · Data sources — `azure_blob` + `adls` (DuckDB azure extension over `abfss://` URIs) + `synapse` + `azuresql` (pyodbc with ActiveDirectoryMsi auth on AKS workload identity). 4 new dispatch branches in `resolve_source()` + 4 new `infer_source_paths()` cases so the Round-12 lineage chain picks up Azure-sourced runs unchanged. New `[azure]` extras in pyproject.toml. |
+| #252 | PR-AZ-2 · `aml_framework.secrets.SecretsProvider` — Key Vault first, env-var fallback. DefaultAzureCredential picks up workload identity on AKS; falls back gracefully when SDK init fails. JWT_SECRET, OPENAI_API_KEY, demo-user passwords all routed through the provider. Naming translation `_` → `-` for Key Vault compatibility. |
+| #253 | PR-AZ-3 · AKS Helm chart additions — `azure:` block in values.yaml (5 optional fields), workload-identity ServiceAccount + pod label rendered conditionally, AZURE_KEY_VAULT_NAME / AZURE_STORAGE_ACCOUNT_NAME / AZURE_SYNAPSE_CONN / AZURE_SQL_CONN env vars threaded to API + dashboard pods. New `values-azure.example.yaml` with az CLI cookbook. New "Deploying on Azure / AKS" section in `docs/deployment.md`. |
+| #254 | PR-AZ-4 · Round 15 docs sync (this entry) — progress.md + CHANGELOG + README + architecture.md. |
+
+**Result**: a regulated bank with an Azure tenant can deploy this on AKS today. Workload identity removes static credentials end-to-end; Key Vault houses the JWT signing key + OpenAI API key; Entra ID OIDC handles API auth via the existing generic OIDC support (no code changes — config only). Lineage chains from Round 12 work unchanged on Azure-sourced runs (`source_path: azure_blob:abfss://...`). Tests grew 2,055 → 2,076 (+21) across 4 PRs.
+
+**Round 16 (queued, not shipped):** Azure OpenAI as a 4th assistant backend; Microsoft Sentinel SIEM via Log Analytics Data Collector; Azure Monitor / Application Insights via OpenTelemetry; Microsoft Purview lineage push via Atlas API. The Purview piece is the **differentiated** one — pushing `walk_lineage()` chains to Purview means AML lineage shows up in the same governance pane as a bank's other data assets.
+
 ---
 
 ## What the Framework Does Today
