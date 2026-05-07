@@ -183,5 +183,95 @@ Before exposing any deployment to non-demo traffic:
 - [ ] Validate the spec in CI: `aml validate path/to/aml.yaml`.
 - [ ] Wire `aml verify` into a scheduled job to detect audit-ledger tampering.
 
+## Deploying on Azure / AKS
+
+For banks deploying on Microsoft Azure, the framework supports a
+zero-static-secrets shape via workload identity + Key Vault + Entra ID
+OIDC. All Azure-specific behaviour is opt-in via the existing Helm
+chart — leave the `azure:` block empty for an Azure-agnostic install
+identical to the on-prem deployment.
+
+A reference values file ships at `deploy/helm/values-azure.example.yaml`.
+
+### Prerequisites
+
+```bash
+# 1. Create the AKS cluster with OIDC issuer + workload identity.
+az aks create --resource-group <rg> --name <cluster> \
+  --enable-oidc-issuer --enable-workload-identity \
+  --node-count 3
+
+# 2. Get the OIDC issuer URL (needed for federated identity creds).
+export OIDC_URL=$(az aks show -g <rg> -n <cluster> \
+  --query oidcIssuerProfile.issuerUrl -o tsv)
+
+# 3. Create a user-assigned managed identity for the workload.
+az identity create --resource-group <rg> --name aml-workload
+
+# 4. Create Key Vault + grant the managed identity Secrets User.
+az keyvault create --name kv-bank-aml-prod --resource-group <rg>
+az role assignment create --role "Key Vault Secrets User" \
+  --assignee $(az identity show -g <rg> -n aml-workload --query principalId -o tsv) \
+  --scope $(az keyvault show -g <rg> -n kv-bank-aml-prod --query id -o tsv)
+
+# 5. Federate the managed identity to the chart's ServiceAccounts.
+az identity federated-credential create --name aml-api-fic \
+  --identity-name aml-workload --resource-group <rg> \
+  --issuer "$OIDC_URL" \
+  --subject "system:serviceaccount:default:<release>-api" \
+  --audiences api://AzureADTokenExchange
+
+az identity federated-credential create --name aml-dashboard-fic \
+  --identity-name aml-workload --resource-group <rg> \
+  --issuer "$OIDC_URL" \
+  --subject "system:serviceaccount:default:<release>-dashboard" \
+  --audiences api://AzureADTokenExchange
+```
+
+### Install
+
+```bash
+# Copy the example file and fill in the placeholders.
+cp deploy/helm/values-azure.example.yaml my-values.yaml
+# Edit: image.repository, oidc.issuerUrl + audience + allowedTenants,
+# azure.workloadIdentityClientId, azure.keyVaultName,
+# azure.storageAccountName, optionally synapseConnString /
+# azureSqlConnString, ingress.host.
+
+helm install aml ./deploy/helm -f my-values.yaml
+```
+
+### What workload identity buys you
+
+When `azure.workloadIdentityClientId` is set, the chart:
+
+1. Renders a `ServiceAccount` with the `azure.workload.identity/client-id` annotation for both the API and dashboard pods.
+2. Adds the `azure.workload.identity/use: "true"` pod label so the AKS webhook injects the OIDC token.
+3. Threads `AZURE_KEY_VAULT_NAME` + `AZURE_STORAGE_ACCOUNT_NAME` (and Synapse / Azure SQL conn strings) as env vars.
+
+Inside the pod, every Azure SDK call (`SecretClient`, `BlobServiceClient`, `pyodbc` with `Authentication=ActiveDirectoryMsi`) automatically picks up the federated identity. No client secrets, no managed-identity ARM ID lookups, no cert rotation.
+
+### Data sources
+
+After install, the dashboard + API pick up Azure data sources via the new types added in PR-AZ-1:
+
+| Source type | URI / connection |
+|---|---|
+| `azure_blob` / `adls` | `--data-dir abfss://<container>@<account>.dfs.core.windows.net/<path>` |
+| `synapse` | ODBC connection string in `--data-dir` (or env var `AZURE_SYNAPSE_CONN`) |
+| `azuresql` | ODBC connection string in `--data-dir` (or env var `AZURE_SQL_CONN`) |
+
+The Round-12 lineage chain (`walk_lineage(case_id)`) picks up Azure-sourced runs unchanged — `source_path` shows `azure_blob:abfss://…/txn`, `synapse:DRIVER=…#trades`, etc.
+
+### Production checklist (Azure additions)
+
+- [ ] Federated identity credentials created BEFORE `helm install`.
+- [ ] Key Vault populated: `JWT-SECRET`, `OPENAI-API-KEY` (note the dashes — Key Vault disallows underscores; the SecretsProvider translates `_`→`-` automatically).
+- [ ] Entra ID app registration created with `roles` claim + `tid` claim mapped (the chart's defaults).
+- [ ] App roles defined in Entra ID match `analyst` / `auditor` / `manager` / `admin`.
+- [ ] `oidc.allowedTenants` set to the tenant ID — single-tenant by default.
+- [ ] AKS cluster RBAC scoped per-namespace; the Key Vault role binding is on the managed identity, not the SA token.
+- [ ] Storage account configured with Hierarchical Namespace (ADLS Gen2) for `azure_blob`/`adls` sources.
+
 See [`audit-evidence.md`](audit-evidence.md) for the evidence bundle contract
 and [`architecture.md`](architecture.md) for the layered runtime view.

@@ -4,6 +4,24 @@
 {{- if and .Values.oidc.issuerUrl (not .Values.oidc.audience) }}
 {{- fail "oidc.audience is required when oidc.issuerUrl is set" }}
 {{- end }}
+{{- if and .Values.azure.workloadIdentityClientId (not .Values.azure.keyVaultName) }}
+{{- /* Workload identity is harmless without a Key Vault, but if you set
+       the client ID you almost certainly intended to also set the vault
+       name. Surface the omission so it's not a silent half-config. */}}
+{{- end }}
+{{- if .Values.azure.workloadIdentityClientId }}
+# PR-AZ-3: ServiceAccount with Azure workload-identity federation.
+# The annotation tells AKS to mint an OIDC token that the federated
+# identity credential trusts; combined with the pod label below the
+# Azure SDK on the container picks the right credential automatically.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-api
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.azure.workloadIdentityClientId | quote }}
+---
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,7 +37,13 @@ spec:
     metadata:
       labels:
         app: aml-api
+        {{- if .Values.azure.workloadIdentityClientId }}
+        azure.workload.identity/use: "true"
+        {{- end }}
     spec:
+      {{- if .Values.azure.workloadIdentityClientId }}
+      serviceAccountName: {{ .Release.Name }}-api
+      {{- end }}
       containers:
         - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -67,6 +91,25 @@ spec:
             {{- if .Values.oidc.allowedTenants }}
             - name: OIDC_ALLOWED_TENANTS
               value: {{ .Values.oidc.allowedTenants | quote }}
+            {{- end }}
+            # PR-AZ-3: thread Azure env vars through to the SecretsProvider
+            # (PR-AZ-2) and the data-source loaders (PR-AZ-1). All
+            # optional — empty values are harmless.
+            {{- if .Values.azure.keyVaultName }}
+            - name: AZURE_KEY_VAULT_NAME
+              value: {{ .Values.azure.keyVaultName | quote }}
+            {{- end }}
+            {{- if .Values.azure.storageAccountName }}
+            - name: AZURE_STORAGE_ACCOUNT_NAME
+              value: {{ .Values.azure.storageAccountName | quote }}
+            {{- end }}
+            {{- if .Values.azure.synapseConnString }}
+            - name: AZURE_SYNAPSE_CONN
+              value: {{ .Values.azure.synapseConnString | quote }}
+            {{- end }}
+            {{- if .Values.azure.azureSqlConnString }}
+            - name: AZURE_SQL_CONN
+              value: {{ .Values.azure.azureSqlConnString | quote }}
             {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
