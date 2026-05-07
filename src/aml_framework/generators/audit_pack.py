@@ -190,6 +190,51 @@ def _audit_trail_verification(
     }
 
 
+def _case_lineage_summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    """Per-case lineage chain for the audit pack (PR-LIN-17).
+
+    For each case the engine produced, surface the chain stamps Round
+    12 added: rule_id + rule_version (PR-LIN-3), matched_row_ids
+    (PR-LIN-4), and the input_files dict (source_path + schema_hash +
+    content_hash + row_count, PR-LIN-2). Lets a FINTRAC examiner
+    answer "which rule version produced this case, and which source
+    file fed it?" from the bundle alone.
+    """
+    by_case: dict[str, Any] = {}
+    for case in cases:
+        cid = case.get("case_id", "")
+        if not cid:
+            continue
+        alert_dict = case.get("alert") or {}
+        by_case[cid] = {
+            "rule_id": case.get("rule_id"),
+            "rule_version": alert_dict.get("rule_version"),
+            "matched_row_ids": alert_dict.get("matched_row_ids") or [],
+            "input_files": [
+                {
+                    "contract_id": contract_id,
+                    "row_count": meta.get("row_count"),
+                    "content_hash": meta.get("content_hash"),
+                    "source_path": meta.get("source_path"),
+                    "schema_hash": meta.get("schema_hash"),
+                }
+                for contract_id, meta in (case.get("input_hash") or {}).items()
+            ],
+        }
+    return {
+        "case_count": len(by_case),
+        "lineage_fields": [
+            "rule_id",
+            "rule_version",
+            "matched_row_ids",
+            "input_files.source_path",
+            "input_files.schema_hash",
+            "input_files.content_hash",
+        ],
+        "by_case_id": by_case,
+    }
+
+
 def _sanctions_evidence(spec: AMLSpec, cases: list[dict[str, Any]]) -> dict[str, Any]:
     """list_match rule outputs + reference list refresh dates.
 
@@ -330,6 +375,11 @@ def build_audit_pack(
         "cases_summary.json": _dump_json(_cases_summary(cases, decisions)),
         "audit_trail_verification.json": _dump_json(_audit_trail_verification(decisions)),
         "sanctions_evidence.json": _dump_json(_sanctions_evidence(spec, cases)),
+        # PR-LIN-17: per-case lineage chain. Lets a FINTRAC examiner
+        # answer "which rule version produced this case, and which
+        # source file fed it?" from the bundle alone — no need to
+        # request the run dir.
+        "case_lineage_summary.json": _dump_json(_case_lineage_summary(cases)),
     }
     if jurisdiction == "CA-FINTRAC":
         files["pcmltfa_section_map.md"] = _pcmltfa_section_map_md(spec).encode("utf-8")

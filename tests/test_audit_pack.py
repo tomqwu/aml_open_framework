@@ -80,6 +80,7 @@ class TestBundleStructure:
             "cases_summary.json",
             "audit_trail_verification.json",
             "sanctions_evidence.json",
+            "case_lineage_summary.json",
             "manifest.json",
         ):
             assert required in names, f"missing {required!r}"
@@ -116,6 +117,57 @@ class TestBundleStructure:
 # ---------------------------------------------------------------------------
 # Manifest contract
 # ---------------------------------------------------------------------------
+
+
+class TestCaseLineageSummary:
+    """PR-LIN-17: case_lineage_summary.json carries per-case rule_version
+    + matched_row_ids + input_files (source_path / schema_hash) so a
+    FINTRAC examiner can answer 'which rule version produced this case,
+    and which source file fed it?' from the bundle alone."""
+
+    def _read(self, payload: bytes) -> dict[str, Any]:
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            return json.loads(zf.read("case_lineage_summary.json"))
+
+    def test_section_present_and_has_expected_top_level_keys(self):
+        spec = load_spec(SPEC_CA)
+        case = _case("C0001-structuring-001")
+        case["alert"]["rule_version"] = "a1b2c3d4e5f6g7h8"
+        case["alert"]["matched_row_ids"] = [3742, 5891]
+        case["input_hash"] = {
+            "txn": {
+                "row_count": 12847,
+                "content_hash": "b2c1d2e3f4a5b6c7",
+                "source_path": "data/input/txn.csv",
+                "schema_hash": "44a8c1d2e3f4b5a6",
+            }
+        }
+        payload = build_audit_pack(spec, cases=[case], decisions=[])
+        section = self._read(payload)
+        for key in ("case_count", "lineage_fields", "by_case_id"):
+            assert key in section, f"missing top-level key {key!r}"
+        assert section["case_count"] == 1
+
+    def test_per_case_chain_round_trip(self):
+        spec = load_spec(SPEC_CA)
+        case = _case("C0001-structuring-001")
+        case["alert"]["rule_version"] = "a1b2c3d4e5f6g7h8"
+        case["alert"]["matched_row_ids"] = [3742, 5891]
+        case["input_hash"] = {
+            "txn": {
+                "row_count": 12847,
+                "content_hash": "b2c1d2e3f4a5b6c7",
+                "source_path": "data/input/txn.csv",
+                "schema_hash": "44a8c1d2e3f4b5a6",
+            }
+        }
+        payload = build_audit_pack(spec, cases=[case], decisions=[])
+        chain = self._read(payload)["by_case_id"]["C0001-structuring-001"]
+        assert chain["rule_version"] == "a1b2c3d4e5f6g7h8"
+        assert chain["matched_row_ids"] == [3742, 5891]
+        assert chain["rule_id"] == "structuring_cash"
+        assert chain["input_files"][0]["source_path"] == "data/input/txn.csv"
+        assert chain["input_files"][0]["schema_hash"] == "44a8c1d2e3f4b5a6"
 
 
 class TestManifest:
