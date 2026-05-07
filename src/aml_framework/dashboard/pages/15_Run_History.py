@@ -98,6 +98,24 @@ if runs:
         pinned_left=["run_id"] if "run_id" in df.columns else None,
         height=400,
     )
+    # PR-LIN-14: pointer to the lineage walk-back. Run History tracks
+    # past runs at the run_id level; the lineage chain operates at the
+    # case_id level, so the right path from "I want to inspect run X"
+    # is "open Audit & Evidence (lineage panel) or Lineage Explorer
+    # with a case_id from that run."
+    from aml_framework.dashboard.components import link_to_page as _link_lin14_rh
+
+    _l, _r = st.columns(2)
+    with _l:
+        _link_lin14_rh(
+            "pages/7_Audit_Evidence.py",
+            "→ Open the lineage walk-back panel (Audit & Evidence)",
+        )
+    with _r:
+        _link_lin14_rh(
+            "pages/32_Lineage_Explorer.py",
+            "→ Drill a specific case in Lineage Explorer",
+        )
 else:
     empty_state(
         "No stored runs yet.",

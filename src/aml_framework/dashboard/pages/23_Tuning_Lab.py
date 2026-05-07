@@ -25,6 +25,7 @@ from aml_framework.dashboard.components import (
     glossary_legend,
     kpi_card,
     line_chart,
+    link_to_page,
     page_header,
     scatter_chart,
 )
@@ -140,6 +141,20 @@ data_grid(
     gradient_low=0.5,
     gradient_high=0.8,
     height=min(35 * len(rows) + 60, 500),
+)
+# PR-LIN-14: scenario-level lineage. The scenarios table shows
+# alert counts per threshold combination, but doesn't expose which
+# specific source rows fired in each scenario (would require re-
+# running the rule with that threshold + capturing rowids — out of
+# scope for this PR). For now, deep-link to Lineage Explorer where
+# the auditor can drill any historical case_id from the active run.
+st.caption(
+    "Each scenario row shows the alert count at that threshold combination. "
+    "To trace a specific alert's source rows, open a case_id in Lineage Explorer below."
+)
+link_to_page(
+    "pages/32_Lineage_Explorer.py",
+    "→ Open Lineage Explorer",
 )
 
 # --- Precision/recall scatter (only when labels present) ---

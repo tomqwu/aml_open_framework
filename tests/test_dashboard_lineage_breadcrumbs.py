@@ -101,6 +101,48 @@ class TestCustomer360Lineage:
         assert "Walk lineage chain" in body
 
 
+class TestRulePerformanceVersion:
+    """PR-LIN-14: Rule Performance analytics table stamps rule_version
+    so MRM dossiers can be cross-checked against the version that fired."""
+
+    def test_rule_version_column_added(self):
+        body = (PAGES / "5_Rule_Performance.py").read_text(encoding="utf-8")
+        assert '"Rule version"' in body
+        assert "rule_version_hash(rule)" in body
+
+
+class TestRunHistoryLineageLinks:
+    """PR-LIN-14: Run History points users to the lineage walk-back
+    surfaces (Audit & Evidence + Lineage Explorer)."""
+
+    def test_audit_evidence_link_present(self):
+        body = (PAGES / "15_Run_History.py").read_text(encoding="utf-8")
+        assert "7_Audit_Evidence.py" in body
+
+    def test_lineage_explorer_link_present(self):
+        body = (PAGES / "15_Run_History.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+
+
+class TestSanctionsScreeningRowid:
+    """PR-LIN-14: list_match alerts carry matched_row_ids per PR-LIN-4
+    and Sanctions Screening surfaces them as a Source rowid column."""
+
+    def test_source_rowid_column_added(self):
+        body = (PAGES / "12_Sanctions_Screening.py").read_text(encoding="utf-8")
+        assert '"Source rowid"' in body
+        assert "matched_row_ids" in body
+
+
+class TestTuningLabLineagePointer:
+    """PR-LIN-14: Tuning Lab points to Lineage Explorer for case-level
+    walk-back; per-scenario row tracing is deferred."""
+
+    def test_lineage_explorer_link_present(self):
+        body = (PAGES / "23_Tuning_Lab.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+
+
 class TestCaseInvestigationDeepLink:
     def test_links_to_lineage_explorer(self):
         body = CASE_INV.read_text(encoding="utf-8")

@@ -273,6 +273,14 @@ ALLOWED_GRACEFUL_GAPS: set[tuple[str, str, str]] = {
     # Explorer in their nav — link_to_page degrades to plain text.
     ("manager", "Analyst Review Queue", "Lineage Explorer"),
     ("pm", "Case Investigation", "Lineage Explorer"),
+    # PR-LIN-14: Tuning Lab points operators at Lineage Explorer for
+    # case-level walk-back. Personas not carrying Lineage Explorer in
+    # their nav (manager, pm, developer, fintech_mlro) get graceful
+    # plain-text degradation — they're free to access via direct URL.
+    ("manager", "Tuning Lab", "Lineage Explorer"),
+    ("pm", "Tuning Lab", "Lineage Explorer"),
+    ("developer", "Tuning Lab", "Lineage Explorer"),
+    ("fintech_mlro", "Tuning Lab", "Lineage Explorer"),
 }
 
 
