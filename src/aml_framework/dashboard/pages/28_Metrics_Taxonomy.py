@@ -38,6 +38,7 @@ from aml_framework.dashboard.components import (
     empty_state,
     glossary_legend,
     kpi_card_rag,
+    link_to_page,
     page_header,
     research_link,
     see_also_footer,
@@ -317,6 +318,22 @@ else:
         ):
             for metric in in_cat:
                 _render_metric_card(metric)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# PR-LIN-23: metric value → supporting cases breadcrumb. Each metric
+# value here is a roll-up; the underlying case_ids that produced it
+# live in the effectiveness pack JSON (PR-LIN-18, alerts_by_rule_with_
+# lineage finding). Pasting a case_id from the pack into Lineage
+# Explorer walks the chain.
+st.caption(
+    "For per-metric supporting case_ids, see the effectiveness pack "
+    "(`aml effectiveness-pack <run-dir>`). Walk any case visually:"
+)
+link_to_page(
+    "pages/32_Lineage_Explorer.py",
+    "→ Open Lineage Explorer",
+)
 
 st.markdown("<br>", unsafe_allow_html=True)
 

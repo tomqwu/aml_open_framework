@@ -175,6 +175,54 @@ class TestAIAssistantVerifyLink:
         assert "reply.referenced_case_ids[0]" in body
 
 
+class TestRiskAssessmentDrill:
+    """PR-LIN-23: Risk Assessment alerted-customers grid drills to
+    Alert Queue (which carries Round 12 lineage breadcrumbs)."""
+
+    def test_drill_target_is_alert_queue(self):
+        body = (PAGES / "6_Risk_Assessment.py").read_text(encoding="utf-8")
+        assert 'drill_target="pages/3_Alert_Queue.py"' in body
+        assert 'drill_param="customer_id"' in body
+
+
+class TestModelPerformanceLineagePointer:
+    """PR-LIN-23: Model Performance gains a Lineage Explorer pointer
+    so MRM reviewers can validate alert scoring against the chain."""
+
+    def test_lineage_explorer_link_present(self):
+        body = (PAGES / "13_Model_Performance.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+        assert "Lineage Explorer" in body
+
+
+class TestComparativeAnalyticsLineagePointer:
+    """PR-LIN-23: Comparative Analytics gains a Lineage Explorer
+    pointer (same Run History pattern from PR-LIN-14)."""
+
+    def test_lineage_explorer_link_present(self):
+        body = (PAGES / "19_Comparative_Analytics.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+
+
+class TestFinTechCockpitLineagePointer:
+    """PR-LIN-23: FinTech Cockpit gains a 'walk a case from this pack'
+    Lineage Explorer pointer right after the evidence-pack download."""
+
+    def test_lineage_explorer_link_present(self):
+        body = (PAGES / "26_FinTech_Cockpit.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+        assert "Walk a case from this pack" in body
+
+
+class TestMetricsTaxonomyLineagePointer:
+    """PR-LIN-23: Metrics Taxonomy gains a footer pointer to Lineage
+    Explorer for per-metric case-evidence walk-back."""
+
+    def test_lineage_explorer_link_present(self):
+        body = (PAGES / "28_Metrics_Taxonomy.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+
+
 class TestCaseInvestigationDeepLink:
     def test_links_to_lineage_explorer(self):
         body = CASE_INV.read_text(encoding="utf-8")

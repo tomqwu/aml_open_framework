@@ -40,6 +40,7 @@ import streamlit as st
 from aml_framework.dashboard.components import (
     glossary_legend,
     kpi_card_rag,
+    link_to_page,
     page_header,
     tooltip_banner,
     tour_panel,
@@ -312,6 +313,21 @@ try:
         help="Same substance as the FINTRAC pre-exam pack — what a "
         "sponsor-bank risk officer asks for, on one button. CLI: "
         "`aml audit-pack <spec> --jurisdiction CA-FINTRAC`.",
+    )
+    # PR-LIN-23: pack → case-walk-back breadcrumb. The audit pack
+    # ships a `case_lineage_summary.json` (PR-LIN-17) carrying
+    # rule_version + matched_row_ids + source_path per case_id.
+    # Sponsor-bank reviewers asking "where did case X come from?"
+    # can paste the case_id from the pack into Lineage Explorer
+    # for the visual chain.
+    st.caption(
+        "The pack's `case_lineage_summary.json` carries rule_version + "
+        "matched_row_ids + source_path per case. Walk any case_id "
+        "visually:"
+    )
+    link_to_page(
+        "pages/32_Lineage_Explorer.py",
+        "→ Walk a case from this pack in Lineage Explorer",
     )
 except Exception as _e:  # noqa: BLE001
     st.caption(f"Evidence pack unavailable: {_e}")

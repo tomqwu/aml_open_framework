@@ -10,6 +10,7 @@ from aml_framework.dashboard.components import (
     bar_chart,
     data_grid,
     kpi_card,
+    link_to_page,
     page_header,
 )
 
@@ -159,6 +160,22 @@ for rule in ml_rules:
             pinned_left=["customer_id"] if "customer_id" in available else None,
             height=min(35 * len(alert_df) + 60, 320),
         )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # PR-LIN-23: model-output → lineage breadcrumb. Model Performance
+    # is per-rule analytics; an MRM reviewer asking "validate this
+    # alert's scoring against the audit chain" needs the case-level
+    # walk-back. Generic pointer (no case_id deep-link) — analyst
+    # pastes a case_id from Alert Queue.
+    st.caption(
+        "Validate any alert's scoring against the hash-chained audit trail: "
+        "open Lineage Explorer with a case_id from Alert Queue."
+    )
+    link_to_page(
+        "pages/32_Lineage_Explorer.py",
+        "→ Open Lineage Explorer",
+    )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
