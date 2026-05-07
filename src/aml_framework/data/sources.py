@@ -216,6 +216,48 @@ def load_duckdb_source(
     return data
 
 
+def infer_source_paths(
+    source_type: str,
+    spec: AMLSpec,
+    data_dir: str | None = None,
+    db_path: str | None = None,
+) -> dict[str, str]:
+    """Mirror the routing in `resolve_source` and return per-contract
+    logical source paths (PR-LIN-2). The runner threads these into
+    `record_input(source_path=...)` so the lineage walk-back can answer
+    "this alert came from /data/input/txn.csv" rather than just "the
+    txn contract".
+
+    Per-loader convention:
+      - synthetic     → "synthetic"
+      - csv/parquet   → {data_dir}/{contract_id}.{ext}
+      - duckdb        → "duckdb:{db_path}#{table_or_query}"
+      - s3/gcs        → "{bucket}/{contract_id}.csv|parquet"
+      - snowflake     → "snowflake:{conn}#{contract.source}"
+      - bigquery      → "bigquery:{conn}#{contract.source}"
+      - iso20022      → "iso20022:{data_dir}" (txn only)
+    """
+    paths: dict[str, str] = {}
+    for contract in spec.data_contracts:
+        if source_type == "synthetic":
+            paths[contract.id] = "synthetic"
+        elif source_type in ("csv", "parquet"):
+            ext = "csv" if source_type == "csv" else "parquet"
+            paths[contract.id] = f"{data_dir or ''}/{contract.id}.{ext}".lstrip("/")
+        elif source_type == "duckdb":
+            paths[contract.id] = f"duckdb:{db_path or ''}#{contract.id}"
+        elif source_type in ("s3", "gcs"):
+            paths[contract.id] = f"{(data_dir or '').rstrip('/')}/{contract.id}"
+        elif source_type in ("snowflake", "bigquery"):
+            paths[contract.id] = f"{source_type}:{data_dir or ''}#{contract.source}"
+        elif source_type == "iso20022":
+            if contract.id == "txn":
+                paths[contract.id] = f"iso20022:{data_dir or ''}"
+        else:
+            paths[contract.id] = source_type
+    return paths
+
+
 def resolve_source(
     source_type: str,
     spec: AMLSpec,

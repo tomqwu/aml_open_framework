@@ -77,13 +77,17 @@ def initialize_session() -> None:
         and (data_input_dir / "customer.csv").exists()
     )
     if csv_files_present:
-        from aml_framework.data.sources import load_csv_source
+        from aml_framework.data.sources import infer_source_paths, load_csv_source
 
         data = load_csv_source(data_input_dir, spec, as_of)
         data_source_mode = "csv"
+        data_sources = infer_source_paths("csv", spec, data_dir=str(data_input_dir))
     else:
+        from aml_framework.data.sources import infer_source_paths
+
         data = generate_dataset(as_of=as_of, seed=seed)
         data_source_mode = "synthetic"
+        data_sources = infer_source_paths("synthetic", spec)
 
     artifacts = Path(tempfile.mkdtemp(prefix="aml_dashboard_"))
     result = run_spec(
@@ -92,6 +96,7 @@ def initialize_session() -> None:
         data=data,
         as_of=as_of,
         artifacts_root=artifacts,
+        data_sources=data_sources,
     )
 
     # Flatten alerts into a single DataFrame.

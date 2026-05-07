@@ -738,8 +738,18 @@ def run_spec(
     as_of: datetime,
     artifacts_root: Path,
     strict_python_ref: bool | None = None,
+    data_sources: dict[str, str] | None = None,
 ) -> RunResult:
-    """Execute every active rule, persist alerts + cases + audit ledger."""
+    """Execute every active rule, persist alerts + cases + audit ledger.
+
+    `data_sources` (optional) maps contract_id → logical source path so
+    the lineage walk-back can answer "this alert came from row N of
+    /data/input/txn.csv on snapshot X" rather than just "the txn
+    contract". Pass file paths for csv/parquet, connection strings for
+    duckdb/snowflake/bigquery, or `"synthetic"` for the in-tree
+    generator. None entries are recorded as None — backward-compatible
+    with callers (tests, older API surfaces) that don't track source.
+    """
     ledger = AuditLedger.create(
         artifacts_root=artifacts_root,
         spec_path=spec_path,
@@ -747,8 +757,17 @@ def run_spec(
         as_of=as_of,
     )
 
+    contract_by_id = {c.id: c for c in spec.data_contracts}
+    sources = data_sources or {}
     for contract_id, rows in data.items():
-        ledger.record_input(contract_id, rows)
+        contract = contract_by_id.get(contract_id)
+        schema_columns = [c.name for c in contract.columns] if contract else None
+        ledger.record_input(
+            contract_id,
+            rows,
+            source_path=sources.get(contract_id),
+            schema_columns=schema_columns,
+        )
 
     con = duckdb.connect(":memory:")
     _harden_duckdb(con)
