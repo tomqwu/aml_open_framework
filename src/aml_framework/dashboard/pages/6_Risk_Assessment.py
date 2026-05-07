@@ -190,12 +190,21 @@ if not df_alerts.empty and "customer_id" in df_alerts.columns:
     alerted_ids = df_alerts["customer_id"].dropna().unique()
     alerted = df_customers[df_customers["customer_id"].isin(alerted_ids)].copy()
 
+    # PR-LIN-23: row-click drill to Alert Queue filtered by the
+    # selected customer. Alert Queue's case-queue table (PR-LIN-12)
+    # carries Matched rows + Rule version columns + drills into
+    # Case Investigation, which deep-links to Lineage Explorer.
+    # Closes the customer-risk → alert → lineage loop.
     data_grid(
         alerted[["customer_id", "full_name", "country", "risk_rating"]],
         key="risk_assessment_alerted_customers",
         risk_col="risk_rating",
         pinned_left=["customer_id"],
         height=300,
+        drill_target="pages/3_Alert_Queue.py",
+        drill_param="customer_id",
+        drill_column="customer_id",
+        hint="Click any row to open the customer's alerts in Alert Queue.",
     )
 else:
     st.caption("No alerts with customer data.")

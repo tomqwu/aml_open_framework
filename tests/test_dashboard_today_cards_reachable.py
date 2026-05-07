@@ -296,6 +296,23 @@ ALLOWED_GRACEFUL_GAPS: set[tuple[str, str, str]] = {
     ("business", "Executive Dashboard", "Lineage Explorer"),
     ("fintech_mlro", "Executive Dashboard", "Lineage Explorer"),
     ("data_engineer", "Executive Dashboard", "Lineage Explorer"),
+    # PR-LIN-23: Round 14 final coverage. Each of these pages now
+    # carries a generic Lineage Explorer pointer for personas with
+    # case-aware needs. Personas below see the source page but don't
+    # carry Lineage Explorer in their nav (it's auditor + analyst);
+    # link_to_page degrades to plain text.
+    ("cto", "Model Performance", "Lineage Explorer"),
+    ("pm", "Model Performance", "Lineage Explorer"),
+    ("developer", "Model Performance", "Lineage Explorer"),
+    ("vp", "Comparative Analytics", "Lineage Explorer"),
+    ("director", "Comparative Analytics", "Lineage Explorer"),
+    ("cco", "Metrics Taxonomy", "Lineage Explorer"),
+    ("vp", "Metrics Taxonomy", "Lineage Explorer"),
+    ("director", "Metrics Taxonomy", "Lineage Explorer"),
+    ("manager", "Metrics Taxonomy", "Lineage Explorer"),
+    ("pm", "Metrics Taxonomy", "Lineage Explorer"),
+    ("fintech_mlro", "Metrics Taxonomy", "Lineage Explorer"),
+    ("fintech_mlro", "FinTech Cockpit", "Lineage Explorer"),
 }
 
 

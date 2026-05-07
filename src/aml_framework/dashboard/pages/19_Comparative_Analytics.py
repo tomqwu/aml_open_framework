@@ -10,6 +10,7 @@ from aml_framework.dashboard.components import (
     data_grid,
     empty_state,
     kpi_card,
+    link_to_page,
     page_header,
     pie_chart,
 )
@@ -184,6 +185,18 @@ try:
             rag_col=rag_col,
             pinned_left=["run_id"] if "run_id" in runs_df.columns else None,
             height=300,
+        )
+        # PR-LIN-23: trend → case lineage breadcrumb. Comparative
+        # Analytics is run-aggregate; the lineage chain lives at the
+        # case level. Same generic-pointer pattern as Run History
+        # (PR-LIN-14).
+        st.caption(
+            "Drill from trends to evidence: open Lineage Explorer with any "
+            "case_id from this run's Alert Queue to walk the full chain."
+        )
+        link_to_page(
+            "pages/32_Lineage_Explorer.py",
+            "→ Open Lineage Explorer",
         )
     else:
         empty_state(
