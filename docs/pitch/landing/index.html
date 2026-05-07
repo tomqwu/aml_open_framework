@@ -1156,7 +1156,7 @@
           <span><strong>8</strong>curated typologies</span>
           <span><strong>32</strong>dashboard pages</span>
           <span><strong>38</strong>CLI commands</span>
-          <span><strong>1,980+</strong>tests · all green</span>
+          <span><strong>2,000+</strong>tests · all green</span>
           <span><strong>5</strong>jurisdictions</span>
           <span><strong>Apache 2.0</strong>licence</span>
         </div>
@@ -1191,6 +1191,37 @@
           See it live: <a href="#/research/data-problem">Data Problem whitepaper</a> ·
           <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration">Data Integration page</a> ·
           <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/architecture.md#data-integration">Architecture · Data integration</a>.
+        </p>
+      </header>
+
+      <!-- Third hero — lineage / evidence-trail framed (PR-LIN-9).
+           Evidence + Data heroes above frame *what ships* and *the
+           binding constraint underneath*. This hero frames *the
+           question regulators actually ask*: "show me why this alert
+           fired" — and answers it with the source-row → query → alert
+           → case → STR walk-back the framework now stamps end-to-end. -->
+      <header class="hero hero-lineage" style="margin-top: 32px;">
+        <div class="eyebrow">The walk-back regulators ask for</div>
+        <h1 class="title"><em>Trace every alert.</em> Down to the row.</h1>
+        <p class="lede">
+          When an examiner asks "show me why this alert fired", the answer is one paste
+          box away. The framework stamps the source file path, schema hash, rendered SQL,
+          rule version, and the exact <strong>matched source rowids</strong> on every
+          alert. <code>walk_lineage(case_id)</code> returns the chain; the new <strong>Lineage
+          Explorer</strong> page renders it: source → DuckDB table → query → matched rows →
+          alert → case → STR. Every link is hash-chained so a re-run with the same spec
+          and data produces an identical chain.
+        </p>
+        <div class="stat-strip">
+          <span><strong>7-link</strong>chain, source row → STR</span>
+          <span><strong>Hash-chained</strong>tamper-evident</span>
+          <span><strong>Reproducible</strong>same spec + data → same hashes</span>
+          <span><strong>JSON export</strong>for SAR attachment</span>
+        </div>
+        <p class="lede" style="margin-top: 16px;">
+          See it live: <a href="#/research/lineage">Lineage walk-back deep-dive</a> ·
+          <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#lineage-explorer">Lineage Explorer page</a> ·
+          <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/audit-evidence.md">Audit & Evidence reference</a>.
         </p>
       </header>
 
@@ -1702,6 +1733,12 @@
             <p>The binding constraint underneath audit-defensibility is data — completeness, accuracy, lineage, sovereignty. Anchored in BCBS 239, FinCEN's April 2026 NPRM, OSFI E-23 / B-13, FCA Annex 1, and the largest 2024 enforcement orders (TD, RBC, HSBC's $670B unmonitored).</p>
             <span class="link">research/data-problem → opens in viewer</span>
           </a>
+          <a class="more-card" href="#/research/lineage">
+            <div class="kind">Research · Walk-back</div>
+            <h4>Trace every alert. Down to the row.</h4>
+            <p>The 7-link evidence chain regulators ask for and most vendors can't produce: source file path → schema hash → DuckDB table → rendered SQL → matched source rowids → alert → case → STR. Every link hash-stamped, reproducible, and downloadable as JSON. 12 fields stamped on every decision; <code>walk_lineage(case_id)</code> returns the chain.</p>
+            <span class="link">research/lineage → opens in viewer</span>
+          </a>
           <a class="more-card" href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration" target="_blank" rel="noopener">
             <div class="kind">Framework · Dashboard surface</div>
             <h4>Data Integration — 9 connectors, ISO 20022 native, contract-validated</h4>
@@ -1759,6 +1796,7 @@
       'research/regulator-pulse': { kind: 'iframe', src: 'research/regulator-pulse.html',         title: 'Regulator pulse · Feb-Apr 2026 · what moved in the last 90 days' },
       'research/architecture':    { kind: 'iframe', src: 'research/architecture.html',            title: 'Architecture · 4-layer stack · one Manifest, no drift' },
       'research/data-problem':    { kind: 'iframe', src: 'research/data-problem.html',            title: 'Data is the AML problem · 11 faces · BCBS 239 + 2024-26 enforcement' },
+      'research/lineage':         { kind: 'iframe', src: 'research/lineage.html',                  title: 'Trace every alert. Down to the row. · 7-link evidence chain · walk_lineage()' },
     };
 
     // Per-scope metadata: each scope defines its own secondary tabs.
