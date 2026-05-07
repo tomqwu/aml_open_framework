@@ -115,6 +115,9 @@ def walk_lineage(run_dir: Path, case_id: str) -> dict[str, Any]:
                 "contract_id": cid,
                 "row_count": meta.get("row_count"),
                 "content_hash": meta.get("content_hash"),
+                "source_path": meta.get("source_path"),
+                "schema_columns": meta.get("schema_columns"),
+                "schema_hash": meta.get("schema_hash"),
             }
             for cid, meta in sorted(input_manifest.items())
         ]
@@ -237,15 +240,32 @@ class AuditLedger:
         (run_dir / "decisions.jsonl").touch()
         return ledger
 
-    def record_input(self, contract_id: str, rows: list[dict[str, Any]]) -> None:
+    def record_input(
+        self,
+        contract_id: str,
+        rows: list[dict[str, Any]],
+        *,
+        source_path: str | None = None,
+        schema_columns: list[str] | None = None,
+    ) -> None:
         ordered = sorted(rows, key=lambda r: _canonical_json(r))
         digest = _sha256(b"\n".join(_canonical_json(r) for r in ordered))
         timestamps = [r.get("booked_at") for r in rows if r.get("booked_at") is not None]
+        # schema_hash digests the sorted column list so a column rename or
+        # drop produces a different hash even when row content is unchanged
+        # — the lineage walk-back can then explain "why did the same
+        # source produce different alerts after a Tuesday DDL change?".
+        schema_hash: str | None = None
+        if schema_columns:
+            schema_hash = _sha256(",".join(sorted(schema_columns)).encode("utf-8"))[:16]
         self.input_manifest[contract_id] = {
             "row_count": len(rows),
             "content_hash": digest,
             "earliest_ts": str(min(timestamps)) if timestamps else None,
             "latest_ts": str(max(timestamps)) if timestamps else None,
+            "source_path": source_path,
+            "schema_columns": list(schema_columns) if schema_columns else None,
+            "schema_hash": schema_hash,
         }
 
     def record_rule_sql(self, rule_id: str, sql: str) -> None:

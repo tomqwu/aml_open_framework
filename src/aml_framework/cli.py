@@ -1865,6 +1865,9 @@ def run(
         seed=seed,
         data_dir=data_dir,
     )
+    from aml_framework.data.sources import infer_source_paths
+
+    data_sources = infer_source_paths(data_source, spec, data_dir=data_dir)
 
     result = run_spec(
         spec=spec,
@@ -1872,6 +1875,7 @@ def run(
         data=data,
         as_of=as_of_dt,
         artifacts_root=artifacts,
+        data_sources=data_sources,
     )
 
     table = Table(title="Alerts by rule")

@@ -192,6 +192,18 @@ class TestWalkLineage:
         # Same run + same case must produce identical rule_sql — the
         # reproducibility contract walk_lineage relies on.
         assert walk_lineage(run_dir, case_id)["rule_sql"] == chain["rule_sql"]
+        # PR-LIN-2: input_files now also carries source_path,
+        # schema_columns, schema_hash. The synthetic generator path stamps
+        # source_path = "synthetic" (or None when the runner caller
+        # didn't pass data_sources). The schema fields are derived from
+        # the spec, so they're populated whenever the contract has
+        # declared columns.
+        first = chain["input_files"][0]
+        assert "source_path" in first
+        assert isinstance(first["schema_columns"], list)
+        assert first["schema_columns"], "schema_columns should list contract columns"
+        assert isinstance(first["schema_hash"], str)
+        assert len(first["schema_hash"]) == 16
 
     def test_unknown_case_returns_empty_chain(self, tmp_path: Path):
         spec = load_spec(_COMMUNITY_BANK)
