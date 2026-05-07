@@ -9,6 +9,39 @@ that introduced them.
 
 ### Added
 
+- **Round 13 — Lineage coverage gaps (PR-LIN-12 through PR-LIN-20, #237–#245).**
+  Round 12 built the primitives; Round 13 makes them visible everywhere.
+  Nine PRs across dashboard, regulator-facing exports, CLI, and API:
+  - **Dashboard (Phase E, PR #237–#240).** 13 pages updated. Triage
+    pages (Alert Queue / My Queue / Analyst Review Queue) and entity-
+    context pages (Investigations / Network Explorer / Customer 360)
+    gain inline `Matched rows` + `Rule version` columns. Analytical
+    pages (Rule Performance with `rule_version_hash`, Sanctions
+    Screening with `Source rowid`, Run History + Tuning Lab with
+    Lineage Explorer pointers) and headline pages (Today + Executive
+    Dashboard + AI Assistant) gain Lineage Explorer entry-points. AI
+    Assistant citations get a "Verify against audit trail" deep-link
+    per `referenced_case_id`.
+  - **Exports (Phase F, PR #241–#243).** STR bundle's `manifest.json`
+    carries a `case_lineage` block (rule_version + matched_row_ids +
+    per-contract source_path/schema_hash/content_hash). Audit pack
+    ships a new `case_lineage_summary.json` section. Effectiveness
+    pack's Control Output Quality pillar gains an
+    `alerts_by_rule_with_lineage` finding closing the FinCEN April
+    2026 NPRM "show your work" gap on aggregate metrics.
+  - **CLI (Phase G #1, PR #244).** Two new commands —
+    `aml lineage <case_id> [--format json|table]` wraps
+    `walk_lineage()`; `aml verify-decisions [--expected-hash HASH]`
+    wraps `AuditLedger.verify_decisions()` and exits non-zero on
+    tamper detection.
+  - **API (Phase G #2, PR #245).** New
+    `GET /api/v1/runs/{run_id}/cases/{case_id}/lineage` endpoint,
+    auth-gated by `Depends(get_current_user)`, tenant-isolated via
+    `get_run()`. 404s on unknown run / missing run_dir / unknown case;
+    401 without auth.
+
+  Tests grew ~2,020 → 2,050 (+30) across 9 PRs.
+
 - **Round 12 — End-to-end lineage (PR-LIN-1 through PR-LIN-11, #222–#232).**
   The audit question "show me why this alert fired" now has a
   one-paste-box answer. Eleven PRs across backend, dashboard, and
