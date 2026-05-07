@@ -9,6 +9,48 @@ that introduced them.
 
 ### Added
 
+- **Round 15 — Azure bank-deploy stack (PR-AZ-1 through PR-AZ-4, #251–#254).**
+  Makes the framework deployable on Microsoft Azure with zero static
+  secrets. Four PRs across data sources, secrets resolution, AKS
+  deployment, and docs:
+  - **Data sources (PR-AZ-1, #251).** Adds `azure_blob`, `adls`,
+    `synapse`, `azuresql` to the dispatch in
+    `data/sources.py:resolve_source`. Blob + ADLS Gen2 read CSV/Parquet
+    via DuckDB's `azure` extension over `abfss://` URIs; Synapse +
+    Azure SQL use pyodbc with `Authentication=ActiveDirectoryMsi` on
+    AKS workload identity. `infer_source_paths()` extended for all 4
+    so Round-12 lineage walk-back surfaces `source_path:
+    azure_blob:abfss://...` etc. New `[azure]` extras in
+    pyproject.toml.
+  - **Secrets resolution (PR-AZ-2, #252).** New
+    `aml_framework.secrets.SecretsProvider` — single resolution point
+    that prefers Azure Key Vault when `AZURE_KEY_VAULT_NAME` is set,
+    falls back to `os.environ.get()` otherwise. Used for JWT_SECRET
+    (api/auth.py), OPENAI_API_KEY (assistant + narratives), and demo
+    user passwords. DefaultAzureCredential picks up workload identity
+    automatically. Naming: `_` → `-` for Key Vault compatibility.
+  - **AKS Helm chart (PR-AZ-3, #253).** New `azure:` section in
+    values.yaml (5 optional fields). Workload-identity ServiceAccount
+    + pod label `azure.workload.identity/use=true` rendered
+    conditionally. AZURE_KEY_VAULT_NAME + storage / Synapse / Azure
+    SQL connection envs threaded through to API + dashboard. New
+    `values-azure.example.yaml` reference file with az CLI cookbook.
+    Empty `azure:` block produces zero Azure artefacts — non-Azure
+    deployments unchanged.
+  - **Docs (PR-AZ-3, #253).** New "Deploying on Azure / AKS" section
+    in `docs/deployment.md` walking through cluster + identity + Key
+    Vault + federated credentials + install + production checklist.
+
+  Microsoft Entra ID OIDC works through the existing generic OIDC
+  support (PR #218) — config-only, no code changes.
+
+  Round 16 (queued, not shipped this round): Azure OpenAI assistant
+  backend, Microsoft Sentinel SIEM, Azure Monitor / Application
+  Insights via OTel, Microsoft Purview lineage push.
+
+  Tests grew 2,055 → 2,076 (+21) across 4 PRs. Live SDK paths under
+  `# pragma: no cover` (no Azure CI creds).
+
 - **Round 14 — Final lineage coverage audit (PR-LIN-23 + PR-LIN-24, #249–#250).**
   Closes the lineage workstream. After Round 13 shipped the major
   surfaces, an audit of the 16 dashboard pages NOT touched by Rounds
