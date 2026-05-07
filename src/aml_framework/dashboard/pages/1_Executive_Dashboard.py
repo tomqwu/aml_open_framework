@@ -189,6 +189,26 @@ headline_hero(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# PR-LIN-15: lineage entry-point on the headline page. Board / SVP
+# personas reading the urgent-tile see "148 high-severity alerts" but
+# can't ask "what % came from data ingestion errors vs. true
+# positives?". Surfacing the lineage source per contract requires the
+# fuller mini-section the plan called for; we ship the page-link here
+# now and defer the per-source breakdown to a follow-up so the headline
+# page stays board-readable.
+st.caption(
+    "Trace any headline number back to its source rows: every alert above carries "
+    "matched_row_ids + rule_version stamped by the engine. The walk-back chain "
+    "(source file → DuckDB table → rule SQL → matched rows → alert → case → STR) "
+    "is one paste-box away."
+)
+link_to_page(
+    "pages/32_Lineage_Explorer.py",
+    "→ Open Lineage Explorer (paste any case_id from this run)",
+)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
 # ---------------------------------------------------------------------------
 # Workstream B · Secondary KPI row with sparklines + run-deltas
 # ---------------------------------------------------------------------------

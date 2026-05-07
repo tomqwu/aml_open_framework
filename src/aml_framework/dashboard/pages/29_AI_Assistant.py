@@ -121,6 +121,20 @@ else:
                     "**Cases referenced:** "
                     + ", ".join(f"`{c}`" for c in reply.referenced_case_ids)
                 )
+                # PR-LIN-15: every assistant reply that cites a case_id
+                # gets a "→ Verify against audit trail" deep-link to
+                # Lineage Explorer for the first cited case. Closes the
+                # AI-trust gap: the assistant's claim is now one click
+                # from the hash-stamped chain that grounds it.
+                from aml_framework.dashboard.components import (
+                    link_to_page as _link_lin15_ai,
+                )
+
+                _link_lin15_ai(
+                    "pages/32_Lineage_Explorer.py",
+                    "→ Verify against audit trail (Lineage Explorer)",
+                    case_id=reply.referenced_case_ids[0],
+                )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
