@@ -298,3 +298,30 @@ if alerted_ids:
         pinned_left=["customer_id"] if "customer_id" in available else None,
         height=300,
     )
+
+    # PR-LIN-13: per-customer "→ View lineage" walk-back. Network
+    # Explorer is the auditor's "show me the cluster" view; the chain
+    # below each alerted customer's row is the same chain Audit &
+    # Evidence renders, but reachable from the network frame. Pulls
+    # case_ids from session_state.df_cases and renders a small list
+    # of deep-links — one per case — into Lineage Explorer.
+    df_cases_ne = st.session_state.get("df_cases")
+    if df_cases_ne is not None and not df_cases_ne.empty and "customer_id" in df_cases_ne.columns:
+        alerted_cases_ne = df_cases_ne[df_cases_ne["customer_id"].isin(alerted_ids)]
+        if not alerted_cases_ne.empty:
+            st.markdown("**Lineage walk-back per alerted customer:**")
+            for _, _row in alerted_cases_ne.iterrows():
+                _cid = _row.get("customer_id", "—")
+                _case_id = _row.get("case_id", "")
+                _alert_dict = _row.get("alert") or {}
+                _matched = _alert_dict.get("matched_row_ids") or []
+                _rule_v = (_alert_dict.get("rule_version") or "—")[:16]
+                st.markdown(
+                    f"- **`{_cid}`** · case `{_case_id}` · rule version `{_rule_v}` "
+                    f"· `{len(_matched)}` matched rows"
+                )
+                link_to_page(
+                    "pages/32_Lineage_Explorer.py",
+                    "  → Walk lineage chain",
+                    case_id=_case_id,
+                )

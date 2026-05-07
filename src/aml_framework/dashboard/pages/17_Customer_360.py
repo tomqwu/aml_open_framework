@@ -272,7 +272,15 @@ if not cust_cases.empty:
 
     cust_cases = cust_cases.copy()
     cust_cases["sla_state"] = [_sla_state(r) for r in cust_cases.to_dict(orient="records")]
-    show_cols = show_cols + ["sla_state"]
+    # PR-LIN-13: lineage breadcrumbs alongside SLA state — same shape
+    # as the My Queue / Investigations grids.
+    cust_cases["Matched rows"] = cust_cases["alert"].apply(
+        lambda a: str(len(a.get("matched_row_ids") or [])) if isinstance(a, dict) else "—"
+    )
+    cust_cases["Rule version"] = cust_cases["alert"].apply(
+        lambda a: str(a.get("rule_version") or "—")[:16] if isinstance(a, dict) else "—"
+    )
+    show_cols = show_cols + ["sla_state", "Matched rows", "Rule version"]
 
     available = [c for c in show_cols if c in cust_cases.columns]
     data_grid(
@@ -287,6 +295,18 @@ if not cust_cases.empty:
         hint="Click any case row to open the investigation package.",
         height=300,
     )
+    # PR-LIN-13: secondary affordance — direct deep-link to the
+    # Lineage Explorer for the most-recent open case (auditor's path).
+    if not cust_cases.empty:
+        from aml_framework.dashboard.components import link_to_page as _link_lin13
+
+        _last_case_id = cust_cases.iloc[0].get("case_id")
+        if _last_case_id:
+            _link_lin13(
+                "pages/32_Lineage_Explorer.py",
+                "→ Walk lineage chain for most-recent case",
+                case_id=_last_case_id,
+            )
 else:
     st.caption("No cases for this customer.")
 

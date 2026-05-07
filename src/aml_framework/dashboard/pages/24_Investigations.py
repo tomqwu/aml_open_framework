@@ -235,6 +235,12 @@ for case in cases:
     if status is None:
         continue
     escalation = apply_escalation(case, status, queue)
+    # PR-LIN-13: lift Round-12 lineage primitives into the constituent-
+    # cases grid so a 2LoD reviewer sees rule version + matched-row
+    # count alongside SLA state. Same shape as Alert Queue / My Queue.
+    _alert_dict = case.get("alert") or {}
+    _matched = _alert_dict.get("matched_row_ids") or []
+    _rule_version = _alert_dict.get("rule_version") or "—"
     case_rows.append(
         {
             "case_id": case["case_id"],
@@ -244,6 +250,8 @@ for case in cases:
             "time_in_queue_h": round(status["time_in_queue_hours"], 1),
             "remaining_h": round(status["time_remaining_hours"], 1),
             "escalate_to": escalation.to_queue if escalation else "",
+            "Matched rows": str(len(_matched)) if _matched else "—",
+            "Rule version": str(_rule_version)[:16],
         }
     )
 if case_rows:
