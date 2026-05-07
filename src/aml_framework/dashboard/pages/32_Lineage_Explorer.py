@@ -106,43 +106,65 @@ st.caption(
 _input_files = chain.get("input_files") or []
 _rule_id = chain.get("rule_id") or "rule"
 _case_id_short = chain["case_id"][:32]
+
+
+def _mm_safe(text: str) -> str:
+    """Escape characters Mermaid's flowchart parser can't handle inside
+    a quoted node label. Quotes break the string; pipes are link
+    syntax; brackets are node-shape syntax. Replace with safe forms."""
+    return (
+        str(text)
+        .replace("\\", "/")
+        .replace('"', "'")
+        .replace("|", "/")
+        .replace("[", "(")
+        .replace("]", ")")
+    )
+
+
 _mermaid_lines = ["graph LR"]
 for idx, inp in enumerate(_input_files):
-    cid = inp.get("contract_id") or f"contract_{idx}"
-    src = inp.get("source_path") or "—"
+    cid = _mm_safe(inp.get("contract_id") or f"contract_{idx}")
+    src = _mm_safe(inp.get("source_path") or "-")
     rows = inp.get("row_count") or 0
-    _mermaid_lines.append(f'    S{idx}["{src}<br/>📄 {rows:,} rows"]')
-    _mermaid_lines.append(f'    C{idx}["{cid}<br/>📋 contract"]')
-    _mermaid_lines.append(f'    T{idx}["{cid}<br/>🗃 DuckDB table"]')
-    _mermaid_lines.append(f"    S{idx} --> C{idx} --> T{idx} --> R")
-_mermaid_lines.append(f'    R["{_rule_id}<br/>⚙ rule"]')
-_mermaid_lines.append(
-    f'    A["alert<br/>{len((chain.get("case") or {}).get("alert", {}).get("matched_row_ids") or [])} matched rows"]'
-)
-_mermaid_lines.append(f'    K["{_case_id_short}<br/>📁 case"]')
-_mermaid_lines.append("    R --> A --> K")
+    _mermaid_lines.append(f'    S{idx}["{src}<br>{rows:,} rows"]')
+    _mermaid_lines.append(f'    C{idx}["{cid}<br>contract"]')
+    _mermaid_lines.append(f'    T{idx}["{cid}<br>DuckDB table"]')
+    _mermaid_lines.append(f"    S{idx} --> C{idx} --> T{idx} --> RuleN")
+_mermaid_lines.append(f'    RuleN["{_mm_safe(_rule_id)}<br>rule"]')
+_matched_count = len((chain.get("case") or {}).get("alert", {}).get("matched_row_ids") or [])
+_mermaid_lines.append(f'    AlertN["alert<br>{_matched_count} matched rows"]')
+_mermaid_lines.append(f'    CaseN["{_mm_safe(_case_id_short)}<br>case"]')
+_mermaid_lines.append("    RuleN --> AlertN --> CaseN")
 # Investigation + STR are conditional — only if any escalate event exists.
 _decisions = chain.get("decisions") or []
 _has_str = any(d.get("event") == "escalated_to_str" for d in _decisions)
 if _has_str:
-    _mermaid_lines.append('    I["investigation<br/>🔍 (per-customer-window)"]')
-    _mermaid_lines.append('    F["STR bundle<br/>📑 goAML XML + narrative"]')
-    _mermaid_lines.append("    K --> I --> F")
-_mermaid_lines.append(
-    "    classDef src fill:#fef3c7,stroke:#b45309;"
-    "classDef contract fill:#fed7aa,stroke:#9a3412;"
-    "classDef table fill:#fde68a,stroke:#92400e;"
-    "classDef rule fill:#bfdbfe,stroke:#1d4ed8;"
-    "classDef alert fill:#fecaca,stroke:#b91c1c;"
-    "classDef case fill:#bbf7d0,stroke:#15803d;"
-    "classDef inv fill:#ddd6fe,stroke:#6d28d9;"
-    "classDef str fill:#a7f3d0,stroke:#047857;"
-)
+    _mermaid_lines.append('    InvN["investigation<br>per customer window"]')
+    _mermaid_lines.append('    StrN["STR bundle<br>goAML XML + narrative"]')
+    _mermaid_lines.append("    CaseN --> InvN --> StrN")
+# classDef + class statements on separate lines. Class names use a
+# `lin` prefix (not reserved by Mermaid's flowchart grammar). The
+# v10 parser rejects `case` / `str` as class names — earlier versions
+# silently accepted them.
+_mermaid_lines.append("    classDef linSrc fill:#fef3c7,stroke:#b45309")
+_mermaid_lines.append("    classDef linContract fill:#fed7aa,stroke:#9a3412")
+_mermaid_lines.append("    classDef linTable fill:#fde68a,stroke:#92400e")
+_mermaid_lines.append("    classDef linRule fill:#bfdbfe,stroke:#1d4ed8")
+_mermaid_lines.append("    classDef linAlert fill:#fecaca,stroke:#b91c1c")
+_mermaid_lines.append("    classDef linCase fill:#bbf7d0,stroke:#15803d")
+_mermaid_lines.append("    classDef linInv fill:#ddd6fe,stroke:#6d28d9")
+_mermaid_lines.append("    classDef linStr fill:#a7f3d0,stroke:#047857")
 for idx in range(len(_input_files)):
-    _mermaid_lines.append(f"    class S{idx} src;class C{idx} contract;class T{idx} table;")
-_mermaid_lines.append("    class R rule;class A alert;class K case;")
+    _mermaid_lines.append(f"    class S{idx} linSrc")
+    _mermaid_lines.append(f"    class C{idx} linContract")
+    _mermaid_lines.append(f"    class T{idx} linTable")
+_mermaid_lines.append("    class RuleN linRule")
+_mermaid_lines.append("    class AlertN linAlert")
+_mermaid_lines.append("    class CaseN linCase")
 if _has_str:
-    _mermaid_lines.append("    class I inv;class F str;")
+    _mermaid_lines.append("    class InvN linInv")
+    _mermaid_lines.append("    class StrN linStr")
 _mermaid = "\n".join(_mermaid_lines)
 # Render via Streamlit's HTML component using mermaid.js loaded from CDN —
 # matches the existing pattern in cases/str_bundle.py / Network Explorer.
