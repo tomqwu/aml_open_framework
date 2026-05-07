@@ -1,0 +1,138 @@
+# Auto-sync the demo site (tomqwu.github.io/aml_open_framework_demo).
+#
+# Why this exists: the demo lives in a separate repo (aml_open_framework_demo)
+# served by GitHub Pages from its main branch. There's no automated cross-repo
+# publish, so every Round historically needed a manual "Sync:" PR. This
+# workflow closes that gap — every push to `main` that touches `docs/pitch/`
+# auto-publishes to the demo repo.
+#
+# ─── Mapping (main → demo) ──────────────────────────────────────────────────
+#   docs/pitch/landing/index.html              → index.html
+#   docs/pitch/landing/research/**             → research/**
+#   docs/pitch/deck-v2/(everything except      → technical/**
+#     business-slides, board-video,
+#     _export_pdf.mjs)
+#   docs/pitch/deck-v2/business-slides/**      → business/**
+#
+# ─── One-time setup (required before this workflow can push) ────────────────
+#   1. Create a fine-grained PAT at
+#        https://github.com/settings/tokens?type=beta
+#      with these settings:
+#        - Resource owner:     tomqwu
+#        - Repository access:  Only select repositories → aml_open_framework_demo
+#        - Permissions → Repository permissions → Contents: Read and write
+#        - Expiration:         pick what you're comfortable with (90 d / 1 y)
+#   2. Copy the generated token.
+#   3. On THIS repo, go to Settings → Secrets and variables → Actions
+#      → New repository secret:
+#        - Name:  DEMO_REPO_TOKEN
+#        - Value: paste the PAT from step 2
+#   4. (Optional) Trigger the first run manually from the Actions tab using
+#      "Run workflow" — useful for back-filling after setup. Otherwise the
+#      next push to main that touches docs/pitch/ will fire it automatically.
+#
+# Files in the demo repo that aren't in any of the synced subtrees
+# (.nojekyll, README.md, v1-archive/) are left alone.
+
+name: Sync demo site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/pitch/landing/**'
+      - 'docs/pitch/deck-v2/**'
+      - '.github/workflows/sync-demo.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-demo
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        with:
+          path: source
+          fetch-depth: 1
+
+      - name: Checkout demo repo
+        uses: actions/checkout@v4
+        with:
+          repository: tomqwu/aml_open_framework_demo
+          token: ${{ secrets.DEMO_REPO_TOKEN }}
+          path: demo
+          fetch-depth: 1
+
+      - name: Mirror docs/pitch into the demo tree
+        run: |
+          set -euo pipefail
+
+          SRC=source/docs/pitch
+          DST=demo
+
+          # Landing → root.
+          cp "$SRC/landing/index.html" "$DST/index.html"
+
+          # research/ — full mirror with --delete so removed research
+          # docs disappear from the demo too.
+          rsync -a --delete \
+            "$SRC/landing/research/" "$DST/research/"
+
+          # deck-v2 → technical/, excluding subtrees that have their
+          # own destination (business-slides) or are dev-only
+          # staging not published to GitHub Pages (board-video,
+          # _export_pdf.mjs).
+          rsync -a --delete \
+            --exclude='business-slides/' \
+            --exclude='board-video/' \
+            --exclude='_export_pdf.mjs' \
+            "$SRC/deck-v2/" "$DST/technical/"
+
+          # business-slides → business/, full mirror.
+          rsync -a --delete \
+            "$SRC/deck-v2/business-slides/" "$DST/business/"
+
+          # Show what changed for the action log.
+          cd "$DST"
+          echo "─── git status ───"
+          git status --short
+          echo "─── diff stats ───"
+          git diff --stat || true
+          git diff --cached --stat || true
+
+      - name: Commit and push if anything changed
+        working-directory: demo
+        env:
+          MAIN_SHA: ${{ github.sha }}
+          MAIN_REF: ${{ github.ref }}
+          MAIN_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          git config user.name  "aml-demo-sync[bot]"
+          git config user.email "noreply@github.com"
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync."
+            exit 0
+          fi
+
+          # Match the existing manual-sync commit-message format on
+          # the demo repo so historical greps keep working.
+          # Use the triggering commit's first line as the headline.
+          HEAD_FIRST=$(printf '%s' "$MAIN_MSG" | head -n1)
+          SHORT=${MAIN_SHA:0:7}
+
+          git commit \
+            -m "Sync from main @ ${SHORT} — ${HEAD_FIRST}" \
+            -m "Triggered by https://github.com/${GITHUB_REPOSITORY}/commit/${MAIN_SHA}" \
+            -m "Workflow run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          git push origin main
