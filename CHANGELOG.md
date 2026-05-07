@@ -9,6 +9,38 @@ that introduced them.
 
 ### Added
 
+- **Round 16 Phase A — Land on user's Azure backbone (PR-AZ-5 through PR-AZ-8, #255–#258).**
+  Deploys the framework on the prebuilt landing zone at
+  `tomqwu/cloud_landing_zone_for_ai_coding`. The landing zone's
+  `CLAUDE.md` constrains compute to Container Apps (no AKS), so this
+  round adds an alternative to Round 15's Helm chart — both paths
+  ship.
+  - **Terraform module (PR-AZ-5, #255).** New `deploy/terraform/`
+    calling `module.onboard` from the landing zone (vends RG + UAMI
+    + per-app Key Vault + GitHub OIDC FICs). Provisions Postgres
+    Flexible Server B1ms with Entra-ID-only auth, Container Apps for
+    API + dashboard, Key Vault secret placeholders, diagnostic
+    settings → platform Log Analytics workspace.
+  - **CI pipeline (PR-AZ-6, #256).** New
+    `.github/workflows/deploy-azure-landing-zone.yml` — three jobs
+    (plan → build_and_push → apply gated by `platform-prod`
+    Environment), all auth via federated identity (no client
+    secrets), revision-rollover nudge + `/health` smoke check.
+  - **OTel wiring (PR-AZ-7, #257).** New
+    `src/aml_framework/observability/` module with
+    `init_observability()` — wires API + dashboard into the landing
+    zone's Application Insights via `azure-monitor-opentelemetry`.
+    No-op when `APPLICATIONINSIGHTS_CONNECTION_STRING` is unset.
+    Idempotent + exception-swallowing.
+
+  Round 15's AKS Helm chart preserved for non-landing-zone Azure +
+  on-prem K8s deployments. Both paths supported, both documented.
+
+  Phase B queued: Azure OpenAI assistant backend, Microsoft Sentinel
+  SIEM via platform Log Analytics, Microsoft Purview lineage push.
+
+  Tests grew 2,076 → 2,084 (+8) across 4 PRs.
+
 - **Round 15 — Azure bank-deploy stack (PR-AZ-1 through PR-AZ-4, #251–#254).**
   Makes the framework deployable on Microsoft Azure with zero static
   secrets. Four PRs across data sources, secrets resolution, AKS
