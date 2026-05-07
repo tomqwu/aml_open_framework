@@ -62,6 +62,45 @@ class TestAnalystReviewLineageExpander:
         )
 
 
+class TestInvestigationsBreadcrumbs:
+    """PR-LIN-13: Investigations page constituent-cases grid carries
+    rule_version + matched-row count alongside SLA state."""
+
+    def test_columns_added_to_constituent_cases(self):
+        body = (PAGES / "24_Investigations.py").read_text(encoding="utf-8")
+        assert '"Matched rows"' in body
+        assert '"Rule version"' in body
+        assert "matched_row_ids" in body
+        assert "rule_version" in body
+
+
+class TestNetworkExplorerLineage:
+    """PR-LIN-13: Network Explorer surfaces per-customer lineage walk-back
+    deep-links so an auditor working a cluster can follow each alert
+    back to its source rows."""
+
+    def test_walk_back_section_present(self):
+        body = (PAGES / "10_Network_Explorer.py").read_text(encoding="utf-8")
+        assert "Lineage walk-back per alerted customer" in body
+        assert "32_Lineage_Explorer.py" in body
+        assert "case_id=_case_id" in body
+
+
+class TestCustomer360Lineage:
+    """PR-LIN-13: Customer 360 cases table gains rule_version +
+    matched-row count plus a deep-link to Lineage Explorer."""
+
+    def test_lineage_columns_on_cases_table(self):
+        body = (PAGES / "17_Customer_360.py").read_text(encoding="utf-8")
+        assert '"Matched rows"' in body
+        assert '"Rule version"' in body
+
+    def test_deep_link_present(self):
+        body = (PAGES / "17_Customer_360.py").read_text(encoding="utf-8")
+        assert "32_Lineage_Explorer.py" in body
+        assert "Walk lineage chain" in body
+
+
 class TestCaseInvestigationDeepLink:
     def test_links_to_lineage_explorer(self):
         body = CASE_INV.read_text(encoding="utf-8")
