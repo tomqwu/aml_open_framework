@@ -136,6 +136,42 @@ class TestAuditPageMigrated:
         assert body.index("terminal_block(") < body.index("kpi_card_rag(")
 
 
+class TestLineageWalkBackPanel:
+    """PR-LIN-5: the Audit & Evidence lineage walk-back panel must
+    surface (a) rendered SQL, (b) source provenance fields, and
+    (c) matched source rows. These are the load-bearing pieces of the
+    "trace every alert to its source row" story the demo site sells.
+    """
+
+    def test_panel_present(self):
+        body = AUDIT_PAGE.read_text(encoding="utf-8")
+        assert "Lineage walk-back" in body, "lineage panel header must remain"
+
+    def test_sql_block_present(self):
+        body = AUDIT_PAGE.read_text(encoding="utf-8")
+        assert 'st.code(_chain["rule_sql"]' in body, (
+            "Audit page must render rule_sql via st.code so the auditor "
+            "can read the post-substitution query that fired the alert"
+        )
+        assert 'language="sql"' in body, "rule_sql code block must be syntax-highlighted"
+
+    def test_source_provenance_columns_surface(self):
+        body = AUDIT_PAGE.read_text(encoding="utf-8")
+        # PR-LIN-2 added these to input_files. The renamed columns must
+        # all appear so the auditor sees Source / Schema hash / Columns
+        # alongside the existing Contract / Rows / Content hash.
+        for col in ('"Source"', '"Schema hash"', '"Columns"'):
+            assert col in body, f"input_files grid must surface {col} column"
+
+    def test_matched_rows_section_uses_session_state_df_txns(self):
+        body = AUDIT_PAGE.read_text(encoding="utf-8")
+        assert "Matched source rows" in body, "matched-rows header missing"
+        assert "matched_row_ids" in body, "matched_row_ids must drive the slice"
+        # Sliced from the in-memory df_txns so the displayed rows match
+        # the DuckDB rowids the runner stamped into the alert.
+        assert "df_txns" in body
+
+
 class TestKpiCardsAreRagBound:
     def test_baseline_kpi_uses_rag(self):
         body = AUDIT_PAGE.read_text(encoding="utf-8")

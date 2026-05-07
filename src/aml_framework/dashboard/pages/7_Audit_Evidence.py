@@ -262,12 +262,24 @@ if _lineage_case.strip():
         if _chain["input_files"]:
             import pandas as _pd
 
+            # PR-LIN-2 added source_path / schema_hash / schema_columns
+            # to each input_files entry. Surface them so the auditor can
+            # answer "which file did this row come from?" without
+            # walking the manifest manually.
+            _df_inputs = _pd.DataFrame(_chain["input_files"])
+            if "schema_columns" in _df_inputs.columns:
+                _df_inputs["schema_columns"] = _df_inputs["schema_columns"].apply(
+                    lambda v: ", ".join(v) if isinstance(v, list) else "—"
+                )
             data_grid(
-                _pd.DataFrame(_chain["input_files"]).rename(
+                _df_inputs.rename(
                     columns={
                         "contract_id": "Contract",
                         "row_count": "Rows",
                         "content_hash": "Content hash",
+                        "source_path": "Source",
+                        "schema_hash": "Schema hash",
+                        "schema_columns": "Columns",
                     }
                 ),
                 key="lineage_input_files",
@@ -275,6 +287,32 @@ if _lineage_case.strip():
             )
         else:
             st.caption("No input manifest recorded for this run.")
+        # PR-LIN-1 lifted rule_sql from rules/<rule_id>.sql into the
+        # chain dict. Surface it so "show me the query that fired this
+        # alert" is one click away — no run-dir walking required.
+        if _chain.get("rule_sql"):
+            with st.expander("Rule SQL (post-substitution, executed verbatim)"):
+                st.code(_chain["rule_sql"], language="sql")
+        # PR-LIN-4: each alert carries the source rowids that fired it.
+        # Slice the in-memory dataframes (DuckDB rowid is 0-based on the
+        # insertion order, which matches the underlying list index used
+        # by state.py) so the auditor sees the actual rows that
+        # contributed to this alert.
+        _alert = (_chain.get("case") or {}).get("alert") or {}
+        _matched_ids = _alert.get("matched_row_ids") or []
+        if _matched_ids:
+            import pandas as _pd
+
+            _df_txns = st.session_state.get("df_txns")
+            if _df_txns is not None and len(_df_txns):
+                _valid = [i for i in _matched_ids if 0 <= i < len(_df_txns)]
+                if _valid:
+                    st.markdown(f"**Matched source rows** ({len(_valid)})")
+                    data_grid(
+                        _df_txns.iloc[_valid].reset_index(drop=True),
+                        key="lineage_matched_rows",
+                        height=240,
+                    )
         st.markdown(f"**Decisions tied to this case** ({len(_chain['decisions'])})")
         if _chain["decisions"]:
             import pandas as _pd
