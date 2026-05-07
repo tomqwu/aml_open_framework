@@ -1,0 +1,212 @@
+# Round 16 PR-AZ-6 — Deploy the AML framework to the Azure landing
+# zone (https://github.com/tomqwu/cloud_landing_zone_for_ai_coding).
+#
+# Auth: federated identity credential — no client secrets. The
+# landing zone's `app-onboard` module created an FIC scoped to this
+# repo + main branch + (optionally) PR events. AZURE_CLIENT_ID is
+# the user-assigned managed identity's client_id; tenant +
+# subscription are public values.
+#
+# Pipeline: PR opens → terraform plan posted to the PR; merge to
+# main → terraform apply gated by the `platform-prod` GitHub
+# Environment + revision rollover via `az containerapp update`.
+
+name: Deploy to Azure landing zone
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/aml_framework/**'
+      - 'Dockerfile'
+      - 'pyproject.toml'
+      - 'deploy/terraform/**'
+      - '.github/workflows/deploy-azure-landing-zone.yml'
+  pull_request:
+    paths:
+      - 'deploy/terraform/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write   # required for OIDC azure/login
+  contents: read
+  pull-requests: write   # to comment plan output
+
+env:
+  TERRAFORM_VERSION: '1.9.8'
+  IMAGE_REPO: aml-framework
+
+jobs:
+  plan:
+    name: terraform plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform fmt + validate
+        working-directory: deploy/terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init \
+            -backend-config="resource_group_name=${{ vars.AZURE_TFSTATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.AZURE_TFSTATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ vars.AZURE_TFSTATE_CONTAINER }}" \
+            -backend-config="key=aml-compliance.tfstate"
+          terraform validate
+
+      - name: Terraform plan
+        id: plan
+        working-directory: deploy/terraform
+        run: |
+          terraform plan \
+            -var="env=${{ vars.AZURE_ENV || 'dev' }}" \
+            -var="owner_email=${{ vars.AZURE_OWNER_EMAIL }}" \
+            -var="image_tag=${{ github.sha }}" \
+            -var="platform_tfstate_resource_group=${{ vars.AZURE_TFSTATE_RESOURCE_GROUP }}" \
+            -var="platform_tfstate_storage_account=${{ vars.AZURE_TFSTATE_STORAGE_ACCOUNT }}" \
+            -var="platform_tfstate_container=${{ vars.AZURE_TFSTATE_CONTAINER }}" \
+            -no-color \
+            -out=tfplan
+        continue-on-error: true
+
+      - name: Comment plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const planOutput = `\`\`\`\nterraform plan exit code: ${{ steps.plan.outcome }}\n\`\`\``;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### terraform plan (deploy/terraform/)\n\n${planOutput}\n\nFull output in [the workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`
+            });
+
+      - name: Fail on plan error
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Upload tfplan artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: deploy/terraform/tfplan
+          retention-days: 7
+
+  build_and_push:
+    name: build + push to ACR
+    runs-on: ubuntu-latest
+    needs: plan
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        # az acr login authenticates the docker daemon to the platform ACR
+        # via the same federated identity used for azure/login above.
+        run: |
+          ACR_NAME=$(echo "${{ vars.AZURE_ACR_LOGIN_SERVER }}" | cut -d'.' -f1)
+          az acr login --name "$ACR_NAME"
+
+      - name: Build + push image
+        run: |
+          IMAGE="${{ vars.AZURE_ACR_LOGIN_SERVER }}/${{ env.IMAGE_REPO }}"
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+  apply:
+    name: terraform apply (gated)
+    runs-on: ubuntu-latest
+    needs: build_and_push
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: platform-prod
+      url: https://${{ vars.AZURE_API_URL || 'pending' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform init
+        working-directory: deploy/terraform
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ vars.AZURE_TFSTATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ vars.AZURE_TFSTATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ vars.AZURE_TFSTATE_CONTAINER }}" \
+            -backend-config="key=aml-compliance.tfstate"
+
+      - name: Terraform apply
+        working-directory: deploy/terraform
+        run: |
+          terraform apply -auto-approve \
+            -var="env=${{ vars.AZURE_ENV || 'dev' }}" \
+            -var="owner_email=${{ vars.AZURE_OWNER_EMAIL }}" \
+            -var="image_tag=${{ github.sha }}" \
+            -var="platform_tfstate_resource_group=${{ vars.AZURE_TFSTATE_RESOURCE_GROUP }}" \
+            -var="platform_tfstate_storage_account=${{ vars.AZURE_TFSTATE_STORAGE_ACCOUNT }}" \
+            -var="platform_tfstate_container=${{ vars.AZURE_TFSTATE_CONTAINER }}"
+
+      - name: Roll Container App revisions
+        # `terraform apply` updates the Container App image; the
+        # `az containerapp update` is a defensive nudge to ensure the
+        # new revision goes active (occasionally Container Apps lags
+        # the Terraform-recorded image update by a few seconds).
+        run: |
+          IMAGE="${{ vars.AZURE_ACR_LOGIN_SERVER }}/${{ env.IMAGE_REPO }}:${{ github.sha }}"
+          az containerapp update \
+            --name "${{ vars.AZURE_CONTAINER_APP_API }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "$IMAGE"
+          if [ -n "${{ vars.AZURE_CONTAINER_APP_DASHBOARD }}" ]; then
+            az containerapp update \
+              --name "${{ vars.AZURE_CONTAINER_APP_DASHBOARD }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --image "$IMAGE"
+          fi
+
+      - name: Smoke check
+        run: |
+          API_URL=$(cd deploy/terraform && terraform output -raw api_url)
+          for i in 1 2 3 4 5; do
+            if curl -fsS "${API_URL}/api/v1/health"; then
+              echo "✓ API healthy at $API_URL"
+              exit 0
+            fi
+            echo "Attempt $i: API not ready, waiting 20s..."
+            sleep 20
+          done
+          echo "API never came up; check Container App logs."
+          exit 1
