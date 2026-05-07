@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>What lands on the analyst's screen Tuesday · AML Open Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/tokens.css">
+<style>
+  .s13-stage { padding-top: 4px; }
+
+  .s13-grid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .s13-card {
+    background: var(--bg);
+    border: 1.5px solid var(--rule-strong);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+    position: relative;
+  }
+  .s13-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 32px rgba(221,92,52,0.14);
+  }
+
+  .s13-card .label {
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    z-index: 2;
+    background: var(--ink);
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 5px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .s13-card .label .accent { color: var(--accent); }
+
+  .s13-card .frame {
+    flex: 1;
+    overflow: hidden;
+    background: #f8fafc;
+    min-height: 0;
+  }
+  .s13-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+
+  .s13-card .caption {
+    background: var(--bg-soft);
+    border-top: 1px solid var(--rule-strong);
+    padding: 14px 18px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .s13-card .caption .who {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+  .s13-card .caption strong { color: var(--ink); font-weight: 700; }
+
+  .s13-takeaway { margin-top: 16px; }
+</style>
+</head>
+<body>
+  <div class="exhibit-label">Exhibit <span class="num">13</span> What lands on the analyst's screen</div>
+  <div class="top-rule"></div>
+
+  <div class="stage s13-stage">
+    <h2 class="action-title fade-up" style="margin-bottom:6px;">
+      <em>Tuesday morning,</em> 9:14 a.m. — what the analyst actually sees.
+    </h2>
+    <p class="dek fade-up d2" style="margin-bottom:0;">
+      Decks promise; products land. Below are four real surfaces from the bundled dashboard, captured against the synthetic <em>community-bank</em> spec on a fresh checkout. Same colour discipline across every page; every row, every chart, every cell traces back to the Compliance Manifest.
+    </p>
+
+    <div class="s13-grid fade-up d3">
+
+      <div class="s13-card">
+        <div class="label"><span class="accent">9:14 am</span> · ALERT QUEUE</div>
+        <div class="frame">
+          <img src="../assets/screens/03_alert_queue.png" alt="Alert Queue — severity-coloured triage table with rule + severity bars" />
+        </div>
+        <div class="caption">
+          <div class="who">L1 analyst opens the queue</div>
+          <strong>Severity-coloured triage table.</strong> Click any row → opens the case. No selectbox-below-table; the triage IS the table.
+        </div>
+      </div>
+
+      <div class="s13-card">
+        <div class="label"><span class="accent">9:18 am</span> · CASE INVESTIGATION</div>
+        <div class="frame">
+          <img src="../assets/screens/04_case_investigation.png" alt="Case Investigation — entity profile, transaction timeline, channel flow" />
+        </div>
+        <div class="caption">
+          <div class="who">Analyst opens one case</div>
+          <strong>Why this fired</strong> + entity profile + transaction timeline + channel-flow Sankey + draft STR narrative — one page, no system-hopping.
+        </div>
+      </div>
+
+      <div class="s13-card">
+        <div class="label"><span class="accent">9:31 am</span> · CUSTOMER 360</div>
+        <div class="frame">
+          <img src="../assets/screens/17_customer_360.png" alt="Customer 360 — pKYC status, freshness clock, recent activity" />
+        </div>
+        <div class="caption">
+          <div class="who">Analyst pulls customer context</div>
+          <strong>Per-attribute freshness clock</strong> — every KYC field carries its own staleness colour. The DATA-2 whitepaper claim, operational.
+        </div>
+      </div>
+
+      <div class="s13-card">
+        <div class="label"><span class="accent">9:42 am</span> · NETWORK EXPLORER</div>
+        <div class="frame">
+          <img src="../assets/screens/10_network_explorer.png" alt="Network Explorer — entity-relationship graph, ego-network walks, ring detection" />
+        </div>
+        <div class="caption">
+          <div class="who">Analyst checks the neighbourhood</div>
+          <strong>Ego-network walks</strong> — component-size, shared-attribute typologies. Mermaid graph rendered live; topology hash dedupes recurring rings.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="takeaway s13-takeaway fade-up d4">
+      <span class="label">Key takeaway</span>
+      Twenty-eight more pages exist behind these four — Audit & Evidence, Lineage Explorer, Investigations, Tuning Lab, Spec Editor, BOI Workflow, AI Assistant, ISO&nbsp;20022 Data Integration, and so on. <em>The pitch isn't "we'll build a dashboard." It's "this dashboard is in the repo, runs on a fresh checkout, and is what your team will actually look at on the Tuesday this lands."</em>
+    </div>
+  </div>
+
+  <div class="source-line">
+    <span><strong>Source:</strong> Live screenshots from <em>aml dashboard examples/community_bank/aml.yaml</em> · 32-page Streamlit surface in <em>src/aml_framework/dashboard/pages/*</em> · ECharts + AG Grid · same colour tokens across every page (PR-CHART-1..5, Round 11 / 2026-05).</span>
+  </div>
+
+</body>
+</html>
