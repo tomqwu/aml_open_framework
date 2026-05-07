@@ -83,6 +83,7 @@ def walk_lineage(run_dir: Path, case_id: str) -> dict[str, Any]:
         "as_of": None,
         "input_files": [],
         "decisions": [],
+        "rule_sql": None,
     }
 
     case_path = run_dir / "cases" / f"{case_id}.json"
@@ -90,6 +91,14 @@ def walk_lineage(run_dir: Path, case_id: str) -> dict[str, Any]:
         chain["case"] = json.loads(case_path.read_text(encoding="utf-8"))
         chain["rule_id"] = chain["case"].get("rule_id")
         chain["queue"] = chain["case"].get("queue")
+
+    # Surface the rendered SQL (or callable stub) the engine wrote via
+    # `record_rule_sql()`. Lets the dashboard answer "show me the query
+    # that fired this alert" without re-walking spec → renderer.
+    if chain["rule_id"]:
+        sql_path = run_dir / "rules" / f"{chain['rule_id']}.sql"
+        if sql_path.exists():
+            chain["rule_sql"] = sql_path.read_text(encoding="utf-8")
 
     manifest_path = run_dir / "manifest.json"
     if manifest_path.exists():

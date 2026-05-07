@@ -184,6 +184,14 @@ class TestWalkLineage:
         # decisions list should include at least the case_opened event
         case_open_events = [d for d in chain["decisions"] if d["event"] == "case_opened"]
         assert case_open_events, "expected case_opened decision in chain"
+        # rule_sql is lifted from rules/<rule_id>.sql so the dashboard can
+        # answer "show me the query that fired this alert" without
+        # re-walking spec → renderer.
+        assert isinstance(chain["rule_sql"], str)
+        assert chain["rule_sql"].strip(), "rule_sql should be non-empty"
+        # Same run + same case must produce identical rule_sql — the
+        # reproducibility contract walk_lineage relies on.
+        assert walk_lineage(run_dir, case_id)["rule_sql"] == chain["rule_sql"]
 
     def test_unknown_case_returns_empty_chain(self, tmp_path: Path):
         spec = load_spec(_COMMUNITY_BANK)
