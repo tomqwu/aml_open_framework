@@ -236,6 +236,34 @@ Goal: close the gap between "the lineage primitives exist" and "every surface a 
 
 **Result**: lineage is now reachable from every dashboard surface (14 pages updated), every regulator-facing export (STR bundle / FINTRAC audit pack / FinCEN effectiveness pack), the CLI (`aml lineage`, `aml verify-decisions`), and the API (`GET .../cases/{id}/lineage`). The audit chain is no longer "primitives in the data" — it's "addressable from anywhere a consumer might be." Tests grew ~2,020 → 2,050 (+30) across 9 PRs.
 
+### Round 14 — Final lineage coverage audit (2 PRs, 2026-05-07)
+
+Goal: after Round 13, audit every dashboard page for lineage suitability and close real gaps. User asked for completeness; the honest answer is *coverage by relevance, not by URL count*. A 3-pronged audit of the 16 pages NOT touched by Rounds 12+13 produced this verdict:
+
+| PR | Workstream |
+|---|---|
+| #249 | PR-LIN-23 · 5 case-aware pages get lineage hooks: Risk Assessment (row-click drill → Alert Queue), Model Performance + Comparative Analytics + FinTech Cockpit + Metrics Taxonomy (`→ Open Lineage Explorer` pointer). 12 new ALLOWED_GRACEFUL_GAPS entries for personas seeing these pages without Lineage Explorer in their nav. |
+| #250 | PR-LIN-24 · Round 14 docs section (this entry) + CHANGELOG block explaining the coverage policy. |
+
+**Pages explicitly excluded — 10 pages** that carry no case-level domain to walk back from. Listed here so future audits don't re-litigate:
+
+| Page | Why no lineage |
+|---|---|
+| **0_Welcome** | Orientation router; pure persona routing, zero case context |
+| **2_Program_Maturity** | Spec-level aggregate posture; not case-driven |
+| **8_Framework_Alignment** | Prescriptive regulator-mapping matrix; no case evidence |
+| **9_Transformation_Roadmap** | Project planning; not investigation |
+| **11_Live_Monitor** | Ephemeral simulator; alerts not persisted to audit trail |
+| **14_Data_Quality** | SRE / data-contract focus; validates sources, not subjects |
+| **16_Rule_Tuning** | What-if threshold tool; not tied to actual alerts |
+| **20_Spec_Editor** | YAML authoring; cases live downstream once rule deploys |
+| **27_Regulator_Pulse** | Regulator-news doctrine; cross-links to responding pages already |
+| **31_Information_Sharing** | Cross-bank policy/config; obfuscated, no case mapping by design |
+
+**Already covered before this round (1 page):** 25_BOI_Workflow drills via Customer 360, which has the Round-12 lineage panel. Chain is complete.
+
+**Result**: every page where lineage is *meaningful* now reaches Lineage Explorer. The 10 excluded pages remain link-free deliberately — adding generic pointers there would dilute the meaning of "lineage." After Round 14, the lineage workstream is **closed.** Future page additions follow the established pattern (link_to_page with case_id when available, generic pointer otherwise). Tests grew 2,050 → 2,055 (+5) across 2 PRs.
+
 ---
 
 ## What the Framework Does Today

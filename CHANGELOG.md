@@ -9,6 +9,33 @@ that introduced them.
 
 ### Added
 
+- **Round 14 — Final lineage coverage audit (PR-LIN-23 + PR-LIN-24, #249–#250).**
+  Closes the lineage workstream. After Round 13 shipped the major
+  surfaces, an audit of the 16 dashboard pages NOT touched by Rounds
+  12+13 identified 5 with case-level context that should have a
+  lineage link. This round adds them; the remaining 10 are
+  deliberately excluded with documented rationale.
+  - **5 pages get hooks (PR-LIN-23, #249).** Risk Assessment gains a
+    row-click drill from alerted-customers to Alert Queue (which has
+    Round-12 lineage columns + drill to Lineage Explorer). Model
+    Performance, Comparative Analytics, FinTech Cockpit, and
+    Metrics Taxonomy each get a `→ Open Lineage Explorer` pointer
+    (matching the Run History pattern from PR-LIN-14).
+    `ALLOWED_GRACEFUL_GAPS` extended for 12 new persona × page
+    tuples — Lineage Explorer is in auditor + analyst navs only;
+    others see plain-text degradation.
+  - **10 pages explicitly excluded with rationale (PR-LIN-24, #250).**
+    Welcome (orientation), Program Maturity (spec-level aggregate),
+    Framework Alignment (prescriptive mapping), Transformation
+    Roadmap (planning), Live Monitor (ephemeral sim), Data Quality
+    (SRE focus, not case-rooted), Rule Tuning (what-if tool), Spec
+    Editor (authoring), Regulator Pulse (doctrine), Information
+    Sharing (obfuscated by design). Added to docs/progress.md as a
+    table so future audits don't re-litigate.
+
+  Coverage policy: by relevance, not by URL count. After Round 14,
+  the lineage workstream is closed. Tests grew 2,050 → 2,055 (+5).
+
 - **Round 13 — Lineage coverage gaps (PR-LIN-12 through PR-LIN-20, #237–#245).**
   Round 12 built the primitives; Round 13 makes them visible everywhere.
   Nine PRs across dashboard, regulator-facing exports, CLI, and API:
