@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path as _Path
 
 import streamlit as st
 
@@ -262,6 +263,35 @@ with col_alert:
         for ref in refs:
             cite_md = citation_link(ref["citation"], ref.get("url"))
             st.markdown(f"- **{cite_md}**: {ref['description']}")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --- Why this fired (PR-LIN-6) ---------------------------------------------
+# The lineage primitives shipped in Phase A (rule_sql via walk_lineage,
+# matched_row_ids on the alert payload) close the "show me why this
+# alert fired" gap. The auditor doesn't need to leave Case
+# Investigation to read the rule SQL or see the contributing rows;
+# Lineage Explorer (page #33, ships in PR-LIN-8) carries the deeper
+# walk-back, but the most-asked questions answer here.
+_run_dir_path = _Path(st.session_state.run_dir)
+_alert = case.get("alert", {}) or {}
+_matched_ids = _alert.get("matched_row_ids") or []
+_rule_id = case.get("rule_id", "")
+_rule_sql_path = _run_dir_path / "rules" / f"{_rule_id}.sql"
+_rule_sql = _rule_sql_path.read_text(encoding="utf-8") if _rule_sql_path.exists() else ""
+
+st.markdown("### Why this fired")
+_w_left, _w_right = st.columns([1, 2])
+with _w_left:
+    st.metric("Matched source rows", len(_matched_ids) if _matched_ids else 0)
+    st.metric("Severity", str(case.get("severity", "—")))
+    st.metric("Rule version", (case.get("alert", {}).get("rule_version") or "—")[:16])
+with _w_right:
+    if _rule_sql.strip():
+        with st.expander("Rule SQL (post-substitution, executed verbatim)", expanded=False):
+            st.code(_rule_sql, language="sql")
+    else:
+        st.caption(f"No rule SQL found for `{_rule_id}` in this run.")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
