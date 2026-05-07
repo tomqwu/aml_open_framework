@@ -211,6 +211,34 @@ def bundle_investigation_to_str(
             "utf-8"
         )
     ).hexdigest()
+    # PR-LIN-16: stamp the Round 12 lineage primitives into the bundle
+    # manifest so a regulator extracting the ZIP can answer "which rule
+    # version fired?" / "which source rows contributed?" / "which input
+    # files?" without re-running the engine. Reads from each case's
+    # alert dict (rule_version + matched_row_ids — Round 12 PRs
+    # LIN-3/LIN-4) and the case's input_hash (PR-LIN-2 wrote
+    # source_path + schema_hash + content_hash per contract there).
+    case_lineage: dict[str, Any] = {}
+    for case in constituent:
+        cid = case.get("case_id", "")
+        if not cid:
+            continue
+        alert_dict = case.get("alert") or {}
+        case_lineage[cid] = {
+            "rule_id": case.get("rule_id"),
+            "rule_version": alert_dict.get("rule_version"),
+            "matched_row_ids": alert_dict.get("matched_row_ids") or [],
+            "input_files": [
+                {
+                    "contract_id": contract_id,
+                    "row_count": meta.get("row_count"),
+                    "content_hash": meta.get("content_hash"),
+                    "source_path": meta.get("source_path"),
+                    "schema_hash": meta.get("schema_hash"),
+                }
+                for contract_id, meta in (case.get("input_hash") or {}).items()
+            ],
+        }
     manifest = {
         "bundle_version": BUNDLE_VERSION,
         "investigation_id": inv_id,
@@ -218,6 +246,7 @@ def bundle_investigation_to_str(
         "case_ids": sorted(c.get("case_id", "") for c in constituent),
         "spec_program": spec.program.name,
         "jurisdiction": spec.program.jurisdiction,
+        "case_lineage": case_lineage,
         "files": file_hashes,
         "bundle_hash": bundle_hash,
     }
