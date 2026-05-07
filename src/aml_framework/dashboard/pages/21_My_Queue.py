@@ -138,7 +138,29 @@ if not open_cases.empty:
         open_cases["customer"] = open_cases["alert"].apply(
             lambda a: a.get("customer_id", "") if isinstance(a, dict) else ""
         )
-        display_cols = ["case_id", "customer", "rule_id", "severity", "amount", "status"]
+        # PR-LIN-12: matched_row_ids + rule_version inline so the analyst
+        # sees "this case fired on N rows under rule version v…" before
+        # opening it. Same shape as Alert Queue's case-queue table.
+        open_cases["Matched rows"] = open_cases["alert"].apply(
+            lambda a: (
+                str(len(a.get("matched_row_ids") or []))
+                if isinstance(a, dict) and (a.get("matched_row_ids") or []) is not None
+                else "—"
+            )
+        )
+        open_cases["Rule version"] = open_cases["alert"].apply(
+            lambda a: str(a.get("rule_version") or "—")[:16] if isinstance(a, dict) else "—"
+        )
+        display_cols = [
+            "case_id",
+            "customer",
+            "rule_id",
+            "severity",
+            "amount",
+            "status",
+            "Matched rows",
+            "Rule version",
+        ]
 
     # Live SLA state per case — compute_sla_status returns None when the
     # case has no resolvable opened_at, so we fall back to "—" rather than

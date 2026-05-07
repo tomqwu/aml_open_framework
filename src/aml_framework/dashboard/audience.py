@@ -282,7 +282,13 @@ AUDIENCE_PAGES = {
         # consumer of (who shared what with whom, salt rotation cadence).
         # Run History dropped to stay within the 9-page cap; it's
         # still in the dashboard, accessible by direct URL.
+        # Lineage Explorer added (PR-LIN-12) — auditors are the primary
+        # consumer of the lineage walk-back; the existing Audit &
+        # Evidence walk-back panel is the single-paste-box quick view,
+        # Lineage Explorer is the dedicated deep-drill. AI Assistant
+        # dropped to stay within the 9-page cap; reachable by direct URL.
         "Audit & Evidence",
+        "Lineage Explorer",
         "Investigations",
         "Case Investigation",
         "Data Quality",
@@ -290,7 +296,6 @@ AUDIENCE_PAGES = {
         "Regulator Pulse",
         "Metrics Taxonomy",
         "Information Sharing",
-        "AI Assistant",
     ],
     "fintech_mlro": [
         # FinTech / EMI / VASP MLRO — 1-person program. Operates from

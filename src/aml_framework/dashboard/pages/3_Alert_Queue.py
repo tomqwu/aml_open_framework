@@ -344,7 +344,40 @@ if not df_cases.empty and "status" in df_cases.columns:
 
         active["SLA"] = active.apply(_sla_status, axis=1)
 
-        show_cols = ["case_id", "rule_id", "severity", "status", "SLA"]
+        # PR-LIN-12: surface the Round 12 lineage primitives inline so
+        # an analyst sees "this case opened against rule version a1b2…
+        # firing on 7 source rows" without leaving the queue. Both
+        # columns read from the alert dict; missing values render as
+        # placeholders so old runs (pre PR-LIN-3/4) don't break the grid.
+        def _matched_rows_count(alert: object) -> str:
+            if isinstance(alert, dict):
+                ids = alert.get("matched_row_ids") or []
+                return str(len(ids)) if ids else "—"
+            return "—"
+
+        def _rule_version_short(alert: object) -> str:
+            if isinstance(alert, dict):
+                v = alert.get("rule_version")
+                if v:
+                    return str(v)[:16]
+            return "—"
+
+        active["Matched rows"] = (
+            active["alert"].apply(_matched_rows_count) if ("alert" in active.columns) else "—"
+        )
+        active["Rule version"] = (
+            active["alert"].apply(_rule_version_short) if ("alert" in active.columns) else "—"
+        )
+
+        show_cols = [
+            "case_id",
+            "rule_id",
+            "severity",
+            "status",
+            "SLA",
+            "Matched rows",
+            "Rule version",
+        ]
         if "queue" in active.columns:
             show_cols.insert(3, "queue")
         available = [c for c in show_cols if c in active.columns]

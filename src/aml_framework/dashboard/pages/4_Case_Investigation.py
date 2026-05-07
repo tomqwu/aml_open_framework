@@ -292,6 +292,18 @@ with _w_right:
             st.code(_rule_sql, language="sql")
     else:
         st.caption(f"No rule SQL found for `{_rule_id}` in this run.")
+    # PR-LIN-12: deep-link to the dedicated Lineage Explorer (#32) so
+    # the analyst can drill from in-workflow context to the full
+    # walk-back (Mermaid graph + source provenance + matched-rows AG
+    # Grid + decision timeline + JSON download) when an examiner asks
+    # for the chain end-to-end.
+    from aml_framework.dashboard.components import link_to_page as _link_to_page
+
+    _link_to_page(
+        "pages/32_Lineage_Explorer.py",
+        "→ Full lineage chain in Lineage Explorer",
+        case_id=case["case_id"],
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
