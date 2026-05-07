@@ -22,6 +22,12 @@ st.set_page_config(
 )
 
 apply_theme()
+
+# PR-AZ-7: Azure Monitor exporter (no-op when env var unset).
+from aml_framework.observability import init_observability as _init_otel  # noqa: E402
+
+_init_otel()
+
 initialize_session()
 
 # ---------------------------------------------------------------------------

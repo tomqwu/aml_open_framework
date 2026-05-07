@@ -176,6 +176,13 @@ async def lifespan(app: FastAPI):
     yield  # pragma: no cover
 
 
+# PR-AZ-7: configure Azure Monitor exporter before FastAPI builds so
+# OTel auto-instrumentation picks up the app's request handlers.
+# No-op when APPLICATIONINSIGHTS_CONNECTION_STRING is unset (local dev).
+from aml_framework.observability import init_observability  # noqa: E402
+
+init_observability()
+
 app = FastAPI(
     title="AML Open Framework API",
     version="0.1.0",

@@ -66,6 +66,12 @@ azure = [
     # PR-AZ-2: Key Vault secrets adapter (lazy-imported by
     # aml_framework.secrets when AZURE_KEY_VAULT_NAME is set).
     "azure-keyvault-secrets>=4.7",
+    # PR-AZ-7: OpenTelemetry → Azure Monitor (App Insights). Wires
+    # FastAPI request traces + Streamlit page renders into the
+    # landing zone's Application Insights instance. Lazy-imported by
+    # aml_framework.observability.otel when
+    # APPLICATIONINSIGHTS_CONNECTION_STRING is set.
+    "azure-monitor-opentelemetry>=1.5",
 ]
 
 [project.scripts]
