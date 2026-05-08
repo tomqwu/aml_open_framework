@@ -109,6 +109,11 @@ def _make_txn(
     payee_first_use: bool = False,
     customer_session_id: str = "",
     confirmation_of_payee_status: str = "",
+    invoice_id: str | None = None,
+    invoice_amount: Decimal | None = None,
+    declared_unit_price: Decimal | None = None,
+    declared_quantity: int | None = None,
+    hs_code: str | None = None,
 ) -> dict[str, Any]:
     """Build a single transaction dict with deterministic shape.
 
@@ -123,6 +128,12 @@ def _make_txn(
     are UK-APP-fraud signals (uk_app_fraud spec). Defaults are
     rule-inert — `payee_first_use=False`, empty CoP status — so
     background noise txns don't accidentally trip the APP rules.
+
+    `invoice_id`, `invoice_amount`, `declared_unit_price`,
+    `declared_quantity`, `hs_code` are TBML signals (trade_based_ml
+    spec). Defaults are None so background noise stays rule-inert
+    (all TBML rules require these fields populated AND
+    `purpose_code='TRAD'`).
     """
     iso = _iso20022_enrichment(
         channel=channel,
@@ -142,6 +153,11 @@ def _make_txn(
         "payee_first_use": payee_first_use,
         "customer_session_id": customer_session_id,
         "confirmation_of_payee_status": confirmation_of_payee_status,
+        "invoice_id": invoice_id,
+        "invoice_amount": invoice_amount,
+        "declared_unit_price": declared_unit_price,
+        "declared_quantity": declared_quantity,
+        "hs_code": hs_code,
         **iso,
     }
 
@@ -159,6 +175,7 @@ def _customer_row(
     pep_status: str | None = None,
     vulnerable_customer_flag: bool = False,
     typical_payment_size_p95: Decimal | None = None,
+    trade_lic_number: str | None = None,
 ) -> dict[str, Any]:
     return {
         "customer_id": customer_id,
@@ -172,6 +189,7 @@ def _customer_row(
         "pep_status": pep_status or "",
         "vulnerable_customer_flag": vulnerable_customer_flag,
         "typical_payment_size_p95": typical_payment_size_p95,
+        "trade_lic_number": trade_lic_number,
     }
 
 
@@ -758,4 +776,166 @@ def generate_dataset(
         )
         tid += 1
 
-    return {"customer": customers, "txn": txns, "txn_return": txn_returns}
+    # ---------------------------------------------------------------------
+    # Trade-based ML planted positives (trade_based_ml spec)
+    # ---------------------------------------------------------------------
+    # Three planted customers cover three TBML rules: over-invoicing,
+    # phantom shipping, and multiple invoicing. Rules 2 (under-invoicing)
+    # and 5 (TRAD-to-high-risk-jurisdiction) are out of scope for this
+    # PR — easy to extend later by planting C0023+ with the appropriate
+    # shape. The hs_code_baseline reference table is required by rules
+    # 1 and 2 (they JOIN on hs_code).
+    #
+    # Cross-spec contamination guard (caught in Codex review): each
+    # planted trade wire is ≥$20k, which trips community_bank's
+    # `dormant_account_activity` rule (`recent_large >= $10k joined
+    # against any prior last_activity`). Clearing the random noise
+    # loop's pre-existing rows for these customer ids isolates the
+    # plants — the dormant rule's CTE join finds no `last_activity`
+    # for them, so it doesn't fire on default community_bank runs.
+    _trade_customer_ids = {"C0020", "C0021", "C0022"}
+    txns = [t for t in txns if t["customer_id"] not in _trade_customer_ids]
+
+    # --- C0020: over-invoicing (declared_unit_price ≥ 3× WCO median) ---
+    if n_customers > 20:
+        customers[20] = _customer_row(
+            fake,
+            "C0020",
+            as_of - timedelta(days=400),
+            country="US",
+            risk_rating="medium",
+            full_name="Apex Imports LLC",
+            business_activity="import_export",
+            trade_lic_number="US-IMP-2024-A0020",
+        )
+        # 2 trade payments with declared_unit_price = $2,000 (4× the
+        # $500 baseline median for hs_code 8471.30 — consumer
+        # electronics). Sum of `amount` >= $25k clears the rule's
+        # `HAVING SUM >= 25000` threshold.
+        for day_offset, qty in [(5, 10), (12, 10)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0020",
+                    20000,
+                    as_of - timedelta(days=day_offset, hours=11),
+                    channel="wire",
+                    direction="out",
+                    purpose_code="TRAD",
+                    counterparty_country="DE",
+                    invoice_id=f"INV-C0020-{day_offset:03d}",
+                    invoice_amount=Decimal("20000.00"),
+                    declared_unit_price=Decimal("2000.00"),  # 4× baseline median $500
+                    declared_quantity=qty,
+                    hs_code="8471.30",
+                )
+            )
+            tid += 1
+
+    # --- C0021: phantom shipping (TRAD payment with no invoice_id) ---
+    if n_customers > 21:
+        customers[21] = _customer_row(
+            fake,
+            "C0021",
+            as_of - timedelta(days=300),
+            country="US",
+            risk_rating="medium",
+            full_name="Vanguard Trading Corp",
+            business_activity="wholesale",
+            trade_lic_number="US-WHL-2024-V0021",
+        )
+        # 3 outbound TRAD payments without invoice_id, summing $60k
+        # over 25 days — clears `count >= 3 AND sum_amount >= 50000`.
+        for day_offset, amt in [(3, 22000), (10, 18000), (20, 20000)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0021",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=14),
+                    channel="wire",
+                    direction="out",
+                    purpose_code="TRAD",
+                    counterparty_country="HK",
+                    # invoice_id intentionally None — this is the rule signal.
+                )
+            )
+            tid += 1
+
+    # --- C0022: multiple invoicing (same invoice_id paid twice) ---
+    if n_customers > 22:
+        customers[22] = _customer_row(
+            fake,
+            "C0022",
+            as_of - timedelta(days=250),
+            country="US",
+            risk_rating="medium",
+            full_name="Continental Trade Group",
+            business_activity="commodities",
+            trade_lic_number="US-COM-2024-C0022",
+        )
+        # Same invoice_id paid twice within a week — Egmont T-07.
+        dup_invoice = "INV-DUP-2026-04-001"
+        for day_offset, amt in [(2, 30000), (8, 30000)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0022",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=10),
+                    channel="wire",
+                    direction="out",
+                    purpose_code="TRAD",
+                    counterparty_country="SG",
+                    invoice_id=dup_invoice,
+                    invoice_amount=Decimal("30000.00"),
+                )
+            )
+            tid += 1
+
+    # ---------------------------------------------------------------------
+    # HS-code baseline reference table (trade_based_ml spec)
+    # ---------------------------------------------------------------------
+    # Five representative HS codes with median + p5 + p95 unit prices
+    # sourced from World Customs Organization summary data. Rules 1 and
+    # 2 JOIN on hs_code, so without these baseline rows over/under-
+    # invoicing alerts can't fire. Other specs ignore this contract.
+    hs_code_baseline: list[dict[str, Any]] = [
+        {
+            "hs_code": "8471.30",  # consumer electronics (laptops, tablets)
+            "median_unit_price": Decimal("500.00"),
+            "p5_unit_price": Decimal("300.00"),
+            "p95_unit_price": Decimal("800.00"),
+        },
+        {
+            "hs_code": "7113.19",  # precious-metal jewellery
+            "median_unit_price": Decimal("2000.00"),
+            "p5_unit_price": Decimal("1500.00"),
+            "p95_unit_price": Decimal("3000.00"),
+        },
+        {
+            "hs_code": "6203.42",  # men's cotton trousers
+            "median_unit_price": Decimal("50.00"),
+            "p5_unit_price": Decimal("30.00"),
+            "p95_unit_price": Decimal("80.00"),
+        },
+        {
+            "hs_code": "8703.21",  # passenger motor vehicles ≤1.0L
+            "median_unit_price": Decimal("15000.00"),
+            "p5_unit_price": Decimal("10000.00"),
+            "p95_unit_price": Decimal("25000.00"),
+        },
+        {
+            "hs_code": "2710.19",  # petroleum oils, refined
+            "median_unit_price": Decimal("5.00"),
+            "p5_unit_price": Decimal("3.00"),
+            "p95_unit_price": Decimal("8.00"),
+        },
+    ]
+
+    return {
+        "customer": customers,
+        "txn": txns,
+        "txn_return": txn_returns,
+        "hs_code_baseline": hs_code_baseline,
+    }

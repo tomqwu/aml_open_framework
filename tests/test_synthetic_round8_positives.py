@@ -183,6 +183,75 @@ def test_c0019_carries_rapid_pass_through() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Trade-based ML planted positives (trade_based_ml spec)
+# ---------------------------------------------------------------------------
+
+
+def test_c0020_carries_over_invoicing_pair() -> None:
+    data = _data()
+    over = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0020"
+        and t.get("purpose_code") == "TRAD"
+        and t.get("hs_code") == "8471.30"
+        and t.get("declared_unit_price") is not None
+    ]
+    assert len(over) >= 2, "expected ≥2 planted TRAD txns for C0020"
+    # Total amount must clear the rule's `HAVING SUM >= 25000` threshold.
+    assert sum(t["amount"] for t in over) >= 25000
+
+
+def test_c0020_unit_price_at_least_3x_baseline_median() -> None:
+    """The planted unit price must trip `declared_unit_price >= 3 * median`
+    against the hs_code_baseline row this PR ships."""
+    data = _data()
+    baseline = next(b for b in data["hs_code_baseline"] if b["hs_code"] == "8471.30")
+    over = [t for t in data["txn"] if t["customer_id"] == "C0020" and t.get("hs_code") == "8471.30"]
+    for t in over:
+        assert t["declared_unit_price"] >= 3 * baseline["median_unit_price"]
+
+
+def test_c0021_carries_phantom_shipping_burst() -> None:
+    data = _data()
+    phantom = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0021"
+        and t.get("purpose_code") == "TRAD"
+        and t.get("invoice_id") is None
+        and t["direction"] == "out"
+    ]
+    assert len(phantom) >= 3, "expected ≥3 phantom-shipping TRAD txns for C0021"
+    assert sum(t["amount"] for t in phantom) >= 50000
+
+
+def test_c0022_has_duplicate_invoice_id() -> None:
+    data = _data()
+    dup = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0022"
+        and t.get("purpose_code") == "TRAD"
+        and t.get("invoice_id") == "INV-DUP-2026-04-001"
+        and t["direction"] == "out"
+    ]
+    assert len(dup) == 2, f"C0022 must pay the same invoice twice; got {len(dup)}"
+
+
+def test_hs_code_baseline_present_and_complete() -> None:
+    data = _data()
+    baseline = data["hs_code_baseline"]
+    assert len(baseline) >= 5, "expected ≥5 hs_code_baseline reference rows"
+    for row in baseline:
+        # Monotonic distribution: p5 < median < p95.
+        assert row["p5_unit_price"] < row["median_unit_price"]
+        assert row["median_unit_price"] < row["p95_unit_price"]
+    # Rule 1 (over_invoicing) joins on the planted hs_code, so it must be present.
+    assert any(b["hs_code"] == "8471.30" for b in baseline)
+
+
+# ---------------------------------------------------------------------------
 # Determinism — same seed must reproduce exactly
 # ---------------------------------------------------------------------------
 
@@ -190,7 +259,16 @@ def test_c0019_carries_rapid_pass_through() -> None:
 def test_planted_positives_are_deterministic() -> None:
     a = generate_dataset(as_of=AS_OF, seed=42)
     b = generate_dataset(as_of=AS_OF, seed=42)
-    for cid in ("C0012", "C0016", "C0017", "C0018", "C0019"):
+    for cid in (
+        "C0012",
+        "C0016",
+        "C0017",
+        "C0018",
+        "C0019",
+        "C0020",
+        "C0021",
+        "C0022",
+    ):
         a_txns = sorted((t["amount"], t["booked_at"]) for t in a["txn"] if t["customer_id"] == cid)
         b_txns = sorted((t["amount"], t["booked_at"]) for t in b["txn"] if t["customer_id"] == cid)
         assert a_txns == b_txns, f"determinism break on {cid}"

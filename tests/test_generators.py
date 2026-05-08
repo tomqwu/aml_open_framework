@@ -126,6 +126,15 @@ class TestCompileFilter:
         preds = _compile_filter({"amount": {"lte": 5000}})
         assert any("<=" in p for p in preds)
 
+    def test_filter_is_null_true(self):
+        # Used by trade_based_ml's phantom_shipping rule.
+        preds = _compile_filter({"invoice_id": {"is_null": True}})
+        assert any("invoice_id IS NULL" in p for p in preds)
+
+    def test_filter_is_null_false(self):
+        preds = _compile_filter({"invoice_id": {"is_null": False}})
+        assert any("invoice_id IS NOT NULL" in p for p in preds)
+
     def test_filter_none_and_empty(self):
         assert _compile_filter(None) == []
         assert _compile_filter({}) == []
