@@ -74,7 +74,11 @@ Response `200`:
 ## Runs
 
 A *run* is a single execution of the engine against a spec and a data source.
-Runs persist to PostgreSQL when `DATABASE_URL` is set (otherwise SQLite).
+Persistence-backend selection (highest priority first):
+
+1. `COSMOS_ENDPOINT` set → Azure Cosmos DB serverless (Sponsorship-sub-friendly).
+2. `DATABASE_URL` set → PostgreSQL via psycopg2.
+3. Otherwise → local SQLite at `~/.aml_framework/runs.db` (demo only).
 
 ### `POST /api/v1/runs`
 

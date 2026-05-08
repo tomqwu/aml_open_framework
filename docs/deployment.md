@@ -17,7 +17,9 @@ Every deployment surface reads the same set of environment variables. Copy
 | Variable | Purpose | Required | Default |
 |----------|---------|----------|---------|
 | `AML_ENV` / `API_ENV` | Set to `production` for non-demo API startup gates | yes (prod) | unset (dev/demo mode) |
-| `DATABASE_URL` | Postgres URL for run / case persistence | yes (prod) | SQLite if unset |
+| `COSMOS_ENDPOINT` | Cosmos DB account endpoint for run / case persistence (Sponsorship-sub-friendly alternative to Postgres). When set, takes precedence over `DATABASE_URL`. Auth uses `DefaultAzureCredential` — pair with managed-identity / workload-identity + Cosmos Built-in Data Contributor role. | yes for Cosmos deployments | unset |
+| `COSMOS_DATABASE` | Cosmos database name. | optional | `aml` |
+| `DATABASE_URL` | Postgres URL for run / case persistence (used when `COSMOS_ENDPOINT` is unset). | yes for Postgres prod deployments | SQLite if both `COSMOS_ENDPOINT` and `DATABASE_URL` are unset |
 | `JWT_SECRET` | HMAC secret for API tokens (32+ bytes) | yes (prod) | random per-process secret in dev/demo mode only |
 | `ALLOW_DEMO_AUTH` | Explicitly re-enable built-in demo users in production | no | unset / disabled in production |
 | `OIDC_ISSUER_URL` | OIDC discovery endpoint for SSO | recommended (prod) | unset (built-in users in dev only) |
@@ -37,8 +39,20 @@ Every deployment surface reads the same set of environment variables. Copy
 | `SLACK_WEBHOOK_URL` | Slack alert push | optional | unset (no-op) |
 | `TEAMS_WEBHOOK_URL` | Teams alert push | optional | unset (no-op) |
 
-When `DATABASE_URL` is unset the API falls back to local SQLite — fine for
-demos, **never** for production. Production mode is enabled with
+**Persistence-backend selection (highest priority first):**
+
+1. `COSMOS_ENDPOINT` set → Azure Cosmos DB. Required combination for Azure
+   Sponsorship subscriptions where Postgres Flexible Server is region-locked
+   in every available region. Uses `DefaultAzureCredential`; needs a
+   managed-identity (Container Apps UAMI / AKS workload-identity) granted the
+   "Cosmos DB Built-in Data Contributor" role on the account.
+2. `DATABASE_URL` set (and `COSMOS_ENDPOINT` unset) → PostgreSQL via psycopg2.
+   The default for PAYG / EA / MCA Azure subscriptions and self-hosted
+   deployments.
+3. Otherwise → local SQLite at `~/.aml_framework/runs.db`. Fine for demos,
+   **never** for production.
+
+Production mode is enabled with
 `AML_ENV=production` or `API_ENV=production`; in that mode the API refuses to
 start without `JWT_SECRET` and disables the built-in demo users unless
 `ALLOW_DEMO_AUTH=true` is set deliberately. Outside production mode, an unset

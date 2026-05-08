@@ -44,6 +44,9 @@ See `values.yaml` for all configurable options:
 | `postgres.enabled` | `true` | Deploy PostgreSQL |
 | `postgres.database` | `aml` | Database name |
 | `database.url` | `""` | External Postgres URL when `postgres.enabled=false` |
+| `cosmos.enabled` | `false` | Use Azure Cosmos DB instead of Postgres. When `true`, `COSMOS_ENDPOINT` + `COSMOS_DATABASE` are wired into both API and dashboard pods and the Python persistence layer selects Cosmos. Pair with `azure.workloadIdentityClientId` + a Cosmos Data Contributor role assignment. |
+| `cosmos.endpoint` | `""` | Cosmos account endpoint. Required when `cosmos.enabled=true`. |
+| `cosmos.database` | `aml` | Cosmos database name. |
 | `jwt.secret` | `replace-with-32-plus-byte-random-secret` | JWT signing secret (32+ bytes) |
 | `oidc.issuerUrl` | `""` | OIDC issuer URL |
 | `oidc.audience` | `""` | OIDC audience; required when `oidc.issuerUrl` is set |
