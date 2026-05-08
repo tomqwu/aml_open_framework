@@ -64,9 +64,7 @@ resource "azurerm_postgresql_flexible_server" "aml" {
   count               = var.enable_postgres ? 1 : 0
   name                = "psql-aml-${var.env}-${random_string.pg_suffix[0].result}"
   resource_group_name = module.onboard.resource_group_name
-  # Allow override when Sponsorship subscriptions lock the platform's
-  # default region (eastus is commonly restricted for Postgres).
-  location = var.postgres_location != "" ? var.postgres_location : module.onboard.location
+  location            = module.onboard.location
 
   version                       = "16"
   sku_name                      = "B_Standard_B1ms"
