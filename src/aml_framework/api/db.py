@@ -1,13 +1,20 @@
-"""Run persistence — SQLite, PostgreSQL, or Cosmos DB.
+"""Run persistence — PostgreSQL, Cosmos DB, or SQLite.
 
 Backend selection (highest priority first):
-  1. COSMOS_ENDPOINT set → Azure Cosmos DB (serverless). Used on Azure
-     Sponsorship subscriptions where Postgres Flexible Server is locked
-     (LocationIsOfferRestricted on every region we tried).
-  2. DATABASE_URL set → PostgreSQL via psycopg2. Used on PAYG/EA/MCA Azure
-     subscriptions and self-hosted deployments.
+  1. DATABASE_URL set → PostgreSQL via psycopg2. The default when both
+     env vars are present — Postgres is more battle-tested for the SQL-
+     shaped workload and runs free in canadacentral on the Sponsorship
+     tier the project deploys against.
+  2. COSMOS_ENDPOINT set (and DATABASE_URL unset) → Azure Cosmos DB
+     (serverless). Kept as a supported alternative for Sponsorship subs
+     where Postgres Flexible Server is offer-restricted in every
+     reachable region.
   3. Otherwise → SQLite at ~/.aml_framework/runs.db, so the API works
      without Docker.
+
+Use `_active_backend()` to read the resolved choice once instead of
+poking `_use_postgres()` / `_use_cosmos()` independently — the helper is
+the single source of truth for ordering.
 
 Internal layout for SQL backends: every public CRUD function calls
 `_with_conn()` and writes its query once with `?` placeholders. The
@@ -16,7 +23,8 @@ two near-identical SQL bodies per function.
 
 Cosmos doesn't speak placeholder SQL — it has a SQL-like query language
 with `@parameters` and a separate point-read API. Each public function
-branches early on `_use_cosmos()` and uses the Cosmos client directly.
+branches early on `_active_backend() == "cosmos"` and uses the Cosmos
+client directly.
 """
 
 from __future__ import annotations
@@ -41,6 +49,23 @@ def _use_cosmos() -> bool:
 
 def _use_postgres() -> bool:
     return bool(_DATABASE_URL)
+
+
+def _active_backend() -> str:
+    """Resolved backend choice: postgres > cosmos > sqlite.
+
+    Postgres wins when both env vars are set so a misconfigured deploy
+    (or a multi-backend test fixture) defaults to the SQL path that
+    matches what `_with_conn()` already speaks. Delegates to the
+    `_use_postgres()` / `_use_cosmos()` helpers so existing test
+    patches (`patch.object(db, "_use_cosmos", return_value=True)`)
+    keep working.
+    """
+    if _use_postgres():
+        return "postgres"
+    if _use_cosmos():
+        return "cosmos"
+    return "sqlite"
 
 
 def _get_pg_conn():
@@ -254,11 +279,8 @@ def init_db() -> None:
     network round-trip via `database.read()` so misconfiguration (wrong
     endpoint, missing RBAC, missing database) fails fast at startup
     instead of silently degrading to empty results on first use."""
-    if _use_cosmos():
-        database = _get_cosmos_db()  # pragma: no cover -- live Cosmos handshake
-        database.read()  # pragma: no cover -- raises CosmosHttpResponseError on misconfig
-        return
-    if _use_postgres():
+    backend = _active_backend()
+    if backend == "postgres":
         conn = _get_pg_conn()
         try:
             with conn.cursor() as cur:
@@ -266,13 +288,17 @@ def init_db() -> None:
             conn.commit()
         finally:
             conn.close()
-    else:
-        conn = _get_sqlite_conn()
-        try:
-            conn.executescript(_SQLITE_SCHEMA)
-            conn.commit()
-        finally:
-            conn.close()
+        return
+    if backend == "cosmos":
+        database = _get_cosmos_db()  # pragma: no cover -- live Cosmos handshake
+        database.read()  # pragma: no cover -- raises CosmosHttpResponseError on misconfig
+        return
+    conn = _get_sqlite_conn()
+    try:
+        conn.executescript(_SQLITE_SCHEMA)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def store_run(
@@ -285,7 +311,7 @@ def store_run(
     tenant_id: str = "default",
 ) -> None:
     now = datetime.now(tz=timezone.utc).isoformat()
-    if _use_cosmos():
+    if _active_backend() == "cosmos":
         runs = _cosmos_container("runs")
         runs.upsert_item(
             {
@@ -337,7 +363,7 @@ def store_run(
 
 def list_runs(tenant_id: str | None = None) -> list[dict[str, Any]]:
     """List recent runs. When `tenant_id` is given, only that tenant's runs."""
-    if _use_cosmos():
+    if _active_backend() == "cosmos":
         runs = _cosmos_container("runs")
         if tenant_id is None:
             query = "SELECT TOP 50 c.run_id, c.spec_path, c.seed, c.created_at FROM c ORDER BY c.created_at DESC"
@@ -384,7 +410,7 @@ def list_runs(tenant_id: str | None = None) -> list[dict[str, Any]]:
 def get_run(run_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
     """Fetch a run's manifest. When `tenant_id` is given, returns None if the
     run belongs to a different tenant — prevents cross-tenant reads."""
-    if _use_cosmos():
+    if _active_backend() == "cosmos":
         runs = _cosmos_container("runs")
         if tenant_id is not None:
             try:
@@ -411,7 +437,7 @@ def get_run(run_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
 
 
 def get_run_alerts(run_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
-    if _use_cosmos():
+    if _active_backend() == "cosmos":
         run_alerts = _cosmos_container("run_alerts")
         if tenant_id is not None:
             query = "SELECT c.rule_id, c.alerts FROM c WHERE c.run_id = @r AND c.tenant_id = @t"
@@ -441,7 +467,7 @@ def get_run_alerts(run_id: str, tenant_id: str | None = None) -> list[dict[str, 
 
 
 def get_run_metrics(run_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
-    if _use_cosmos():
+    if _active_backend() == "cosmos":
         run_metrics = _cosmos_container("run_metrics")
         if tenant_id is not None:
             try:
@@ -479,7 +505,7 @@ def store_spec_version(
 ) -> None:
     """Store a spec version for tracking."""
     now = datetime.now(tz=timezone.utc).isoformat()
-    if _use_cosmos():
+    if _active_backend() == "cosmos":
         specs = _cosmos_container("spec_versions")
         # Cosmos `id` must be unique within partition; combine spec_hash +
         # tenant_id so the same hash can exist for two tenants without
@@ -517,7 +543,7 @@ def store_spec_version(
 
 def list_spec_versions(tenant_id: str | None = None) -> list[dict[str, Any]]:
     """List stored spec versions."""
-    if _use_cosmos():
+    if _active_backend() == "cosmos":
         specs = _cosmos_container("spec_versions")
         if tenant_id is None:
             query = "SELECT TOP 50 c.spec_hash, c.program_name, c.tenant_id, c.created_at FROM c ORDER BY c.created_at DESC"
