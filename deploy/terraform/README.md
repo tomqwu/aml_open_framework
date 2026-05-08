@@ -2,9 +2,25 @@
 
 Deploys the AML compliance framework to Microsoft Azure on top of the
 [cloud landing zone](https://github.com/tomqwu/cloud_landing_zone_for_ai_coding).
-Container Apps (no AKS), Postgres Flexible Server (B1ms, Entra ID
-auth), Application Insights via OpenTelemetry, secrets in the
-landing zone's per-app Key Vault.
+Container Apps (no AKS), Application Insights via OpenTelemetry,
+secrets in the landing zone's per-app Key Vault, and one of two
+Entra-ID-authenticated persistence backends:
+
+- **Postgres Flexible Server** (B1ms) — default for PAYG / EA / MCA
+  subscriptions where the Postgres free tier is offered in the
+  platform region.
+- **Cosmos DB serverless** — alternative for Azure Sponsorship
+  subscriptions where Postgres Flexible Server returns
+  `LocationIsOfferRestricted` in every available region. Set
+  `enable_cosmos = true` and `enable_postgres = false` in
+  `terraform.tfvars`. The Terraform module provisions a Cosmos
+  account, the `aml` database, four containers (`runs`,
+  `run_alerts`, `run_metrics`, `spec_versions`, partition key
+  `/tenant_id`), grants the per-app UAMI the Cosmos Built-in Data
+  Contributor role, and wires `COSMOS_ENDPOINT` / `COSMOS_DATABASE`
+  into both Container Apps. The Python persistence layer
+  (`src/aml_framework/api/db.py`) selects Cosmos automatically when
+  `COSMOS_ENDPOINT` is set.
 
 For the AKS Helm chart deployment shape (banks deploying on their own
 AKS or on-prem K8s), see `deploy/helm/` and the "Deploying on Azure /
@@ -47,14 +63,23 @@ github_repo                      = "tomqwu/aml_open_framework"
 platform_tfstate_resource_group  = "<from bootstrap>"
 platform_tfstate_storage_account = "<from bootstrap>"
 platform_tfstate_container       = "platform-tfstate"
+
+# Persistence backend — pick exactly one:
+#   Postgres (default, PAYG/EA/MCA subs):
+#     enable_postgres = true
+#   Cosmos serverless (Sponsorship subs where Postgres is region-locked):
+#     enable_postgres = false
+#     enable_cosmos   = true
+#     # cosmos_database_name = "aml"   # optional, defaults to "aml"
 EOF
 
 terraform plan
 terraform apply
 ```
 
-First apply takes ~5 minutes (Postgres Flexible Server provisioning is
-the slow path). Subsequent applies are seconds when only the image tag
+First apply takes ~5 minutes when Postgres is enabled (Flexible Server
+provisioning is the slow path). The Cosmos serverless path provisions in
+~2 minutes. Subsequent applies are seconds when only the image tag
 changed.
 
 ## Populate the per-app Key Vault
@@ -116,10 +141,12 @@ Idle (no traffic, no engine runs):
 |---|---|
 | Container App API (min 1 replica, 0.5 vCPU, 1 GiB) | ~$10 |
 | Container App dashboard (min 1 replica) | ~$10 |
-| Postgres Flexible Server B1ms | ~$13 |
+| Postgres Flexible Server B1ms (`enable_postgres=true`) | ~$13 (or $0 with the Sponsorship-sub free tier in canadacentral, lifetime of subscription per Azure offer terms) |
+| Cosmos DB serverless (`enable_cosmos=true`) | ~$0 idle (no provisioned RU/s — billed per-operation; the AML workload's read/write rate is well under the no-charge floor for a demo deployment) |
 | Application Insights ingestion | ~$0 (idle) |
 | Per-app Key Vault | ~$0.03 / 10k ops |
-| **Total** | **~$33/mo** |
+| **Total** (Postgres) | **~$33/mo**, or ~$20/mo with the free Postgres tier |
+| **Total** (Cosmos) | **~$20/mo** |
 
 Plus the landing zone baseline (~$5/mo for ACR Basic).
 
@@ -154,5 +181,9 @@ Notes:
 - The Postgres Flexible Server has 7-day backup retention by default;
   destroying the server takes the backups too unless point-in-time
   restore is configured.
+- The Cosmos account is destroyed cleanly; serverless containers have
+  no provisioned-throughput unwinding to do. Continuous backups are
+  off by default — turn them on via `backup` block on
+  `azurerm_cosmosdb_account` if point-in-time restore is needed.
 - The landing zone's per-app RG is destroyed along with everything in
   it. The platform RG (Log Analytics, App Insights, ACR) survives.
