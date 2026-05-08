@@ -28,10 +28,12 @@ module "onboard" {
   owner_email     = var.owner_email
   enable_acr_pull = true
 
-  # Optional per-app region pin. Empty string keeps the per-app RG +
-  # UAMI + KV in the platform's primary region; a canonical slug
-  # (e.g. "canadacentral") moves them and pulls Container Apps with
-  # them via module.onboard.location.
+  # Place per-app resources (RG, UAMI, KV, Container Apps, Postgres,
+  # Cosmos) in canadacentral by default — Toronto-based operator and
+  # the Sponsorship Postgres free tier is offered in canadacentral.
+  # Platform-shared resources (LAW, App Insights, ACR) stay in the
+  # platform region. The default is set in variables.tf; flip via
+  # tfvars or `-var` for a different region.
   location_override = var.app_location_override
 
   platform_outputs = {
