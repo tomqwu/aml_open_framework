@@ -28,6 +28,12 @@ module "onboard" {
   owner_email     = var.owner_email
   enable_acr_pull = true
 
+  # Place per-app resources (RG, UAMI, KV, Container Apps, Postgres,
+  # Cosmos) in canadacentral. Toronto-based operator + Sponsorship
+  # Postgres free tier is offered in canadacentral. Platform-shared
+  # resources (LAW, App Insights, ACR) stay in the platform region.
+  location_override = "canadacentral"
+
   platform_outputs = {
     subscription_id            = data.terraform_remote_state.platform.outputs.subscription_id
     tenant_id                  = data.terraform_remote_state.platform.outputs.tenant_id
