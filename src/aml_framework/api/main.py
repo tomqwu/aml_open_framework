@@ -483,6 +483,42 @@ async def validate_spec(
         return {"valid": False, "error": "Spec failed validation. See server logs for details."}
 
 
+class DiffRequest(BaseModel):
+    spec_a: str
+    spec_b: str
+
+
+@app.post("/api/v1/diff")
+async def diff_specs_endpoint(
+    req: DiffRequest,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Compare two specs and return a structured diff.
+
+    Both `spec_a` and `spec_b` are paths relative to one of the
+    configured `API_DATA_ROOTS`; `_safe_spec_path` enforces the
+    sandbox. Returns the same shape as `compute_spec_diff` (program /
+    rules / metrics / queues changes plus a summary).
+    """
+    import logging
+
+    from aml_framework.diff import compute_spec_diff
+
+    path_a = _safe_spec_path(req.spec_a)
+    path_b = _safe_spec_path(req.spec_b)
+    try:
+        result = compute_spec_diff(path_a, path_b)
+        return result.model_dump()
+    except Exception as e:
+        logging.getLogger("aml.api").warning(
+            "diff_specs failed for %s vs %s: %s", req.spec_a, req.spec_b, e
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Diff failed. One or both specs failed validation; see server logs.",
+        ) from None
+
+
 @app.get("/api/v1/runs/{run_id}/reports")
 async def get_reports(
     run_id: str,

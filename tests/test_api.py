@@ -1512,6 +1512,86 @@ class TestExpandedAPI:
         )
         assert resp.status_code == 404
 
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestDiff:
+    """POST /api/v1/diff returns the structured SpecDiffResult shape."""
+
+    def test_diff_same_spec_returns_empty_changes(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/diff",
+            json={
+                "spec_a": "examples/canadian_schedule_i_bank/aml.yaml",
+                "spec_b": "examples/canadian_schedule_i_bank/aml.yaml",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["program_changes"] == []
+        assert data["rules_added"] == []
+        assert data["rules_removed"] == []
+        assert data["rules_modified"] == []
+        assert data["summary"]["rules_total_a"] == data["summary"]["rules_total_b"]
+
+    def test_diff_two_distinct_specs_surfaces_program_changes(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/diff",
+            json={
+                "spec_a": "examples/canadian_schedule_i_bank/aml.yaml",
+                "spec_b": "examples/eu_bank/aml.yaml",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # Programs differ at minimum on jurisdiction.
+        program_fields = {ch["field"] for ch in data["program_changes"]}
+        assert "jurisdiction" in program_fields
+        # Both specs have rules, so summary totals are non-zero.
+        assert data["summary"]["rules_total_a"] > 0
+        assert data["summary"]["rules_total_b"] > 0
+
+    def test_diff_bad_spec_path_returns_404(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/diff",
+            json={
+                "spec_a": "examples/canadian_schedule_i_bank/aml.yaml",
+                "spec_b": "does/not/exist.yaml",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        # _safe_spec_path raises 404 for missing files; the endpoint
+        # propagates it via the same path-traversal guard the validate
+        # endpoint uses.
+        assert resp.status_code in (400, 404)
+
+    def test_diff_rejects_traversal(self):
+        token = _token()
+        resp = client.post(
+            "/api/v1/diff",
+            json={
+                "spec_a": "examples/canadian_schedule_i_bank/aml.yaml",
+                "spec_b": "../../../etc/passwd",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        # Path-traversal attempt — _safe_spec_path rejects with 400.
+        assert resp.status_code == 400
+
+    def test_diff_unauthenticated_rejected(self):
+        resp = client.post(
+            "/api/v1/diff",
+            json={
+                "spec_a": "examples/canadian_schedule_i_bank/aml.yaml",
+                "spec_b": "examples/canadian_schedule_i_bank/aml.yaml",
+            },
+        )
+        assert resp.status_code in (401, 403)
+
     def test_register_webhook(self, monkeypatch):
         monkeypatch.setenv("WEBHOOK_ALLOW_PRIVATE", "1")
         token = _token()
