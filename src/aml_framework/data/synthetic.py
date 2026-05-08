@@ -106,6 +106,9 @@ def _make_txn(
     purpose_code: str | None = None,
     counterparty_country: str | None = None,
     debtor_country: str = "US",
+    payee_first_use: bool = False,
+    customer_session_id: str = "",
+    confirmation_of_payee_status: str = "",
 ) -> dict[str, Any]:
     """Build a single transaction dict with deterministic shape.
 
@@ -115,6 +118,11 @@ def _make_txn(
     Other channels get empty strings for those fields — preserves
     schema shape (the EU spec's `txn` contract declares `purpose_code`
     as nullable).
+
+    `payee_first_use`, `customer_session_id`, `confirmation_of_payee_status`
+    are UK-APP-fraud signals (uk_app_fraud spec). Defaults are
+    rule-inert — `payee_first_use=False`, empty CoP status — so
+    background noise txns don't accidentally trip the APP rules.
     """
     iso = _iso20022_enrichment(
         channel=channel,
@@ -131,6 +139,9 @@ def _make_txn(
         "channel": channel,
         "direction": direction,
         "booked_at": booked_at,
+        "payee_first_use": payee_first_use,
+        "customer_session_id": customer_session_id,
+        "confirmation_of_payee_status": confirmation_of_payee_status,
         **iso,
     }
 
@@ -146,6 +157,8 @@ def _customer_row(
     business_activity: str | None = None,
     edd_last_review: datetime | None = None,
     pep_status: str | None = None,
+    vulnerable_customer_flag: bool = False,
+    typical_payment_size_p95: Decimal | None = None,
 ) -> dict[str, Any]:
     return {
         "customer_id": customer_id,
@@ -157,6 +170,8 @@ def _customer_row(
         "business_activity": business_activity or "",
         "edd_last_review": edd_last_review,
         "pep_status": pep_status or "",
+        "vulnerable_customer_flag": vulnerable_customer_flag,
+        "typical_payment_size_p95": typical_payment_size_p95,
     }
 
 
@@ -607,5 +622,140 @@ def generate_dataset(
             business_activity="import_export",
             edd_last_review=as_of - timedelta(days=500),  # past 365-day default
         )
+
+    # ---------------------------------------------------------------------
+    # UK APP-fraud planted positives (uk_app_fraud spec)
+    # ---------------------------------------------------------------------
+    # Each customer is shaped to trip exactly one of uk_app_fraud's four
+    # rules. Without these markers `aml run examples/uk_app_fraud/...`
+    # against synthetic data fires zero alerts — the same MRM-trustability
+    # gap the Round-8/9 RTP positives (C0012/C0013) closed for us_rtp_fednow.
+
+    # --- C0016: APP first-use payee, large amount (impersonation scam) ---
+    if n_customers > 16:
+        customers[16] = _customer_row(
+            fake,
+            "C0016",
+            as_of - timedelta(days=400),
+            country="GB",
+            risk_rating="medium",
+            full_name="Olivia Hughes",
+        )
+        # Single £1,500 outbound to a never-paid-before counterparty in
+        # the last 24h — clears the rule's amount ≥ £1,000 threshold.
+        txns.append(
+            _make_txn(
+                tid,
+                "C0016",
+                1500,
+                as_of - timedelta(hours=6),
+                channel="faster_payments",
+                direction="out",
+                currency="GBP",
+                payee_first_use=True,
+                customer_session_id="SESS-C0016-1",
+            )
+        )
+        tid += 1
+
+    # --- C0017: vulnerable customer, atypical large payment ---
+    if n_customers > 17:
+        customers[17] = _customer_row(
+            fake,
+            "C0017",
+            as_of - timedelta(days=900),  # long-tenured account
+            country="GB",
+            risk_rating="low",
+            full_name="Margaret Wallace",
+            vulnerable_customer_flag=True,
+            # p95 chosen so the noise-loop's max outbound amount (£4,800)
+            # cannot satisfy `amount >= 5 * p95` — keeps the planted
+            # positive the only true match. Reviewed in PR review.
+            typical_payment_size_p95=Decimal("1000.00"),
+        )
+        # Single £6,000 outbound — 6× typical_payment_size_p95, well
+        # above the rule's `amount >= 5 * p95 AND amount >= 500` floor
+        # while staying within a realistic life-savings-handover scam scale.
+        txns.append(
+            _make_txn(
+                tid,
+                "C0017",
+                6000,
+                as_of - timedelta(hours=14),
+                channel="faster_payments",
+                direction="out",
+                currency="GBP",
+                customer_session_id="SESS-C0017-1",
+            )
+        )
+        tid += 1
+
+    # --- C0018: Confirmation-of-Payee mismatch with override ---
+    if n_customers > 18:
+        customers[18] = _customer_row(
+            fake,
+            "C0018",
+            as_of - timedelta(days=200),
+            country="GB",
+            risk_rating="medium",
+            full_name="Jacob Patterson",
+        )
+        # Two £150–£200 outbound payments in the last 7d, both with
+        # `confirmation_of_payee_status=no_match` — the customer
+        # overrode the CoP warning and proceeded anyway.
+        for day_offset, amt in [(2, 150), (4, 200)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0018",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=10),
+                    channel="faster_payments",
+                    direction="out",
+                    currency="GBP",
+                    confirmation_of_payee_status="no_match",
+                    customer_session_id=f"SESS-C0018-{day_offset}",
+                )
+            )
+            tid += 1
+
+    # --- C0019: rapid pass-through (mule pattern within 1h) ---
+    if n_customers > 19:
+        customers[19] = _customer_row(
+            fake,
+            "C0019",
+            as_of - timedelta(days=15),  # newish account, mule signal
+            country="GB",
+            risk_rating="medium",
+            full_name="Mule Vector Ltd",
+        )
+        # Inbound £2,000 → outbound £1,700 (85% pass-through) within
+        # 30 minutes. Both legs clear the £500 floor.
+        pass_in = as_of - timedelta(days=1, hours=12)
+        txns.append(
+            _make_txn(
+                tid,
+                "C0019",
+                2000,
+                pass_in,
+                channel="faster_payments",
+                direction="in",
+                currency="GBP",
+            )
+        )
+        tid += 1
+        txns.append(
+            _make_txn(
+                tid,
+                "C0019",
+                1700,
+                pass_in + timedelta(minutes=30),
+                channel="faster_payments",
+                direction="out",
+                currency="GBP",
+                customer_session_id="SESS-C0019-1",
+            )
+        )
+        tid += 1
 
     return {"customer": customers, "txn": txns, "txn_return": txn_returns}

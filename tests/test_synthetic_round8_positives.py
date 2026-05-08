@@ -11,6 +11,7 @@ tests fail loudly first.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from aml_framework.data import generate_dataset
 
@@ -103,6 +104,85 @@ def test_synthetic_data_has_at_least_two_entity_customers() -> None:
 
 
 # ---------------------------------------------------------------------------
+# UK APP-fraud planted positives
+# ---------------------------------------------------------------------------
+
+
+def test_c0016_carries_first_use_payee_large_amount() -> None:
+    data = _data()
+    outs = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0016" and t["direction"] == "out" and t["payee_first_use"]
+    ]
+    assert len(outs) >= 1, "expected ≥1 first-use-payee outbound for C0016"
+    assert any(t["amount"] >= 1000 for t in outs), (
+        "C0016's payment must clear the first_use_payee_large_amount £1,000 threshold"
+    )
+
+
+def test_c0017_carries_atypical_payment_for_vulnerable_customer() -> None:
+    data = _data()
+    cust = next(c for c in data["customer"] if c["customer_id"] == "C0017")
+    assert cust["vulnerable_customer_flag"] is True
+    assert cust["typical_payment_size_p95"] is not None
+    p95 = cust["typical_payment_size_p95"]
+    # At least one outbound must clear the rule's `5 * p95 AND >= 500` floor.
+    # Other outbounds may exist as noise — we only need one match.
+    qualifying = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0017"
+        and t["direction"] == "out"
+        and t["amount"] >= 5 * p95
+        and t["amount"] >= 500
+    ]
+    assert len(qualifying) >= 1, f"expected ≥1 outbound clearing 5×p95 (£{5 * p95}) for C0017"
+
+
+def test_c0018_carries_cop_mismatch_pair() -> None:
+    data = _data()
+    mismatches = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0018"
+        and t["direction"] == "out"
+        and t["confirmation_of_payee_status"] in ("no_match", "close_match")
+    ]
+    assert len(mismatches) >= 1, "expected ≥1 outbound CoP-mismatch payment for C0018"
+    assert all(t["amount"] >= 100 for t in mismatches), (
+        "all C0018 mismatch payments must clear the rule's £100 floor"
+    )
+
+
+def test_c0019_carries_rapid_pass_through() -> None:
+    data = _data()
+    ins = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0019" and t["direction"] == "in" and t["amount"] >= 500
+    ]
+    outs = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0019" and t["direction"] == "out" and t["amount"] >= 500
+    ]
+    # Look for at least one (inbound, outbound) pair matching the rule:
+    # outbound within 1h after inbound, ≥80% pass-through.
+    matches = [
+        (i, o)
+        for i in ins
+        for o in outs
+        if o["booked_at"] > i["booked_at"]
+        and (o["booked_at"] - i["booked_at"]) <= timedelta(hours=1)
+        and o["amount"] >= Decimal("0.8") * i["amount"]
+    ]
+    assert len(matches) >= 1, (
+        "expected ≥1 inbound→outbound pair on C0019 matching rapid_pass_through_mule"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Determinism — same seed must reproduce exactly
 # ---------------------------------------------------------------------------
 
@@ -110,6 +190,7 @@ def test_synthetic_data_has_at_least_two_entity_customers() -> None:
 def test_planted_positives_are_deterministic() -> None:
     a = generate_dataset(as_of=AS_OF, seed=42)
     b = generate_dataset(as_of=AS_OF, seed=42)
-    a_c0012 = sorted((t["amount"], t["booked_at"]) for t in a["txn"] if t["customer_id"] == "C0012")
-    b_c0012 = sorted((t["amount"], t["booked_at"]) for t in b["txn"] if t["customer_id"] == "C0012")
-    assert a_c0012 == b_c0012
+    for cid in ("C0012", "C0016", "C0017", "C0018", "C0019"):
+        a_txns = sorted((t["amount"], t["booked_at"]) for t in a["txn"] if t["customer_id"] == cid)
+        b_txns = sorted((t["amount"], t["booked_at"]) for t in b["txn"] if t["customer_id"] == cid)
+        assert a_txns == b_txns, f"determinism break on {cid}"
