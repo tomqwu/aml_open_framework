@@ -59,6 +59,12 @@ variable "postgres_location" {
   default     = ""
 }
 
+variable "app_location_override" {
+  description = "Optional canonical Azure slug (e.g. 'canadacentral', 'westus2') passed through to the landing zone's app-onboard module. When set, places the per-app RG, UAMI, and per-app Key Vault in this region instead of the platform's primary; the Container Apps Environment + Container Apps follow automatically via module.onboard.location. Use to co-locate the runtime with a region-restricted DB (e.g. Sponsorship-sub Postgres free tier in canadacentral) or to put the app close to its users. The override must be in the platform's allowed_locations policy and is validated by the upstream module against ^[a-z][a-z0-9]+$. Empty string inherits the platform location. Changing this on an existing deploy is destructive — the per-app RG is named with the location, so Terraform destroys and recreates it; the old per-app Key Vault enters 90-day soft-delete."
+  type        = string
+  default     = ""
+}
+
 variable "enable_postgres" {
   description = "Provision Postgres Flexible Server. Set false to deploy Container Apps with SQLite fallback (in-container, non-persistent — fine for demos). Useful when Sponsorship subscriptions lock the platform's allowed region."
   type        = bool

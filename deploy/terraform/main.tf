@@ -28,6 +28,12 @@ module "onboard" {
   owner_email     = var.owner_email
   enable_acr_pull = true
 
+  # Optional per-app region pin. Empty string keeps the per-app RG +
+  # UAMI + KV in the platform's primary region; a canonical slug
+  # (e.g. "canadacentral") moves them and pulls Container Apps with
+  # them via module.onboard.location.
+  location_override = var.app_location_override
+
   platform_outputs = {
     subscription_id            = data.terraform_remote_state.platform.outputs.subscription_id
     tenant_id                  = data.terraform_remote_state.platform.outputs.tenant_id
