@@ -41,24 +41,59 @@ pytest tests/test_e2e_dashboard.py -q                            # Playwright (~
 
 Never push without all tests passing locally. CI runs 5 jobs: lint, unit-tests, api-tests, e2e-dashboard, docker-build.
 
-## Before Every Merge
+## Codex PR-Review Gate (mandatory before any merge)
 
-**Do not merge any PR without an `LGTM` comment.** Even when CI is green, even when auto-merge is available, even on small PRs. The user routes PRs through Codex for an independent review pass and posts `LGTM` (or equivalent approval) on the PR when it's safe to merge.
+**A PR is merge-ready only when an automation-authored comment on the PR for the *current head SHA* says:**
 
-- After opening a PR: open the PR URL, push the branch, wait. Don't enable auto-merge.
-- If auto-merge was enabled by mistake, disable it.
-- If a PR has been open for a while with no review comment, the right action is to ping the user, not to merge anyway.
-- This rule applies to every repo this assistant works in (including the landing zone), not just `aml_open_framework`.
+```
+LGTM
+<!-- codex-pr-review: <head_sha> -->
+```
 
-## Responding to PR Comments
+If there is no LGTM comment for the current head SHA: do not merge, and do not tell the user it is ready to merge. Codex's LGTM for an older head SHA is **stale** after any new commit — every push resets the gate.
 
-**When a comment lands on a PR, address it.** Don't leave reviewer feedback hanging. This includes Codex review notes, user inline comments, and review threads on individual lines.
+### After opening or updating a PR
 
-- After opening a PR, periodically check `gh pr view <num>` and `gh api repos/<owner>/<repo>/pulls/<num>/comments` for new comments.
-- For each comment: either fix the issue and push a follow-up commit, or reply explaining why it doesn't apply (with reasoning). Don't silently ignore.
-- Reply on the PR itself (`gh pr comment` or inline review reply) — not just in the local conversation. Keep the audit trail visible to whoever reviews next.
-- For multi-issue reviews (e.g. Codex with several findings), fix all issues in one follow-up commit when feasible, then post a single response comment summarising what changed and which finding each change addresses.
-- If a comment requests a behaviour the user explicitly approved earlier in the conversation, push back with the rationale before changing direction — don't flip on every reviewer suggestion.
+1. Push the branch.
+2. Wait for CI to start and finish.
+3. Do **not** enable auto-merge. Do **not** merge the PR yourself.
+4. Wait for the Codex PR-review automation to review the current PR head.
+
+### Polling cadence (every 2–5 minutes while waiting)
+
+Check:
+- PR head SHA (`gh pr view <PR> --json headRefOid`)
+- CI / check status (`gh pr checks <PR>`)
+- PR comments (`gh api repos/<OWNER>/<REPO>/issues/<PR>/comments`)
+- PR reviews + inline review threads (`gh api repos/<OWNER>/<REPO>/pulls/<PR>/comments`)
+- Whether the latest Codex marker matches the current head SHA
+
+### If Codex says "Not LGTM yet"
+
+1. Treat it as blocking feedback for that head SHA.
+2. Fix the issue in code / tests / docs.
+3. Run relevant local checks (ruff + pytest + terraform fmt/validate as applicable).
+4. Push a follow-up commit.
+5. Reply on the PR summarizing what changed and which finding each change addresses.
+6. Wait for Codex to review the new head SHA.
+
+### If CI fails
+
+1. Inspect the failing job / logs (`gh run view --job <id> --log`).
+2. Fix the root cause.
+3. Push a follow-up commit.
+4. Wait for CI **and** Codex re-review on the new head SHA.
+
+### Don'ts
+
+- Don't argue with Codex feedback unless it is technically wrong. If you think it's wrong, reply on the PR with concise reasoning and wait for the user / Codex to resolve.
+- Don't treat your own comments as review approval.
+- Don't post `LGTM` yourself.
+- Don't merge without a Codex LGTM on the **current** head SHA.
+- Don't merge if there are unresolved review threads, even with an LGTM.
+- Keep all review / fix discussion visible on the PR, not only in local chat.
+
+This gate applies to every repo this assistant works in (including the landing zone), not just `aml_open_framework`.
 
 ## Project-Specific Rules
 
