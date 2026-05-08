@@ -213,6 +213,59 @@ Response `200` (invalid):
 
 Errors: `404` if `spec_path` is not found.
 
+### `POST /api/v1/diff`
+
+Compare two specs. Both `spec_a` and `spec_b` are paths relative to one of
+the configured `API_DATA_ROOTS` (path-traversal is rejected).
+
+Request:
+
+```json
+{
+  "spec_a": "examples/canadian_schedule_i_bank/aml.yaml",
+  "spec_b": "examples/eu_bank/aml.yaml"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "spec_a_name": "aml.yaml",
+  "spec_b_name": "aml.yaml",
+  "program_changes": [
+    { "field": "jurisdiction", "before": "CA", "after": "EU" },
+    { "field": "regulator", "before": "FINTRAC", "after": "EBA" }
+  ],
+  "rules_added": [{ "id": "amld6_predicate_offence", "name": "...", "severity": "high" }],
+  "rules_removed": [{ "id": "fintrac_str_filing", "name": "...", "severity": "high" }],
+  "rules_modified": [{ "id": "structuring", "changes": ["severity: medium -> high"] }],
+  "metrics_added": [],
+  "metrics_removed": [],
+  "metrics_modified": [],
+  "queues_added": [],
+  "queues_removed": [],
+  "summary": {
+    "rules_total_a": 10,
+    "rules_total_b": 12,
+    "rules_added": 3,
+    "rules_removed": 1,
+    "metrics_total_a": 13,
+    "metrics_total_b": 15,
+    "metrics_added": 2,
+    "metrics_removed": 0,
+    "queues_total_a": 3,
+    "queues_total_b": 3
+  }
+}
+```
+
+Same-spec diff returns the same shape with empty change arrays. The CLI
+`aml diff <a> <b>` prints the same data as Rich tables.
+
+Errors: `400` for path-traversal, `404` if either spec is not found, `400`
+if either spec fails Pydantic validation.
+
 ### `GET /api/v1/specs`
 
 List spec versions stored for the calling user's tenant. Each entry includes
