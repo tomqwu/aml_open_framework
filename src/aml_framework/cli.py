@@ -1093,6 +1093,16 @@ def regwatch_cmd(
         "--offline",
         help="Skip network fetches; only verify the baseline file's internal consistency.",
     ),
+    notify: bool = typer.Option(
+        False,
+        "--notify",
+        help="On drift findings, also post a summary to SLACK_WEBHOOK_URL / TEAMS_WEBHOOK_URL (no-op when neither is set).",
+    ),
+    export: Path | None = typer.Option(
+        None,
+        "--export",
+        help="On drift findings, write the DriftReport as JSON to this path. Useful for downstream tooling (Jira tickets, regulator-summary docs).",
+    ),
 ) -> None:
     """Detect drift in cited regulation URLs.
 
@@ -1158,6 +1168,18 @@ def regwatch_cmd(
         console.print(f"[blue]NEW[/blue] {n['citation']} → {n['url']}")
     for r in report.removed:
         console.print(f"[magenta]REMOVED[/magenta] {r['citation']} → {r['url']}")
+
+    if report.has_findings:
+        if export is not None:
+            import json as _json
+
+            export.write_text(_json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+            console.print(f"[blue]Exported[/blue] drift report → {export}")
+        if notify:
+            from aml_framework.integrations.notifications import notify_regwatch_drift
+
+            notify_regwatch_drift(report.to_dict())
+
     raise typer.Exit(code=1 if report.has_findings else 0)
 
 

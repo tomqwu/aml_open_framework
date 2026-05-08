@@ -177,6 +177,86 @@ class TestNotificationSending:
         with patch.object(notifications, "_SLACK_URL", "https://hooks.slack.com/test"):
             notify_alert("rule_a", "high", "C001", 5000.0)
 
+
+class TestRegwatchNotification:
+    """notify_regwatch_drift posts a summary when there are drift findings,
+    and is a no-op when neither webhook is configured or the report is empty."""
+
+    @patch("urllib.request.urlopen")
+    def test_drift_findings_sent(self, mock_urlopen):
+        from aml_framework.integrations import notifications
+        from aml_framework.integrations.notifications import notify_regwatch_drift
+
+        report = {
+            "drifted": [{"citation": "31 CFR 1010.230", "url": "https://x"}],
+            "unreachable": [],
+            "new": [],
+            "removed": [],
+            "unchanged_count": 5,
+        }
+        with patch.object(notifications, "_SLACK_URL", "https://hooks.slack.com/test"):
+            notify_regwatch_drift(report)
+            mock_urlopen.assert_called_once()
+
+    @patch("urllib.request.urlopen")
+    def test_empty_report_is_noop(self, mock_urlopen):
+        from aml_framework.integrations import notifications
+        from aml_framework.integrations.notifications import notify_regwatch_drift
+
+        empty = {
+            "drifted": [],
+            "unreachable": [],
+            "new": [],
+            "removed": [],
+            "unchanged_count": 10,
+        }
+        with patch.object(notifications, "_SLACK_URL", "https://hooks.slack.com/test"):
+            notify_regwatch_drift(empty)
+            mock_urlopen.assert_not_called()
+
+    @patch("urllib.request.urlopen")
+    def test_no_webhook_configured_is_noop(self, mock_urlopen):
+        from aml_framework.integrations import notifications
+        from aml_framework.integrations.notifications import notify_regwatch_drift
+
+        report = {
+            "drifted": [{"citation": "x", "url": "y"}],
+            "unreachable": [],
+            "new": [],
+            "removed": [],
+            "unchanged_count": 0,
+        }
+        with (
+            patch.object(notifications, "_SLACK_URL", ""),
+            patch.object(notifications, "_TEAMS_URL", ""),
+        ):
+            notify_regwatch_drift(report)
+            mock_urlopen.assert_not_called()
+
+    @patch("urllib.request.urlopen")
+    def test_summary_truncates_long_drift_list(self, mock_urlopen):
+        from aml_framework.integrations import notifications
+        from aml_framework.integrations.notifications import notify_regwatch_drift
+
+        # 7 drifted citations — summary should mention 5 by name + "and 2 more".
+        drifted = [{"citation": f"cite_{i}", "url": f"u_{i}"} for i in range(7)]
+        report = {
+            "drifted": drifted,
+            "unreachable": [],
+            "new": [],
+            "removed": [],
+            "unchanged_count": 0,
+        }
+        with patch.object(notifications, "_SLACK_URL", "https://hooks.slack.com/test"):
+            notify_regwatch_drift(report)
+        # The message body is in the request payload; capture it.
+        called_req = mock_urlopen.call_args[0][0]
+        body = called_req.data.decode("utf-8")
+        assert "and 2 more" in body
+        assert "cite_0" in body
+        assert "cite_4" in body
+        assert "cite_5" not in body  # truncated
+
     @patch("urllib.request.urlopen", side_effect=Exception("fail"))
     def test_teams_failure_doesnt_raise(self, mock_urlopen):
         from aml_framework.integrations import notifications

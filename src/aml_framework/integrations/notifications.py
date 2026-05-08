@@ -88,6 +88,46 @@ def notify_sla_breach(case_id: str, queue: str, sla_hours: float, actual_hours: 
         _send_teams(message)
 
 
+def notify_regwatch_drift(report: dict) -> None:
+    """Send regulator-drift notification.
+
+    `report` is the dict form of a `DriftReport` (use `.to_dict()`):
+      {drifted: [...], unreachable: [...], new: [...], removed: [...],
+       unchanged_count: int}
+
+    No-op when neither webhook is configured. Used by `aml regwatch
+    --notify` so MLROs see drift findings on the same channel as
+    other compliance signals.
+    """
+    drifted = report.get("drifted", [])
+    unreachable = report.get("unreachable", [])
+    new = report.get("new", [])
+    removed = report.get("removed", [])
+    if not (drifted or unreachable or new or removed):
+        return  # no findings, nothing to notify
+
+    lines = [":scroll: *Regulator Drift Detected*"]
+    if drifted:
+        lines.append(
+            f"  • {len(drifted)} drifted: " + ", ".join(d["citation"] for d in drifted[:5])
+        )
+        if len(drifted) > 5:
+            lines.append(f"    ... and {len(drifted) - 5} more")
+    if unreachable:
+        lines.append(f"  • {len(unreachable)} unreachable")
+    if new:
+        lines.append(f"  • {len(new)} new")
+    if removed:
+        lines.append(f"  • {len(removed)} removed")
+    lines.append("  Run `aml regwatch <spec>` for the full report.")
+    message = "\n".join(lines)
+
+    if _SLACK_URL:
+        _send_slack(message)
+    if _TEAMS_URL:
+        _send_teams(message)
+
+
 def _send_slack(text: str) -> None:
     """POST to Slack incoming webhook."""
     try:
