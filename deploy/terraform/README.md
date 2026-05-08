@@ -71,6 +71,12 @@ platform_tfstate_container       = "platform-tfstate"
 #     enable_postgres = false
 #     enable_cosmos   = true
 #     # cosmos_database_name = "aml"   # optional, defaults to "aml"
+
+# Optional: pin the app-tier (RG, UAMI, KV, Container Apps) to a
+# region different from the platform's primary. See "Co-locating the
+# runtime with the DB" below for when to use this. Leave empty to
+# inherit the platform location.
+#   app_location_override = "canadacentral"
 EOF
 
 terraform plan
@@ -117,6 +123,68 @@ gh variable set AZURE_CONTAINER_APP_DASHBOARD -b "$(terraform output -json githu
 
 Values are non-secret (just the resource IDs / client IDs); they're
 public-by-design so workflows can run without rotating secrets.
+
+## Co-locating the runtime with the DB
+
+By default the per-app RG, UAMI, per-app Key Vault, Container Apps
+Environment, and Container Apps all live in the platform's primary
+region (typically `eastus`). Two scenarios make a per-app override
+useful:
+
+1. **Region-restricted DB.** Azure Sponsorship subscriptions return
+   `LocationIsOfferRestricted` on Postgres Flexible Server in most
+   US regions; the lifetime free tier (100k vCore-seconds, 32 GiB)
+   is offered in `canadacentral`. With Postgres pinned to
+   canadacentral but the runtime in eastus, every API → DB query
+   crosses the border (~30–50 ms typical). Pinning the runtime to
+   canadacentral too keeps the request path intra-region.
+2. **Operator / user proximity.** When the operator or end users
+   live close to a non-primary region (e.g. Toronto, where
+   canadacentral is the closest Azure DC), running the dashboard
+   there shaves ~100 ms off interactive latency.
+
+To opt in, set `app_location_override` in `terraform.tfvars`:
+
+```
+app_location_override = "canadacentral"
+```
+
+The slug must be in the platform's `allowed_locations` policy and is
+validated by the upstream module (`^[a-z][a-z0-9]+$` — display names
+like `Canada Central` are rejected).
+
+**Switching this on an existing deploy is destructive.** The per-app
+RG name encodes the location (`rg-aml-compliance-<env>-<location>`),
+so Terraform destroys and recreates the entire RG — UAMI, KV,
+Container Apps Environment, both Container Apps, all diagnostic
+settings, federated identity credentials, the lot. Specifically:
+
+- The old per-app Key Vault enters 90-day soft-delete with purge
+  protection. The same KV name cannot be reused in that window;
+  since the LZ rolls a fresh `random_string.kv_suffix` per RG
+  creation, this isn't a blocker for the new region but is worth
+  noting if you ever want to switch back.
+- The new per-app KV needs `JWT-SECRET` re-seeded after the apply
+  (Terraform's placeholder has `lifecycle.ignore_changes = [value]`).
+- Container Apps revision history is RG-scoped and lost.
+- Application Insights traces previously associated with the old
+  Container App resources stay queryable in the platform App
+  Insights (which lives in the platform region), but they won't be
+  associated with the new resources by Azure-resource-ID path.
+
+End-to-end: ~5–10 min downtime during the destroy-recreate cycle.
+
+After the apply, re-seed the secret:
+
+```bash
+KV=$(terraform output -raw key_vault_name)
+az keyvault secret set --vault-name "$KV" --name JWT-SECRET \
+  --value "$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+```
+
+The platform layer (LAW, App Insights, ACR, platform KV, tfstate
+Storage) is unaffected — those stay in the platform region per
+landing-zone policy.
 
 ## Smoke test
 
