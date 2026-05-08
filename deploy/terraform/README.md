@@ -26,6 +26,36 @@ For the AKS Helm chart deployment shape (banks deploying on their own
 AKS or on-prem K8s), see `deploy/helm/` and the "Deploying on Azure /
 AKS" section of `docs/deployment.md`.
 
+## Dashboard persistence asymmetry (known issue on the Postgres path)
+
+The dashboard Container App receives `COSMOS_ENDPOINT` and
+`COSMOS_DATABASE` env vars but does **not** receive `DATABASE_URL`.
+The dashboard's Run History (page 15) and Comparative Analytics
+(page 19) call `aml_framework.api.db.list_runs()` directly using
+whichever env the dashboard pod sees, so:
+
+- **Cosmos backend (`enable_cosmos = true`)**: dashboard pod has
+  `COSMOS_ENDPOINT` set, `_active_backend()` resolves to `cosmos`,
+  pages query the same Cosmos containers the API writes to. Works
+  correctly.
+- **Postgres backend (`enable_postgres = true`)**: dashboard pod has
+  neither `DATABASE_URL` nor `COSMOS_ENDPOINT`, `_active_backend()`
+  resolves to `sqlite`, and `list_runs()` reads from an empty local
+  SQLite file inside the dashboard container — disconnected from the
+  Postgres database the API writes to. Run History and Comparative
+  Analytics show stale-or-empty results even when the API and
+  Postgres are both healthy.
+
+The Helm chart calls out the same shape in
+`deploy/helm/templates/dashboard-deployment.yaml`. Resolving this is
+queued for a future round (options: wire `DATABASE_URL` and the
+Postgres-admin UAMI into the dashboard pod, or refactor the dashboard
+pages to call the API's `/runs` endpoints over HTTP). Until then,
+operators running on Postgres should know that Run History and
+Comparative Analytics are not driven by the deployment's Postgres
+database — investigating empty views means looking at the dashboard's
+persistence wiring, not API reachability.
+
 ## Prerequisites
 
 1. **The landing zone is bootstrapped** in the user's Azure
