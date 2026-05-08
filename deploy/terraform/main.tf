@@ -49,6 +49,25 @@ module "onboard" {
 }
 
 # ---------------------------------------------------------------------------
+# 1b. Persistence-backend mutex.
+#     enable_postgres and enable_cosmos must not both be true: the app
+#     wires DATABASE_URL or COSMOS_ENDPOINT, never both, and provisioning
+#     both server-side leaks an idle account that nothing reads. Matches
+#     the equivalent fail-fast in deploy/helm/templates/api-deployment.yaml.
+#     A precondition on the Postgres resource itself wouldn't fire when
+#     enable_postgres=false, so guard via terraform_data which always plans.
+# ---------------------------------------------------------------------------
+
+resource "terraform_data" "db_backend_mutex" {
+  lifecycle {
+    precondition {
+      condition     = !(var.enable_postgres && var.enable_cosmos)
+      error_message = "enable_postgres and enable_cosmos are mutually exclusive. Pick one persistence backend (or set both to false for SQLite)."
+    }
+  }
+}
+
+# ---------------------------------------------------------------------------
 # 2. Postgres Flexible Server (B1ms, Entra-ID-only auth).
 #    Random suffix because Postgres FQDNs need to be globally unique.
 # ---------------------------------------------------------------------------
