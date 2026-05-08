@@ -495,3 +495,23 @@ resource "azurerm_monitor_diagnostic_setting" "postgres" {
     category = "AllMetrics"
   }
 }
+
+resource "azurerm_monitor_diagnostic_setting" "cosmos" {
+  count                      = var.enable_cosmos ? 1 : 0
+  name                       = "diag-aml-cosmos"
+  target_resource_id         = azurerm_cosmosdb_account.aml[0].id
+  log_analytics_workspace_id = module.onboard.log_analytics_workspace_id
+
+  # Cosmos exposes data-plane logs (DataPlaneRequests, QueryRuntimeStatistics,
+  # PartitionKeyStatistics) and control-plane logs. Enabling the
+  # category_group "audit" is the minimum the landing zone CLAUDE.md
+  # requires for "every resource ships logs to platform LAW"; richer
+  # categories are available if the operator needs query-level tracing.
+  enabled_log {
+    category_group = "audit"
+  }
+
+  enabled_metric {
+    category = "AllMetrics"
+  }
+}
