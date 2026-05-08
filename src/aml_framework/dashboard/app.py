@@ -28,6 +28,17 @@ from aml_framework.observability import init_observability as _init_otel  # noqa
 
 _init_otel()
 
+# Announce which persistence backend is active so ops can confirm the
+# right path is live without exec'ing into the container. Reuses the
+# `aml.dashboard` logger name. db.py is streamlit-free so importing
+# `_active_backend` here doesn't violate the lazy-import rule that
+# applies to audience.py / data_layer.py / pages/.
+import logging  # noqa: E402
+
+from aml_framework.api.db import _active_backend  # noqa: E402
+
+logging.getLogger("aml.dashboard").info("Persistence backend: %s", _active_backend())
+
 initialize_session()
 
 # ---------------------------------------------------------------------------
