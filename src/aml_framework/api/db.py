@@ -1,12 +1,22 @@
-"""Run persistence — SQLite locally, PostgreSQL in production.
+"""Run persistence — SQLite, PostgreSQL, or Cosmos DB.
 
-When DATABASE_URL is set, uses psycopg2. Otherwise falls back to SQLite
-at ~/.aml_framework/runs.db so the API works without Docker.
+Backend selection (highest priority first):
+  1. COSMOS_ENDPOINT set → Azure Cosmos DB (serverless). Used on Azure
+     Sponsorship subscriptions where Postgres Flexible Server is locked
+     (LocationIsOfferRestricted on every region we tried).
+  2. DATABASE_URL set → PostgreSQL via psycopg2. Used on PAYG/EA/MCA Azure
+     subscriptions and self-hosted deployments.
+  3. Otherwise → SQLite at ~/.aml_framework/runs.db, so the API works
+     without Docker.
 
-Internal layout: every public CRUD function calls `_with_conn()` and writes
-its query once with `?` placeholders. The wrapper translates `?` to `%s`
-on the Postgres path so we don't carry two near-identical SQL bodies per
-function.
+Internal layout for SQL backends: every public CRUD function calls
+`_with_conn()` and writes its query once with `?` placeholders. The
+wrapper translates `?` to `%s` on the Postgres path so we don't carry
+two near-identical SQL bodies per function.
+
+Cosmos doesn't speak placeholder SQL — it has a SQL-like query language
+with `@parameters` and a separate point-read API. Each public function
+branches early on `_use_cosmos()` and uses the Cosmos client directly.
 """
 
 from __future__ import annotations
@@ -21,6 +31,12 @@ from typing import Any
 
 _DATABASE_URL = os.environ.get("DATABASE_URL", "")
 _SQLITE_PATH = Path.home() / ".aml_framework" / "runs.db"
+_COSMOS_ENDPOINT = os.environ.get("COSMOS_ENDPOINT", "")
+_COSMOS_DATABASE = os.environ.get("COSMOS_DATABASE", "aml")
+
+
+def _use_cosmos() -> bool:
+    return bool(_COSMOS_ENDPOINT)
 
 
 def _use_postgres() -> bool:
@@ -31,6 +47,52 @@ def _get_pg_conn():
     import psycopg2  # pragma: no cover
 
     return psycopg2.connect(_DATABASE_URL)  # pragma: no cover
+
+
+# Cosmos DB containers — partition key is /tenant_id on every container, so
+# tenant-scoped queries stay single-partition. Document `id` is the natural
+# unique identifier per container (run_id, run_alert_id, etc.); see the
+# per-container builders below for the id shape.
+_COSMOS_CONTAINERS = ("runs", "run_alerts", "run_metrics", "spec_versions")
+_cosmos_client = None
+_cosmos_db = None
+
+
+def _get_cosmos_db():
+    """Lazy-init the Cosmos client + database handle. DefaultAzureCredential
+    pulls the UAMI on Container Apps and falls back to az CLI / env locally.
+    """
+    global _cosmos_client, _cosmos_db
+    if _cosmos_db is not None:
+        return _cosmos_db
+    from azure.cosmos import CosmosClient  # pragma: no cover
+    from azure.identity import DefaultAzureCredential  # pragma: no cover
+
+    _cosmos_client = CosmosClient(  # pragma: no cover
+        _COSMOS_ENDPOINT, credential=DefaultAzureCredential()
+    )
+    _cosmos_db = _cosmos_client.get_database_client(_COSMOS_DATABASE)  # pragma: no cover
+    return _cosmos_db  # pragma: no cover
+
+
+def _cosmos_container(name: str):
+    return _get_cosmos_db().get_container_client(name)  # pragma: no cover
+
+
+# Narrow exception type for "the document doesn't exist" — separate from
+# auth failures, throttling (429), and outages, all of which should bubble
+# up as server errors rather than be silently absorbed as 404. Aliased at
+# module load so both production code and tests reference the same symbol;
+# falls back to a stub when azure-cosmos isn't installed (unit-test CI
+# only installs [.dev], not [.azure]).
+try:
+    from azure.cosmos.exceptions import (
+        CosmosResourceNotFoundError as _CosmosNotFound,
+    )
+except ImportError:
+
+    class _CosmosNotFound(Exception):  # type: ignore[no-redef]
+        pass
 
 
 _sqlite_initialized = False
@@ -188,7 +250,14 @@ def _from_json(value: Any) -> Any:
 def init_db() -> None:
     """Create tables if they don't exist. Multi-statement scripts need
     backend-specific entry points (executescript on SQLite, single execute
-    on psycopg2)."""
+    on psycopg2). Cosmos containers are created by Terraform — make a
+    network round-trip via `database.read()` so misconfiguration (wrong
+    endpoint, missing RBAC, missing database) fails fast at startup
+    instead of silently degrading to empty results on first use."""
+    if _use_cosmos():
+        database = _get_cosmos_db()  # pragma: no cover -- live Cosmos handshake
+        database.read()  # pragma: no cover -- raises CosmosHttpResponseError on misconfig
+        return
     if _use_postgres():
         conn = _get_pg_conn()
         try:
@@ -216,6 +285,39 @@ def store_run(
     tenant_id: str = "default",
 ) -> None:
     now = datetime.now(tz=timezone.utc).isoformat()
+    if _use_cosmos():
+        runs = _cosmos_container("runs")
+        runs.upsert_item(
+            {
+                "id": run_id,
+                "run_id": run_id,
+                "tenant_id": tenant_id,
+                "spec_path": spec_path,
+                "seed": seed,
+                "manifest": manifest,
+                "created_at": now,
+            }
+        )
+        run_alerts = _cosmos_container("run_alerts")
+        for rule_id, rule_alerts in alerts.items():
+            run_alerts.upsert_item(
+                {
+                    "id": f"{run_id}:{rule_id}",
+                    "run_id": run_id,
+                    "tenant_id": tenant_id,
+                    "rule_id": rule_id,
+                    "alerts": rule_alerts,
+                }
+            )
+        _cosmos_container("run_metrics").upsert_item(
+            {
+                "id": run_id,
+                "run_id": run_id,
+                "tenant_id": tenant_id,
+                "metrics": metrics,
+            }
+        )
+        return
     with _with_conn() as cur:
         cur.execute(
             "INSERT INTO runs (run_id, spec_path, seed, manifest, tenant_id, created_at)"
@@ -235,6 +337,27 @@ def store_run(
 
 def list_runs(tenant_id: str | None = None) -> list[dict[str, Any]]:
     """List recent runs. When `tenant_id` is given, only that tenant's runs."""
+    if _use_cosmos():
+        runs = _cosmos_container("runs")
+        if tenant_id is None:
+            query = "SELECT TOP 50 c.run_id, c.spec_path, c.seed, c.created_at FROM c ORDER BY c.created_at DESC"
+            params: list[dict[str, Any]] = []
+            items = runs.query_items(
+                query=query, parameters=params, enable_cross_partition_query=True
+            )
+        else:
+            query = "SELECT TOP 50 c.run_id, c.spec_path, c.seed, c.created_at FROM c WHERE c.tenant_id = @t ORDER BY c.created_at DESC"
+            params = [{"name": "@t", "value": tenant_id}]
+            items = runs.query_items(query=query, parameters=params, partition_key=tenant_id)
+        return [
+            {
+                "run_id": r["run_id"],
+                "spec_path": r["spec_path"],
+                "seed": r["seed"],
+                "created_at": _coerce_ts(r["created_at"]),
+            }
+            for r in items
+        ]
     with _with_conn() as cur:
         if tenant_id is None:
             cur.execute(
@@ -261,6 +384,20 @@ def list_runs(tenant_id: str | None = None) -> list[dict[str, Any]]:
 def get_run(run_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
     """Fetch a run's manifest. When `tenant_id` is given, returns None if the
     run belongs to a different tenant — prevents cross-tenant reads."""
+    if _use_cosmos():
+        runs = _cosmos_container("runs")
+        if tenant_id is not None:
+            try:
+                doc = runs.read_item(item=run_id, partition_key=tenant_id)
+            except _CosmosNotFound:
+                return None
+            return doc.get("manifest")
+        query = "SELECT TOP 1 c.manifest FROM c WHERE c.run_id = @r"
+        params = [{"name": "@r", "value": run_id}]
+        rows = list(
+            runs.query_items(query=query, parameters=params, enable_cross_partition_query=True)
+        )
+        return rows[0]["manifest"] if rows else None
     with _with_conn() as cur:
         if tenant_id is None:
             cur.execute("SELECT manifest FROM runs WHERE run_id = ?", (run_id,))
@@ -274,6 +411,22 @@ def get_run(run_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
 
 
 def get_run_alerts(run_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
+    if _use_cosmos():
+        run_alerts = _cosmos_container("run_alerts")
+        if tenant_id is not None:
+            query = "SELECT c.rule_id, c.alerts FROM c WHERE c.run_id = @r AND c.tenant_id = @t"
+            params = [
+                {"name": "@r", "value": run_id},
+                {"name": "@t", "value": tenant_id},
+            ]
+            rows = run_alerts.query_items(query=query, parameters=params, partition_key=tenant_id)
+        else:
+            query = "SELECT c.rule_id, c.alerts FROM c WHERE c.run_id = @r"
+            params = [{"name": "@r", "value": run_id}]
+            rows = run_alerts.query_items(
+                query=query, parameters=params, enable_cross_partition_query=True
+            )
+        return [{"rule_id": r["rule_id"], "alerts": r["alerts"]} for r in rows]
     with _with_conn() as cur:
         if tenant_id is None:
             cur.execute("SELECT rule_id, alerts FROM run_alerts WHERE run_id = ?", (run_id,))
@@ -288,6 +441,22 @@ def get_run_alerts(run_id: str, tenant_id: str | None = None) -> list[dict[str, 
 
 
 def get_run_metrics(run_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
+    if _use_cosmos():
+        run_metrics = _cosmos_container("run_metrics")
+        if tenant_id is not None:
+            try:
+                doc = run_metrics.read_item(item=run_id, partition_key=tenant_id)
+            except _CosmosNotFound:
+                return []
+            return doc.get("metrics", [])
+        query = "SELECT TOP 1 c.metrics FROM c WHERE c.run_id = @r"
+        params = [{"name": "@r", "value": run_id}]
+        rows = list(
+            run_metrics.query_items(
+                query=query, parameters=params, enable_cross_partition_query=True
+            )
+        )
+        return rows[0]["metrics"] if rows else []
     with _with_conn() as cur:
         if tenant_id is None:
             cur.execute("SELECT metrics FROM run_metrics WHERE run_id = ?", (run_id,))
@@ -310,6 +479,28 @@ def store_spec_version(
 ) -> None:
     """Store a spec version for tracking."""
     now = datetime.now(tz=timezone.utc).isoformat()
+    if _use_cosmos():
+        specs = _cosmos_container("spec_versions")
+        # Cosmos `id` must be unique within partition; combine spec_hash +
+        # tenant_id so the same hash can exist for two tenants without
+        # the upsert creating accidental writes.
+        item_id = f"{tenant_id}:{spec_hash}"
+        try:
+            specs.read_item(item=item_id, partition_key=tenant_id)
+            return  # already stored — preserve original created_at
+        except _CosmosNotFound:
+            pass
+        specs.create_item(
+            {
+                "id": item_id,
+                "spec_hash": spec_hash,
+                "spec_content": spec_content,
+                "program_name": program_name,
+                "tenant_id": tenant_id,
+                "created_at": now,
+            }
+        )
+        return
     with _with_conn() as cur:
         cur.execute(
             "SELECT id FROM spec_versions WHERE spec_hash = ? AND tenant_id = ?",
@@ -326,6 +517,27 @@ def store_spec_version(
 
 def list_spec_versions(tenant_id: str | None = None) -> list[dict[str, Any]]:
     """List stored spec versions."""
+    if _use_cosmos():
+        specs = _cosmos_container("spec_versions")
+        if tenant_id is None:
+            query = "SELECT TOP 50 c.spec_hash, c.program_name, c.tenant_id, c.created_at FROM c ORDER BY c.created_at DESC"
+            params: list[dict[str, Any]] = []
+            rows = specs.query_items(
+                query=query, parameters=params, enable_cross_partition_query=True
+            )
+        else:
+            query = "SELECT TOP 50 c.spec_hash, c.program_name, c.tenant_id, c.created_at FROM c WHERE c.tenant_id = @t ORDER BY c.created_at DESC"
+            params = [{"name": "@t", "value": tenant_id}]
+            rows = specs.query_items(query=query, parameters=params, partition_key=tenant_id)
+        return [
+            {
+                "spec_hash": r["spec_hash"],
+                "program_name": r["program_name"],
+                "tenant_id": r["tenant_id"],
+                "created_at": _coerce_ts(r["created_at"]),
+            }
+            for r in rows
+        ]
     with _with_conn() as cur:
         query = "SELECT spec_hash, program_name, tenant_id, created_at FROM spec_versions"
         params: tuple = ()

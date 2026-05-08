@@ -41,6 +41,86 @@ pytest tests/test_e2e_dashboard.py -q                            # Playwright (~
 
 Never push without all tests passing locally. CI runs 5 jobs: lint, unit-tests, api-tests, e2e-dashboard, docker-build.
 
+## Builder agent — review gate, then merge
+
+I am the builder / coding agent for this repo. I may **write code, push branches, open PRs, respond to PR feedback, and merge my own PR** — but only after the review gate passes. **Do not merge before the review gate passes.**
+
+### After opening or updating a PR
+
+1. Push the branch.
+2. Wait for CI to finish.
+3. Wait for independent review.
+4. Treat "Not LGTM yet" as blocking feedback.
+
+### A PR is mergeable only when ALL of these are true
+
+1. The PR is **not draft**.
+2. CI / checks are **green** — no failing, cancelled, skipped-required, or pending required checks.
+3. An independent-reviewer comment says exactly:
+   ```
+   LGTM
+   <!-- codex-pr-review: <head_sha> -->
+   ```
+4. The `<head_sha>` marker **exactly matches** the current PR head SHA.
+5. No newer comment, review, or review thread after that LGTM contains blocking feedback.
+6. No new commit was pushed after the LGTM marker.
+
+### Polling cadence (every 2–5 minutes while waiting)
+
+Check:
+- PR head SHA (`gh pr view <PR> --json headRefOid`)
+- CI / check status (`gh pr checks <PR>`)
+- PR comments (`gh api repos/<OWNER>/<REPO>/issues/<PR>/comments`)
+- PR reviews + inline review threads (`gh api repos/<OWNER>/<REPO>/pulls/<PR>/comments`)
+- Whether the latest reviewer marker matches the current head SHA
+
+### If reviewer says "Not LGTM yet"
+
+1. Treat it as blocking feedback for that head SHA.
+2. Fix the issue in code / tests / docs.
+3. Run relevant local checks (ruff + pytest + terraform fmt/validate / helm lint as applicable).
+4. Push a follow-up commit (this **invalidates** any prior LGTM).
+5. Reply on the PR summarizing what changed and which finding each change addresses.
+6. Wait for review on the new head SHA.
+
+### If CI fails
+
+1. Inspect the failing job / logs (`gh run view --job <id> --log`).
+2. Fix the root cause.
+3. Push a follow-up commit.
+4. Wait for CI **and** re-review on the new head SHA.
+
+### Before merging
+
+Re-fetch PR state **immediately** with:
+```bash
+gh pr view <PR> --json number,url,isDraft,headRefName,headRefOid,mergeStateStatus,statusCheckRollup,comments,reviews
+gh pr checks <PR>
+```
+Verify all 6 conditions still hold against the fresh state.
+
+### Merge command
+
+```bash
+gh pr merge <PR> --squash --delete-branch
+```
+(Unless repo policy or branch protection mandates otherwise.)
+
+### If GitHub blocks the merge
+
+Report the exact blocker and leave the PR unmerged. Do **not** work around it.
+
+### Don'ts
+
+- Don't post `LGTM` yourself.
+- Don't treat your own comments as review approval.
+- Don't treat an LGTM for an older commit as valid.
+- Don't merge with unresolved review threads, even with an LGTM.
+- Don't argue with reviewer feedback unless it is technically wrong. If wrong, reply on the PR with concise reasoning and wait for the user / reviewer to resolve.
+- Keep all review / fix discussion visible on the PR, not only in local chat.
+
+This gate applies to every repo this assistant works in (including the landing zone), not just `aml_open_framework`.
+
 ## Project-Specific Rules
 
 - **Lazy imports**: Dashboard modules (audience.py, data_layer.py, pages/) must NOT import `streamlit` at module level. Unit-test CI only installs `.[dev]`.

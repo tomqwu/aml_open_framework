@@ -72,6 +72,10 @@ azure = [
     # aml_framework.observability.otel when
     # APPLICATIONINSIGHTS_CONNECTION_STRING is set.
     "azure-monitor-opentelemetry>=1.5",
+    # PR-AZ-10: Cosmos DB serverless persistence. Used when COSMOS_ENDPOINT
+    # is set (alternative to DATABASE_URL on Sponsorship subs that lock
+    # Postgres Flexible Server). Lazy-imported by aml_framework.api.db.
+    "azure-cosmos>=4.7",
 ]
 
 [project.scripts]

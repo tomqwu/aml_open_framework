@@ -39,6 +39,18 @@ spec:
           ports:
             - containerPort: {{ .Values.dashboard.port }}
           env:
+            # PR-AZ-10: Cosmos env vars must mirror the API pod —
+            # dashboard pages call aml_framework.api.db.list_runs() /
+            # init_db() directly, so without these the dashboard
+            # falls back to local SQLite while the API writes to
+            # Cosmos, leaving Run History / Comparative Analytics
+            # showing stale-or-empty results.
+            {{- if .Values.cosmos.enabled }}
+            - name: COSMOS_ENDPOINT
+              value: {{ .Values.cosmos.endpoint | quote }}
+            - name: COSMOS_DATABASE
+              value: {{ .Values.cosmos.database | quote }}
+            {{- end }}
             # PR-AZ-3: Azure env vars threaded through to the dashboard
             # so the SecretsProvider + data-source loaders work.
             {{- if .Values.azure.keyVaultName }}

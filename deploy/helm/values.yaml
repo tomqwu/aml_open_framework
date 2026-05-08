@@ -42,6 +42,18 @@ postgres:
 database:
   url: ""
 
+# Cosmos DB serverless (PR-AZ-10). Alternative persistence backend for
+# Azure Sponsorship subscriptions where Postgres Flexible Server is
+# region-restricted. When enabled, COSMOS_ENDPOINT + COSMOS_DATABASE
+# env vars are wired into the API pod and the Python layer
+# (src/aml_framework/api/db.py) selects Cosmos over Postgres/SQLite.
+# Auth uses DefaultAzureCredential — pair with workloadIdentityClientId
+# + a Cosmos Data Contributor role assignment.
+cosmos:
+  enabled: false
+  endpoint: ""
+  database: aml
+
 jwt:
   secret: replace-with-32-plus-byte-random-secret
 

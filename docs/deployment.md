@@ -17,7 +17,9 @@ Every deployment surface reads the same set of environment variables. Copy
 | Variable | Purpose | Required | Default |
 |----------|---------|----------|---------|
 | `AML_ENV` / `API_ENV` | Set to `production` for non-demo API startup gates | yes (prod) | unset (dev/demo mode) |
-| `DATABASE_URL` | Postgres URL for run / case persistence | yes (prod) | SQLite if unset |
+| `COSMOS_ENDPOINT` | Cosmos DB account endpoint for run / case persistence (Sponsorship-sub-friendly alternative to Postgres). When set, takes precedence over `DATABASE_URL`. Auth uses `DefaultAzureCredential` — pair with managed-identity / workload-identity + Cosmos Built-in Data Contributor role. | yes for Cosmos deployments | unset |
+| `COSMOS_DATABASE` | Cosmos database name. | optional | `aml` |
+| `DATABASE_URL` | Postgres URL for run / case persistence (used when `COSMOS_ENDPOINT` is unset). | yes for Postgres prod deployments | SQLite if both `COSMOS_ENDPOINT` and `DATABASE_URL` are unset |
 | `JWT_SECRET` | HMAC secret for API tokens (32+ bytes) | yes (prod) | random per-process secret in dev/demo mode only |
 | `ALLOW_DEMO_AUTH` | Explicitly re-enable built-in demo users in production | no | unset / disabled in production |
 | `OIDC_ISSUER_URL` | OIDC discovery endpoint for SSO | recommended (prod) | unset (built-in users in dev only) |
@@ -37,8 +39,20 @@ Every deployment surface reads the same set of environment variables. Copy
 | `SLACK_WEBHOOK_URL` | Slack alert push | optional | unset (no-op) |
 | `TEAMS_WEBHOOK_URL` | Teams alert push | optional | unset (no-op) |
 
-When `DATABASE_URL` is unset the API falls back to local SQLite — fine for
-demos, **never** for production. Production mode is enabled with
+**Persistence-backend selection (highest priority first):**
+
+1. `COSMOS_ENDPOINT` set → Azure Cosmos DB. Required combination for Azure
+   Sponsorship subscriptions where Postgres Flexible Server is region-locked
+   in every available region. Uses `DefaultAzureCredential`; needs a
+   managed-identity (Container Apps UAMI / AKS workload-identity) granted the
+   "Cosmos DB Built-in Data Contributor" role on the account.
+2. `DATABASE_URL` set (and `COSMOS_ENDPOINT` unset) → PostgreSQL via psycopg2.
+   The default for PAYG / EA / MCA Azure subscriptions and self-hosted
+   deployments.
+3. Otherwise → local SQLite at `~/.aml_framework/runs.db`. Fine for demos,
+   **never** for production.
+
+Production mode is enabled with
 `AML_ENV=production` or `API_ENV=production`; in that mode the API refuses to
 start without `JWT_SECRET` and disables the built-in demo users unless
 `ALLOW_DEMO_AUTH=true` is set deliberately. Outside production mode, an unset
@@ -278,8 +292,25 @@ The Round-12 lineage chain (`walk_lineage(case_id)`) picks up Azure-sourced runs
 For banks consuming the prebuilt landing zone at
 [tomqwu/cloud_landing_zone_for_ai_coding](https://github.com/tomqwu/cloud_landing_zone_for_ai_coding),
 the framework ships a Terraform module under `deploy/terraform/`
-that deploys to Container Apps + Postgres Flexible Server. This is
-the alternative path to the AKS Helm chart above.
+that deploys to Container Apps with one of two Entra-ID-authenticated
+persistence backends:
+
+- **Postgres Flexible Server** (B1ms) — default for PAYG / EA / MCA
+  subscriptions.
+- **Cosmos DB serverless** — alternative for Azure Sponsorship
+  subscriptions where Postgres Flexible Server returns
+  `LocationIsOfferRestricted` in every available region. Set
+  `enable_cosmos = true` and `enable_postgres = false` in
+  `terraform.tfvars`. The module provisions a Cosmos account, the
+  `aml` database, four containers (`runs`, `run_alerts`,
+  `run_metrics`, `spec_versions`, partition key `/tenant_id`), grants
+  the per-app UAMI the Cosmos Built-in Data Contributor role, and
+  wires `COSMOS_ENDPOINT` / `COSMOS_DATABASE` into both Container
+  Apps. The Python persistence layer
+  (`src/aml_framework/api/db.py`) selects Cosmos automatically when
+  `COSMOS_ENDPOINT` is set.
+
+This is the alternative path to the AKS Helm chart above.
 
 The landing zone's CLAUDE.md forbids AKS, so this is the *required*
 path when consuming that landing zone. For self-managed Azure (no
@@ -305,6 +336,14 @@ github_repo                      = "tomqwu/aml_open_framework"
 platform_tfstate_resource_group  = "<from landing zone>"
 platform_tfstate_storage_account = "<from landing zone>"
 platform_tfstate_container       = "tfstate"
+
+# Persistence backend — pick exactly one:
+#   Postgres (default, PAYG/EA/MCA subs):
+#     enable_postgres = true
+#   Cosmos serverless (Sponsorship subs where Postgres is region-locked):
+#     enable_postgres = false
+#     enable_cosmos   = true
+#     # cosmos_database_name = "aml"   # optional
 EOF
 
 terraform apply
@@ -316,8 +355,10 @@ Cost expectations on top of the landing zone's $5/mo baseline:
 |---|---|
 | Container App API (min 1 replica) | ~$10 |
 | Container App dashboard | ~$10 |
-| Postgres Flexible Server B1ms | ~$13 |
-| **Total** | **~$33/mo** |
+| Postgres Flexible Server B1ms (`enable_postgres=true`) | ~$13 (or $0 with the Sponsorship-sub free tier in canadacentral) |
+| Cosmos DB serverless (`enable_cosmos=true`) | ~$0 idle (no provisioned RU/s) |
+| **Total** (Postgres) | **~$33/mo** |
+| **Total** (Cosmos) | **~$20/mo** |
 
 After install, populate the per-app Key Vault with `JWT-SECRET` (and
 optionally `OPENAI-API-KEY` for the GenAI co-pilot). Subsequent

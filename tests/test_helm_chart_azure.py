@@ -54,6 +54,50 @@ class TestHelmAzureRendering:
 
 
 @pytest.mark.skipif(not HELM_AVAILABLE, reason="helm not installed on this CI image")
+class TestHelmCosmosBackend:
+    """PR-AZ-10: when cosmos.enabled=true, both API and dashboard pods
+    must receive COSMOS_ENDPOINT + COSMOS_DATABASE so they read/write
+    the same backend. Without this, the dashboard's Run History page
+    falls back to local SQLite while the API persists to Cosmos."""
+
+    def _render_cosmos(self) -> str:
+        result = subprocess.run(
+            [
+                "helm",
+                "template",
+                "aml",
+                str(CHART),
+                "--set",
+                "postgres.enabled=false",
+                "--set",
+                "cosmos.enabled=true",
+                "--set",
+                "cosmos.endpoint=https://example.documents.azure.com:443/",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout
+
+    def test_cosmos_env_on_both_pods(self):
+        out = self._render_cosmos()
+        # Two deployments, two COSMOS_ENDPOINT + two COSMOS_DATABASE entries
+        # (one per pod). If the dashboard branch is missing, count is 1.
+        assert out.count("name: COSMOS_ENDPOINT") == 2, (
+            "COSMOS_ENDPOINT must be set on both api and dashboard pods"
+        )
+        assert out.count("name: COSMOS_DATABASE") == 2
+
+    def test_cosmos_mode_omits_database_url(self):
+        out = self._render_cosmos()
+        # When cosmos.enabled=true, DATABASE_URL must NOT be set on the
+        # API pod — the Python layer would prefer Cosmos anyway, but
+        # leaving DATABASE_URL set causes confusing dual-config logs.
+        assert "name: DATABASE_URL" not in out
+
+
+@pytest.mark.skipif(not HELM_AVAILABLE, reason="helm not installed on this CI image")
 class TestHelmDefaultStillWorks:
     """Empty `azure:` block produces an Azure-agnostic chart identical
     to the on-prem deployment. Critical: don't accidentally make the
