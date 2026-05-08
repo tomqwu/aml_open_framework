@@ -135,6 +135,13 @@ class TestCompileFilter:
         preds = _compile_filter({"invoice_id": {"is_null": False}})
         assert any("invoice_id IS NOT NULL" in p for p in preds)
 
+    @pytest.mark.parametrize("bad", ["false", "true", 1, 0, None])
+    def test_filter_is_null_rejects_non_bool(self, bad):
+        # YAML quoting accidents (e.g. `is_null: "false"`) must NOT silently
+        # become IS NULL. Strict bool guard is part of the contract.
+        with pytest.raises(ValueError, match="requires a bool"):
+            _compile_filter({"invoice_id": {"is_null": bad}})
+
     def test_filter_none_and_empty(self):
         assert _compile_filter(None) == []
         assert _compile_filter({}) == []
