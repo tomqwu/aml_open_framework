@@ -72,6 +72,50 @@ def test_c0013_has_velocity_burst_on_receive() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Window-pinning regression tests — `aggregation_window` rules use a sliding
+# `[as_of - window, as_of)` window (see `parse_window` in
+# src/aml_framework/generators/sql.py). Earlier plant timestamps were just
+# outside their rules' windows, silently dropping coverage for two of the
+# three intended within-spec rules. These tests pin the timing so a future
+# refactor can't re-introduce the gap.
+# ---------------------------------------------------------------------------
+
+
+def test_c0012_send_falls_within_first_use_rule_window() -> None:
+    """`first_use_payee_large_amount_rtp` has window `1d` → 24h sliding.
+    The plant's booked_at must be `< 24h` before as_of, otherwise the
+    rule sees zero matching rows and silently doesn't fire."""
+    data = _data()
+    rtp_send = next(
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0012" and t["channel"] == "rtp" and t["direction"] == "out"
+    )
+    age = AS_OF - rtp_send["booked_at"]
+    assert age < timedelta(days=1), (
+        f"C0012 RTP send must be inside the 1d rule window; got {age} before as_of"
+    )
+
+
+def test_c0013_burst_ends_within_velocity_rule_window() -> None:
+    """`velocity_spike_on_receive_rtp` has window `1h` → 60min sliding.
+    The most recent credit in the burst must be `< 1h` before as_of so
+    the entire burst is visible to the rule's `count >= 5` aggregate."""
+    data = _data()
+    rtp_ins = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0013" and t["channel"] == "rtp" and t["direction"] == "in"
+    ]
+    most_recent = max(t["booked_at"] for t in rtp_ins)
+    age = AS_OF - most_recent
+    assert age < timedelta(hours=1), (
+        f"C0013 burst's most recent credit must be inside the 1h rule window; "
+        f"got {age} before as_of"
+    )
+
+
+# ---------------------------------------------------------------------------
 # BOI planted positives
 # ---------------------------------------------------------------------------
 

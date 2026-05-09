@@ -584,14 +584,16 @@ def generate_dataset(
         customers[12]["typical_send_window_start_hour"] = 9
         customers[12]["typical_send_window_end_hour"] = 17
         # Single $7,500 RTP send to a never-before-paid counterparty,
-        # at 23:00 (outside typical window) — fires both
-        # first_use_payee_large_amount_rtp and unusual_send_hour.
+        # at 01:00 the day before (outside the 9-17 typical window AND
+        # inside first_use_payee_large_amount_rtp's 1d sliding window
+        # `[as_of - 24h, as_of)` — earlier `-1d -1h` was 25h back, just
+        # outside the window, so the rule never fired).
         txns.append(
             _make_txn(
                 tid,
                 "C0012",
                 7500,
-                as_of - timedelta(days=1, hours=1),  # 23:00 the day before
+                as_of - timedelta(hours=23),  # 01:00 the day before as_of
                 channel="rtp",
                 direction="out",
                 counterparty_country="US",
@@ -611,8 +613,13 @@ def generate_dataset(
             full_name="Mule Ventures LLC",
             business_activity="financial_services",  # also makes BOI relevant
         )
-        # 6 small inbound RTP credits inside one hour — velocity_spike_on_receive_rtp
-        burst_start = as_of - timedelta(days=1, hours=14)
+        # 6 small inbound RTP credits inside one hour —
+        # velocity_spike_on_receive_rtp uses a 1h sliding window
+        # `[as_of - 1h, as_of)`, so the burst must end before as_of.
+        # Earlier `-1d -14h` was 38h back, far outside that window;
+        # this places the burst in the last 55 minutes (final credit
+        # at as_of - 15min so all six are strictly < as_of).
+        burst_start = as_of - timedelta(minutes=55)
         for i, amt in enumerate([400, 350, 480, 410, 390, 460]):
             txns.append(
                 _make_txn(
