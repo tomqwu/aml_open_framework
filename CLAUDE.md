@@ -141,7 +141,7 @@ aml.yaml (spec)
 
 ### Dashboard
 
-32 Streamlit pages across 8 categories. `state.py` runs the engine once, caches in `st.session_state`. `audience.py` maps personas to relevant pages. Sidebar audience selector hides non-relevant pages.
+32 Streamlit pages across 8 categories. `state.py` runs the engine once, caches in `st.session_state`. `audience.py` maps personas to relevant pages. Sidebar audience selector hides non-relevant pages. **Persistence asymmetry (known issue):** Run History (page 15) and Comparative Analytics (page 19) call `aml_framework.api.db.list_runs()` directly with whatever env the dashboard pod sees. Cosmos-backed dashboards work because `COSMOS_ENDPOINT` is wired in. Postgres-backed dashboards have no `DATABASE_URL` and silently fall back to an empty local SQLite — these two pages show stale/empty results on the Postgres path. See `deploy/terraform/README.md` ("Dashboard persistence asymmetry").
 
 ### Specs
 
