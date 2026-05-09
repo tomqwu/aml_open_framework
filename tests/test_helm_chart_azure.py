@@ -98,6 +98,48 @@ class TestHelmCosmosBackend:
 
 
 @pytest.mark.skipif(not HELM_AVAILABLE, reason="helm not installed on this CI image")
+class TestHelmPostgresFirstPrecedence:
+    """When both `postgres.enabled` and `cosmos.enabled` are true the
+    Helm template must inject DATABASE_URL (not Cosmos vars), mirroring
+    the postgres-first precedence in `_active_backend()`. Otherwise the
+    Helm-injected env vars and the Python runtime disagree on which
+    backend is active."""
+
+    def _render_dual(self) -> str:
+        result = subprocess.run(
+            [
+                "helm",
+                "template",
+                "aml",
+                str(CHART),
+                "--set",
+                "postgres.enabled=true",
+                "--set",
+                "cosmos.enabled=true",
+                "--set",
+                "cosmos.endpoint=https://example.documents.azure.com:443/",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout
+
+    def test_dual_config_emits_database_url_on_both_pods(self):
+        out = self._render_dual()
+        # api + dashboard each get DATABASE_URL when postgres.enabled wins.
+        assert out.count("name: DATABASE_URL") == 2
+
+    def test_dual_config_omits_cosmos_env_vars(self):
+        out = self._render_dual()
+        # Cosmos vars must NOT appear when postgres takes precedence,
+        # otherwise pods would see both and the runtime would pick
+        # postgres while operators see Cosmos in `kubectl describe`.
+        assert "name: COSMOS_ENDPOINT" not in out
+        assert "name: COSMOS_DATABASE" not in out
+
+
+@pytest.mark.skipif(not HELM_AVAILABLE, reason="helm not installed on this CI image")
 class TestHelmDefaultStillWorks:
     """Empty `azure:` block produces an Azure-agnostic chart identical
     to the on-prem deployment. Critical: don't accidentally make the

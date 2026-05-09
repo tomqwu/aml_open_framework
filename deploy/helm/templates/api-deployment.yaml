@@ -55,21 +55,24 @@ spec:
           ports:
             - containerPort: {{ .Values.api.port }}
           env:
-            {{- if .Values.cosmos.enabled }}
+            # Postgres-first precedence — mirrors `_active_backend()` in
+            # src/aml_framework/api/db.py so the Helm-injected env vars
+            # match the runtime backend the Python layer will pick when
+            # both backends are enabled in values.yaml.
+            {{- if .Values.postgres.enabled }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.postgres.username }}:{{ .Values.postgres.password }}@{{ .Release.Name }}-postgres:5432/{{ .Values.postgres.database }}"
+            {{- else if .Values.cosmos.enabled }}
             - name: COSMOS_ENDPOINT
               value: {{ .Values.cosmos.endpoint | quote }}
             - name: COSMOS_DATABASE
               value: {{ .Values.cosmos.database | quote }}
             {{- else }}
             - name: DATABASE_URL
-              {{- if .Values.postgres.enabled }}
-              value: "postgresql://{{ .Values.postgres.username }}:{{ .Values.postgres.password }}@{{ .Release.Name }}-postgres:5432/{{ .Values.postgres.database }}"
-              {{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-secrets
                   key: database-url
-              {{- end }}
             {{- end }}
             - name: JWT_SECRET
               valueFrom:
