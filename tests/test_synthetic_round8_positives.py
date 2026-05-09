@@ -72,6 +72,62 @@ def test_c0013_has_velocity_burst_on_receive() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Window-pinning regression tests — `aggregation_window` rules use a sliding
+# `[as_of - window, as_of)` window (see `parse_window` in
+# src/aml_framework/generators/sql.py). Earlier plant timestamps were just
+# outside their rules' windows, silently dropping coverage for two of the
+# three intended within-spec rules. These tests pin the timing so a future
+# refactor can't re-introduce the gap.
+# ---------------------------------------------------------------------------
+
+
+def test_c0012_send_falls_within_first_use_rule_window() -> None:
+    """`first_use_payee_large_amount_rtp` has window `1d` → 24h sliding.
+    The plant's booked_at must be in the rule's `[as_of - 24h, as_of)`
+    window. Mapped to `age = as_of - booked_at`:
+      - The rule's open upper bound (`booked_at < as_of`) translates
+        to `age > 0`.
+      - The rule's closed lower bound (`booked_at >= as_of - 24h`)
+        translates to `age <= 24h`. The strict `age < 24h` here is
+        intentional plant-safety margin so a tiny clock skew in
+        the test fixture can't push the plant onto/past the
+        boundary."""
+    data = _data()
+    rtp_send = next(
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0012" and t["channel"] == "rtp" and t["direction"] == "out"
+    )
+    age = AS_OF - rtp_send["booked_at"]
+    assert age > timedelta(0), f"C0012 RTP send must be before as_of; got {age}"
+    assert age < timedelta(days=1), (
+        f"C0012 RTP send must be inside the 1d rule window; got {age} before as_of"
+    )
+
+
+def test_c0013_burst_credits_all_within_velocity_rule_window() -> None:
+    """`velocity_spike_on_receive_rtp` has window `1h` → 60min sliding,
+    threshold `count >= 5`. ALL planted credits must sit in the rule's
+    `[as_of - 1h, as_of)` window — if even one falls outside, count
+    drops to 5 (still passes) but a one-credit drift further would
+    push it to 4 and the rule would silently stop firing. Pinning the
+    whole burst (not just `most_recent`) is the regression-safe shape."""
+    data = _data()
+    rtp_ins = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0013" and t["channel"] == "rtp" and t["direction"] == "in"
+    ]
+    assert len(rtp_ins) >= 5, "expected ≥ 5 inbound RTP credits for C0013"
+    for t in rtp_ins:
+        age = AS_OF - t["booked_at"]
+        assert age > timedelta(0), f"C0013 burst credit must be before as_of; got {age}"
+        assert age < timedelta(hours=1), (
+            f"C0013 burst credit must be inside the 1h rule window; got {age} before as_of"
+        )
+
+
+# ---------------------------------------------------------------------------
 # BOI planted positives
 # ---------------------------------------------------------------------------
 
