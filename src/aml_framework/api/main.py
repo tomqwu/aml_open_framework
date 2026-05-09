@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -23,6 +24,7 @@ from aml_framework.api.auth import (
     require_role,
 )
 from aml_framework.api.db import (
+    _active_backend,
     get_run,
     get_run_alerts,
     get_run_metrics,
@@ -172,6 +174,7 @@ def _resolve_api_source_inputs(req: "RunRequest") -> tuple[str, str | None, str 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.getLogger("aml.api").info("Persistence backend: %s", _active_backend())
     init_db()  # pragma: no cover
     yield  # pragma: no cover
 
