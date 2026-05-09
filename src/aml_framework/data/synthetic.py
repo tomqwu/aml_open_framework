@@ -599,7 +599,7 @@ def generate_dataset(
                 tid,
                 "C0012",
                 7500,
-                as_of - timedelta(hours=23),  # 01:00 the day before as_of
+                as_of - timedelta(hours=23),  # 23h before as_of (see comment block above)
                 channel="rtp",
                 direction="out",
                 counterparty_country="US",
