@@ -344,7 +344,46 @@ def test_uk_app_fraud_customers_have_no_baseline_window_activity() -> None:
 # noise-stripping guard as the UK APP fraud and trade-based-ML plants.
 
 
+# C0023 (ramp_up_then_drain plant) is intentionally excluded from
+# `_RTP_BOI_IDS` even though its noise is stripped: its plant txns
+# legitimately span 14 days (the rule's window), so a "no baseline
+# window activity" assertion would false-fail. C0023's recent-sum
+# stays below `unusual_volume_spike`'s $5k floor anyway, so the
+# cross-spec leak guard isn't compromised — verified e2e.
 _RTP_BOI_IDS = ("C0012", "C0013", "C0014", "C0015")
+
+
+def test_c0023_carries_ramp_up_pattern() -> None:
+    """`ramp_up_then_drain_rtp` filters direction=out, channel in [rtp,fednow],
+    amount < 500; groups by (customer_id, counterparty_id); window 14d;
+    having count >= 3 AND sum_amount >= 1000. C0023 plants 4 small RTP
+    sends to one counterparty totaling >= $1000 inside the 14d window."""
+    data = _data()
+    sends = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0023"
+        and t["channel"] == "rtp"
+        and t["direction"] == "out"
+        and t["amount"] < 500
+    ]
+    # Exact pin: 4 plants, $1,550 total, single counterparty
+    # `CP-RAMP-2026-001` — anything else is a regression in the plant
+    # block, not a tuning change to the rule's thresholds.
+    assert len(sends) == 4, f"expected exactly 4 small RTP sends for C0023; got {len(sends)}"
+    assert sum(t["amount"] for t in sends) == Decimal("1550.00"), (
+        f"C0023 small-send total must equal $1,550; got {sum(t['amount'] for t in sends)}"
+    )
+    counterparties = {t["counterparty_id"] for t in sends}
+    assert counterparties == {"CP-RAMP-2026-001"}, (
+        f"C0023 ramp-up sends must share `CP-RAMP-2026-001`; got {counterparties}"
+    )
+    # All inside the 14d window.
+    cutoff = AS_OF - timedelta(days=14)
+    for t in sends:
+        assert t["booked_at"] > cutoff, (
+            f"C0023 send must be inside 14d window; got {t['booked_at']}"
+        )
 
 
 def test_rtp_boi_customers_have_no_baseline_window_activity() -> None:

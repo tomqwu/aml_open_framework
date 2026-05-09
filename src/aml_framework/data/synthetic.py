@@ -590,7 +590,7 @@ def generate_dataset(
     # canadian_bank, and community_bank specs. Stripping noise for the
     # RTP/BOI plant ids isolates them so non-RTP specs see only the
     # planted shape, which is rule-inert for them.
-    _rtp_boi_customer_ids = {"C0012", "C0013", "C0014", "C0015"}
+    _rtp_boi_customer_ids = {"C0012", "C0013", "C0014", "C0015", "C0023"}
     txns = [t for t in txns if t["customer_id"] not in _rtp_boi_customer_ids]
 
     # --- C0012: RTP first-use-payee large amount (push-fraud drain) ---
@@ -663,6 +663,45 @@ def generate_dataset(
                     burst_start + timedelta(minutes=i * 8),
                     channel="rtp",
                     direction="in",
+                )
+            )
+            tid += 1
+
+    # --- C0023: RTP ramp-up then drain (small priming sends to one payee) ---
+    # `ramp_up_then_drain_rtp` (us_rtp_fednow) filters direction=out, channel
+    # in [rtp,fednow], amount < 500; groups by (customer_id, counterparty_id);
+    # window 14d; having count >= 3 AND sum_amount >= 1000. Plant 4 small RTP
+    # sends to one counterparty totaling $1,550 over 5 days inside the 14d
+    # window.
+    #
+    # Intentional cross-rule firing: cyber_enabled_fraud's `ramp_up_then_drain`
+    # rule (no channel filter) is a strict superset of the RTP variant, so
+    # this same plant fires it too. That's correct typology coverage —
+    # cyber_enabled_fraud previously had zero planted positives — not a leak.
+    # If you ever need C0023 to fire ONLY the RTP variant, the architecture
+    # can't help: any plant matching the subset rule matches the superset.
+    if n_customers > 23:
+        customers[23] = _customer_row(
+            fake,
+            "C0023",
+            as_of - timedelta(days=120),  # mid-life account, plausible profile
+            country="US",
+            risk_rating="medium",
+            full_name="Ramp Source LLC",
+        )
+        ramp_counterparty = "CP-RAMP-2026-001"
+        for day_offset, amt in [(2, 300), (4, 400), (7, 450), (10, 400)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0023",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=14),
+                    channel="rtp",
+                    direction="out",
+                    counterparty_country="US",
+                    debtor_country="US",
+                    counterparty_id=ramp_counterparty,
                 )
             )
             tid += 1
