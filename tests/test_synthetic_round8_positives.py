@@ -41,6 +41,27 @@ def test_c0012_carries_planted_rtp_send() -> None:
     )
 
 
+def test_c0012_send_carries_counterparty_id() -> None:
+    """Three us_rtp_fednow rules touch counterparty_id:
+    - `unusual_send_hour_for_customer_rtp` SELECTs it (errors as a
+      DuckDB BinderException if missing).
+    - `first_use_payee_large_amount_rtp` and `ramp_up_then_drain_rtp`
+      GROUP BY (customer_id, counterparty_id) — without a real value
+      every txn collapses into a single (customer, NULL) group,
+      hiding multi-counterparty fan-out structure.
+    Pinning the planted send carries a non-null id keeps both
+    semantics intact."""
+    data = _data()
+    rtp_send = next(
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0012" and t["channel"] == "rtp" and t["direction"] == "out"
+    )
+    assert rtp_send.get("counterparty_id"), (
+        f"C0012's RTP send must carry a counterparty_id; got {rtp_send.get('counterparty_id')!r}"
+    )
+
+
 def test_c0012_send_falls_outside_typical_window() -> None:
     data = _data()
     cust = next(c for c in data["customer"] if c["customer_id"] == "C0012")
