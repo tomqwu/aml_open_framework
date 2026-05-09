@@ -114,6 +114,7 @@ def _make_txn(
     declared_unit_price: Decimal | None = None,
     declared_quantity: int | None = None,
     hs_code: str | None = None,
+    counterparty_id: str | None = None,
 ) -> dict[str, Any]:
     """Build a single transaction dict with deterministic shape.
 
@@ -134,6 +135,17 @@ def _make_txn(
     spec). Defaults are None so background noise stays rule-inert
     (all TBML rules require these fields populated AND
     `purpose_code='TRAD'`).
+
+    `counterparty_id` identifies the other side of the txn — a payee
+    (when direction='out') or originator (when direction='in'). The
+    us_rtp_fednow spec's `data_contract` declares this column nullable
+    and three of its rules use it: `unusual_send_hour_for_customer_rtp`
+    SELECTs it for evidence; `first_use_payee_large_amount_rtp` and
+    `ramp_up_then_drain_rtp` GROUP BY (customer_id, counterparty_id)
+    so multi-counterparty fan-out structure stays separable. Default
+    is None — background noise generators populate a stable pool
+    value so groupings remain meaningful without nudging unrelated
+    rules.
     """
     iso = _iso20022_enrichment(
         channel=channel,
@@ -158,6 +170,7 @@ def _make_txn(
         "declared_unit_price": declared_unit_price,
         "declared_quantity": declared_quantity,
         "hs_code": hs_code,
+        "counterparty_id": counterparty_id,
         **iso,
     }
 
@@ -268,6 +281,14 @@ def generate_dataset(
     tid = 0
 
     # --- Noise: random legitimate-looking activity over the last 60 days. ---
+    # A small pool of recurring counterparties keeps `group_by [customer_id,
+    # counterparty_id]` rules (us_rtp_fednow's first_use + ramp_up) on a
+    # stable group structure across seeds — same counterparties get reused
+    # so noise rows don't each look like a brand-new payee. Picked by
+    # `tid % len(pool)` (not random.choice) to avoid consuming from the
+    # global RNG state — that would shift every downstream channel/amount
+    # draw and cascade-break tests that pin specific synthetic shapes.
+    _NOISE_COUNTERPARTIES = [f"CP-NOISE-{i:03d}" for i in range(20)]
     for _ in range(n_noise_txns):
         cid = random.choice(customer_ids)
         booked_at = as_of - timedelta(
@@ -284,6 +305,7 @@ def generate_dataset(
                 booked_at,
                 channel=random.choice(_CHANNELS),
                 direction=random.choice(["in", "out"]),
+                counterparty_id=_NOISE_COUNTERPARTIES[tid % len(_NOISE_COUNTERPARTIES)],
             )
         )
         tid += 1
@@ -568,7 +590,7 @@ def generate_dataset(
     # canadian_bank, and community_bank specs. Stripping noise for the
     # RTP/BOI plant ids isolates them so non-RTP specs see only the
     # planted shape, which is rule-inert for them.
-    _rtp_boi_customer_ids = {"C0012", "C0013", "C0014", "C0015"}
+    _rtp_boi_customer_ids = {"C0012", "C0013", "C0014", "C0015", "C0023"}
     txns = [t for t in txns if t["customer_id"] not in _rtp_boi_customer_ids]
 
     # --- C0012: RTP first-use-payee large amount (push-fraud drain) ---
@@ -583,27 +605,33 @@ def generate_dataset(
         )
         customers[12]["typical_send_window_start_hour"] = 9
         customers[12]["typical_send_window_end_hour"] = 17
-        # Single $7,500 RTP send to a never-before-paid counterparty,
-        # 23h before as_of. Sits inside `first_use_payee_large_amount_rtp`'s
-        # 1d sliding window `[as_of - 24h, as_of)` — earlier `-1d -1h`
-        # was 25h back, just outside the window, so the rule never
-        # fired. The hour of the booked_at depends on as_of's hour;
-        # for the typical test/CLI as_of of midnight the resulting
-        # hour is 1, outside the 9-17 typical_send_window. Callers
-        # using a non-midnight as_of should ensure the math still
-        # places the txn outside the typical window —
-        # `test_c0012_send_falls_outside_typical_window` is the
-        # regression pin for that invariant.
+        # Single $7,500 RTP send to a never-before-paid counterparty.
+        # Anchored at hour=1 of the most recent local day before as_of
+        # so the booked_at sits inside `first_use_payee_large_amount_
+        # rtp`'s 1d sliding window `[as_of - 24h, as_of)` AND its hour
+        # is unconditionally outside the 9-17 typical_send_window
+        # (which `unusual_send_hour_for_customer_rtp` checks). A naive
+        # `as_of - timedelta(hours=23)` only works when as_of itself
+        # is in the early hours; for an as_of at, say, 15:00 UTC,
+        # `-23h` lands at hour=16 — inside the typical window — and
+        # the unusual-hour rule silently doesn't fire.
+        c0012_send_at = as_of.replace(hour=1, minute=0, second=0, microsecond=0)
+        if c0012_send_at >= as_of:
+            c0012_send_at -= timedelta(days=1)
         txns.append(
             _make_txn(
                 tid,
                 "C0012",
                 7500,
-                as_of - timedelta(hours=23),  # 23h before as_of (see comment block above)
+                c0012_send_at,
                 channel="rtp",
                 direction="out",
                 counterparty_country="US",
                 debtor_country="US",
+                # Distinct, never-before-paid counterparty — that's the
+                # "first-use payee" signal first_use_payee_large_amount_rtp
+                # is meant to catch.
+                counterparty_id="CP-NEW-2026-001",
             )
         )
         tid += 1
@@ -635,6 +663,45 @@ def generate_dataset(
                     burst_start + timedelta(minutes=i * 8),
                     channel="rtp",
                     direction="in",
+                )
+            )
+            tid += 1
+
+    # --- C0023: RTP ramp-up then drain (small priming sends to one payee) ---
+    # `ramp_up_then_drain_rtp` (us_rtp_fednow) filters direction=out, channel
+    # in [rtp,fednow], amount < 500; groups by (customer_id, counterparty_id);
+    # window 14d; having count >= 3 AND sum_amount >= 1000. Plant 4 small RTP
+    # sends to one counterparty totaling $1,550 over 5 days inside the 14d
+    # window.
+    #
+    # Intentional cross-rule firing: cyber_enabled_fraud's `ramp_up_then_drain`
+    # rule (no channel filter) is a strict superset of the RTP variant, so
+    # this same plant fires it too. That's correct typology coverage —
+    # cyber_enabled_fraud previously had zero planted positives — not a leak.
+    # If you ever need C0023 to fire ONLY the RTP variant, the architecture
+    # can't help: any plant matching the subset rule matches the superset.
+    if n_customers > 23:
+        customers[23] = _customer_row(
+            fake,
+            "C0023",
+            as_of - timedelta(days=120),  # mid-life account, plausible profile
+            country="US",
+            risk_rating="medium",
+            full_name="Ramp Source LLC",
+        )
+        ramp_counterparty = "CP-RAMP-2026-001"
+        for day_offset, amt in [(2, 300), (4, 400), (7, 450), (10, 400)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0023",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=14),
+                    channel="rtp",
+                    direction="out",
+                    counterparty_country="US",
+                    debtor_country="US",
+                    counterparty_id=ramp_counterparty,
                 )
             )
             tid += 1
@@ -789,7 +856,10 @@ def generate_dataset(
             full_name="Mule Vector Ltd",
         )
         # Inbound £2,000 → outbound £1,700 (85% pass-through) within
-        # 30 minutes. Both legs clear the £500 floor.
+        # 30 minutes. Both legs clear the £500 floor. Distinct
+        # counterparties on each leg — the originator on the inbound
+        # is a different party than the payee on the outbound (that's
+        # what makes it a pass-through, not a self-transfer).
         pass_in = as_of - timedelta(days=1, hours=12)
         txns.append(
             _make_txn(
@@ -800,6 +870,7 @@ def generate_dataset(
                 channel="faster_payments",
                 direction="in",
                 currency="GBP",
+                counterparty_id="CP-MULE-IN-2026-001",
             )
         )
         tid += 1
@@ -813,6 +884,7 @@ def generate_dataset(
                 direction="out",
                 currency="GBP",
                 customer_session_id="SESS-C0019-1",
+                counterparty_id="CP-MULE-OUT-2026-001",
             )
         )
         tid += 1

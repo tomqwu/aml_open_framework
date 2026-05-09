@@ -13,6 +13,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from aml_framework.data import generate_dataset
 
 
@@ -38,6 +40,27 @@ def test_c0012_carries_planted_rtp_send() -> None:
     assert len(rtp_outs) >= 1, "expected ≥ 1 RTP outbound for C0012"
     assert any(t["amount"] >= 1000 for t in rtp_outs), (
         "C0012's RTP send must clear the first_use_payee_large_amount threshold"
+    )
+
+
+def test_c0012_send_carries_counterparty_id() -> None:
+    """Three us_rtp_fednow rules touch counterparty_id:
+    - `unusual_send_hour_for_customer_rtp` SELECTs it (errors as a
+      DuckDB BinderException if missing).
+    - `first_use_payee_large_amount_rtp` and `ramp_up_then_drain_rtp`
+      GROUP BY (customer_id, counterparty_id) — without a real value
+      every txn collapses into a single (customer, NULL) group,
+      hiding multi-counterparty fan-out structure.
+    Pinning the planted send carries a non-null id keeps both
+    semantics intact."""
+    data = _data()
+    rtp_send = next(
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0012" and t["channel"] == "rtp" and t["direction"] == "out"
+    )
+    assert rtp_send.get("counterparty_id"), (
+        f"C0012's RTP send must carry a counterparty_id; got {rtp_send.get('counterparty_id')!r}"
     )
 
 
@@ -79,6 +102,40 @@ def test_c0013_has_velocity_burst_on_receive() -> None:
 # three intended within-spec rules. These tests pin the timing so a future
 # refactor can't re-introduce the gap.
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "as_of",
+    [
+        datetime(2026, 4, 28, 0, 0, 0),  # midnight (test fixture default)
+        datetime(2026, 4, 28, 1, 0, 0),  # exact hour=1 (boundary case for the anchor)
+        datetime(2026, 4, 28, 12, 30, 0),  # midday — would have failed pre-fix
+        datetime(2026, 4, 28, 23, 59, 0),  # late-day — would have failed pre-fix
+    ],
+)
+def test_c0012_send_anchored_outside_typical_window_for_any_as_of(as_of):
+    """C0012's plant must satisfy both rules' constraints regardless of
+    `as_of` hour: hour outside [9-17] AND inside `[as_of - 24h, as_of)`.
+    The earlier `as_of - 23h` formulation only worked for midnight
+    as_of values; for `as_of=15:00` it produced hour=16 (inside the
+    typical window) and `unusual_send_hour_for_customer_rtp` silently
+    didn't fire."""
+    data = generate_dataset(as_of=as_of, seed=42)
+    rtp_send = next(
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0012" and t["channel"] == "rtp" and t["direction"] == "out"
+    )
+    age = as_of - rtp_send["booked_at"]
+    assert age > timedelta(0), f"plant must be before as_of; got {age}"
+    assert age <= timedelta(days=1), f"plant must be inside the 1d window; got {age}"
+    hour = rtp_send["booked_at"].hour
+    cust = next(c for c in data["customer"] if c["customer_id"] == "C0012")
+    start = cust["typical_send_window_start_hour"]
+    end = cust["typical_send_window_end_hour"]
+    assert hour < start or hour > end, (
+        f"plant hour={hour} must be outside [{start},{end}] typical_send_window"
+    )
 
 
 def test_c0012_send_falls_within_first_use_rule_window() -> None:
@@ -287,7 +344,46 @@ def test_uk_app_fraud_customers_have_no_baseline_window_activity() -> None:
 # noise-stripping guard as the UK APP fraud and trade-based-ML plants.
 
 
+# C0023 (ramp_up_then_drain plant) is intentionally excluded from
+# `_RTP_BOI_IDS` even though its noise is stripped: its plant txns
+# legitimately span 14 days (the rule's window), so a "no baseline
+# window activity" assertion would false-fail. C0023's recent-sum
+# stays below `unusual_volume_spike`'s $5k floor anyway, so the
+# cross-spec leak guard isn't compromised — verified e2e.
 _RTP_BOI_IDS = ("C0012", "C0013", "C0014", "C0015")
+
+
+def test_c0023_carries_ramp_up_pattern() -> None:
+    """`ramp_up_then_drain_rtp` filters direction=out, channel in [rtp,fednow],
+    amount < 500; groups by (customer_id, counterparty_id); window 14d;
+    having count >= 3 AND sum_amount >= 1000. C0023 plants 4 small RTP
+    sends to one counterparty totaling >= $1000 inside the 14d window."""
+    data = _data()
+    sends = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0023"
+        and t["channel"] == "rtp"
+        and t["direction"] == "out"
+        and t["amount"] < 500
+    ]
+    # Exact pin: 4 plants, $1,550 total, single counterparty
+    # `CP-RAMP-2026-001` — anything else is a regression in the plant
+    # block, not a tuning change to the rule's thresholds.
+    assert len(sends) == 4, f"expected exactly 4 small RTP sends for C0023; got {len(sends)}"
+    assert sum(t["amount"] for t in sends) == Decimal("1550.00"), (
+        f"C0023 small-send total must equal $1,550; got {sum(t['amount'] for t in sends)}"
+    )
+    counterparties = {t["counterparty_id"] for t in sends}
+    assert counterparties == {"CP-RAMP-2026-001"}, (
+        f"C0023 ramp-up sends must share `CP-RAMP-2026-001`; got {counterparties}"
+    )
+    # All inside the 14d window.
+    cutoff = AS_OF - timedelta(days=14)
+    for t in sends:
+        assert t["booked_at"] > cutoff, (
+            f"C0023 send must be inside 14d window; got {t['booked_at']}"
+        )
 
 
 def test_rtp_boi_customers_have_no_baseline_window_activity() -> None:
