@@ -81,6 +81,18 @@ def _compile_filter(filter_dict: dict[str, Any] | None) -> list[str]:
                 preds.append(f"{field} = {_sql_literal(arg)}")
             elif op == "ne":
                 preds.append(f"{field} <> {_sql_literal(arg)}")
+            elif op == "is_null":
+                # `is_null: true` → IS NULL; `is_null: false` → IS NOT NULL.
+                # Required by trade_based_ml's phantom_shipping rule
+                # (filters on `invoice_id: { is_null: true }`).
+                # Strict bool to stop YAML strings like "false" silently
+                # collapsing to truthy IS NULL.
+                if not isinstance(arg, bool):
+                    raise ValueError(
+                        f"filter operator 'is_null' on field '{field}' requires a "
+                        f"bool, got {type(arg).__name__}"
+                    )
+                preds.append(f"{field} IS NULL" if arg else f"{field} IS NOT NULL")
             else:
                 raise ValueError(f"unsupported filter operator '{op}' on field '{field}'")
     return preds
