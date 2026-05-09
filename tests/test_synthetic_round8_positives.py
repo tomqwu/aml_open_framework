@@ -84,9 +84,14 @@ def test_c0013_has_velocity_burst_on_receive() -> None:
 def test_c0012_send_falls_within_first_use_rule_window() -> None:
     """`first_use_payee_large_amount_rtp` has window `1d` → 24h sliding.
     The plant's booked_at must be in the rule's `[as_of - 24h, as_of)`
-    window: strictly past as_of (so age > 0) and inside the lookback
-    (so age < 24h — strict because the rule's WHERE on `< as_of` is
-    open at the top)."""
+    window. Mapped to `age = as_of - booked_at`:
+      - The rule's open upper bound (`booked_at < as_of`) translates
+        to `age > 0`.
+      - The rule's closed lower bound (`booked_at >= as_of - 24h`)
+        translates to `age <= 24h`. The strict `age < 24h` here is
+        intentional plant-safety margin so a tiny clock skew in
+        the test fixture can't push the plant onto/past the
+        boundary."""
     data = _data()
     rtp_send = next(
         t
