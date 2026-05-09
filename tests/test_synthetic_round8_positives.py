@@ -83,8 +83,10 @@ def test_c0013_has_velocity_burst_on_receive() -> None:
 
 def test_c0012_send_falls_within_first_use_rule_window() -> None:
     """`first_use_payee_large_amount_rtp` has window `1d` → 24h sliding.
-    The plant's booked_at must be in `(as_of - 24h, as_of)` (half-open
-    upper bound, strict lower so the txn is in the past)."""
+    The plant's booked_at must be in the rule's `[as_of - 24h, as_of)`
+    window: strictly past as_of (so age > 0) and inside the lookback
+    (so age < 24h — strict because the rule's WHERE on `< as_of` is
+    open at the top)."""
     data = _data()
     rtp_send = next(
         t
@@ -98,22 +100,26 @@ def test_c0012_send_falls_within_first_use_rule_window() -> None:
     )
 
 
-def test_c0013_burst_ends_within_velocity_rule_window() -> None:
-    """`velocity_spike_on_receive_rtp` has window `1h` → 60min sliding.
-    The most recent credit in the burst must be in `(as_of - 1h, as_of)`."""
+def test_c0013_burst_credits_all_within_velocity_rule_window() -> None:
+    """`velocity_spike_on_receive_rtp` has window `1h` → 60min sliding,
+    threshold `count >= 5`. ALL planted credits must sit in the rule's
+    `[as_of - 1h, as_of)` window — if even one falls outside, count
+    drops to 5 (still passes) but a one-credit drift further would
+    push it to 4 and the rule would silently stop firing. Pinning the
+    whole burst (not just `most_recent`) is the regression-safe shape."""
     data = _data()
     rtp_ins = [
         t
         for t in data["txn"]
         if t["customer_id"] == "C0013" and t["channel"] == "rtp" and t["direction"] == "in"
     ]
-    most_recent = max(t["booked_at"] for t in rtp_ins)
-    age = AS_OF - most_recent
-    assert age > timedelta(0), f"C0013 burst's most recent credit must be before as_of; got {age}"
-    assert age < timedelta(hours=1), (
-        f"C0013 burst's most recent credit must be inside the 1h rule window; "
-        f"got {age} before as_of"
-    )
+    assert len(rtp_ins) >= 5, "expected ≥ 5 inbound RTP credits for C0013"
+    for t in rtp_ins:
+        age = AS_OF - t["booked_at"]
+        assert age > timedelta(0), f"C0013 burst credit must be before as_of; got {age}"
+        assert age < timedelta(hours=1), (
+            f"C0013 burst credit must be inside the 1h rule window; got {age} before as_of"
+        )
 
 
 # ---------------------------------------------------------------------------

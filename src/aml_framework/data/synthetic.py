@@ -584,12 +584,16 @@ def generate_dataset(
         customers[12]["typical_send_window_start_hour"] = 9
         customers[12]["typical_send_window_end_hour"] = 17
         # Single $7,500 RTP send to a never-before-paid counterparty,
-        # 23h before as_of (hour=1 when as_of is midnight; in any case
-        # outside the 9-17 typical window because hour wraps to
-        # `(as_of_hour + 1) mod 24` which lies in [0, 8]). Sits inside
-        # first_use_payee_large_amount_rtp's 1d sliding window
-        # `[as_of - 24h, as_of)` — earlier `-1d -1h` was 25h back, just
-        # outside the window, so the rule never fired.
+        # 23h before as_of. Sits inside `first_use_payee_large_amount_rtp`'s
+        # 1d sliding window `[as_of - 24h, as_of)` — earlier `-1d -1h`
+        # was 25h back, just outside the window, so the rule never
+        # fired. The hour of the booked_at depends on as_of's hour;
+        # for the typical test/CLI as_of of midnight the resulting
+        # hour is 1, outside the 9-17 typical_send_window. Callers
+        # using a non-midnight as_of should ensure the math still
+        # places the txn outside the typical window —
+        # `test_c0012_send_falls_outside_typical_window` is the
+        # regression pin for that invariant.
         txns.append(
             _make_txn(
                 tid,
