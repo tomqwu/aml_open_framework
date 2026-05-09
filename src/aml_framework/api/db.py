@@ -30,6 +30,7 @@ client directly.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -37,10 +38,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+log = logging.getLogger("aml.api.db")
+
 _DATABASE_URL = os.environ.get("DATABASE_URL", "")
 _SQLITE_PATH = Path.home() / ".aml_framework" / "runs.db"
 _COSMOS_ENDPOINT = os.environ.get("COSMOS_ENDPOINT", "")
 _COSMOS_DATABASE = os.environ.get("COSMOS_DATABASE", "aml")
+
+_dual_config_warned = False
 
 
 def _use_cosmos() -> bool:
@@ -60,10 +65,23 @@ def _active_backend() -> str:
     `_use_postgres()` / `_use_cosmos()` helpers so existing test
     patches (`patch.object(db, "_use_cosmos", return_value=True)`)
     keep working.
+
+    If both env vars resolve true, emit a one-time WARN so an operator
+    migrating from Cosmos to Postgres sees the silent backend switch
+    in their startup logs instead of discovering it via missing data.
     """
-    if _use_postgres():
+    global _dual_config_warned
+    pg, cosmos = _use_postgres(), _use_cosmos()
+    if pg and cosmos and not _dual_config_warned:
+        log.warning(
+            "Both DATABASE_URL and COSMOS_ENDPOINT are set; postgres-first "
+            "precedence selects postgres. Cosmos-backed data will not be "
+            "read or written until DATABASE_URL is unset."
+        )
+        _dual_config_warned = True
+    if pg:
         return "postgres"
-    if _use_cosmos():
+    if cosmos:
         return "cosmos"
     return "sqlite"
 
