@@ -584,10 +584,12 @@ def generate_dataset(
         customers[12]["typical_send_window_start_hour"] = 9
         customers[12]["typical_send_window_end_hour"] = 17
         # Single $7,500 RTP send to a never-before-paid counterparty,
-        # at 01:00 the day before (outside the 9-17 typical window AND
-        # inside first_use_payee_large_amount_rtp's 1d sliding window
+        # 23h before as_of (hour=1 when as_of is midnight; in any case
+        # outside the 9-17 typical window because hour wraps to
+        # `(as_of_hour + 1) mod 24` which lies in [0, 8]). Sits inside
+        # first_use_payee_large_amount_rtp's 1d sliding window
         # `[as_of - 24h, as_of)` — earlier `-1d -1h` was 25h back, just
-        # outside the window, so the rule never fired).
+        # outside the window, so the rule never fired.
         txns.append(
             _make_txn(
                 tid,

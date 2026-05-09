@@ -83,8 +83,8 @@ def test_c0013_has_velocity_burst_on_receive() -> None:
 
 def test_c0012_send_falls_within_first_use_rule_window() -> None:
     """`first_use_payee_large_amount_rtp` has window `1d` → 24h sliding.
-    The plant's booked_at must be `< 24h` before as_of, otherwise the
-    rule sees zero matching rows and silently doesn't fire."""
+    The plant's booked_at must be in `(as_of - 24h, as_of)` (half-open
+    upper bound, strict lower so the txn is in the past)."""
     data = _data()
     rtp_send = next(
         t
@@ -92,6 +92,7 @@ def test_c0012_send_falls_within_first_use_rule_window() -> None:
         if t["customer_id"] == "C0012" and t["channel"] == "rtp" and t["direction"] == "out"
     )
     age = AS_OF - rtp_send["booked_at"]
+    assert age > timedelta(0), f"C0012 RTP send must be before as_of; got {age}"
     assert age < timedelta(days=1), (
         f"C0012 RTP send must be inside the 1d rule window; got {age} before as_of"
     )
@@ -99,8 +100,7 @@ def test_c0012_send_falls_within_first_use_rule_window() -> None:
 
 def test_c0013_burst_ends_within_velocity_rule_window() -> None:
     """`velocity_spike_on_receive_rtp` has window `1h` → 60min sliding.
-    The most recent credit in the burst must be `< 1h` before as_of so
-    the entire burst is visible to the rule's `count >= 5` aggregate."""
+    The most recent credit in the burst must be in `(as_of - 1h, as_of)`."""
     data = _data()
     rtp_ins = [
         t
@@ -109,6 +109,7 @@ def test_c0013_burst_ends_within_velocity_rule_window() -> None:
     ]
     most_recent = max(t["booked_at"] for t in rtp_ins)
     age = AS_OF - most_recent
+    assert age > timedelta(0), f"C0013 burst's most recent credit must be before as_of; got {age}"
     assert age < timedelta(hours=1), (
         f"C0013 burst's most recent credit must be inside the 1h rule window; "
         f"got {age} before as_of"
