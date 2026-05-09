@@ -296,6 +296,28 @@ Surprise constraint: the landing zone's `CLAUDE.md` explicitly forbids AKS — *
 
 **Phase B (queued, not shipped):** Azure OpenAI as 4th assistant backend, Microsoft Sentinel via the platform Log Analytics workspace, Microsoft Purview lineage push. Lives in a future plan.
 
+### Round 17 — Plant coverage + persistence asymmetry + housekeeping (9 PRs, 2026-05-08 → 2026-05-09)
+
+Goal: close the MRM-trustability gap on under-covered specs (us_rtp_fednow, trade_based_ml, uk_app_fraud) by planting ground-truth positives that match each rule's window/threshold semantics, plus a persistence-layer cleanup that surfaced from Azure deployment work.
+
+`#272` was bundled into `#271` and `#280` into `#279` via stacked-PR cascades, so 7 squash commits land on main for these 9 PR numbers.
+
+| PR | Workstream |
+|---|---|
+| #271 | Flip persistence backend precedence to postgres > cosmos in `_active_backend()`. Helm `api-deployment.yaml` + `dashboard-deployment.yaml` mirror the flip so what `kubectl describe` shows matches what the Python runtime picks under dual-config. One-time WARN log when both `DATABASE_URL` and `COSMOS_ENDPOINT` are set so an operator migrating Cosmos→Postgres sees the silent backend switch in startup logs. New `TestCrudFunctionsRouteToPostgresUnderDualConfig` covers all 7 public CRUD funcs. |
+| #272 | (bundled into #271 via stacked-PR cascade) Dashboard startup-log test class (`TestDashboardStartupLogsBackend`) verifies the dashboard pod's `Persistence backend: %s` line emits to the `aml.dashboard` logger. Class-scoped `_restore_sys_modules` fixture prevents streamlit imports leaking into other test files' "no streamlit" assertions. |
+| #273 | Document the dashboard ↔ DB persistence asymmetry: terraform-deployed dashboard pods received `COSMOS_ENDPOINT` but not `DATABASE_URL`, silently falling back to local SQLite when `enable_postgres = true`. CLAUDE.md note + `deploy/terraform/README.md` known-issue section pointing at the fix path (Helm side already addressed in #271; Terraform Container Apps side queued). |
+| #275 | Plant trade-based ML positives (C0020-C0022) + UK APP fraud positives (C0016-C0019) + the `hs_code_baseline` reference table for over/under-invoicing rule joins. New `is_null` SQL filter operator (with strict bool guard against YAML-quoting accidents) so `phantom_shipping`'s `invoice_id: { is_null: true }` filter compiles correctly. |
+| #276 | Plug cross-spec contamination from C0012-C0019 planted positives: at certain seeds the noise loop's 4-week background activity pushed those customers' `unusual_volume_spike` baseline_avg over the 5× ratio threshold, leaking false positives into uk_bank, canadian_schedule_i_bank, canadian_bank, and community_bank. Same `txns = [t for t in txns if t["customer_id"] not in <ids>]` guard pattern that PR #275 used for C0020-C0022, now widened to C0012-C0019. |
+| #277 | Align C0012/C0013 RTP plant timestamps with the rule windows: `aggregation_window` uses a sliding `[as_of - parse_window, as_of)` (verified at `src/aml_framework/generators/sql.py:154-163`); the prior C0012 plant at `as_of - timedelta(days=1, hours=1)` was 25h back — 1h outside `first_use_payee_large_amount_rtp`'s 24h window — and C0013's burst at `-1d -14h` was 38h outside `velocity_spike_on_receive_rtp`'s 1h window. Two new window-pinning regression tests catch any future drift. |
+| #278 | `.gitignore` additions for `terraform.tfstate*`, `deploy/terraform/*.tfplan`, `_temp/`, `/aml_open_framework/` (embedded git-repo experiment), `uv.lock` — files accumulating untracked across recent rounds that risk an absent-minded `git add -A` polluting a future commit. |
+| #279 | Populate `counterparty_id` in the synthetic txn data — declared nullable in `us_rtp_fednow`'s `data_contract` but never emitted by `_make_txn`. Three rules use it: `unusual_send_hour_for_customer_rtp` SELECTs it; `first_use_payee_large_amount_rtp` and `ramp_up_then_drain_rtp` `GROUP BY (customer_id, counterparty_id)`. Without real values, the latter two collapsed every txn into a single `(customer, NULL)` group. Also re-anchored C0012's plant hour to a guaranteed-outside-typical-window value regardless of as_of, so `unusual_send_hour_for_customer_rtp` fires under default `aml run` invocations (was firing only when as_of was at midnight). |
+| #280 | (bundled into #279 via stacked-PR cascade) Plant C0023 ("Ramp Source LLC") with 4 small RTP outbounds totaling $1,550 to `CP-RAMP-2026-001` for `ramp_up_then_drain_rtp` coverage. Intentional cross-rule firing: `cyber_enabled_fraud`'s broader `ramp_up_then_drain` rule is a strict superset, so this same plant fires it too — net coverage gain on that spec. |
+
+**Result**: us_rtp_fednow's within-spec coverage on planted customers grew from 0/5 to 4/5 (still needs a customer-contract `device_id` linking column to fire `mule_receiver_fan_out_rtp`); trade_based_ml fires 3/5 of its rules end-to-end on the plants (over_invoicing, phantom_shipping, multiple_invoicing); uk_app_fraud fires 4/4. Cross-spec leak guards at C0012-C0022 stop the noise from those plants nudging unrelated specs' all-txn rules. Tests grew 2,084 → 2,168.
+
+**Out of scope (queued):** `mule_receiver_fan_out_rtp` plant (needs `phone`/`email`/`device_id` linking column on the `customer` contract); `unusual_send_hour_for_customer_rtp` cleanup of the `t.counterparty_id` SELECT now that the column is populated (not strictly needed but tidies the SQL).
+
 ---
 
 ## What the Framework Does Today
