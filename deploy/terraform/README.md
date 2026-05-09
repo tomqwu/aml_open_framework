@@ -50,7 +50,7 @@ The Helm chart calls out the same shape in
 `deploy/helm/templates/dashboard-deployment.yaml`. Resolving this is
 queued for a future round (options: wire `DATABASE_URL` and the
 Postgres-admin UAMI into the dashboard pod, or refactor the dashboard
-pages to call the API's `/runs` endpoints over HTTP). Until then,
+pages to call the API's `/api/v1/runs` endpoints over HTTP). Until then,
 operators running on Postgres should know that Run History and
 Comparative Analytics are not driven by the deployment's Postgres
 database — investigating empty views means looking at the dashboard's
