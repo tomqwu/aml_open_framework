@@ -367,14 +367,16 @@ def test_c0023_carries_ramp_up_pattern() -> None:
         and t["direction"] == "out"
         and t["amount"] < 500
     ]
-    assert len(sends) >= 3, f"expected ≥3 small RTP sends for C0023; got {len(sends)}"
-    assert sum(t["amount"] for t in sends) >= 1000, (
-        f"C0023 small-send total must clear $1,000; got {sum(t['amount'] for t in sends)}"
+    # Exact pin: 4 plants, $1,550 total, single counterparty
+    # `CP-RAMP-2026-001` — anything else is a regression in the plant
+    # block, not a tuning change to the rule's thresholds.
+    assert len(sends) == 4, f"expected exactly 4 small RTP sends for C0023; got {len(sends)}"
+    assert sum(t["amount"] for t in sends) == Decimal("1550.00"), (
+        f"C0023 small-send total must equal $1,550; got {sum(t['amount'] for t in sends)}"
     )
-    # All to the same counterparty (rule groups by customer + counterparty).
     counterparties = {t["counterparty_id"] for t in sends}
-    assert len(counterparties) == 1, (
-        f"C0023 ramp-up sends must share one counterparty_id; got {counterparties}"
+    assert counterparties == {"CP-RAMP-2026-001"}, (
+        f"C0023 ramp-up sends must share `CP-RAMP-2026-001`; got {counterparties}"
     )
     # All inside the 14d window.
     cutoff = AS_OF - timedelta(days=14)

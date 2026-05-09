@@ -668,10 +668,18 @@ def generate_dataset(
             tid += 1
 
     # --- C0023: RTP ramp-up then drain (small priming sends to one payee) ---
-    # `ramp_up_then_drain_rtp` filters direction=out, channel in [rtp,fednow],
-    # amount < 500; groups by (customer_id, counterparty_id); window 14d;
-    # having count >= 3 AND sum_amount >= 1000. Plant 4 small RTP sends to
-    # one counterparty totaling $1,550 over 5 days inside the 14d window.
+    # `ramp_up_then_drain_rtp` (us_rtp_fednow) filters direction=out, channel
+    # in [rtp,fednow], amount < 500; groups by (customer_id, counterparty_id);
+    # window 14d; having count >= 3 AND sum_amount >= 1000. Plant 4 small RTP
+    # sends to one counterparty totaling $1,550 over 5 days inside the 14d
+    # window.
+    #
+    # Intentional cross-rule firing: cyber_enabled_fraud's `ramp_up_then_drain`
+    # rule (no channel filter) is a strict superset of the RTP variant, so
+    # this same plant fires it too. That's correct typology coverage —
+    # cyber_enabled_fraud previously had zero planted positives — not a leak.
+    # If you ever need C0023 to fire ONLY the RTP variant, the architecture
+    # can't help: any plant matching the subset rule matches the superset.
     if n_customers > 23:
         customers[23] = _customer_row(
             fake,

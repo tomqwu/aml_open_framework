@@ -480,8 +480,10 @@ class TestCyberEnabledFraudSpec:
             assert "fincen_sar" in spec.reporting.forms
 
     def test_spec_runs_end_to_end(self, tmp_path):
-        # Even though synthetic data doesn't plant pig-butchering positives,
-        # the spec must run cleanly to demo on the example dataset.
+        # The spec must run cleanly on the example dataset. cyber_enabled_
+        # fraud's `ramp_up_then_drain` is a strict superset of us_rtp_fednow's
+        # `ramp_up_then_drain_rtp`; the C0023 plant intended for the RTP rule
+        # fires this one too (correct typology coverage — not a leak).
         from datetime import datetime
 
         from aml_framework.data import generate_dataset
@@ -499,7 +501,7 @@ class TestCyberEnabledFraudSpec:
         )
         # Manifest shape we can rely on later.
         assert "spec_content_hash" in result.manifest
-        # All three rules executed (zero alerts is fine on synthetic data).
+        # All three rules executed.
         assert set(result.alerts.keys()) >= {
             "pig_butchering_payout_fan",
             "ramp_up_then_drain",
