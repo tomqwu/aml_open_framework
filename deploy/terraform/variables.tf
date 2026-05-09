@@ -53,14 +53,8 @@ variable "postgres_admin_login" {
   default     = ""
 }
 
-variable "postgres_location" {
-  description = "Override location for the Postgres Flexible Server. Some Sponsorship subscriptions restrict Postgres provisioning in certain regions (eastus is commonly locked); set this to a working region (e.g. eastus2, westus2). Empty string falls back to the app RG's location."
-  type        = string
-  default     = ""
-}
-
 variable "app_location_override" {
-  description = "Canonical Azure slug (e.g. 'canadacentral', 'westus2') passed through to the landing zone's app-onboard module. Places the per-app RG, UAMI, and per-app Key Vault in this region; the Container Apps Environment + Container Apps follow automatically via module.onboard.location. Default is 'canadacentral' for the AML deploy (Toronto-based ops, Sponsorship Postgres free tier offered there). Set to '' to inherit the platform location, or to any other slug in the platform's allowed_locations policy. Validated by the upstream module against ^[a-z][a-z0-9]+$. Changing this on an existing deploy is destructive — the per-app RG is named with the location, so Terraform destroys and recreates it; the old per-app Key Vault enters 90-day soft-delete."
+  description = "Canonical Azure slug (e.g. 'canadacentral', 'westus2') passed through to the landing zone's app-onboard module. Places the per-app RG, UAMI, per-app Key Vault, Container Apps Environment, Container Apps, and Postgres in this region. Default 'canadacentral' matches the current landing zone deployment (Toronto-based ops, Sponsorship Postgres free tier offered there). Set '' to inherit the platform location, or any other slug in the platform's allowed_locations policy. Validated by the upstream module against ^[a-z][a-z0-9]+$. This is a one-time per-deployment choice — the per-app RG name encodes the location, so changing it on an existing deploy triggers a destroy/recreate of the per-app stack and the old per-app Key Vault enters 90-day soft-delete."
   type        = string
   default     = "canadacentral"
 }
