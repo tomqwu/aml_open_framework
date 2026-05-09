@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Behavioral Guidelines
 
@@ -89,12 +89,22 @@ If GitHub blocks the merge:
 Only close without merging if the work is abandoned, duplicated, or superseded,
 and leave a PR comment explaining why.
 
+## Responding to PR Comments
+
+**When a comment lands on a PR, address it.** Don't leave reviewer feedback hanging. This includes Codex review notes, user inline comments, and review threads on individual lines.
+
+- After opening a PR, periodically check `gh pr view <num>` and `gh api repos/<owner>/<repo>/pulls/<num>/comments` for new comments.
+- For each comment: either fix the issue and push a follow-up commit, or reply explaining why it doesn't apply (with reasoning). Don't silently ignore.
+- Reply on the PR itself (`gh pr comment` or inline review reply) — not just in the local conversation. Keep the audit trail visible to whoever reviews next.
+- For multi-issue reviews (e.g. Codex with several findings), fix all issues in one follow-up commit when feasible, then post a single response comment summarising what changed and which finding each change addresses.
+- If a comment requests a behaviour the user explicitly approved earlier in the conversation, push back with the rationale before changing direction — don't flip on every reviewer suggestion.
+
 ## Project-Specific Rules
 
 - **Lazy imports**: Dashboard modules (audience.py, data_layer.py, pages/) must NOT import `streamlit` at module level. Unit-test CI only installs `.[dev]`.
 - **Skip guards**: Tests needing `jwt`, `fastapi`, or `streamlit` must use `pytest.mark.skipif`.
 - **Spec + schema sync**: When changing the spec shape, update both `schema/aml-spec.schema.json` AND `spec/models.py`.
-- **Every new feature needs**: tests, screenshots (if UI), README section, CLAUDE.md update if architecture changes.
+- **Every new feature needs**: tests, screenshots (if UI), README section, AGENTS.md update if architecture changes.
 
 ## Commands
 
