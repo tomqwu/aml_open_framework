@@ -39,13 +39,19 @@ spec:
           ports:
             - containerPort: {{ .Values.dashboard.port }}
           env:
-            # PR-AZ-10: Cosmos env vars must mirror the API pod —
-            # dashboard pages call aml_framework.api.db.list_runs() /
-            # init_db() directly, so without these the dashboard
-            # falls back to local SQLite while the API writes to
-            # Cosmos, leaving Run History / Comparative Analytics
+            # Persistence env vars must mirror the API pod — dashboard
+            # pages call aml_framework.api.db.list_runs() / init_db()
+            # directly, so without these the dashboard falls back to
+            # local SQLite while the API writes to the configured
+            # backend, leaving Run History / Comparative Analytics
             # showing stale-or-empty results.
-            {{- if .Values.cosmos.enabled }}
+            #
+            # Postgres-first precedence mirrors `_active_backend()` in
+            # src/aml_framework/api/db.py.
+            {{- if .Values.postgres.enabled }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.postgres.username }}:{{ .Values.postgres.password }}@{{ .Release.Name }}-postgres:5432/{{ .Values.postgres.database }}"
+            {{- else if .Values.cosmos.enabled }}
             - name: COSMOS_ENDPOINT
               value: {{ .Values.cosmos.endpoint | quote }}
             - name: COSMOS_DATABASE
