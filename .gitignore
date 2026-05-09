@@ -22,3 +22,17 @@ deploy/terraform/terraform.tfvars
 deploy/terraform/.terraform/
 deploy/terraform/.terraform.lock.hcl
 deploy/terraform/tfplan
+deploy/terraform/*.tfplan
+# Terraform state can carry resource names + per-resource secrets — never commit.
+terraform.tfstate
+terraform.tfstate.*
+
+# Developer scratch surfaces that shouldn't ride along with commits.
+_temp/
+# Embedded git repo created by an old worktree experiment; anchor with leading
+# slash so we don't accidentally hide the package's own source tree.
+/aml_open_framework/
+
+# We use pip + pyproject.toml; uv was a passing experiment and its lockfile
+# tracking-vs-not is unsettled. Leave it out of the index until we commit to uv.
+uv.lock
