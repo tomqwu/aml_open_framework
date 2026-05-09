@@ -49,6 +49,25 @@ module "onboard" {
 }
 
 # ---------------------------------------------------------------------------
+# 1b. Persistence-backend mutex.
+#     enable_postgres and enable_cosmos must not both be true: the app
+#     wires DATABASE_URL or COSMOS_ENDPOINT, never both, and provisioning
+#     both server-side leaks an idle account that nothing reads. Matches
+#     the equivalent fail-fast in deploy/helm/templates/api-deployment.yaml.
+#     A precondition on the Postgres resource itself wouldn't fire when
+#     enable_postgres=false, so guard via terraform_data which always plans.
+# ---------------------------------------------------------------------------
+
+resource "terraform_data" "db_backend_mutex" {
+  lifecycle {
+    precondition {
+      condition     = !(var.enable_postgres && var.enable_cosmos)
+      error_message = "enable_postgres and enable_cosmos are mutually exclusive. Pick one persistence backend (or set both to false for SQLite)."
+    }
+  }
+}
+
+# ---------------------------------------------------------------------------
 # 2. Postgres Flexible Server (B1ms, Entra-ID-only auth).
 #    Random suffix because Postgres FQDNs need to be globally unique.
 # ---------------------------------------------------------------------------
@@ -64,9 +83,7 @@ resource "azurerm_postgresql_flexible_server" "aml" {
   count               = var.enable_postgres ? 1 : 0
   name                = "psql-aml-${var.env}-${random_string.pg_suffix[0].result}"
   resource_group_name = module.onboard.resource_group_name
-  # Allow override when Sponsorship subscriptions lock the platform's
-  # default region (eastus is commonly restricted for Postgres).
-  location = var.postgres_location != "" ? var.postgres_location : module.onboard.location
+  location            = module.onboard.location
 
   version                       = "16"
   sku_name                      = "B_Standard_B1ms"

@@ -67,3 +67,16 @@ class TestTerraformFilesPresent:
         # Diagnostics to platform LAW.
         assert "azurerm_monitor_diagnostic_setting" in body
         assert "log_analytics_workspace_id" in body
+
+    def test_db_backend_mutex_precondition_present(self):
+        """enable_postgres and enable_cosmos must be mutually exclusive.
+
+        Mirrors the fail-fast in deploy/helm/templates/api-deployment.yaml.
+        The check is a `terraform_data` block (not a precondition on the
+        Postgres resource) so the guard fires even when enable_postgres is
+        false.
+        """
+        body = (TF_DIR / "main.tf").read_text(encoding="utf-8")
+        assert 'resource "terraform_data" "db_backend_mutex"' in body
+        assert "condition     = !(var.enable_postgres && var.enable_cosmos)" in body
+        assert "mutually exclusive" in body
