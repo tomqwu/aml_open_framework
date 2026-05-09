@@ -143,7 +143,7 @@ def _make_txn(
     SELECTs it for evidence; `first_use_payee_large_amount_rtp` and
     `ramp_up_then_drain_rtp` GROUP BY (customer_id, counterparty_id)
     so multi-counterparty fan-out structure stays separable. Default
-    is None — background noise generators populate a stable Faker
+    is None — background noise generators populate a stable pool
     value so groupings remain meaningful without nudging unrelated
     rules.
     """

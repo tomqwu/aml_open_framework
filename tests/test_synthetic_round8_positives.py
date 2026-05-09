@@ -13,6 +13,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from aml_framework.data import generate_dataset
 
 
@@ -100,6 +102,40 @@ def test_c0013_has_velocity_burst_on_receive() -> None:
 # three intended within-spec rules. These tests pin the timing so a future
 # refactor can't re-introduce the gap.
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "as_of",
+    [
+        datetime(2026, 4, 28, 0, 0, 0),  # midnight (test fixture default)
+        datetime(2026, 4, 28, 1, 0, 0),  # exact hour=1 (boundary case for the anchor)
+        datetime(2026, 4, 28, 12, 30, 0),  # midday — would have failed pre-fix
+        datetime(2026, 4, 28, 23, 59, 0),  # late-day — would have failed pre-fix
+    ],
+)
+def test_c0012_send_anchored_outside_typical_window_for_any_as_of(as_of):
+    """C0012's plant must satisfy both rules' constraints regardless of
+    `as_of` hour: hour outside [9-17] AND inside `[as_of - 24h, as_of)`.
+    The earlier `as_of - 23h` formulation only worked for midnight
+    as_of values; for `as_of=15:00` it produced hour=16 (inside the
+    typical window) and `unusual_send_hour_for_customer_rtp` silently
+    didn't fire."""
+    data = generate_dataset(as_of=as_of, seed=42)
+    rtp_send = next(
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0012" and t["channel"] == "rtp" and t["direction"] == "out"
+    )
+    age = as_of - rtp_send["booked_at"]
+    assert age > timedelta(0), f"plant must be before as_of; got {age}"
+    assert age <= timedelta(days=1), f"plant must be inside the 1d window; got {age}"
+    hour = rtp_send["booked_at"].hour
+    cust = next(c for c in data["customer"] if c["customer_id"] == "C0012")
+    start = cust["typical_send_window_start_hour"]
+    end = cust["typical_send_window_end_hour"]
+    assert hour < start or hour > end, (
+        f"plant hour={hour} must be outside [{start},{end}] typical_send_window"
+    )
 
 
 def test_c0012_send_falls_within_first_use_rule_window() -> None:
