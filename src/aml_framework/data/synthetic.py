@@ -106,6 +106,14 @@ def _make_txn(
     purpose_code: str | None = None,
     counterparty_country: str | None = None,
     debtor_country: str = "US",
+    payee_first_use: bool = False,
+    customer_session_id: str = "",
+    confirmation_of_payee_status: str = "",
+    invoice_id: str | None = None,
+    invoice_amount: Decimal | None = None,
+    declared_unit_price: Decimal | None = None,
+    declared_quantity: int | None = None,
+    hs_code: str | None = None,
 ) -> dict[str, Any]:
     """Build a single transaction dict with deterministic shape.
 
@@ -115,6 +123,17 @@ def _make_txn(
     Other channels get empty strings for those fields — preserves
     schema shape (the EU spec's `txn` contract declares `purpose_code`
     as nullable).
+
+    `payee_first_use`, `customer_session_id`, `confirmation_of_payee_status`
+    are UK-APP-fraud signals (uk_app_fraud spec). Defaults are
+    rule-inert — `payee_first_use=False`, empty CoP status — so
+    background noise txns don't accidentally trip the APP rules.
+
+    `invoice_id`, `invoice_amount`, `declared_unit_price`,
+    `declared_quantity`, `hs_code` are TBML signals (trade_based_ml
+    spec). Defaults are None so background noise stays rule-inert
+    (all TBML rules require these fields populated AND
+    `purpose_code='TRAD'`).
     """
     iso = _iso20022_enrichment(
         channel=channel,
@@ -131,6 +150,14 @@ def _make_txn(
         "channel": channel,
         "direction": direction,
         "booked_at": booked_at,
+        "payee_first_use": payee_first_use,
+        "customer_session_id": customer_session_id,
+        "confirmation_of_payee_status": confirmation_of_payee_status,
+        "invoice_id": invoice_id,
+        "invoice_amount": invoice_amount,
+        "declared_unit_price": declared_unit_price,
+        "declared_quantity": declared_quantity,
+        "hs_code": hs_code,
         **iso,
     }
 
@@ -146,6 +173,9 @@ def _customer_row(
     business_activity: str | None = None,
     edd_last_review: datetime | None = None,
     pep_status: str | None = None,
+    vulnerable_customer_flag: bool = False,
+    typical_payment_size_p95: Decimal | None = None,
+    trade_lic_number: str | None = None,
 ) -> dict[str, Any]:
     return {
         "customer_id": customer_id,
@@ -157,6 +187,9 @@ def _customer_row(
         "business_activity": business_activity or "",
         "edd_last_review": edd_last_review,
         "pep_status": pep_status or "",
+        "vulnerable_customer_flag": vulnerable_customer_flag,
+        "typical_payment_size_p95": typical_payment_size_p95,
+        "trade_lic_number": trade_lic_number,
     }
 
 
@@ -608,4 +641,301 @@ def generate_dataset(
             edd_last_review=as_of - timedelta(days=500),  # past 365-day default
         )
 
-    return {"customer": customers, "txn": txns, "txn_return": txn_returns}
+    # ---------------------------------------------------------------------
+    # UK APP-fraud planted positives (uk_app_fraud spec)
+    # ---------------------------------------------------------------------
+    # Each customer is shaped to trip exactly one of uk_app_fraud's four
+    # rules. Without these markers `aml run examples/uk_app_fraud/...`
+    # against synthetic data fires zero alerts — the same MRM-trustability
+    # gap the Round-8/9 RTP positives (C0012/C0013) closed for us_rtp_fednow.
+
+    # --- C0016: APP first-use payee, large amount (impersonation scam) ---
+    if n_customers > 16:
+        customers[16] = _customer_row(
+            fake,
+            "C0016",
+            as_of - timedelta(days=400),
+            country="GB",
+            risk_rating="medium",
+            full_name="Olivia Hughes",
+        )
+        # Single £1,500 outbound to a never-paid-before counterparty in
+        # the last 24h — clears the rule's amount ≥ £1,000 threshold.
+        txns.append(
+            _make_txn(
+                tid,
+                "C0016",
+                1500,
+                as_of - timedelta(hours=6),
+                channel="faster_payments",
+                direction="out",
+                currency="GBP",
+                payee_first_use=True,
+                customer_session_id="SESS-C0016-1",
+            )
+        )
+        tid += 1
+
+    # --- C0017: vulnerable customer, atypical large payment ---
+    if n_customers > 17:
+        customers[17] = _customer_row(
+            fake,
+            "C0017",
+            as_of - timedelta(days=900),  # long-tenured account
+            country="GB",
+            risk_rating="low",
+            full_name="Margaret Wallace",
+            vulnerable_customer_flag=True,
+            # p95 chosen so the noise-loop's max outbound amount (£4,800)
+            # cannot satisfy `amount >= 5 * p95` — keeps the planted
+            # positive the only true match. Reviewed in PR review.
+            typical_payment_size_p95=Decimal("1000.00"),
+        )
+        # Single £6,000 outbound — 6× typical_payment_size_p95, well
+        # above the rule's `amount >= 5 * p95 AND amount >= 500` floor
+        # while staying within a realistic life-savings-handover scam scale.
+        txns.append(
+            _make_txn(
+                tid,
+                "C0017",
+                6000,
+                as_of - timedelta(hours=14),
+                channel="faster_payments",
+                direction="out",
+                currency="GBP",
+                customer_session_id="SESS-C0017-1",
+            )
+        )
+        tid += 1
+
+    # --- C0018: Confirmation-of-Payee mismatch with override ---
+    if n_customers > 18:
+        customers[18] = _customer_row(
+            fake,
+            "C0018",
+            as_of - timedelta(days=200),
+            country="GB",
+            risk_rating="medium",
+            full_name="Jacob Patterson",
+        )
+        # Two £150–£200 outbound payments in the last 7d, both with
+        # `confirmation_of_payee_status=no_match` — the customer
+        # overrode the CoP warning and proceeded anyway.
+        for day_offset, amt in [(2, 150), (4, 200)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0018",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=10),
+                    channel="faster_payments",
+                    direction="out",
+                    currency="GBP",
+                    confirmation_of_payee_status="no_match",
+                    customer_session_id=f"SESS-C0018-{day_offset}",
+                )
+            )
+            tid += 1
+
+    # --- C0019: rapid pass-through (mule pattern within 1h) ---
+    if n_customers > 19:
+        customers[19] = _customer_row(
+            fake,
+            "C0019",
+            as_of - timedelta(days=15),  # newish account, mule signal
+            country="GB",
+            risk_rating="medium",
+            full_name="Mule Vector Ltd",
+        )
+        # Inbound £2,000 → outbound £1,700 (85% pass-through) within
+        # 30 minutes. Both legs clear the £500 floor.
+        pass_in = as_of - timedelta(days=1, hours=12)
+        txns.append(
+            _make_txn(
+                tid,
+                "C0019",
+                2000,
+                pass_in,
+                channel="faster_payments",
+                direction="in",
+                currency="GBP",
+            )
+        )
+        tid += 1
+        txns.append(
+            _make_txn(
+                tid,
+                "C0019",
+                1700,
+                pass_in + timedelta(minutes=30),
+                channel="faster_payments",
+                direction="out",
+                currency="GBP",
+                customer_session_id="SESS-C0019-1",
+            )
+        )
+        tid += 1
+
+    # ---------------------------------------------------------------------
+    # Trade-based ML planted positives (trade_based_ml spec)
+    # ---------------------------------------------------------------------
+    # Three planted customers cover three TBML rules: over-invoicing,
+    # phantom shipping, and multiple invoicing. Rules 2 (under-invoicing)
+    # and 5 (TRAD-to-high-risk-jurisdiction) are out of scope for this
+    # PR — easy to extend later by planting C0023+ with the appropriate
+    # shape. The hs_code_baseline reference table is required by rules
+    # 1 and 2 (they JOIN on hs_code).
+    #
+    # Cross-spec contamination guard (caught in Codex review): each
+    # planted trade wire is ≥$20k, which trips community_bank's
+    # `dormant_account_activity` rule (`recent_large >= $10k joined
+    # against any prior last_activity`). Clearing the random noise
+    # loop's pre-existing rows for these customer ids isolates the
+    # plants — the dormant rule's CTE join finds no `last_activity`
+    # for them, so it doesn't fire on default community_bank runs.
+    _trade_customer_ids = {"C0020", "C0021", "C0022"}
+    txns = [t for t in txns if t["customer_id"] not in _trade_customer_ids]
+
+    # --- C0020: over-invoicing (declared_unit_price ≥ 3× WCO median) ---
+    if n_customers > 20:
+        customers[20] = _customer_row(
+            fake,
+            "C0020",
+            as_of - timedelta(days=400),
+            country="US",
+            risk_rating="medium",
+            full_name="Apex Imports LLC",
+            business_activity="import_export",
+            trade_lic_number="US-IMP-2024-A0020",
+        )
+        # 2 trade payments with declared_unit_price = $2,000 (4× the
+        # $500 baseline median for hs_code 8471.30 — consumer
+        # electronics). Sum of `amount` >= $25k clears the rule's
+        # `HAVING SUM >= 25000` threshold.
+        for day_offset, qty in [(5, 10), (12, 10)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0020",
+                    20000,
+                    as_of - timedelta(days=day_offset, hours=11),
+                    channel="wire",
+                    direction="out",
+                    purpose_code="TRAD",
+                    counterparty_country="DE",
+                    invoice_id=f"INV-C0020-{day_offset:03d}",
+                    invoice_amount=Decimal("20000.00"),
+                    declared_unit_price=Decimal("2000.00"),  # 4× baseline median $500
+                    declared_quantity=qty,
+                    hs_code="8471.30",
+                )
+            )
+            tid += 1
+
+    # --- C0021: phantom shipping (TRAD payment with no invoice_id) ---
+    if n_customers > 21:
+        customers[21] = _customer_row(
+            fake,
+            "C0021",
+            as_of - timedelta(days=300),
+            country="US",
+            risk_rating="medium",
+            full_name="Vanguard Trading Corp",
+            business_activity="wholesale",
+            trade_lic_number="US-WHL-2024-V0021",
+        )
+        # 3 outbound TRAD payments without invoice_id, summing $60k
+        # over 25 days — clears `count >= 3 AND sum_amount >= 50000`.
+        for day_offset, amt in [(3, 22000), (10, 18000), (20, 20000)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0021",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=14),
+                    channel="wire",
+                    direction="out",
+                    purpose_code="TRAD",
+                    counterparty_country="HK",
+                    # invoice_id intentionally None — this is the rule signal.
+                )
+            )
+            tid += 1
+
+    # --- C0022: multiple invoicing (same invoice_id paid twice) ---
+    if n_customers > 22:
+        customers[22] = _customer_row(
+            fake,
+            "C0022",
+            as_of - timedelta(days=250),
+            country="US",
+            risk_rating="medium",
+            full_name="Continental Trade Group",
+            business_activity="commodities",
+            trade_lic_number="US-COM-2024-C0022",
+        )
+        # Same invoice_id paid twice within a week — Egmont T-07.
+        dup_invoice = "INV-DUP-2026-04-001"
+        for day_offset, amt in [(2, 30000), (8, 30000)]:
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0022",
+                    amt,
+                    as_of - timedelta(days=day_offset, hours=10),
+                    channel="wire",
+                    direction="out",
+                    purpose_code="TRAD",
+                    counterparty_country="SG",
+                    invoice_id=dup_invoice,
+                    invoice_amount=Decimal("30000.00"),
+                )
+            )
+            tid += 1
+
+    # ---------------------------------------------------------------------
+    # HS-code baseline reference table (trade_based_ml spec)
+    # ---------------------------------------------------------------------
+    # Five representative HS codes with median + p5 + p95 unit prices
+    # sourced from World Customs Organization summary data. Rules 1 and
+    # 2 JOIN on hs_code, so without these baseline rows over/under-
+    # invoicing alerts can't fire. Other specs ignore this contract.
+    hs_code_baseline: list[dict[str, Any]] = [
+        {
+            "hs_code": "8471.30",  # consumer electronics (laptops, tablets)
+            "median_unit_price": Decimal("500.00"),
+            "p5_unit_price": Decimal("300.00"),
+            "p95_unit_price": Decimal("800.00"),
+        },
+        {
+            "hs_code": "7113.19",  # precious-metal jewellery
+            "median_unit_price": Decimal("2000.00"),
+            "p5_unit_price": Decimal("1500.00"),
+            "p95_unit_price": Decimal("3000.00"),
+        },
+        {
+            "hs_code": "6203.42",  # men's cotton trousers
+            "median_unit_price": Decimal("50.00"),
+            "p5_unit_price": Decimal("30.00"),
+            "p95_unit_price": Decimal("80.00"),
+        },
+        {
+            "hs_code": "8703.21",  # passenger motor vehicles ≤1.0L
+            "median_unit_price": Decimal("15000.00"),
+            "p5_unit_price": Decimal("10000.00"),
+            "p95_unit_price": Decimal("25000.00"),
+        },
+        {
+            "hs_code": "2710.19",  # petroleum oils, refined
+            "median_unit_price": Decimal("5.00"),
+            "p5_unit_price": Decimal("3.00"),
+            "p95_unit_price": Decimal("8.00"),
+        },
+    ]
+
+    return {
+        "customer": customers,
+        "txn": txns,
+        "txn_return": txn_returns,
+        "hs_code_baseline": hs_code_baseline,
+    }

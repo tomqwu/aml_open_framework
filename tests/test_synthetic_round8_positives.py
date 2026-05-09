@@ -11,6 +11,7 @@ tests fail loudly first.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from aml_framework.data import generate_dataset
 
@@ -103,6 +104,154 @@ def test_synthetic_data_has_at_least_two_entity_customers() -> None:
 
 
 # ---------------------------------------------------------------------------
+# UK APP-fraud planted positives
+# ---------------------------------------------------------------------------
+
+
+def test_c0016_carries_first_use_payee_large_amount() -> None:
+    data = _data()
+    outs = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0016" and t["direction"] == "out" and t["payee_first_use"]
+    ]
+    assert len(outs) >= 1, "expected ≥1 first-use-payee outbound for C0016"
+    assert any(t["amount"] >= 1000 for t in outs), (
+        "C0016's payment must clear the first_use_payee_large_amount £1,000 threshold"
+    )
+
+
+def test_c0017_carries_atypical_payment_for_vulnerable_customer() -> None:
+    data = _data()
+    cust = next(c for c in data["customer"] if c["customer_id"] == "C0017")
+    assert cust["vulnerable_customer_flag"] is True
+    assert cust["typical_payment_size_p95"] is not None
+    p95 = cust["typical_payment_size_p95"]
+    # At least one outbound must clear the rule's `5 * p95 AND >= 500` floor.
+    # Other outbounds may exist as noise — we only need one match.
+    qualifying = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0017"
+        and t["direction"] == "out"
+        and t["amount"] >= 5 * p95
+        and t["amount"] >= 500
+    ]
+    assert len(qualifying) >= 1, f"expected ≥1 outbound clearing 5×p95 (£{5 * p95}) for C0017"
+
+
+def test_c0018_carries_cop_mismatch_pair() -> None:
+    data = _data()
+    mismatches = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0018"
+        and t["direction"] == "out"
+        and t["confirmation_of_payee_status"] in ("no_match", "close_match")
+    ]
+    assert len(mismatches) >= 1, "expected ≥1 outbound CoP-mismatch payment for C0018"
+    assert all(t["amount"] >= 100 for t in mismatches), (
+        "all C0018 mismatch payments must clear the rule's £100 floor"
+    )
+
+
+def test_c0019_carries_rapid_pass_through() -> None:
+    data = _data()
+    ins = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0019" and t["direction"] == "in" and t["amount"] >= 500
+    ]
+    outs = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0019" and t["direction"] == "out" and t["amount"] >= 500
+    ]
+    # Look for at least one (inbound, outbound) pair matching the rule:
+    # outbound within 1h after inbound, ≥80% pass-through.
+    matches = [
+        (i, o)
+        for i in ins
+        for o in outs
+        if o["booked_at"] > i["booked_at"]
+        and (o["booked_at"] - i["booked_at"]) <= timedelta(hours=1)
+        and o["amount"] >= Decimal("0.8") * i["amount"]
+    ]
+    assert len(matches) >= 1, (
+        "expected ≥1 inbound→outbound pair on C0019 matching rapid_pass_through_mule"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Trade-based ML planted positives (trade_based_ml spec)
+# ---------------------------------------------------------------------------
+
+
+def test_c0020_carries_over_invoicing_pair() -> None:
+    data = _data()
+    over = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0020"
+        and t.get("purpose_code") == "TRAD"
+        and t.get("hs_code") == "8471.30"
+        and t.get("declared_unit_price") is not None
+    ]
+    assert len(over) >= 2, "expected ≥2 planted TRAD txns for C0020"
+    # Total amount must clear the rule's `HAVING SUM >= 25000` threshold.
+    assert sum(t["amount"] for t in over) >= 25000
+
+
+def test_c0020_unit_price_at_least_3x_baseline_median() -> None:
+    """The planted unit price must trip `declared_unit_price >= 3 * median`
+    against the hs_code_baseline row this PR ships."""
+    data = _data()
+    baseline = next(b for b in data["hs_code_baseline"] if b["hs_code"] == "8471.30")
+    over = [t for t in data["txn"] if t["customer_id"] == "C0020" and t.get("hs_code") == "8471.30"]
+    for t in over:
+        assert t["declared_unit_price"] >= 3 * baseline["median_unit_price"]
+
+
+def test_c0021_carries_phantom_shipping_burst() -> None:
+    data = _data()
+    phantom = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0021"
+        and t.get("purpose_code") == "TRAD"
+        and t.get("invoice_id") is None
+        and t["direction"] == "out"
+    ]
+    assert len(phantom) >= 3, "expected ≥3 phantom-shipping TRAD txns for C0021"
+    assert sum(t["amount"] for t in phantom) >= 50000
+
+
+def test_c0022_has_duplicate_invoice_id() -> None:
+    data = _data()
+    dup = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0022"
+        and t.get("purpose_code") == "TRAD"
+        and t.get("invoice_id") == "INV-DUP-2026-04-001"
+        and t["direction"] == "out"
+    ]
+    assert len(dup) == 2, f"C0022 must pay the same invoice twice; got {len(dup)}"
+
+
+def test_hs_code_baseline_present_and_complete() -> None:
+    data = _data()
+    baseline = data["hs_code_baseline"]
+    assert len(baseline) >= 5, "expected ≥5 hs_code_baseline reference rows"
+    for row in baseline:
+        # Monotonic distribution: p5 < median < p95.
+        assert row["p5_unit_price"] < row["median_unit_price"]
+        assert row["median_unit_price"] < row["p95_unit_price"]
+    # Rule 1 (over_invoicing) joins on the planted hs_code, so it must be present.
+    assert any(b["hs_code"] == "8471.30" for b in baseline)
+
+
+# ---------------------------------------------------------------------------
 # Determinism — same seed must reproduce exactly
 # ---------------------------------------------------------------------------
 
@@ -110,6 +259,16 @@ def test_synthetic_data_has_at_least_two_entity_customers() -> None:
 def test_planted_positives_are_deterministic() -> None:
     a = generate_dataset(as_of=AS_OF, seed=42)
     b = generate_dataset(as_of=AS_OF, seed=42)
-    a_c0012 = sorted((t["amount"], t["booked_at"]) for t in a["txn"] if t["customer_id"] == "C0012")
-    b_c0012 = sorted((t["amount"], t["booked_at"]) for t in b["txn"] if t["customer_id"] == "C0012")
-    assert a_c0012 == b_c0012
+    for cid in (
+        "C0012",
+        "C0016",
+        "C0017",
+        "C0018",
+        "C0019",
+        "C0020",
+        "C0021",
+        "C0022",
+    ):
+        a_txns = sorted((t["amount"], t["booked_at"]) for t in a["txn"] if t["customer_id"] == cid)
+        b_txns = sorted((t["amount"], t["booked_at"]) for t in b["txn"] if t["customer_id"] == cid)
+        assert a_txns == b_txns, f"determinism break on {cid}"
