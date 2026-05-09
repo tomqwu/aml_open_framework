@@ -559,6 +559,17 @@ def generate_dataset(
     # so the unusual-time-for-customer rule has a baseline to compare
     # against. Their flagged transactions are deliberately outside
     # that window.
+    #
+    # Cross-spec contamination guard: same pattern as the trade-based-ML
+    # guard below. C0012's $7,500 RTP send (recent window) plus 4 weeks
+    # of background noise pushes uk_bank's `unusual_volume_spike` over
+    # its 5× ratio threshold — verified at seed=42. The same all-txn
+    # group_by-customer aggregate exists in canadian_schedule_i_bank,
+    # canadian_bank, and community_bank specs. Stripping noise for the
+    # RTP/BOI plant ids isolates them so non-RTP specs see only the
+    # planted shape, which is rule-inert for them.
+    _rtp_boi_customer_ids = {"C0012", "C0013", "C0014", "C0015"}
+    txns = [t for t in txns if t["customer_id"] not in _rtp_boi_customer_ids]
 
     # --- C0012: RTP first-use-payee large amount (push-fraud drain) ---
     if n_customers > 12:
@@ -648,6 +659,23 @@ def generate_dataset(
     # rules. Without these markers `aml run examples/uk_app_fraud/...`
     # against synthetic data fires zero alerts — the same MRM-trustability
     # gap the Round-8/9 RTP positives (C0012/C0013) closed for us_rtp_fednow.
+    #
+    # Cross-spec contamination guard: each plant is GBP/faster_payments,
+    # which is rule-inert for non-UK specs at face value. But the random
+    # noise loop generates 4 weeks of background activity for these
+    # customer ids, and the all-txn `unusual_volume_spike` aggregate in
+    # uk_bank, canadian_schedule_i_bank, canadian_bank, and community_bank
+    # (no channel/currency filter, fires when `recent_sum >= 5000 AND
+    # recent > baseline_avg * 5`) flips on certain seeds — verified at
+    # seed=7 where C0019 trips uk_bank's unusual_volume_spike. Clearing
+    # the noise-loop's pre-existing rows for these ids isolates the
+    # plants: with no baseline activity, the spike-ratio comparison
+    # evaluates NULL and the rule can't fire on non-UK specs. Within-
+    # spec uk_app_fraud rules don't depend on baseline (all four are
+    # amount/flag/timing-based), so this doesn't weaken the within-spec
+    # coverage.
+    _uk_app_fraud_customer_ids = {"C0016", "C0017", "C0018", "C0019"}
+    txns = [t for t in txns if t["customer_id"] not in _uk_app_fraud_customer_ids]
 
     # --- C0016: APP first-use payee, large amount (impersonation scam) ---
     if n_customers > 16:

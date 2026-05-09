@@ -183,6 +183,69 @@ def test_c0019_carries_rapid_pass_through() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Cross-spec contamination guard (UK APP fraud)
+# ---------------------------------------------------------------------------
+# The C0016-C0019 plants live alongside random noise-loop activity. Without
+# a guard, that noise pushes the customers' 4-week baselines high enough
+# for non-UK specs' `unusual_volume_spike` (no channel/currency filter) to
+# fire false positives at certain seeds — observed at seed=7 where C0019
+# tripped uk_bank's rule. This pins the guard so a future change can't
+# silently re-introduce the leak.
+
+
+_UK_APP_FRAUD_IDS = ("C0016", "C0017", "C0018", "C0019")
+
+
+def test_uk_app_fraud_customers_have_only_planted_txns() -> None:
+    """No random-noise rows should remain for C0016-C0019 — only the
+    planted shape (GBP, faster_payments) survives the guard."""
+    data = _data()
+    for cid in _UK_APP_FRAUD_IDS:
+        rows = [t for t in data["txn"] if t["customer_id"] == cid]
+        assert rows, f"{cid} should still have its planted rows"
+        for r in rows:
+            assert r["currency"] == "GBP", f"{cid} carries non-GBP txn — noise-loop leak: {r}"
+            assert r["channel"] == "faster_payments", (
+                f"{cid} carries non-faster_payments txn — noise-loop leak: {r}"
+            )
+
+
+def test_uk_app_fraud_customers_have_no_baseline_window_activity() -> None:
+    """Plants sit within the recent window (≤5 days before as_of). Any
+    row ≥7 days old (the standard `unusual_volume_spike` baseline-start
+    cutoff) for these customer ids would mean noise leaked into the
+    baseline window — exactly what flips the spike-ratio comparison."""
+    data = _data()
+    cutoff = AS_OF - timedelta(days=7)
+    for cid in _UK_APP_FRAUD_IDS:
+        old = [t for t in data["txn"] if t["customer_id"] == cid and t["booked_at"] < cutoff]
+        assert old == [], f"{cid} has rows in the baseline window (noise leak): {old[:3]}"
+
+
+# ---------------------------------------------------------------------------
+# Cross-spec contamination guard (RTP/BOI plants — symmetric guard)
+# ---------------------------------------------------------------------------
+# C0012 fires uk_bank's `unusual_volume_spike` at seed=42 because the
+# planted $7,500 RTP send sits in the recent window while the noise loop
+# fills the 4-week baseline. The C0012-C0015 plants get the same
+# noise-stripping guard as the UK APP fraud and trade-based-ML plants.
+
+
+_RTP_BOI_IDS = ("C0012", "C0013", "C0014", "C0015")
+
+
+def test_rtp_boi_customers_have_no_baseline_window_activity() -> None:
+    """No row ≥7 days old (the unusual_volume_spike baseline-start cutoff)
+    for these customer ids — guard ensures non-RTP specs see only the
+    planted shape, which is rule-inert for them."""
+    data = _data()
+    cutoff = AS_OF - timedelta(days=7)
+    for cid in _RTP_BOI_IDS:
+        old = [t for t in data["txn"] if t["customer_id"] == cid and t["booked_at"] < cutoff]
+        assert old == [], f"{cid} has rows in the baseline window (noise leak): {old[:3]}"
+
+
+# ---------------------------------------------------------------------------
 # Trade-based ML planted positives (trade_based_ml spec)
 # ---------------------------------------------------------------------------
 
