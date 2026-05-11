@@ -86,10 +86,58 @@ def _active_backend() -> str:
     return "sqlite"
 
 
-def _get_pg_conn():
-    import psycopg2  # pragma: no cover
+_AAD_PG_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
 
-    return psycopg2.connect(_DATABASE_URL)  # pragma: no cover
+
+def _strip_aad_marker(dsn: str) -> tuple[str, bool]:
+    """Return (cleaned_dsn, had_marker).
+
+    Parses the DSN with `urllib.parse` so the strip touches only the
+    query component — never userinfo, path, or fragment — and reliably
+    handles the marker appearing in any query position (alone, first,
+    middle, last). Returns the marker presence so the caller can decide
+    whether to fetch an AAD token.
+    """
+    from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+    parts = urlparse(dsn)
+    query_pairs = parse_qsl(parts.query, keep_blank_values=True)
+    had = any(k == "authentication" and v == "azure_ad" for k, v in query_pairs)
+    if not had:
+        return dsn, False
+    cleaned_pairs = [
+        (k, v) for k, v in query_pairs if not (k == "authentication" and v == "azure_ad")
+    ]
+    new_query = urlencode(cleaned_pairs)
+    return urlunparse(parts._replace(query=new_query)), True
+
+
+def _get_pg_conn():  # pragma: no cover -- runtime-only, exercised by integration
+    """Open a psycopg2 connection.
+
+    For password-auth deployments the DSN carries the password verbatim
+    (e.g. local Docker Compose, self-managed Postgres). For Entra-ID
+    deployments the DSN omits the password; we mint a short-lived token
+    via DefaultAzureCredential at connect time and pass it as the
+    password. Azure Database for PostgreSQL Flexible Server with
+    Entra-ID auth speaks plain psql wire protocol — the AAD-ness is
+    only in how the password is sourced.
+
+    Detection rule: the DSN includes the `authentication=azure_ad`
+    query parameter (set by the Terraform Container Apps deploy at
+    `deploy/terraform/main.tf:locals.postgres_database_url`). We strip
+    it before handing to psycopg2 (which rejects unknown query
+    params) and fall back to a DefaultAzureCredential token.
+    """
+    import psycopg2
+
+    cleaned, is_aad = _strip_aad_marker(_DATABASE_URL)
+    if is_aad:
+        from azure.identity import DefaultAzureCredential
+
+        token = DefaultAzureCredential().get_token(_AAD_PG_SCOPE).token
+        return psycopg2.connect(cleaned, password=token)
+    return psycopg2.connect(cleaned)
 
 
 # Cosmos DB containers — partition key is /tenant_id on every container, so

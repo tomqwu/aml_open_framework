@@ -221,3 +221,115 @@ class TestDualConfigEmitsWarningOnce:
         msgs = [r.getMessage() for r in caplog.records if r.name == "aml.api.db"]
         warns = [m for m in msgs if "postgres-first precedence" in m]
         assert len(warns) == 1, f"expected exactly 1 warning, got {len(warns)}"
+
+
+class TestStripAadMarker:
+    """`_strip_aad_marker` must touch only the URL's query component
+    (never userinfo / path / fragment) so a DSN where the literal
+    string `authentication=azure_ad` happens to appear inside the
+    password isn't false-stripped."""
+
+    def test_marker_alone_in_query(self):
+        from aml_framework.api.db import _strip_aad_marker
+
+        dsn = "postgresql://uami@host:5432/db?authentication=azure_ad"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is True
+        assert cleaned == "postgresql://uami@host:5432/db"
+
+    def test_marker_first_with_sslmode(self):
+        from aml_framework.api.db import _strip_aad_marker
+
+        dsn = "postgresql://uami@host:5432/db?authentication=azure_ad&sslmode=require"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is True
+        assert cleaned == "postgresql://uami@host:5432/db?sslmode=require"
+
+    def test_marker_last_with_sslmode(self):
+        from aml_framework.api.db import _strip_aad_marker
+
+        dsn = "postgresql://uami@host:5432/db?sslmode=require&authentication=azure_ad"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is True
+        assert cleaned == "postgresql://uami@host:5432/db?sslmode=require"
+
+    def test_no_marker_passthrough(self):
+        from aml_framework.api.db import _strip_aad_marker
+
+        dsn = "postgresql://user:pw@localhost:5432/aml"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is False
+        assert cleaned == dsn
+
+    def test_marker_substring_in_password_not_stripped(self):
+        """If the literal substring `authentication=azure_ad` appears
+        in the userinfo (e.g. as part of an unusual password), it must
+        NOT be stripped — only the actual query parameter is."""
+        from aml_framework.api.db import _strip_aad_marker
+
+        # Contrived password containing the literal marker substring.
+        dsn = "postgresql://u:authentication=azure_ad@host:5432/db?sslmode=require"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is False
+        assert "authentication=azure_ad" in cleaned
+
+
+class TestGetPgConnEntraIdAuth:
+    """End-to-end behaviour of `_get_pg_conn`: detect AAD marker,
+    fetch token via DefaultAzureCredential at the correct scope,
+    pass it to psycopg2 as password."""
+
+    def test_aad_marker_triggers_token_fetch(self):
+        import sys
+
+        import aml_framework.api.db as db
+
+        psycopg2_mock = MagicMock()
+        azure_identity_mock = MagicMock()
+        cred_instance = MagicMock()
+        cred_instance.get_token.return_value = MagicMock(token="fake-aad-token")
+        azure_identity_mock.DefaultAzureCredential.return_value = cred_instance
+
+        aad_dsn = (
+            "postgresql://abc-uami@psql-aml-dev-foo.postgres.database.azure.com:5432/"
+            "aml?sslmode=require&authentication=azure_ad"
+        )
+        with (
+            patch.dict(
+                sys.modules,
+                {"psycopg2": psycopg2_mock, "azure.identity": azure_identity_mock},
+            ),
+            patch.object(db, "_DATABASE_URL", aad_dsn),
+        ):
+            db._get_pg_conn()
+
+        # Scope literal must be the ossrdbms-aad one — wrong scope yields
+        # tokens Postgres rejects.
+        cred_instance.get_token.assert_called_once_with(
+            "https://ossrdbms-aad.database.windows.net/.default"
+        )
+        # Exact cleaned DSN passed to psycopg2 — sslmode preserved, AAD
+        # marker gone.
+        called_args, called_kwargs = psycopg2_mock.connect.call_args
+        assert called_args[0] == (
+            "postgresql://abc-uami@psql-aml-dev-foo.postgres.database.azure.com:5432/"
+            "aml?sslmode=require"
+        )
+        assert called_kwargs["password"] == "fake-aad-token"
+
+    def test_plain_dsn_passes_through_unmodified(self):
+        """Password-auth DSNs (e.g. local docker-compose Postgres) skip
+        the token path and go through psycopg2.connect verbatim."""
+        import sys
+
+        import aml_framework.api.db as db
+
+        psycopg2_mock = MagicMock()
+        plain_dsn = "postgresql://user:pw@localhost:5432/aml"
+        with (
+            patch.dict(sys.modules, {"psycopg2": psycopg2_mock}),
+            patch.object(db, "_DATABASE_URL", plain_dsn),
+        ):
+            db._get_pg_conn()
+
+        psycopg2_mock.connect.assert_called_once_with(plain_dsn)
