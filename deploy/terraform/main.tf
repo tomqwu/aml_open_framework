@@ -195,6 +195,13 @@ locals {
     "run_metrics",
     "spec_versions",
   ]) : toset([])
+
+  # Postgres connection string for Entra-ID auth via the shared UAMI.
+  # Defined once here and referenced by both the API and dashboard
+  # `database-url` secret blocks so the value can't drift between
+  # pods. Empty string when postgres isn't enabled (the secret blocks
+  # are gated by `var.enable_postgres` and won't emit).
+  postgres_database_url = var.enable_postgres ? "postgresql://${module.onboard.identity_principal_id}@${azurerm_postgresql_flexible_server.aml[0].fqdn}:5432/aml?sslmode=require&authentication=azure_ad" : ""
 }
 
 resource "azurerm_cosmosdb_sql_container" "aml" {
@@ -345,8 +352,10 @@ resource "azurerm_container_app" "api" {
       name = "database-url"
       # Container Apps reads the secret value verbatim. The Python code
       # calls SECRETS.get("DATABASE_URL") which falls through to env.
-      # Format uses the UAMI principal_id for Entra ID auth.
-      value = "postgresql://${module.onboard.identity_principal_id}@${azurerm_postgresql_flexible_server.aml[0].fqdn}:5432/aml?sslmode=require&authentication=azure_ad"
+      # Format uses the UAMI principal_id for Entra ID auth. Value lives
+      # in `local.postgres_database_url` so the dashboard Container App's
+      # secret block (below) stays byte-identical.
+      value = local.postgres_database_url
     }
   }
 
@@ -409,6 +418,24 @@ resource "azurerm_container_app" "dashboard" {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "appinsights-conn"
       }
+      # Postgres-first precedence — mirrors `_active_backend()` in
+      # src/aml_framework/api/db.py and the Helm chart's dashboard
+      # template (deploy/helm/templates/dashboard-deployment.yaml).
+      # Dashboard pages call aml_framework.api.db.list_runs() / init_db()
+      # directly, so without DATABASE_URL on this pod the dashboard
+      # silently falls back to local SQLite while the API writes to
+      # Postgres — Run History / Comparative Analytics show stale/empty
+      # results. Same `database-url` secret as the API Container App;
+      # the shared UAMI already has Postgres AD admin via
+      # `azurerm_postgresql_flexible_server_active_directory_administrator.aml_uami`
+      # so Entra-ID auth works on both pods with no extra role grants.
+      dynamic "env" {
+        for_each = var.enable_postgres ? [1] : []
+        content {
+          name        = "DATABASE_URL"
+          secret_name = "database-url"
+        }
+      }
       dynamic "env" {
         for_each = var.enable_cosmos ? [1] : []
         content {
@@ -429,6 +456,20 @@ resource "azurerm_container_app" "dashboard" {
   secret {
     name  = "appinsights-conn"
     value = local.appinsights_conn
+  }
+
+  # Mirror of the API Container App's `database-url` secret. Container
+  # Apps secrets are resource-scoped, so the dashboard pod needs its
+  # own block even though the value is identical. Both pull from the
+  # single `local.postgres_database_url` so the value can't drift
+  # between pods. Conditioning on var.enable_postgres keeps Cosmos-path
+  # deployments unaffected.
+  dynamic "secret" {
+    for_each = var.enable_postgres ? [1] : []
+    content {
+      name  = "database-url"
+      value = local.postgres_database_url
+    }
   }
 
   tags = module.onboard.tags

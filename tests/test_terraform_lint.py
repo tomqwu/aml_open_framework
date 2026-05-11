@@ -80,3 +80,58 @@ class TestTerraformFilesPresent:
         assert 'resource "terraform_data" "db_backend_mutex"' in body
         assert "condition     = !(var.enable_postgres && var.enable_cosmos)" in body
         assert "mutually exclusive" in body
+
+    def test_database_url_injected_on_both_container_apps(self):
+        """When `var.enable_postgres = true`, both the API and the
+        dashboard Container Apps must inject `DATABASE_URL` via the
+        same `database-url` secret. Pins the resolution of the
+        dashboard ↔ DB persistence asymmetry documented in PR #273:
+        without the dashboard env var, the dashboard pod fell back
+        to local SQLite while the API wrote to Postgres. Mirrors
+        the Helm-side `TestHelmPostgresFirstPrecedence` (#271).
+
+        Scoped per `azurerm_container_app` resource so a duplicated
+        block on the API side alone can't make the assertion pass
+        with the dashboard still missing it."""
+        import re
+
+        body = (TF_DIR / "main.tf").read_text(encoding="utf-8")
+
+        # Each Container App resource is one `resource "azurerm_container_app"`
+        # block. Split the body on the resource header and inspect the API
+        # and dashboard halves separately.
+        api_idx = body.find('resource "azurerm_container_app" "api"')
+        dash_idx = body.find('resource "azurerm_container_app" "dashboard"')
+        assert api_idx >= 0, "expected `azurerm_container_app.api` resource"
+        assert dash_idx >= 0, "expected `azurerm_container_app.dashboard` resource"
+        # The dashboard resource follows the API resource in main.tf;
+        # API block is everything between its header and the dashboard header.
+        api_block = body[api_idx:dash_idx]
+        # The dashboard block runs from its header to the next top-level
+        # resource declaration (or end of file).
+        next_resource = re.search(r"\nresource \"", body[dash_idx + 1 :])
+        dash_end = (dash_idx + 1 + next_resource.start()) if next_resource else len(body)
+        dash_block = body[dash_idx:dash_end]
+
+        for label, block in (("api", api_block), ("dashboard", dash_block)):
+            # The env-var name must be `DATABASE_URL` — what the Python
+            # runtime reads via `os.environ.get("DATABASE_URL")` (see
+            # src/aml_framework/api/db.py:40). Regex tolerates terraform
+            # fmt's alignment-dependent spacing between `name` and `=`.
+            assert re.search(r'name\s+=\s+"DATABASE_URL"', block), (
+                f"{label} Container App must inject an env var named "
+                f"`DATABASE_URL` (the runtime contract)"
+            )
+            assert 'secret_name = "database-url"' in block, (
+                f"{label} Container App must source DATABASE_URL from the "
+                f"`database-url` secret when var.enable_postgres is true"
+            )
+            assert re.search(r'name\s+=\s+"database-url"', block), (
+                f"{label} Container App must define its own `database-url` "
+                f"secret block (Container Apps secrets are resource-scoped)"
+            )
+            assert "local.postgres_database_url" in block, (
+                f"{label} Container App's `database-url` secret must read "
+                f"from `local.postgres_database_url` so the value can't "
+                f"drift between pods"
+            )

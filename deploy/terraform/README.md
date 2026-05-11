@@ -26,35 +26,32 @@ For the AKS Helm chart deployment shape (banks deploying on their own
 AKS or on-prem K8s), see `deploy/helm/` and the "Deploying on Azure /
 AKS" section of `docs/deployment.md`.
 
-## Dashboard persistence asymmetry (known issue on the Postgres path)
+## Dashboard ↔ DB persistence wiring
 
-The dashboard Container App receives `COSMOS_ENDPOINT` and
-`COSMOS_DATABASE` env vars but does **not** receive `DATABASE_URL`.
-The dashboard's Run History (page 15) and Comparative Analytics
-(page 19) call `aml_framework.api.db.list_runs()` directly using
-whichever env the dashboard pod sees, so:
+Both Container Apps run the same Python codebase and call
+`aml_framework.api.db.list_runs()` directly. The dashboard's Run
+History (page 15) and Comparative Analytics (page 19) depend on
+seeing the same persistence backend the API writes to.
 
-- **Cosmos backend (`enable_cosmos = true`)**: dashboard pod has
-  `COSMOS_ENDPOINT` set, `_active_backend()` resolves to `cosmos`,
-  pages query the same Cosmos containers the API writes to. Works
-  correctly.
-- **Postgres backend (`enable_postgres = true`)**: dashboard pod has
-  neither `DATABASE_URL` nor `COSMOS_ENDPOINT`, `_active_backend()`
-  resolves to `sqlite`, and `list_runs()` reads from an empty local
-  SQLite file inside the dashboard container — disconnected from the
-  Postgres database the API writes to. Run History and Comparative
-  Analytics show stale-or-empty results even when the API and
-  Postgres are both healthy.
+- **Cosmos backend (`enable_cosmos = true`)**: both pods get
+  `COSMOS_ENDPOINT` + `COSMOS_DATABASE`; `_active_backend()`
+  resolves to `cosmos`; both read/write the same containers.
+- **Postgres backend (`enable_postgres = true`)**: both pods get
+  `DATABASE_URL` (Entra-ID auth via the shared per-app UAMI;
+  source: `local.postgres_database_url`); `_active_backend()`
+  resolves to `postgres`; both read/write the same database.
 
-The Helm chart calls out the same shape in
-`deploy/helm/templates/dashboard-deployment.yaml`. Resolving this is
-queued for a future round (options: wire `DATABASE_URL` and the
-Postgres-admin UAMI into the dashboard pod, or refactor the dashboard
-pages to call the API's `/api/v1/runs` endpoints over HTTP). Until then,
-operators running on Postgres should know that Run History and
-Comparative Analytics are not driven by the deployment's Postgres
-database — investigating empty views means looking at the dashboard's
-persistence wiring, not API reachability.
+Earlier rounds had the dashboard pod missing `DATABASE_URL` on the
+Postgres path — it silently fell back to local SQLite. That asymmetry
+was fixed in PR #271 (Helm chart) and the subsequent Terraform fix
+that mirrored it. Both fixes are pinned by lint tests
+(`TestHelmPostgresFirstPrecedence`,
+`test_database_url_injected_on_both_container_apps`).
+
+Applying the Terraform fix on a deployed dashboard rolls a new
+Container App revision (the Streamlit pod is stateless aside from
+transient in-memory session state, so this is safe — operators just
+re-open the dashboard URL).
 
 ## Prerequisites
 
