@@ -84,26 +84,47 @@ class TestTerraformFilesPresent:
     def test_database_url_injected_on_both_container_apps(self):
         """When `var.enable_postgres = true`, both the API and the
         dashboard Container Apps must inject `DATABASE_URL` via the
-        same `database-url` secret. This mirrors the Helm chart's
-        `TestHelmPostgresFirstPrecedence` and pins the resolution of
-        the dashboard ↔ DB persistence asymmetry documented in PR
-        #273: without the dashboard env var, the dashboard pod falls
-        back to local SQLite while the API writes to Postgres."""
+        same `database-url` secret. Pins the resolution of the
+        dashboard ↔ DB persistence asymmetry documented in PR #273:
+        without the dashboard env var, the dashboard pod fell back
+        to local SQLite while the API wrote to Postgres. Mirrors
+        the Helm-side `TestHelmPostgresFirstPrecedence` (#271).
+
+        Scoped per `azurerm_container_app` resource so a duplicated
+        block on the API side alone can't make the assertion pass
+        with the dashboard still missing it."""
         import re
 
         body = (TF_DIR / "main.tf").read_text(encoding="utf-8")
-        # Two env-var blocks (API + dashboard) reference `database-url`.
-        assert body.count('secret_name = "database-url"') >= 2, (
-            "Both API and dashboard Container Apps must reference the "
-            "`database-url` secret when var.enable_postgres is true"
-        )
-        # Two secret blocks (API + dashboard) define `database-url`.
-        # Container Apps secrets are resource-scoped, so each app needs
-        # its own definition. Regex tolerates terraform fmt's alignment-
-        # dependent spacing between `name` and `=`.
-        name_defs = re.findall(r'name\s+=\s+"database-url"', body)
-        assert len(name_defs) >= 2, (
-            f"Both API and dashboard Container Apps must define their own "
-            f"`database-url` secret block (Container Apps secrets are "
-            f"resource-scoped, not env-wide); found {len(name_defs)}"
-        )
+
+        # Each Container App resource is one `resource "azurerm_container_app"`
+        # block. Split the body on the resource header and inspect the API
+        # and dashboard halves separately.
+        api_idx = body.find('resource "azurerm_container_app" "api"')
+        dash_idx = body.find('resource "azurerm_container_app" "dashboard"')
+        assert api_idx >= 0, "expected `azurerm_container_app.api` resource"
+        assert dash_idx >= 0, "expected `azurerm_container_app.dashboard` resource"
+        # The dashboard resource follows the API resource in main.tf;
+        # API block is everything between its header and the dashboard header.
+        api_block = body[api_idx:dash_idx]
+        # The dashboard block runs from its header to the next top-level
+        # resource declaration (or end of file).
+        next_resource = re.search(r"\nresource \"", body[dash_idx + 1 :])
+        dash_end = (dash_idx + 1 + next_resource.start()) if next_resource else len(body)
+        dash_block = body[dash_idx:dash_end]
+
+        for label, block in (("api", api_block), ("dashboard", dash_block)):
+            assert 'secret_name = "database-url"' in block, (
+                f"{label} Container App must inject DATABASE_URL via the "
+                f"`database-url` secret when var.enable_postgres is true"
+            )
+            # Regex tolerates terraform fmt's alignment-dependent spacing.
+            assert re.search(r'name\s+=\s+"database-url"', block), (
+                f"{label} Container App must define its own `database-url` "
+                f"secret block (Container Apps secrets are resource-scoped)"
+            )
+            assert "local.postgres_database_url" in block, (
+                f"{label} Container App's `database-url` secret must read "
+                f"from `local.postgres_database_url` so the value can't "
+                f"drift between pods"
+            )
