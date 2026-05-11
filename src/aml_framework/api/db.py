@@ -89,6 +89,29 @@ def _active_backend() -> str:
 _AAD_PG_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
 
 
+def _strip_aad_marker(dsn: str) -> tuple[str, bool]:
+    """Return (cleaned_dsn, had_marker).
+
+    Parses the DSN with `urllib.parse` so the strip touches only the
+    query component — never userinfo, path, or fragment — and reliably
+    handles the marker appearing in any query position (alone, first,
+    middle, last). Returns the marker presence so the caller can decide
+    whether to fetch an AAD token.
+    """
+    from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+
+    parts = urlparse(dsn)
+    query_pairs = parse_qsl(parts.query, keep_blank_values=True)
+    had = any(k == "authentication" and v == "azure_ad" for k, v in query_pairs)
+    if not had:
+        return dsn, False
+    cleaned_pairs = [
+        (k, v) for k, v in query_pairs if not (k == "authentication" and v == "azure_ad")
+    ]
+    new_query = urlencode(cleaned_pairs)
+    return urlunparse(parts._replace(query=new_query)), True
+
+
 def _get_pg_conn():  # pragma: no cover -- runtime-only, exercised by integration
     """Open a psycopg2 connection.
 
@@ -101,28 +124,20 @@ def _get_pg_conn():  # pragma: no cover -- runtime-only, exercised by integratio
     only in how the password is sourced.
 
     Detection rule: the DSN includes the `authentication=azure_ad`
-    Azure marker (set by the Terraform Container Apps deploy at
+    query parameter (set by the Terraform Container Apps deploy at
     `deploy/terraform/main.tf:locals.postgres_database_url`). We strip
     it before handing to psycopg2 (which rejects unknown query
     params) and fall back to a DefaultAzureCredential token.
     """
-    import re
-
     import psycopg2
 
-    dsn = _DATABASE_URL
-    if "authentication=azure_ad" in dsn:
-        # Azure-mode: fetch a token and inject as password.
+    cleaned, is_aad = _strip_aad_marker(_DATABASE_URL)
+    if is_aad:
         from azure.identity import DefaultAzureCredential
 
         token = DefaultAzureCredential().get_token(_AAD_PG_SCOPE).token
-        # psycopg2 doesn't accept `authentication=...` — strip and any
-        # leading `&` / `?` it leaves behind.
-        cleaned = re.sub(r"[?&]authentication=azure_ad", "", dsn)
-        # If the marker was the only query param, the URL now ends with `?`.
-        cleaned = cleaned.rstrip("?")
         return psycopg2.connect(cleaned, password=token)
-    return psycopg2.connect(dsn)
+    return psycopg2.connect(cleaned)
 
 
 # Cosmos DB containers — partition key is /tenant_id on every container, so

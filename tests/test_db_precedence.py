@@ -223,12 +223,61 @@ class TestDualConfigEmitsWarningOnce:
         assert len(warns) == 1, f"expected exactly 1 warning, got {len(warns)}"
 
 
+class TestStripAadMarker:
+    """`_strip_aad_marker` must touch only the URL's query component
+    (never userinfo / path / fragment) so a DSN where the literal
+    string `authentication=azure_ad` happens to appear inside the
+    password isn't false-stripped."""
+
+    def test_marker_alone_in_query(self):
+        from aml_framework.api.db import _strip_aad_marker
+
+        dsn = "postgresql://uami@host:5432/db?authentication=azure_ad"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is True
+        assert cleaned == "postgresql://uami@host:5432/db"
+
+    def test_marker_first_with_sslmode(self):
+        from aml_framework.api.db import _strip_aad_marker
+
+        dsn = "postgresql://uami@host:5432/db?authentication=azure_ad&sslmode=require"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is True
+        assert cleaned == "postgresql://uami@host:5432/db?sslmode=require"
+
+    def test_marker_last_with_sslmode(self):
+        from aml_framework.api.db import _strip_aad_marker
+
+        dsn = "postgresql://uami@host:5432/db?sslmode=require&authentication=azure_ad"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is True
+        assert cleaned == "postgresql://uami@host:5432/db?sslmode=require"
+
+    def test_no_marker_passthrough(self):
+        from aml_framework.api.db import _strip_aad_marker
+
+        dsn = "postgresql://user:pw@localhost:5432/aml"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is False
+        assert cleaned == dsn
+
+    def test_marker_substring_in_password_not_stripped(self):
+        """If the literal substring `authentication=azure_ad` appears
+        in the userinfo (e.g. as part of an unusual password), it must
+        NOT be stripped — only the actual query parameter is."""
+        from aml_framework.api.db import _strip_aad_marker
+
+        # Contrived password containing the literal marker substring.
+        dsn = "postgresql://u:authentication=azure_ad@host:5432/db?sslmode=require"
+        cleaned, is_aad = _strip_aad_marker(dsn)
+        assert is_aad is False
+        assert "authentication=azure_ad" in cleaned
+
+
 class TestGetPgConnEntraIdAuth:
-    """Azure Database for PostgreSQL Flexible Server with Entra-ID auth
-    needs a short-lived AAD token as the password (the DSN carries no
-    persistent secret). Pin that the `authentication=azure_ad` marker
-    in the DSN triggers token fetch + DSN cleanup, and that password-
-    auth deployments still pass the DSN through unmodified."""
+    """End-to-end behaviour of `_get_pg_conn`: detect AAD marker,
+    fetch token via DefaultAzureCredential at the correct scope,
+    pass it to psycopg2 as password."""
 
     def test_aad_marker_triggers_token_fetch(self):
         import sys
@@ -237,8 +286,6 @@ class TestGetPgConnEntraIdAuth:
 
         psycopg2_mock = MagicMock()
         azure_identity_mock = MagicMock()
-        # Build a fake DefaultAzureCredential whose get_token returns
-        # an object with a `.token` attribute (the SDK shape).
         cred_instance = MagicMock()
         cred_instance.get_token.return_value = MagicMock(token="fake-aad-token")
         azure_identity_mock.DefaultAzureCredential.return_value = cred_instance
@@ -256,10 +303,18 @@ class TestGetPgConnEntraIdAuth:
         ):
             db._get_pg_conn()
 
-        cred_instance.get_token.assert_called_once_with(db._AAD_PG_SCOPE)
-        # The DSN passed to psycopg2 must have the AAD marker stripped.
+        # Scope literal must be the ossrdbms-aad one — wrong scope yields
+        # tokens Postgres rejects.
+        cred_instance.get_token.assert_called_once_with(
+            "https://ossrdbms-aad.database.windows.net/.default"
+        )
+        # Exact cleaned DSN passed to psycopg2 — sslmode preserved, AAD
+        # marker gone.
         called_args, called_kwargs = psycopg2_mock.connect.call_args
-        assert "authentication=azure_ad" not in called_args[0]
+        assert called_args[0] == (
+            "postgresql://abc-uami@psql-aml-dev-foo.postgres.database.azure.com:5432/"
+            "aml?sslmode=require"
+        )
         assert called_kwargs["password"] == "fake-aad-token"
 
     def test_plain_dsn_passes_through_unmodified(self):
