@@ -136,6 +136,55 @@ class TestTerraformFilesPresent:
                 f"drift between pods"
             )
 
+    def test_postgres_admin_name_and_dsn_user_share_one_local(self):
+        """Postgres Flexible Server with Entra-ID auth identifies AD
+        admins by `principal_name`, not object_id. The DSN's user
+        component MUST match the value passed to
+        `azurerm_postgresql_flexible_server_active_directory_administrator.
+        principal_name` or psql rejects with "password authentication
+        failed for user <name>".
+
+        This test pins both literals to the shared
+        `local.postgres_admin_principal_name` so a future edit can't
+        re-introduce the GUID-vs-name drift that broke the first live
+        deploy (the AD admin was registered as `aml-compliance-dev-
+        uami` but the DSN used `module.onboard.identity_principal_id`,
+        the object_id GUID)."""
+        import re
+
+        body = (TF_DIR / "main.tf").read_text(encoding="utf-8")
+
+        # 1. The local must exist.
+        assert re.search(r"postgres_admin_principal_name\s*=", body), (
+            "expected `local.postgres_admin_principal_name` declaration"
+        )
+
+        # 2. The AD admin resource's `principal_name` must read the local.
+        ad_admin_match = re.search(
+            r'resource\s+"azurerm_postgresql_flexible_server_active_directory_administrator"'
+            r'\s+"aml_uami"\s*\{[^}]*?principal_name\s*=\s*([^\n]+)',
+            body,
+            re.DOTALL,
+        )
+        assert ad_admin_match, "expected `aml_uami` AD admin resource"
+        assert "local.postgres_admin_principal_name" in ad_admin_match.group(1), (
+            "AD admin `principal_name` must read `local.postgres_admin_principal_name`; "
+            f"got {ad_admin_match.group(1).strip()}"
+        )
+
+        # 3. The DSN's user component (the part before `@` in the
+        #    postgres://... URL) must reference the same local.
+        dsn_match = re.search(
+            r'postgres_database_url\s*=\s*var\.enable_postgres\s*\?\s*"([^"]+)"', body
+        )
+        assert dsn_match, "expected `local.postgres_database_url` assignment"
+        dsn = dsn_match.group(1)
+        # Pull the user component: `postgresql://<user>@<host>...`.
+        user_part = re.match(r"postgresql://([^@]+)@", dsn).group(1)
+        assert user_part == "${local.postgres_admin_principal_name}", (
+            f"DSN user must be `${{local.postgres_admin_principal_name}}`; got `{user_part}`"
+        )
+
     def test_azure_client_id_env_var_on_both_container_apps(self):
         """User-assigned managed identity needs `AZURE_CLIENT_ID` env
         var set to the UAMI's client_id so `DefaultAzureCredential`
