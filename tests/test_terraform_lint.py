@@ -135,3 +135,79 @@ class TestTerraformFilesPresent:
                 f"from `local.postgres_database_url` so the value can't "
                 f"drift between pods"
             )
+
+    def test_postgres_admin_name_and_dsn_user_share_one_local(self):
+        """Postgres Flexible Server with Entra-ID auth identifies AD
+        admins by `principal_name`, not object_id. The DSN's user
+        component MUST match the value passed to
+        `azurerm_postgresql_flexible_server_active_directory_administrator.
+        principal_name` or psql rejects with "password authentication
+        failed for user <name>".
+
+        This test pins both literals to the shared
+        `local.postgres_admin_principal_name` so a future edit can't
+        re-introduce the GUID-vs-name drift that broke the first live
+        deploy (the AD admin was registered as `aml-compliance-dev-
+        uami` but the DSN used `module.onboard.identity_principal_id`,
+        the object_id GUID)."""
+        import re
+
+        body = (TF_DIR / "main.tf").read_text(encoding="utf-8")
+
+        # 1. The local must exist.
+        assert re.search(r"postgres_admin_principal_name\s*=", body), (
+            "expected `local.postgres_admin_principal_name` declaration"
+        )
+
+        # 2. The AD admin resource's `principal_name` must read the local.
+        ad_admin_match = re.search(
+            r'resource\s+"azurerm_postgresql_flexible_server_active_directory_administrator"'
+            r'\s+"aml_uami"\s*\{[^}]*?principal_name\s*=\s*([^\n]+)',
+            body,
+            re.DOTALL,
+        )
+        assert ad_admin_match, "expected `aml_uami` AD admin resource"
+        assert "local.postgres_admin_principal_name" in ad_admin_match.group(1), (
+            "AD admin `principal_name` must read `local.postgres_admin_principal_name`; "
+            f"got {ad_admin_match.group(1).strip()}"
+        )
+
+        # 3. The DSN's user component (the part before `@` in the
+        #    postgres://... URL) must reference the same local.
+        dsn_match = re.search(
+            r'postgres_database_url\s*=\s*var\.enable_postgres\s*\?\s*"([^"]+)"', body
+        )
+        assert dsn_match, "expected `local.postgres_database_url` assignment"
+        dsn = dsn_match.group(1)
+        # Pull the user component: `postgresql://<user>@<host>...`.
+        user_part = re.match(r"postgresql://([^@]+)@", dsn).group(1)
+        assert user_part == "${local.postgres_admin_principal_name}", (
+            f"DSN user must be `${{local.postgres_admin_principal_name}}`; got `{user_part}`"
+        )
+
+    def test_azure_client_id_env_var_on_both_container_apps(self):
+        """User-assigned managed identity needs `AZURE_CLIENT_ID` env
+        var set to the UAMI's client_id so `DefaultAzureCredential`
+        in the Python runtime picks the right identity. Without it,
+        `ManagedIdentityCredential` returns "Unable to load the proper
+        Managed Identity" and Postgres Entra-ID auth / Cosmos client
+        / Key Vault reads all fail at startup."""
+        import re
+
+        body = (TF_DIR / "main.tf").read_text(encoding="utf-8")
+        api_idx = body.find('resource "azurerm_container_app" "api"')
+        dash_idx = body.find('resource "azurerm_container_app" "dashboard"')
+        api_block = body[api_idx:dash_idx]
+        next_resource = re.search(r"\nresource \"", body[dash_idx + 1 :])
+        dash_end = (dash_idx + 1 + next_resource.start()) if next_resource else len(body)
+        dash_block = body[dash_idx:dash_end]
+
+        for label, block in (("api", api_block), ("dashboard", dash_block)):
+            assert re.search(r'name\s+=\s+"AZURE_CLIENT_ID"', block), (
+                f"{label} Container App must set the AZURE_CLIENT_ID env var "
+                f"so DefaultAzureCredential picks the UAMI"
+            )
+            assert "module.onboard.identity_client_id" in block, (
+                f"{label} Container App's AZURE_CLIENT_ID must come from "
+                f"`module.onboard.identity_client_id` (the UAMI's client_id)"
+            )
