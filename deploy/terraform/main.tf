@@ -301,9 +301,11 @@ resource "azurerm_container_app" "api" {
       # `DefaultAzureCredential` in the Python runtime picks THIS UAMI
       # rather than failing with "Unable to load the proper Managed
       # Identity" (the default ChainedTokenCredential has no way to
-      # know which UAMI to use when only the principal_id is attached
-      # to the Container App). Used by api/db.py for Postgres Entra-ID
-      # auth, by the Cosmos client, and by Key Vault secret reads.
+      # know which UAMI to use when the Container App's
+      # `identity_ids` block attaches the UAMI's resource ID without
+      # exposing its client_id to the runtime). Used by api/db.py
+      # for Postgres Entra-ID auth, by the Cosmos client, and by Key
+      # Vault secret reads.
       env {
         name  = "AZURE_CLIENT_ID"
         value = module.onboard.identity_client_id
