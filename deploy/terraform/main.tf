@@ -297,6 +297,17 @@ resource "azurerm_container_app" "api" {
         name  = "AML_ENV"
         value = var.env
       }
+      # User-assigned managed identity client_id — required so
+      # `DefaultAzureCredential` in the Python runtime picks THIS UAMI
+      # rather than failing with "Unable to load the proper Managed
+      # Identity" (the default ChainedTokenCredential has no way to
+      # know which UAMI to use when only the principal_id is attached
+      # to the Container App). Used by api/db.py for Postgres Entra-ID
+      # auth, by the Cosmos client, and by Key Vault secret reads.
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = module.onboard.identity_client_id
+      }
       env {
         name  = "AZURE_KEY_VAULT_NAME"
         value = split(".", replace(module.onboard.key_vault_uri, "https://", ""))[0]
@@ -410,6 +421,14 @@ resource "azurerm_container_app" "dashboard" {
         "--server.headless", "true",
         "--", var.spec_path, "42",
       ]
+      # User-assigned managed identity client_id — same rationale as
+      # the API Container App. Required for `DefaultAzureCredential`
+      # to find the UAMI for Postgres Entra-ID auth, Cosmos data
+      # plane, and Key Vault reads.
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = module.onboard.identity_client_id
+      }
       env {
         name  = "AZURE_KEY_VAULT_NAME"
         value = split(".", replace(module.onboard.key_vault_uri, "https://", ""))[0]

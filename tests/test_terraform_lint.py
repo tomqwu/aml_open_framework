@@ -135,3 +135,30 @@ class TestTerraformFilesPresent:
                 f"from `local.postgres_database_url` so the value can't "
                 f"drift between pods"
             )
+
+    def test_azure_client_id_env_var_on_both_container_apps(self):
+        """User-assigned managed identity needs `AZURE_CLIENT_ID` env
+        var set to the UAMI's client_id so `DefaultAzureCredential`
+        in the Python runtime picks the right identity. Without it,
+        `ManagedIdentityCredential` returns "Unable to load the proper
+        Managed Identity" and Postgres Entra-ID auth / Cosmos client
+        / Key Vault reads all fail at startup."""
+        import re
+
+        body = (TF_DIR / "main.tf").read_text(encoding="utf-8")
+        api_idx = body.find('resource "azurerm_container_app" "api"')
+        dash_idx = body.find('resource "azurerm_container_app" "dashboard"')
+        api_block = body[api_idx:dash_idx]
+        next_resource = re.search(r"\nresource \"", body[dash_idx + 1 :])
+        dash_end = (dash_idx + 1 + next_resource.start()) if next_resource else len(body)
+        dash_block = body[dash_idx:dash_end]
+
+        for label, block in (("api", api_block), ("dashboard", dash_block)):
+            assert re.search(r'name\s+=\s+"AZURE_CLIENT_ID"', block), (
+                f"{label} Container App must set the AZURE_CLIENT_ID env var "
+                f"so DefaultAzureCredential picks the UAMI"
+            )
+            assert "module.onboard.identity_client_id" in block, (
+                f"{label} Container App's AZURE_CLIENT_ID must come from "
+                f"`module.onboard.identity_client_id` (the UAMI's client_id)"
+            )
