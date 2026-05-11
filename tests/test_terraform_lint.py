@@ -114,11 +114,18 @@ class TestTerraformFilesPresent:
         dash_block = body[dash_idx:dash_end]
 
         for label, block in (("api", api_block), ("dashboard", dash_block)):
+            # The env-var name must be `DATABASE_URL` — what the Python
+            # runtime reads via `os.environ.get("DATABASE_URL")` (see
+            # src/aml_framework/api/db.py:40). Regex tolerates terraform
+            # fmt's alignment-dependent spacing between `name` and `=`.
+            assert re.search(r'name\s+=\s+"DATABASE_URL"', block), (
+                f"{label} Container App must inject an env var named "
+                f"`DATABASE_URL` (the runtime contract)"
+            )
             assert 'secret_name = "database-url"' in block, (
-                f"{label} Container App must inject DATABASE_URL via the "
+                f"{label} Container App must source DATABASE_URL from the "
                 f"`database-url` secret when var.enable_postgres is true"
             )
-            # Regex tolerates terraform fmt's alignment-dependent spacing.
             assert re.search(r'name\s+=\s+"database-url"', block), (
                 f"{label} Container App must define its own `database-url` "
                 f"secret block (Container Apps secrets are resource-scoped)"
