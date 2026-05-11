@@ -409,6 +409,23 @@ resource "azurerm_container_app" "dashboard" {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "appinsights-conn"
       }
+      # Postgres-first precedence — mirrors `_active_backend()` in
+      # src/aml_framework/api/db.py and the Helm chart's dashboard
+      # template (deploy/helm/templates/dashboard-deployment.yaml).
+      # Dashboard pages call aml_framework.api.db.list_runs() / init_db()
+      # directly, so without DATABASE_URL on this pod the dashboard
+      # silently falls back to local SQLite while the API writes to
+      # Postgres — Run History / Comparative Analytics show stale/empty
+      # results. Same `database-url` secret as the API Container App;
+      # the shared UAMI already has Postgres AD admin (line ~105) so
+      # Entra-ID auth works on both pods with no extra role grants.
+      dynamic "env" {
+        for_each = var.enable_postgres ? [1] : []
+        content {
+          name        = "DATABASE_URL"
+          secret_name = "database-url"
+        }
+      }
       dynamic "env" {
         for_each = var.enable_cosmos ? [1] : []
         content {
@@ -429,6 +446,19 @@ resource "azurerm_container_app" "dashboard" {
   secret {
     name  = "appinsights-conn"
     value = local.appinsights_conn
+  }
+
+  # Mirror of the API Container App's `database-url` secret. Container
+  # Apps secrets are resource-scoped, so the dashboard pod needs its
+  # own block even though the value is identical. Same UAMI principal
+  # → same Entra-ID auth string; conditioning on var.enable_postgres
+  # keeps Cosmos-path deployments unaffected.
+  dynamic "secret" {
+    for_each = var.enable_postgres ? [1] : []
+    content {
+      name  = "database-url"
+      value = "postgresql://${module.onboard.identity_principal_id}@${azurerm_postgresql_flexible_server.aml[0].fqdn}:5432/aml?sslmode=require&authentication=azure_ad"
+    }
   }
 
   tags = module.onboard.tags
