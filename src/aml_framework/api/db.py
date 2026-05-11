@@ -86,10 +86,43 @@ def _active_backend() -> str:
     return "sqlite"
 
 
-def _get_pg_conn():
-    import psycopg2  # pragma: no cover
+_AAD_PG_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
 
-    return psycopg2.connect(_DATABASE_URL)  # pragma: no cover
+
+def _get_pg_conn():  # pragma: no cover -- runtime-only, exercised by integration
+    """Open a psycopg2 connection.
+
+    For password-auth deployments the DSN carries the password verbatim
+    (e.g. local Docker Compose, self-managed Postgres). For Entra-ID
+    deployments the DSN omits the password; we mint a short-lived token
+    via DefaultAzureCredential at connect time and pass it as the
+    password. Azure Database for PostgreSQL Flexible Server with
+    Entra-ID auth speaks plain psql wire protocol — the AAD-ness is
+    only in how the password is sourced.
+
+    Detection rule: the DSN includes the `authentication=azure_ad`
+    Azure marker (set by the Terraform Container Apps deploy at
+    `deploy/terraform/main.tf:locals.postgres_database_url`). We strip
+    it before handing to psycopg2 (which rejects unknown query
+    params) and fall back to a DefaultAzureCredential token.
+    """
+    import re
+
+    import psycopg2
+
+    dsn = _DATABASE_URL
+    if "authentication=azure_ad" in dsn:
+        # Azure-mode: fetch a token and inject as password.
+        from azure.identity import DefaultAzureCredential
+
+        token = DefaultAzureCredential().get_token(_AAD_PG_SCOPE).token
+        # psycopg2 doesn't accept `authentication=...` — strip and any
+        # leading `&` / `?` it leaves behind.
+        cleaned = re.sub(r"[?&]authentication=azure_ad", "", dsn)
+        # If the marker was the only query param, the URL now ends with `?`.
+        cleaned = cleaned.rstrip("?")
+        return psycopg2.connect(cleaned, password=token)
+    return psycopg2.connect(dsn)
 
 
 # Cosmos DB containers — partition key is /tenant_id on every container, so

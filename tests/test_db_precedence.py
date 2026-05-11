@@ -221,3 +221,60 @@ class TestDualConfigEmitsWarningOnce:
         msgs = [r.getMessage() for r in caplog.records if r.name == "aml.api.db"]
         warns = [m for m in msgs if "postgres-first precedence" in m]
         assert len(warns) == 1, f"expected exactly 1 warning, got {len(warns)}"
+
+
+class TestGetPgConnEntraIdAuth:
+    """Azure Database for PostgreSQL Flexible Server with Entra-ID auth
+    needs a short-lived AAD token as the password (the DSN carries no
+    persistent secret). Pin that the `authentication=azure_ad` marker
+    in the DSN triggers token fetch + DSN cleanup, and that password-
+    auth deployments still pass the DSN through unmodified."""
+
+    def test_aad_marker_triggers_token_fetch(self):
+        import sys
+
+        import aml_framework.api.db as db
+
+        psycopg2_mock = MagicMock()
+        azure_identity_mock = MagicMock()
+        # Build a fake DefaultAzureCredential whose get_token returns
+        # an object with a `.token` attribute (the SDK shape).
+        cred_instance = MagicMock()
+        cred_instance.get_token.return_value = MagicMock(token="fake-aad-token")
+        azure_identity_mock.DefaultAzureCredential.return_value = cred_instance
+
+        aad_dsn = (
+            "postgresql://abc-uami@psql-aml-dev-foo.postgres.database.azure.com:5432/"
+            "aml?sslmode=require&authentication=azure_ad"
+        )
+        with (
+            patch.dict(
+                sys.modules,
+                {"psycopg2": psycopg2_mock, "azure.identity": azure_identity_mock},
+            ),
+            patch.object(db, "_DATABASE_URL", aad_dsn),
+        ):
+            db._get_pg_conn()
+
+        cred_instance.get_token.assert_called_once_with(db._AAD_PG_SCOPE)
+        # The DSN passed to psycopg2 must have the AAD marker stripped.
+        called_args, called_kwargs = psycopg2_mock.connect.call_args
+        assert "authentication=azure_ad" not in called_args[0]
+        assert called_kwargs["password"] == "fake-aad-token"
+
+    def test_plain_dsn_passes_through_unmodified(self):
+        """Password-auth DSNs (e.g. local docker-compose Postgres) skip
+        the token path and go through psycopg2.connect verbatim."""
+        import sys
+
+        import aml_framework.api.db as db
+
+        psycopg2_mock = MagicMock()
+        plain_dsn = "postgresql://user:pw@localhost:5432/aml"
+        with (
+            patch.dict(sys.modules, {"psycopg2": psycopg2_mock}),
+            patch.object(db, "_DATABASE_URL", plain_dsn),
+        ):
+            db._get_pg_conn()
+
+        psycopg2_mock.connect.assert_called_once_with(plain_dsn)
