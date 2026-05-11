@@ -108,8 +108,12 @@ resource "azurerm_postgresql_flexible_server_active_directory_administrator" "am
   resource_group_name = module.onboard.resource_group_name
   tenant_id           = data.azurerm_client_config.current.tenant_id
   object_id           = module.onboard.identity_principal_id
-  principal_name      = "aml-compliance-${var.env}-uami"
-  principal_type      = "ServicePrincipal"
+  # Postgres uses this name during AD admin auth — it MUST match the
+  # username in `local.postgres_database_url` (constructed below in
+  # the locals block) or psql rejects with "password authentication
+  # failed for user ...". Sourced from the shared local.
+  principal_name = local.postgres_admin_principal_name
+  principal_type = "ServicePrincipal"
 }
 
 # Allow the Container Apps environment to reach Postgres. The landing
@@ -201,7 +205,14 @@ locals {
   # `database-url` secret blocks so the value can't drift between
   # pods. Empty string when postgres isn't enabled (the secret blocks
   # are gated by `var.enable_postgres` and won't emit).
-  postgres_database_url = var.enable_postgres ? "postgresql://${module.onboard.identity_principal_id}@${azurerm_postgresql_flexible_server.aml[0].fqdn}:5432/aml?sslmode=require&authentication=azure_ad" : ""
+  #
+  # The Postgres username must match the principal_name registered on
+  # the AD admin resource (line 111) — Postgres validates the AD admin
+  # by name during the auth handshake, not by object_id. Using the
+  # principal_id GUID here causes `password authentication failed for
+  # user "<guid>"` at connection time. Keep both literals in lockstep.
+  postgres_admin_principal_name = "aml-compliance-${var.env}-uami"
+  postgres_database_url         = var.enable_postgres ? "postgresql://${local.postgres_admin_principal_name}@${azurerm_postgresql_flexible_server.aml[0].fqdn}:5432/aml?sslmode=require&authentication=azure_ad" : ""
 }
 
 resource "azurerm_cosmosdb_sql_container" "aml" {
