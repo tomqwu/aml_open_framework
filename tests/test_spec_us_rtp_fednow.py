@@ -69,6 +69,20 @@ def test_txn_contract_carries_cop_field_for_uk_style_reimbursement_signal() -> N
     assert "cop_match_status" in field_names
 
 
+def test_unusual_send_hour_rule_selects_counterparty_id_in_sql() -> None:
+    """Fast contract check: the rule's `custom_sql` selects the
+    `counterparty_id` evidence column. Pairs with the heavier
+    end-to-end `..._alert_carries_counterparty_id_for_evidence` test
+    below — this one catches an obvious SQL-string break in O(1),
+    the heavy one verifies the alert payload actually carries a
+    non-empty value end-to-end."""
+    spec = load_spec(SPEC)
+    rule = next(r for r in spec.rules if r.id == "unusual_send_hour_for_customer_rtp")
+    assert "t.counterparty_id" in rule.logic.sql, (
+        "rule SQL must select `t.counterparty_id` for evidence display"
+    )
+
+
 def test_unusual_send_hour_alert_carries_counterparty_id_for_evidence() -> None:
     """End-to-end: the unusual_send_hour rule's SELECT includes
     `t.counterparty_id` so analysts see which payee triggered the
