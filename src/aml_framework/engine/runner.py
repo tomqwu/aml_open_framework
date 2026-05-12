@@ -863,6 +863,33 @@ def run_spec(
                 mod = importlib.import_module(module_path)
                 scorer = getattr(mod, func_name)
                 alerts = scorer(con, as_of)
+                # Opt-in matched-row lineage hook: if the scorer module
+                # exposes `_inspect_context(con, alerts, as_of)`, call
+                # it for richer audit attribution. Returns a list of
+                # (table, rowid) tuples per alert (parallel to
+                # `alerts`) — stored on each alert as `matched_row_ids`
+                # so dashboards / lineage walks see what evidence the
+                # python_ref scorer used. PR #225 deferred this
+                # because the callable contract was unscoped; this
+                # opt-in protocol keeps existing scorers working while
+                # letting new ones surface evidence rows.
+                inspect = getattr(mod, "_inspect_context", None)
+                if callable(inspect) and alerts:
+                    try:
+                        attrib = inspect(con, alerts, as_of)
+                    except Exception:  # noqa: BLE001
+                        logger.exception(
+                            "python_ref rule '%s' _inspect_context() raised — "
+                            "alerts kept, matched_row_ids left empty",
+                            rule.id,
+                        )
+                    else:
+                        if attrib and len(attrib) == len(alerts):
+                            for alert, rowids in zip(alerts, attrib, strict=True):
+                                # Normalise — each entry should be a
+                                # list of (table_name, rowid) tuples or
+                                # plain rowids; both shapes welcome.
+                                alert["matched_row_ids"] = list(rowids or [])
             except Exception as exc:
                 # Always record the failure in the audit ledger so the
                 # run directory documents what went wrong regardless of
