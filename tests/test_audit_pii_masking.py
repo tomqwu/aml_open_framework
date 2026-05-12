@@ -43,9 +43,7 @@ def _run_with_masking(tmp_path: Path, *, masking: bool) -> Path:
             os.environ["AML_PII_MASKING"] = "1"
         else:
             os.environ.pop("AML_PII_MASKING", None)
-        result = run_spec(
-            spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path
-        )
+        run_spec(spec=spec, spec_path=SPEC_CA, data=data, as_of=as_of, artifacts_root=tmp_path)
     finally:
         if prior is None:
             os.environ.pop("AML_PII_MASKING", None)
