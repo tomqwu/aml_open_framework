@@ -40,16 +40,23 @@ def test_env_sha_wins(monkeypatch):
 
 
 def test_falls_back_to_local_git(monkeypatch):
-    """When no env override, we resolve from local git. Just assert the
-    returned value is shaped like a short SHA — not the literal
-    "dev" (this repo always has a git history)."""
+    """When no env override and we're in a git repo, we resolve from
+    `git rev-parse --short HEAD`. The docker-build CI job runs pytest
+    INSIDE the built image, where there's no .git directory — in that
+    environment the fallback to "dev" is the expected behaviour, so we
+    skip rather than assert SHA shape there.
+    """
+    from pathlib import Path
+
+    import pytest
+
+    repo_root = Path(__file__).resolve().parents[1]
+    if not (repo_root / ".git").exists():
+        pytest.skip("no .git directory (e.g. running inside docker-build job)")
     import aml_framework.release as rel
 
     rel.get_git_sha.cache_clear()
     sha = rel.get_git_sha()
-    # Short SHA is 7 hex chars by default; allow 4-40 for either side
-    # of the typical range, but reject "dev" which means resolution
-    # broke.
     assert sha != "dev", "expected git rev-parse to succeed in repo"
     assert all(c in "0123456789abcdef" for c in sha), f"expected hex SHA, got {sha!r}"
 

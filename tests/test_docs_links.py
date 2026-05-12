@@ -101,11 +101,17 @@ def test_all_local_links_resolve(md_file: Path):
 
 def test_readme_under_target_size():
     """README went from 582 → ~120 lines after the docs hub refactor.
-    Guard against drift back toward a monolithic README."""
+    Guard against drift back toward a monolithic README.
+
+    Limit raised from 200 → 210 to fit the badge row (CI, Python,
+    FastAPI, Streamlit, License, Ruff) — badges are metadata, not
+    prose. If the limit needs to grow again, push prose into docs/
+    instead of widening the budget.
+    """
     readme = PROJECT_ROOT / "README.md"
     line_count = len(readme.read_text(encoding="utf-8").splitlines())
-    assert line_count <= 200, (
-        f"README.md grew to {line_count} lines (limit 200). "
+    assert line_count <= 210, (
+        f"README.md grew to {line_count} lines (limit 210). "
         "Extract content into a docs/ file and link to it from the docs map."
     )
 
