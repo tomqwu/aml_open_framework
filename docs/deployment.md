@@ -362,9 +362,11 @@ Cost expectations on top of the landing zone's $5/mo baseline:
 
 After install, populate the per-app Key Vault with `JWT-SECRET` (and
 optionally `OPENAI-API-KEY` for the GenAI co-pilot). Subsequent
-deploys go through `.github/workflows/deploy-azure-landing-zone.yml` —
-push to main, federated-identity OIDC handles auth, revision rolls
-over automatically.
+deploys run locally from an operator workstation (`az login` +
+`terraform apply` + `az containerapp update --image …`). CI does not
+have Azure credentials and does not deploy. See
+`deploy/terraform/README.md` → "Subsequent deploys (local)" for the
+exact commands.
 
 See [`audit-evidence.md`](audit-evidence.md) for the evidence bundle contract
 and [`architecture.md`](architecture.md) for the layered runtime view.
