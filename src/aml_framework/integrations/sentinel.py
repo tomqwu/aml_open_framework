@@ -17,16 +17,20 @@ correlation rules see AML decisions alongside firewall / endpoint /
 identity logs. Round 12 lineage + this surface = end-to-end audit
 trail in the analyst's SIEM pane.
 
-Auth options (both supported, pick one)
----------------------------------------
-1. Shared-key auth (`AZURE_SENTINEL_WORKSPACE_ID` +
-   `AZURE_SENTINEL_SHARED_KEY`) — fastest to set up but key rotation
-   is a chore. Suitable for proof-of-concept and CI.
-2. Entra-ID via DefaultAzureCredential — preferred for production.
-   The Container App's UAMI needs the
-   `Log Analytics Contributor` role on the workspace
-   (or the more-narrow `Monitoring Metrics Publisher` if the
-   workspace is configured for table-level RBAC).
+Auth: shared-key only (v1 API constraint)
+-----------------------------------------
+The v1 Data Collector API (`api-version=2016-04-01` at
+`<workspace-id>.ods.opinsights.azure.com/api/logs`) accepts ONLY
+HMAC-SHA256 shared-key auth — Bearer tokens are rejected with 401.
+Migrating to the newer Logs Ingestion API (DCE/DCR, api-version
+2023-01-01) would unlock Entra-ID auth but requires the operator
+to preprovision a Data Collection Endpoint + Data Collection Rule
+in terraform. Round 19 work.
+
+For now: set `AZURE_SENTINEL_WORKSPACE_ID` + `AZURE_SENTINEL_SHARED_KEY`
+(both available in the Sentinel workspace's "Agents Management"
+blade). Sourceable from Key Vault on the deployed Container App via
+the SecretsProvider — the shared key never needs to land in repo.
 
 The active connector is opt-in: `AZURE_SENTINEL_WORKSPACE_ID` must be
 set. When unset, `record_decision()` is a no-op so dev/local runs
@@ -50,7 +54,6 @@ from typing import Any
 # by setting `AZURE_SENTINEL_LOG_TYPE` to route events into a different
 # table — Sentinel auto-creates the `<name>_CL` table on first write.
 DEFAULT_LOG_TYPE = "AmlOpenFramework"
-AAD_LOG_INGESTION_SCOPE = "https://monitor.azure.com//.default"
 
 
 class SentinelError(Exception):
@@ -141,31 +144,19 @@ def record_decision(event: dict[str, Any], *, log_type: str | None = None) -> No
     shared_key = os.environ.get("AZURE_SENTINEL_SHARED_KEY", "")
     log_type_name = log_type or os.environ.get("AZURE_SENTINEL_LOG_TYPE", DEFAULT_LOG_TYPE)
 
+    if not shared_key:
+        raise SentinelError(
+            "Sentinel push requires AZURE_SENTINEL_SHARED_KEY. The v1 Data "
+            "Collector API doesn't accept Bearer tokens — Entra-ID auth needs "
+            "a Logs Ingestion API endpoint (DCE/DCR), which Round 19 will "
+            "wire up. For now, source the shared key from Key Vault."
+        )
+
     payload = dict(event)
     payload.setdefault("timestamp", datetime.now(tz=timezone.utc).isoformat())
     body = json.dumps([payload], default=str)
     date_rfc1123 = _rfc1123_now()
-
-    if shared_key:
-        auth_header = _shared_key_signature(workspace_id, shared_key, body, date_rfc1123)
-    else:
-        # Entra-ID path — fetch a token via DefaultAzureCredential.
-        try:
-            from azure.identity import DefaultAzureCredential
-        except ImportError as e:
-            raise SentinelError(
-                "Sentinel push without AZURE_SENTINEL_SHARED_KEY needs `azure-identity` "
-                "(install via `[azure]` extras), or set the shared key."
-            ) from e
-        try:
-            token = DefaultAzureCredential().get_token(AAD_LOG_INGESTION_SCOPE).token
-        except Exception as e:  # noqa: BLE001
-            raise SentinelError(
-                "Sentinel push couldn't mint an Entra-ID token. Set "
-                "AZURE_SENTINEL_SHARED_KEY or attach a managed identity. "
-                f"Root cause: {e}"
-            ) from e
-        auth_header = f"Bearer {token}"
+    auth_header = _shared_key_signature(workspace_id, shared_key, body, date_rfc1123)
 
     _post_to_sentinel(
         workspace_id=workspace_id,
@@ -174,6 +165,18 @@ def record_decision(event: dict[str, Any], *, log_type: str | None = None) -> No
         body=body,
         date_rfc1123=date_rfc1123,
     )
+
+
+# NOTE: this connector ships the surface (`record_decision`,
+# `record_alert`) but no caller in this PR. The audit-ledger emit
+# path will be wired in a follow-up so the integration can be
+# reviewed in isolation. Any future integrator wiring this in
+# should:
+#   - Wrap calls in `try/except SentinelError` and log-and-continue.
+#     The AML engine must never fail a rule run because a downstream
+#     SIEM is offline.
+#   - Batch — `record_decision` posts one event per call. Round 19
+#     may add a batched flush path if call volume warrants.
 
 
 def record_alert(

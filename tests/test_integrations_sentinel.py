@@ -8,7 +8,6 @@ needed.
 from __future__ import annotations
 
 import base64
-import sys
 from unittest import mock
 
 import pytest
@@ -91,41 +90,20 @@ class TestRecordDecisionSharedKeyPath:
         assert captured["log_type"] == "BankCustomTable"
 
 
-class TestRecordDecisionEntraIdPath:
-    def test_entra_id_token_used_when_no_shared_key(self, monkeypatch):
+class TestRecordDecisionRequiresSharedKey:
+    """The v1 Data Collector API only accepts HMAC shared-key auth.
+    Bearer tokens are valid only on the newer Logs Ingestion API
+    (DCE/DCR), which would need an operator to preprovision a
+    Data Collection Endpoint + Rule in terraform — deferred to
+    Round 19. For now, omitting the shared key when the connector
+    is enabled must raise a clear `SentinelError` rather than
+    silently 401 against Azure."""
+
+    def test_missing_shared_key_raises_actionable_error(self, monkeypatch):
         monkeypatch.setenv("AZURE_SENTINEL_WORKSPACE_ID", "wks-test")
         monkeypatch.delenv("AZURE_SENTINEL_SHARED_KEY", raising=False)
-
-        class _FakeCred:
-            def get_token(self, _scope):
-                assert _scope == sentinel.AAD_LOG_INGESTION_SCOPE
-                return mock.MagicMock(token="fake-aad-token")
-
-        fake_module = type(sys)("azure.identity")
-        fake_module.DefaultAzureCredential = _FakeCred  # type: ignore[attr-defined]
-        with mock.patch.dict(sys.modules, {"azure.identity": fake_module}):
-            captured: dict = {}
-
-            def fake_post(*, auth_header, **kw):
-                captured["auth_header"] = auth_header
-
-            with mock.patch.object(sentinel, "_post_to_sentinel", side_effect=fake_post):
-                sentinel.record_decision({"event_type": "alert"})
-        assert captured["auth_header"] == "Bearer fake-aad-token"
-
-    def test_actionable_error_when_no_creds_at_all(self, monkeypatch):
-        monkeypatch.setenv("AZURE_SENTINEL_WORKSPACE_ID", "wks-test")
-        monkeypatch.delenv("AZURE_SENTINEL_SHARED_KEY", raising=False)
-
-        class _FakeCred:
-            def get_token(self, _scope):
-                raise RuntimeError("no credential available")
-
-        fake_module = type(sys)("azure.identity")
-        fake_module.DefaultAzureCredential = _FakeCred  # type: ignore[attr-defined]
-        with mock.patch.dict(sys.modules, {"azure.identity": fake_module}):
-            with pytest.raises(sentinel.SentinelError, match="Sentinel push couldn't mint"):
-                sentinel.record_decision({"event_type": "alert"})
+        with pytest.raises(sentinel.SentinelError, match="AZURE_SENTINEL_SHARED_KEY"):
+            sentinel.record_decision({"event_type": "alert"})
 
 
 class TestRecordAlertWrapper:
