@@ -322,6 +322,46 @@ class TestExplainability:
             assert "explanation" in a
             assert "risk_score" in a["explanation"]
 
+    def test_inspect_context_returns_matched_rowids_parallel_to_alerts(self, tmp_path):
+        """PR 18.8 lineage hook: the heuristic scorer's
+        `_inspect_context` returns one rowid list per alert, each
+        carrying the txn rowids in the 30d window for that customer.
+        Pins the contract the engine's python_ref execution path
+        relies on (`mod._inspect_context(con, alerts, as_of)`)."""
+        from aml_framework.engine.runner import _build_warehouse, _harden_duckdb
+        from aml_framework.models.scoring import _inspect_context, heuristic_risk_scorer
+
+        spec = load_spec(SPEC_CA)
+        as_of = datetime(2026, 4, 23, 12, 0, 0)
+        data = generate_dataset(as_of=as_of, seed=42, n_customers=25, n_noise_txns=600)
+        con = duckdb.connect(":memory:")
+        _harden_duckdb(con)
+        _build_warehouse(con, spec, data)
+        alerts = heuristic_risk_scorer(con, as_of)
+        attrib = _inspect_context(con, alerts, as_of)
+        con.close()
+        # One rowid list per alert.
+        assert len(attrib) == len(alerts), (
+            f"_inspect_context must return parallel to alerts; got {len(attrib)} vs {len(alerts)}"
+        )
+        # Each rowid list is non-empty (the scorer fires when txns
+        # exist, so the matched-row window has rows).
+        for alert, rowids in zip(alerts, attrib):
+            assert rowids, f"alert for {alert.get('customer_id')!r} produced empty matched_row_ids"
+            assert all(isinstance(r, int) for r in rowids)
+
+    def test_inspect_context_empty_alerts_returns_empty_list(self):
+        """No alerts → no matched rows. Pin the early-return so the
+        engine can call `_inspect_context` unconditionally without
+        the scorer doing any DB work."""
+        import duckdb as _ddb
+
+        from aml_framework.models.scoring import _inspect_context
+
+        con = _ddb.connect(":memory:")
+        result = _inspect_context(con, [], datetime(2026, 4, 23, 12, 0, 0))
+        assert result == []
+
     def test_explainability_flows_into_str_narrative(self):
         """STR narrative renders feature_attribution + explanation when present."""
         from aml_framework.generators.narrative import generate_str_narrative
