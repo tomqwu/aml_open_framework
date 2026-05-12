@@ -36,6 +36,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.dashboard.data.regulator_pulse import EVENTS, THEMES
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Regulator Pulse",
     "What's moved in the last 90 days. Every event cites the regulator's primary source — no industry briefings, no vendor analysis as the load-bearing citation.",

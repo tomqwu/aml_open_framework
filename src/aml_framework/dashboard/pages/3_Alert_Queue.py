@@ -18,6 +18,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.engine.constants import Event, Queue
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 # Alert-status palette (`new` / `reviewed` / `snoozed`) — local to this
 # page; not part of the global severity / RAG / risk vocabulary so it
 # travels via data_grid's palette_cols= seam.

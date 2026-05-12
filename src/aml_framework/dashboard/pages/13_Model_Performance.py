@@ -14,6 +14,10 @@ from aml_framework.dashboard.components import (
     page_header,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Model Performance",
     "How the scoring models behave — and what your validation team would ask about them.",

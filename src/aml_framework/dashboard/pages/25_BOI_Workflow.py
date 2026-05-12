@@ -36,6 +36,10 @@ from aml_framework.dashboard.components import (
     page_header,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 # BOI status palette — local to this page (not part of severity / RAG).
 # Filing required = red (action), in-window/up-to-date = green, etc.
 BOI_STATUS_PALETTE = {

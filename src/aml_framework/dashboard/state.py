@@ -55,6 +55,25 @@ def _resolve_spec_for_session(cli_spec: Path | None) -> tuple[Path, TenantConfig
     return tenant.spec_path, tenant
 
 
+def ensure_initialized() -> None:
+    """Idempotent guard for direct-URL hits to sub-pages.
+
+    Streamlit's multipage layout runs the entry script (``app.py``) once
+    when the user lands at the root URL, but a direct hit to ``/Today``
+    (or any other sub-page URL — bookmark, deep link, refresh after a
+    Container App revision rollover) only executes the page script.
+    Without this guard, every page that reads ``st.session_state.spec``
+    raises ``AttributeError`` because the entry script never ran.
+
+    Call this at the top of every sub-page (after the imports, before any
+    ``st.session_state.<x>`` read). Cheap no-op when state is already
+    populated — ``initialize_session`` short-circuits on its cache_key
+    check.
+    """
+    if "spec" not in st.session_state:
+        initialize_session()
+
+
 def initialize_session() -> None:
     """Run the AML engine once per (tenant, seed), cache in ``st.session_state``."""
     cli_spec, seed = _parse_cli_args()

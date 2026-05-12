@@ -1,5 +1,12 @@
 # AML Open Framework
 
+[![CI](https://github.com/tomqwu/aml_open_framework/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tomqwu/aml_open_framework/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111%2B-009688.svg)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.35%2B-FF4B4B.svg)](https://streamlit.io/)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+[![Ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://docs.astral.sh/ruff/)
+
 > **🎥 [View the live 27-slide pitch deck →](https://tomqwu.github.io/aml_open_framework_demo/)**
 > Architecture, dashboard tour, animated workflows, real screenshots — runs in the browser.
 

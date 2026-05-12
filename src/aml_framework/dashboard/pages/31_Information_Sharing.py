@@ -25,6 +25,10 @@ import streamlit as st
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import data_grid, empty_state, page_header
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Information Sharing",
     "Cross-bank obfuscated-pattern exchange · FATF R.18 / Wolfsberg CBDDQ / 314(b)",

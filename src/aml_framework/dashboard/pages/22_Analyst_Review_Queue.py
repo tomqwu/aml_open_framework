@@ -32,6 +32,10 @@ from aml_framework.dashboard.queue_state import (
 )
 from aml_framework.engine.explain import to_mermaid
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 PAGE_TITLE = "Analyst Review Queue"
 
 page_header(

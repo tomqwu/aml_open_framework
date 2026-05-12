@@ -39,6 +39,10 @@ from aml_framework.dashboard.tuning_state import (
 )
 from aml_framework.engine.tuning import sweep_rule
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 PAGE_TITLE = "Tuning Lab"
 
 page_header(

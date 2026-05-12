@@ -13,6 +13,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.dashboard.data_layer import get_roadmap_phases
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 spec = st.session_state.spec
 jurisdiction = spec.program.jurisdiction
 ROADMAP_PHASES = get_roadmap_phases(jurisdiction)

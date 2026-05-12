@@ -17,6 +17,10 @@ from aml_framework.dashboard.components import (
     pie_chart,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "My Queue",
     "Personal analyst dashboard — your assigned cases, workload, and activity.",

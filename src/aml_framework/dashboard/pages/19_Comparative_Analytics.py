@@ -15,6 +15,10 @@ from aml_framework.dashboard.components import (
     pie_chart,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Comparative Analytics",
     "Compare current run results against baseline metrics and historical trends.",

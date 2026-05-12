@@ -20,6 +20,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.dashboard.query_params import read_param
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Customer 360",
     "Complete view of a customer: profile, transactions, alerts, cases, and risk.",

@@ -6,6 +6,10 @@ import streamlit as st
 
 from aml_framework.dashboard.components import kpi_card, page_header, severity_color
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Typology Catalogue",
     "Pre-built AML detection rule templates covering major financial crime patterns.",

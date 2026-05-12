@@ -21,6 +21,10 @@ from aml_framework.dashboard.components import (
     page_header,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Live Monitor",
     "Simulated real-time transaction monitoring with spec-driven alert detection.",
