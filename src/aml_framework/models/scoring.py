@@ -112,3 +112,43 @@ def heuristic_risk_scorer(
             f"(contribution {dominant[1]:.2f} to risk_score {a['risk_score']})."
         )
     return alerts
+
+
+def _inspect_context(
+    con: duckdb.DuckDBPyConnection,
+    alerts: list[dict[str, Any]],
+    as_of: datetime,
+) -> list[list[int]]:
+    """Opt-in matched-row lineage hook (PR #225 → PR 18.8).
+
+    The engine looks up `_inspect_context` on a python_ref scorer's
+    module after the scorer fires. When present, the engine calls it
+    with the same DuckDB connection + the produced alerts + as_of,
+    and stores the returned per-alert rowid lists on each alert as
+    `matched_row_ids` so the lineage walk-back surfaces what evidence
+    the scorer used.
+
+    Contract:
+      - Return a list parallel to `alerts` (one entry per alert).
+      - Each entry is a list of `rowid` ints from the `txn` source
+        table — the rows the scorer used to compute its features.
+      - Return [] for an alert when no evidence is available.
+
+    For the heuristic scorer: matched rows are every `txn` row for the
+    alerted customer in the last 30 days (the same window the scorer
+    aggregates over). Bounded SELECT per alert; the alert sample is
+    already capped at the engine level so this is fine for FI-scale.
+    """
+    window_start = as_of - timedelta(days=30)
+    out: list[list[int]] = []
+    for alert in alerts:
+        cid = alert.get("customer_id")
+        if not cid:
+            out.append([])
+            continue
+        rows = con.execute(
+            "SELECT rowid FROM txn WHERE customer_id = ? AND booked_at >= ? AND booked_at < ?",
+            [cid, window_start, as_of],
+        ).fetchall()
+        out.append([int(r[0]) for r in rows])
+    return out
