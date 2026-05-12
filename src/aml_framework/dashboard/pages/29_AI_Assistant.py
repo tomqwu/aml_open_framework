@@ -28,6 +28,10 @@ from aml_framework.dashboard.components import (
     terminal_block,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 PAGE_TITLE = "AI Assistant"
 
 page_header(

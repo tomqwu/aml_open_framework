@@ -7,6 +7,10 @@ import yaml
 
 from aml_framework.dashboard.components import empty_state, kpi_card, page_header
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Spec Editor",
     "Edit the Compliance Manifest (an aml.yaml file, for engineers) and validate in real time.",

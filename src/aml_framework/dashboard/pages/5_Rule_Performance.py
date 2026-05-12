@@ -18,6 +18,10 @@ from aml_framework.dashboard.components import (
     pie_chart,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Rule Performance",
     "Is each detector still earning its keep? Volume, severity mix, and the regulation each one answers.",

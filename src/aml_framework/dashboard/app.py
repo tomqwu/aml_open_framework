@@ -46,12 +46,15 @@ initialize_session()
 # the landing site's sticky navbar. Renders once at app start; the CSS
 # (in components.py) pushes the main view + sidebar below it. PR-P.
 # ---------------------------------------------------------------------------
+from aml_framework.release import release_label  # noqa: E402
+
 st.markdown(
     '<div class="dna-topbar">'
     '<div class="dna-topbar-brand">'
     '<span class="dna-topbar-dot"></span>'
     '<span class="dna-topbar-name">AML Open Framework</span>'
     '<span class="dna-topbar-tag">Spec-driven · Audit-ready</span>'
+    f'<span class="dna-topbar-release">{release_label()}</span>'
     "</div>"
     "</div>",
     unsafe_allow_html=True,

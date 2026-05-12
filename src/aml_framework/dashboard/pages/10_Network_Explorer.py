@@ -22,6 +22,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.dashboard.audience import show_audience_context
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Network Explorer",
     "Entity relationship graph based on transaction flow correlations.",

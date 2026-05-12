@@ -20,6 +20,14 @@ COPY tests/ tests/
 
 RUN pip install --no-cache-dir -e ".[dev,dashboard,api,azure]"
 
+# Capture the git SHA the image was built from so the running container
+# can self-identify in /api/v1/health + the dashboard topbar. Set with
+# `docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD)`; the
+# Azure deploy (and the `az acr build` invocation) pass it explicitly.
+# Defaults to "dev" for local `docker build` without the flag.
+ARG GIT_SHA=dev
+ENV AML_BUILD_SHA=$GIT_SHA
+
 EXPOSE 8000 8501
 
 CMD ["python", "-m", "uvicorn", "aml_framework.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

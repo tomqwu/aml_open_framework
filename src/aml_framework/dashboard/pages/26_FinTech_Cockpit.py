@@ -46,6 +46,10 @@ from aml_framework.dashboard.components import (
     tour_panel,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "FinTech Cockpit",
     "1-MLRO operating surface. Sponsor-bank cure-notice timer · 8 FinTech realities · evidence pack on one button.",

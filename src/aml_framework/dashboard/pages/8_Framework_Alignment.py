@@ -16,6 +16,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.dashboard.data_layer import get_framework_tabs
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 # Framework-status palette — local vocabulary ("✓ Mapped" / "∼ Partial" /
 # "✗ Gap"). Routes through data_grid's palette_cols= seam.
 FRAMEWORK_STATUS_PALETTE = {

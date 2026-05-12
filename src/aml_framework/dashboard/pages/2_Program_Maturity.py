@@ -14,6 +14,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.dashboard.data_layer import MATURITY_LEVELS, compute_maturity_scores
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Program Maturity Assessment",
     "Where the program sits today — and the concrete gaps to close before the next exam.",

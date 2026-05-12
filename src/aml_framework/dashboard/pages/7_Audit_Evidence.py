@@ -35,6 +35,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.engine.audit import AuditLedger
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 # Audit-event palette — mirrors the values event_type_cell_style used to
 # colour: escalations (red), workflow transitions (amber), closures (green).
 AUDIT_EVENT_PALETTE = {

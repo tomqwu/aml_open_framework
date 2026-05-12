@@ -20,6 +20,10 @@ from aml_framework.dashboard.components import (
 )
 from aml_framework.dashboard.today import build_cards_for_audience
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 audience = st.session_state.get("selected_audience")
 spec = st.session_state.spec
 result = st.session_state.result

@@ -8,6 +8,10 @@ import streamlit as st
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import data_grid, empty_state, kpi_card, page_header
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 # Local status palettes — values come from the contract / check rows.
 FRESHNESS_PALETTE = {"breach": "#dc2626", "ok": "#16a34a"}
 CHECK_PALETTE = {"fail": "#dc2626", "pass": "#16a34a"}

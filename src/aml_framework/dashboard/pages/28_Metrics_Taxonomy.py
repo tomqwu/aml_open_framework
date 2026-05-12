@@ -44,6 +44,10 @@ from aml_framework.dashboard.components import (
     see_also_footer,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 PAGE_TITLE = "Metrics Taxonomy"
 
 page_header(

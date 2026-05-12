@@ -56,6 +56,10 @@ from aml_framework.dashboard.components import (
     see_also_footer,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 # ---------------------------------------------------------------------------
 # Palettes — local to this page. FRESHNESS_PALETTE mirrors the one in
 # pages/14_Data_Quality.py (same vocabulary). SOURCE_STATUS_PALETTE

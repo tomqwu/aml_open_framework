@@ -25,6 +25,10 @@ from aml_framework.dashboard.components import (
 from aml_framework.dashboard.query_params import consume_param
 from aml_framework.engine.constants import Event, Queue
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 
 def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
     """Write a decision to the audit ledger, update case file, and sync session state."""

@@ -278,7 +278,9 @@ class RunRequest(BaseModel):
 
 @app.get("/api/v1/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "version": "0.1.0"}
+    from aml_framework.release import get_git_sha, get_version
+
+    return {"status": "ok", "version": get_version(), "git_sha": get_git_sha()}
 
 
 @app.post("/api/v1/login")

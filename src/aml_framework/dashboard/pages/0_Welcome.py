@@ -30,6 +30,10 @@ import streamlit as st
 from aml_framework.dashboard.audience import persona_description
 from aml_framework.dashboard.components import glossary_legend, page_header
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 PAGE_TITLE = "Welcome"
 
 page_header(

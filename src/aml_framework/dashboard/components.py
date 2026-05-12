@@ -159,6 +159,21 @@ CUSTOM_CSS = """
     color: var(--dna-ink-faint);
     margin-left: 8px;
 }
+.dna-topbar-release {
+    /* Compact chip with the running version + git SHA so an operator
+     * can confirm at a glance which build is live without exec'ing
+     * into the container. Resolved by aml_framework.release at app
+     * boot — AML_BUILD_SHA env (injected by Docker) wins, else local
+     * git rev-parse, else "dev". */
+    font-family: var(--dna-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--dna-ink-faint);
+    background: rgba(0, 0, 0, 0.04);
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: auto;
+}
 
 /* Push Streamlit's main view + sidebar below the topbar. Streamlit's
  * own stHeader chrome is hidden (deploy/menu rules above), but the

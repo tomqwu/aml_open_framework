@@ -46,6 +46,10 @@ from aml_framework.dashboard.run_history import (
 )
 from aml_framework.engine.audit import AuditLedger
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Executive Dashboard",
     "The headline picture: how the program is doing, what needs your attention.",

@@ -16,6 +16,10 @@ from aml_framework.dashboard.components import (
     see_also_footer,
 )
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Risk Assessment",
     "Customer risk distribution, geographic exposure, and risk heatmaps.",

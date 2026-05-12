@@ -16,6 +16,10 @@ from aml_framework.engine.runner import _build_warehouse
 from aml_framework.generators.sql import compile_rule_sql
 from aml_framework.spec.models import AggregationWindowLogic, Rule
 
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
 page_header(
     "Rule Tuning",
     "Adjust detection thresholds and preview alert volume impact.",

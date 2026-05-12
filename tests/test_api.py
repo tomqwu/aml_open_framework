@@ -53,7 +53,12 @@ class TestHealth:
     def test_health_returns_ok(self):
         resp = client.get("/api/v1/health")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "ok"
+        body = resp.json()
+        assert body["status"] == "ok"
+        # PR: surface release identifiers so operators can confirm which
+        # build is live from the same probe endpoint deploy smoke tests hit.
+        assert "version" in body
+        assert "git_sha" in body
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
