@@ -417,6 +417,59 @@ def test_c0020_carries_over_invoicing_pair() -> None:
     assert sum(t["amount"] for t in over) >= 25000
 
 
+def test_c0024_to_c0027_share_one_device_id_for_network_clustering() -> None:
+    """`mule_receiver_fan_out_rtp` is a `network_pattern` rule that
+    fires on customers clustered by entity-resolution's shared linking
+    attributes. Plant 4 mules all sharing one `device_id` so
+    `entity_resolution.resolve_entities` builds a 4-node connected
+    component → `component_size >= 4` threshold trips.
+    """
+    data = _data()
+    mules = [
+        c for c in data["customer"] if c["customer_id"] in ("C0024", "C0025", "C0026", "C0027")
+    ]
+    assert len(mules) == 4, f"expected 4 planted mules; got {len(mules)}"
+    device_ids = {c["device_id"] for c in mules}
+    assert device_ids == {"DEV-MULE-2026-001"}, (
+        f"all 4 mules must share `DEV-MULE-2026-001`; got {device_ids}"
+    )
+
+
+def test_c0024_to_c0027_have_inbound_rtp_evidence_rows() -> None:
+    """Each mule needs at least one inbound RTP credit so the case
+    investigation panel has evidence to display. Pinned at exactly 1
+    per mule (not enough to trip velocity_spike's `count >= 5` —
+    only the network_pattern rule fires, which is the intended
+    detection signal)."""
+    data = _data()
+    for cid in ("C0024", "C0025", "C0026", "C0027"):
+        rtp_ins = [
+            t
+            for t in data["txn"]
+            if t["customer_id"] == cid and t["channel"] == "rtp" and t["direction"] == "in"
+        ]
+        assert len(rtp_ins) == 1, (
+            f"{cid} must have exactly 1 inbound RTP credit; got {len(rtp_ins)}"
+        )
+
+
+def test_mule_cluster_gated_on_n_customers_28_or_more() -> None:
+    """Partial cluster = no detection. Below 4 ids, `component_size >=
+    4` can't fire; pin that the plant short-circuits cleanly rather
+    than emitting a half-formed cluster (e.g., 1 customer with
+    device_id but no peers to cluster with)."""
+    data = generate_dataset(as_of=AS_OF, seed=42, n_customers=27)
+    # The auto-generated customer loop populates customer_ids
+    # `C0001..C{n-1}` regardless of plants, so the customer rows for
+    # those ids may still exist as random Faker rows. The marker is
+    # the `device_id` field — only the plant block sets it. Pin that
+    # no customer carries the mule device id when the gate is closed.
+    with_device = [c for c in data["customer"] if c.get("device_id") == "DEV-MULE-2026-001"]
+    assert with_device == [], (
+        f"expected zero mule device-id plants under n_customers<28; got {[c['customer_id'] for c in with_device]}"
+    )
+
+
 def test_c0020_unit_price_at_least_3x_baseline_median() -> None:
     """The planted unit price must trip `declared_unit_price >= 3 * median`
     against the hs_code_baseline row this PR ships."""
