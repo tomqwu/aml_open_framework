@@ -296,3 +296,107 @@ class TestAssistantOpenAIBackend:
             pytest.raises(AssistantError, match="non-JSON"),
         ):
             OpenAIBackend().reply("hello", AssistantContext(page="Today"))
+
+
+class TestAssistantAzureOpenAIBackend:
+    """Round 18 PR 4 — Azure OpenAI backend for enterprise tenants
+    with Azure commitments. Mirrors `TestAssistantOpenAIBackend`
+    structurally so the Cloud-OpenAI ↔ Azure-OpenAI swap is just an
+    env-var change for the operator."""
+
+    def test_refuses_without_endpoint_and_deployment(self, monkeypatch):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_ENDPOINT", raising=False)
+        monkeypatch.delenv("AZURE_OPENAI_DEPLOYMENT", raising=False)
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        with pytest.raises(AssistantError, match="AZURE_OPENAI_ENDPOINT"):
+            AzureOpenAIBackend()
+
+    def test_constructor_args_override_env(self, monkeypatch):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o-mini-prod",
+            api_key="aoai-key",
+            api_version="2024-10-01-preview",
+        )
+        assert backend.deployment == "gpt-4o-mini-prod"
+        assert backend.api_key == "aoai-key"
+        assert backend.name == "azure_openai:gpt-4o-mini-prod"
+
+    def test_url_composition_matches_azure_route(self):
+        from aml_framework.assistant.azure_openai import _azure_openai_url
+
+        url = _azure_openai_url(
+            "https://my-aoai.openai.azure.com/",
+            "gpt-4o-mini-prod",
+            "2024-10-01-preview",
+        )
+        assert url == (
+            "https://my-aoai.openai.azure.com/openai/deployments/"
+            "gpt-4o-mini-prod/chat/completions?api-version=2024-10-01-preview"
+        )
+
+    def test_happy_path_with_mocked_call(self, monkeypatch):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        fake_response = {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "text": "Inspect the case queue trend.",
+                                "confidence": "high",
+                                "referenced_case_ids": [],
+                            }
+                        )
+                    }
+                }
+            ]
+        }
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o-prod",
+            api_key="aoai-key",
+        )
+        with mock.patch(
+            "aml_framework.assistant.azure_openai._call_azure_openai",
+            return_value=fake_response,
+        ):
+            reply = backend.reply("what next?", AssistantContext(page="Today"))
+        assert reply.backend == "azure_openai:gpt-4o-prod"
+        assert reply.confidence == "high"
+
+    def test_factory_routes_azure_openai(self, monkeypatch):
+        """`get_assistant("azure_openai")` returns the new backend."""
+        from aml_framework.assistant.factory import get_assistant
+
+        monkeypatch.delenv("AML_AI_BACKEND", raising=False)
+        backend = get_assistant(
+            "azure_openai",
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+            api_key="aoai-key",
+        )
+        assert backend.name == "azure_openai:gpt-4o"
+
+    def test_unexpected_response_shape_raises(self, monkeypatch):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+            api_key="aoai-key",
+        )
+        with (
+            mock.patch(
+                "aml_framework.assistant.azure_openai._call_azure_openai",
+                return_value={"choices": []},
+            ),
+            pytest.raises(AssistantError, match="response shape"),
+        ):
+            backend.reply("hi", AssistantContext(page="Today"))
