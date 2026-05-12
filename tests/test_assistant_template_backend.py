@@ -147,23 +147,28 @@ class TestAssistantOllamaBackend:
     def test_happy_path_returns_validated_reply(self):
         from aml_framework.assistant.ollama import OllamaBackend
 
+        # Ollama Cloud + local /api/chat both return responses under
+        # `message.content` (per docs.ollama.com/cloud). The framework
+        # uses the /api/chat path on both, so the fake mirrors that.
         fake_response = {
-            "response": json.dumps(
-                {
-                    "text": "Alert volume is concentrated in case CASE-1.",
-                    "confidence": "high",
-                    "referenced_metric_ids": ["metric-alert-volume"],
-                    "referenced_case_ids": ["CASE-1"],
-                    "referenced_customer_ids": ["C-1"],
-                    "citations": [
-                        {
-                            "rule_id": "structuring_cash_deposits",
-                            "citation": "PCMLTFA s.11.1",
-                            "claim": "Structuring typology",
-                        }
-                    ],
-                }
-            )
+            "message": {
+                "content": json.dumps(
+                    {
+                        "text": "Alert volume is concentrated in case CASE-1.",
+                        "confidence": "high",
+                        "referenced_metric_ids": ["metric-alert-volume"],
+                        "referenced_case_ids": ["CASE-1"],
+                        "referenced_customer_ids": ["C-1"],
+                        "citations": [
+                            {
+                                "rule_id": "structuring_cash_deposits",
+                                "citation": "PCMLTFA s.11.1",
+                                "claim": "Structuring typology",
+                            }
+                        ],
+                    }
+                )
+            }
         }
         ctx = AssistantContext(page="Executive Dashboard", persona="cco")
         with mock.patch("aml_framework.assistant.ollama._call_ollama", return_value=fake_response):
@@ -180,7 +185,9 @@ class TestAssistantOllamaBackend:
     def test_missing_optional_fields_get_defaults(self):
         from aml_framework.assistant.ollama import OllamaBackend
 
-        fake = {"response": json.dumps({"text": "Short answer.", "confidence": "certain"})}
+        fake = {
+            "message": {"content": json.dumps({"text": "Short answer.", "confidence": "certain"})}
+        }
         with mock.patch("aml_framework.assistant.ollama._call_ollama", return_value=fake):
             reply = OllamaBackend().reply("summarize", AssistantContext(page="Run History"))
 
@@ -223,11 +230,128 @@ class TestAssistantOllamaBackend:
         with (
             mock.patch(
                 "aml_framework.assistant.ollama._call_ollama",
-                return_value={"response": "<html>oops</html>"},
+                return_value={"message": {"content": "<html>oops</html>"}},
             ),
             pytest.raises(AssistantError, match="non-JSON"),
         ):
             OllamaBackend().reply("hello", AssistantContext(page="Today"))
+
+    # ------------------------------------------------------------------
+    # Ollama Cloud (Bearer auth) — wired in PR feat/ollama-cloud-bearer-auth
+    # ------------------------------------------------------------------
+
+    def test_sends_chat_payload_not_generate(self):
+        """The backend must POST {"messages":[…]} to /api/chat, not
+        the older flat {"prompt": "…"} /api/generate shape that the
+        cloud endpoint no longer supports."""
+        from aml_framework.assistant.ollama import OllamaBackend
+
+        captured: dict[str, object] = {}
+
+        def fake_call(url, model, prompt, *, api_key=None, timeout=60.0):
+            captured["url"] = url
+            captured["model"] = model
+            captured["prompt"] = prompt
+            return {"message": {"content": json.dumps({"text": "ok", "confidence": "high"})}}
+
+        with mock.patch("aml_framework.assistant.ollama._call_ollama", side_effect=fake_call):
+            OllamaBackend().reply("hi", AssistantContext(page="Today"))
+        assert captured["url"].endswith("/api/chat"), captured["url"]
+
+    def test_bearer_token_sent_when_api_key_set(self, monkeypatch):
+        """When `OLLAMA_API_KEY` is set (or passed in), the HTTP layer
+        must add `Authorization: Bearer …`. Patch the lower-level
+        `urlopen` so we can inspect the actual headers."""
+        from aml_framework.assistant.ollama import OllamaBackend, _call_ollama
+
+        captured_headers: dict[str, str] = {}
+
+        class _FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {"message": {"content": json.dumps({"text": "ok", "confidence": "high"})}}
+                ).encode()
+
+        def fake_urlopen(req, timeout=None):
+            # Header keys come back capitalized — normalise.
+            captured_headers.update({k.lower(): v for k, v in req.headers.items()})
+            return _FakeResp()
+
+        monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+        _call_ollama("https://ollama.com/api/chat", "m", "p", api_key="fake-bearer")
+        assert captured_headers.get("authorization") == "Bearer fake-bearer"
+
+        # And via the high-level OllamaBackend with env var routing.
+        captured_headers.clear()
+        monkeypatch.setenv("AML_OLLAMA_URL", "https://ollama.com/api/chat")
+        monkeypatch.setenv("OLLAMA_API_KEY", "env-key-abc")
+        OllamaBackend().reply("hi", AssistantContext(page="Today"))
+        assert captured_headers.get("authorization") == "Bearer env-key-abc"
+
+    def test_local_url_no_key_omits_authorization(self, monkeypatch):
+        """Local-daemon path is backward compatible: no key → no
+        Authorization header sent. Don't accidentally leak any
+        previously-set key when targeting localhost."""
+        from aml_framework.assistant.ollama import _call_ollama
+
+        captured_headers: dict[str, str] = {}
+
+        class _FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {"message": {"content": json.dumps({"text": "ok", "confidence": "high"})}}
+                ).encode()
+
+        def fake_urlopen(req, timeout=None):
+            captured_headers.update({k.lower(): v for k, v in req.headers.items()})
+            return _FakeResp()
+
+        monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+        _call_ollama("http://localhost:11434/api/chat", "m", "p")
+        assert "authorization" not in captured_headers
+
+    def test_cloud_url_without_key_raises(self, monkeypatch):
+        """Pointing at a non-localhost host with no key is almost
+        certainly a misconfiguration. Fail fast at construction with
+        an actionable message instead of letting the server return 401."""
+        from aml_framework.assistant.ollama import OllamaBackend
+
+        monkeypatch.setenv("AML_OLLAMA_URL", "https://ollama.com/api/chat")
+        monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
+        # Also clear vault state — SECRETS.get falls back to env.
+        with pytest.raises(AssistantError, match="OLLAMA_API_KEY"):
+            OllamaBackend()
+
+    def test_local_url_no_key_constructs_ok(self, monkeypatch):
+        """The guardrail above must NOT fire for a localhost URL."""
+        from aml_framework.assistant.ollama import OllamaBackend
+
+        monkeypatch.setenv("AML_OLLAMA_URL", "http://localhost:11434/api/chat")
+        monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
+        backend = OllamaBackend()
+        assert backend.api_key == ""
+
+    def test_is_local_host_recognises_loopback_variants(self):
+        from aml_framework.assistant.ollama import _is_local_host
+
+        assert _is_local_host("http://localhost:11434/api/chat")
+        assert _is_local_host("http://127.0.0.1:11434/api/chat")
+        assert _is_local_host("http://0.0.0.0:11434/api/chat")
+        assert _is_local_host("http://[::1]:11434/api/chat")
+        assert not _is_local_host("https://ollama.com/api/chat")
+        assert not _is_local_host("https://anything-else.example.com/api/chat")
 
 
 class TestAssistantOpenAIBackend:

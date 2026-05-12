@@ -341,6 +341,22 @@ resource "azurerm_container_app" "api" {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "appinsights-conn"
       }
+      # GenAI Assistant backend routing — see variables.tf. The
+      # OLLAMA_API_KEY itself is fetched at runtime from the per-app
+      # Key Vault via SECRETS.get(), so it doesn't need an env block
+      # here. Only the routing knobs do.
+      env {
+        name  = "AML_AI_BACKEND"
+        value = var.ai_backend
+      }
+      env {
+        name  = "AML_OLLAMA_URL"
+        value = var.ollama_url
+      }
+      env {
+        name  = "AML_OLLAMA_MODEL"
+        value = var.ollama_model
+      }
       dynamic "env" {
         for_each = var.enable_postgres ? [1] : []
         content {
@@ -450,6 +466,23 @@ resource "azurerm_container_app" "dashboard" {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "appinsights-conn"
       }
+      # GenAI Assistant backend routing — same as the API Container
+      # App above. The dashboard's AI Assistant page actually consumes
+      # these; the API surfaces no LLM endpoint today but we set them
+      # identically so a future API endpoint or async worker can route
+      # through the same backend without a separate config.
+      env {
+        name  = "AML_AI_BACKEND"
+        value = var.ai_backend
+      }
+      env {
+        name  = "AML_OLLAMA_URL"
+        value = var.ollama_url
+      }
+      env {
+        name  = "AML_OLLAMA_MODEL"
+        value = var.ollama_model
+      }
       # Postgres-first precedence — mirrors `_active_backend()` in
       # src/aml_framework/api/db.py and the Helm chart's dashboard
       # template (deploy/helm/templates/dashboard-deployment.yaml).
@@ -541,6 +574,26 @@ resource "azurerm_key_vault_secret" "jwt_secret_placeholder" {
 resource "azurerm_key_vault_secret" "openai_api_key_placeholder" {
   name         = "OPENAI-API-KEY"
   value        = "REPLACE-WITH-OPENAI-KEY-OR-LEAVE-FOR-TEMPLATE-BACKEND"
+  key_vault_id = module.onboard.key_vault_id
+  content_type = "text/plain"
+
+  depends_on = [azurerm_role_assignment.operator_kv_secrets_officer]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+# Ollama Cloud API key (https://docs.ollama.com/cloud). The Python
+# `OllamaBackend` resolves this via SECRETS.get("OLLAMA_API_KEY") which
+# auto-translates underscores to dashes — so the KV secret name is
+# `OLLAMA-API-KEY`. Set the AML_AI_BACKEND + AML_OLLAMA_URL env vars
+# on the Container Apps below to route the assistant through this path.
+# Operator seeds the real key:
+#   az keyvault secret set --vault-name <kv> --name OLLAMA-API-KEY --value <key>
+resource "azurerm_key_vault_secret" "ollama_api_key_placeholder" {
+  name         = "OLLAMA-API-KEY"
+  value        = "REPLACE-WITH-OLLAMA-CLOUD-KEY-OR-LEAVE-FOR-LOCAL-OR-TEMPLATE"
   key_vault_id = module.onboard.key_vault_id
   content_type = "text/plain"
 

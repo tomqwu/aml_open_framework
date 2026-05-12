@@ -211,3 +211,49 @@ class TestTerraformFilesPresent:
                 f"{label} Container App's AZURE_CLIENT_ID must come from "
                 f"`module.onboard.identity_client_id` (the UAMI's client_id)"
             )
+
+    def test_assistant_backend_env_vars_on_both_container_apps(self):
+        """The GenAI Assistant routing env vars (AML_AI_BACKEND,
+        AML_OLLAMA_URL, AML_OLLAMA_MODEL) must be set on both Container
+        Apps so the assistant routes through the same backend whether
+        invoked from a dashboard page or a (future) API surface. The
+        OLLAMA_API_KEY itself is fetched at runtime from the per-app
+        Key Vault — it doesn't need an env block, but the KV secret
+        placeholder must exist for the secret name to resolve."""
+        import re
+
+        body = (TF_DIR / "main.tf").read_text(encoding="utf-8")
+        api_idx = body.find('resource "azurerm_container_app" "api"')
+        dash_idx = body.find('resource "azurerm_container_app" "dashboard"')
+        api_block = body[api_idx:dash_idx]
+        next_resource = re.search(r"\nresource \"", body[dash_idx + 1 :])
+        dash_end = (dash_idx + 1 + next_resource.start()) if next_resource else len(body)
+        dash_block = body[dash_idx:dash_end]
+
+        expected_envs = {
+            "AML_AI_BACKEND": "var.ai_backend",
+            "AML_OLLAMA_URL": "var.ollama_url",
+            "AML_OLLAMA_MODEL": "var.ollama_model",
+        }
+        for label, block in (("api", api_block), ("dashboard", dash_block)):
+            for env_name, var_ref in expected_envs.items():
+                assert re.search(rf'name\s+=\s+"{env_name}"', block), (
+                    f"{label} Container App must set the {env_name} env var"
+                )
+                assert var_ref in block, (
+                    f"{label} Container App's {env_name} must read from `{var_ref}`"
+                )
+
+        # And the KV placeholder for OLLAMA-API-KEY must exist so the
+        # SecretClient.get_secret() lookup the Python SecretsProvider
+        # makes returns a real (even if placeholder) value rather than
+        # 404.
+        assert 'azurerm_key_vault_secret" "ollama_api_key_placeholder"' in body, (
+            "expected an `ollama_api_key_placeholder` KV secret resource "
+            "so the per-app KV has an OLLAMA-API-KEY entry the operator "
+            "can fill via `az keyvault secret set`"
+        )
+        assert re.search(r'name\s+=\s+"OLLAMA-API-KEY"', body), (
+            "KV secret name must be exactly OLLAMA-API-KEY — the Python "
+            "SecretsProvider auto-translates OLLAMA_API_KEY to that form."
+        )
