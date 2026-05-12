@@ -134,22 +134,16 @@ az keyvault secret set --vault-name "$KV" --name OPENAI-API-KEY \
 The `lifecycle.ignore_changes` block on the placeholder secrets means
 subsequent `terraform apply` runs won't overwrite operator values.
 
-## Configure GitHub Actions repo variables
+## Deploy mode: local-only
 
-The federated identity credentials the landing zone created scope to
-`tomqwu/aml_open_framework` on `main`. Set the public variables:
-
-```bash
-gh variable set AZURE_CLIENT_ID -b "$(terraform output -raw identity_client_id)"
-gh variable set AZURE_TENANT_ID -b "$(terraform output -json github_actions_variables | jq -r .AZURE_TENANT_ID)"
-gh variable set AZURE_SUBSCRIPTION_ID -b "$(terraform output -json github_actions_variables | jq -r .AZURE_SUBSCRIPTION_ID)"
-gh variable set AZURE_RESOURCE_GROUP -b "$(terraform output -raw resource_group_name)"
-gh variable set AZURE_CONTAINER_APP_API -b "$(terraform output -json github_actions_variables | jq -r .AZURE_CONTAINER_APP_API)"
-gh variable set AZURE_CONTAINER_APP_DASHBOARD -b "$(terraform output -json github_actions_variables | jq -r .AZURE_CONTAINER_APP_DASHBOARD)"
-```
-
-Values are non-secret (just the resource IDs / client IDs); they're
-public-by-design so workflows can run without rotating secrets.
+Azure deployment runs **only from an operator workstation** with
+`az login` + `terraform apply`. CI does not have Azure credentials
+and never authenticates to the subscription. The upstream landing
+zone module still provisions a federated identity credential (FIC)
+for this repo because the `app-onboard` module wires it
+unconditionally, but no GitHub Actions workflow consumes it. To
+fully remove the FIC, set `github_branches = []` in
+`terraform.tfvars` and re-apply.
 
 ## Co-locating the runtime with the DB
 
@@ -248,20 +242,31 @@ Plus the landing zone baseline (~$5/mo for ACR Basic).
 Verify with the landing zone's `./scripts/cost-report.sh` after a few
 days of usage.
 
-## Subsequent deploys via CI
+## Subsequent deploys (local)
 
-After the one-time apply + variable-set above, the
-`.github/workflows/deploy-azure-landing-zone.yml` pipeline (PR-AZ-6)
-handles every subsequent push to `main`:
+Re-running deploys is a local operation. From your workstation:
 
-1. `azure/login@v2` via FIC OIDC.
-2. `docker build` + `docker push` to the platform ACR.
-3. `terraform plan` → `terraform apply`.
-4. `az containerapp update --image ...` to roll the revision.
+```bash
+az login
+cd deploy/terraform
+terraform plan -out=app.tfplan
+terraform apply app.tfplan
 
-Local applies still work for one-off changes (e.g., bumping
-`enable_dashboard`); the CI just keeps the production env in sync with
-the merged main branch.
+# Push a fresh image to ACR + roll the API revision.
+ACR=$(terraform output -raw acr_login_server)
+docker build -t "${ACR}/aml-framework:$(git rev-parse --short HEAD)" -f ../../Dockerfile ../..
+az acr login --name "${ACR%%.*}"
+docker push "${ACR}/aml-framework:$(git rev-parse --short HEAD)"
+
+az containerapp update \
+  --name "$(terraform output -raw api_container_app_name)" \
+  --resource-group "$(terraform output -raw resource_group_name)" \
+  --image "${ACR}/aml-framework:$(git rev-parse --short HEAD)"
+```
+
+CI is not configured to deploy to Azure and never holds Azure
+credentials. The Azure deploy workflow that previously ran on every
+push to `main` was removed deliberately.
 
 ## Tearing down
 
