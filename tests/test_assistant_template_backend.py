@@ -462,3 +462,51 @@ class TestAssistantAzureOpenAIBackend:
         with mock.patch.dict(sys.modules, {"azure.identity": fake_module}):
             with pytest.raises(AssistantError, match="could not mint an Entra-ID token"):
                 backend._bearer_token()
+
+    def test_bearer_token_missing_azure_identity_raises(self, monkeypatch):
+        """When `azure-identity` is not installed (i.e. the `[azure]`
+        extras were skipped), the bearer-token path must raise an
+        AssistantError that points the operator at either installing
+        the extras or setting AZURE_OPENAI_API_KEY — not a bare
+        ImportError."""
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+        )
+
+        import builtins
+
+        real_import = builtins.__import__
+
+        def _raise_for_azure_identity(name, *args, **kwargs):
+            if name == "azure.identity":
+                raise ImportError("simulated missing azure-identity")
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch.object(builtins, "__import__", side_effect=_raise_for_azure_identity):
+            with pytest.raises(AssistantError, match=r"`azure-identity`"):
+                backend._bearer_token()
+
+    def test_non_json_response_raises(self, monkeypatch):
+        """Azure OpenAI is asked for `response_format=json_object`; if
+        the model returns prose instead, we wrap the JSONDecodeError
+        with an actionable message."""
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+            api_key="aoai-key",
+        )
+        fake_response = {"choices": [{"message": {"content": "this is not JSON at all"}}]}
+        with (
+            mock.patch(
+                "aml_framework.assistant.azure_openai._call_azure_openai",
+                return_value=fake_response,
+            ),
+            pytest.raises(AssistantError, match="non-JSON despite response_format"),
+        ):
+            backend.reply("hi", AssistantContext(page="Today"))
