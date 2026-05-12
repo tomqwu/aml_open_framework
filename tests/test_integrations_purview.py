@@ -42,15 +42,18 @@ class TestEnabledByDefaultOff:
 class TestBuildEntities:
     """Direct unit tests on the entity-builder — no env, no network."""
 
-    def test_emits_process_with_inputs_and_outputs(self):
+    def test_emits_process_with_inputs_and_outputs(self, monkeypatch):
+        monkeypatch.setenv("AML_DEPLOYMENT_ID", "prod-rev-001")
         entities = purview._build_entities(_sample_chain(), "canadian_schedule_i_bank")
         # 2 DataSet (sources) + 1 Process + 1 DataSet (case) = 4
         assert len(entities) == 4
         process = next(e for e in entities if e["typeName"] == "Process")
         assert process["attributes"]["qualifiedName"].endswith("/rule/structuring_cash")
         assert process["attributes"]["name"] == "rule:structuring_cash"
-        assert process["attributes"]["ruleVersion"] == "v3"
-        assert process["attributes"]["specContentHash"] == "deadbeef"
+        # ruleVersion + specContentHash go under customAttributes since
+        # Atlas's built-in `Process` type doesn't declare them.
+        assert process["customAttributes"]["ruleVersion"] == "v3"
+        assert process["customAttributes"]["specContentHash"] == "deadbeef"
         # Inputs reference the two source DataSets.
         assert len(process["attributes"]["inputs"]) == 2
         # Output references the case DataSet.
@@ -59,9 +62,26 @@ class TestBuildEntities:
             "case-abc" in process["attributes"]["outputs"][0]["uniqueAttributes"]["qualifiedName"]
         )
 
-    def test_qualified_name_is_stable_across_pushes(self):
-        """Same chain pushed twice produces identical qualifiedNames
-        so Purview updates rather than duplicates."""
+    def test_qualified_names_namespace_by_deployment_id(self, monkeypatch):
+        """UAT vs prod in the same tenant must not collide on identical
+        spec/rule/case triples. The `aml://<deployment_id>/<spec>/...`
+        scheme guarantees that — verified by building the same chain
+        with two different deployment ids and asserting NO overlap."""
+        monkeypatch.setenv("AML_DEPLOYMENT_ID", "prod-rev-001")
+        prod = purview._build_entities(_sample_chain(), "canadian_schedule_i_bank")
+        monkeypatch.setenv("AML_DEPLOYMENT_ID", "uat-rev-001")
+        uat = purview._build_entities(_sample_chain(), "canadian_schedule_i_bank")
+        prod_names = {e["attributes"]["qualifiedName"] for e in prod}
+        uat_names = {e["attributes"]["qualifiedName"] for e in uat}
+        assert prod_names.isdisjoint(uat_names), (
+            f"qualifiedName collision between deployments: {prod_names & uat_names}"
+        )
+
+    def test_qualified_name_is_stable_across_pushes(self, monkeypatch):
+        """Same chain pushed twice from the same deployment produces
+        identical qualifiedNames so Purview updates rather than
+        duplicates."""
+        monkeypatch.setenv("AML_DEPLOYMENT_ID", "prod-rev-001")
         e1 = purview._build_entities(_sample_chain(), "canadian_schedule_i_bank")
         e2 = purview._build_entities(_sample_chain(), "canadian_schedule_i_bank")
         names1 = sorted(e["attributes"]["qualifiedName"] for e in e1)
@@ -87,6 +107,56 @@ class TestBuildEntities:
             if e["typeName"] == "DataSet" and e["attributes"]["qualifiedName"].endswith("/source/")
         ]
         assert sources == []
+
+    def test_qualified_name_url_escapes_path_segments(self):
+        """Source paths containing `/` (the common case) must not
+        fragment the qualifiedName — the parts get URL-escaped so the
+        full path becomes one segment. Otherwise two different files
+        in two subdirs could end up with the same qualifiedName tail."""
+        chain = {
+            "case_id": "case-x",
+            "rule_id": "r1",
+            "input_files": [{"path": "data/input/txn.csv"}],
+        }
+        entities = purview._build_entities(chain, "demo")
+        source = next(
+            e
+            for e in entities
+            if e["typeName"] == "DataSet" and "source" in e["attributes"]["qualifiedName"]
+        )
+        # `/` characters in the path get URL-escaped to `%2F`.
+        assert "data%2Finput%2Ftxn.csv" in source["attributes"]["qualifiedName"]
+
+
+class TestCheckMutationResult:
+    """Atlas bulk returns HTTP 200 even on partial failure. The
+    `failedEntities` map carries the per-entity errors. `_check_mutation_result`
+    must raise PurviewError when that map is non-empty so partial
+    failures aren't silently swallowed."""
+
+    def test_no_failures_returns_silently(self):
+        purview._check_mutation_result({"failedEntities": {}})  # no raise
+        purview._check_mutation_result({})  # missing key, ok
+
+    def test_failed_entities_raise_with_per_entity_detail(self):
+        payload = {
+            "failedEntities": {
+                "guid-1": {
+                    "typeName": "Process",
+                    "qualifiedName": "aml://prod/spec1/rule/r1",
+                    "errorMessage": "qualifiedName already exists with different type",
+                },
+                "guid-2": {
+                    "typeName": "DataSet",
+                    "errorMessage": "required attribute missing",
+                },
+            }
+        }
+        with pytest.raises(purview.PurviewError, match="2 failed entities") as exc_info:
+            purview._check_mutation_result(payload)
+        # First failure's detail should be in the message.
+        assert "aml://prod/spec1/rule/r1" in str(exc_info.value)
+        assert "qualifiedName already exists" in str(exc_info.value)
 
 
 class TestPushLineageHTTP:
