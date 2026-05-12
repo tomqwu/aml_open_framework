@@ -29,4 +29,8 @@ def get_assistant(name: str | None = None, **kwargs) -> Assistant:
         from aml_framework.assistant.openai import OpenAIBackend
 
         return OpenAIBackend(**kwargs)
+    if n in ("azure_openai", "azure-openai"):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        return AzureOpenAIBackend(**kwargs)
     raise AssistantError(f"Unknown assistant backend: {name!r}")
