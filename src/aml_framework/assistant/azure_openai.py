@@ -152,10 +152,32 @@ class AzureOpenAIBackend:
     def name(self) -> str:
         return f"azure_openai:{self.deployment}"
 
-    def _bearer_token(self) -> str:  # pragma: no cover -- runtime-only
-        from azure.identity import DefaultAzureCredential
-
-        return DefaultAzureCredential().get_token(AAD_OPENAI_SCOPE).token
+    def _bearer_token(self) -> str:
+        """Mint a fresh Entra-ID access token. Raises a wrapped
+        `AssistantError` when the credential chain (env / UAMI / az
+        CLI / etc.) can't satisfy the request — the raw azure-identity
+        exception is unhelpful when an operator is debugging an
+        `AML_AI_BACKEND=azure_openai` deploy that simply forgot to set
+        AZURE_OPENAI_API_KEY *and* doesn't have a UAMI attached.
+        Also catches ImportError so a deploy that didn't install
+        `[azure]` extras gets the same actionable message.
+        """
+        try:
+            from azure.identity import DefaultAzureCredential
+        except ImportError as e:
+            raise AssistantError(
+                "AzureOpenAIBackend bearer-token path requires `azure-identity` "
+                "(install via the `[azure]` extras), or set AZURE_OPENAI_API_KEY "
+                "to use the api-key path instead."
+            ) from e
+        try:
+            return DefaultAzureCredential().get_token(AAD_OPENAI_SCOPE).token
+        except Exception as e:  # noqa: BLE001 — re-raised as AssistantError
+            raise AssistantError(
+                "AzureOpenAIBackend could not mint an Entra-ID token. Set "
+                "AZURE_OPENAI_API_KEY, or attach a managed identity / login "
+                f"via `az login` so DefaultAzureCredential can resolve. Root cause: {e}"
+            ) from e
 
     def reply(self, question: str, context: AssistantContext) -> AssistantReply:
         prompt = _build_prompt(question, context)

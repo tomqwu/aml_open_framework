@@ -400,3 +400,65 @@ class TestAssistantAzureOpenAIBackend:
             pytest.raises(AssistantError, match="response shape"),
         ):
             backend.reply("hi", AssistantContext(page="Today"))
+
+    def test_bearer_token_path_passes_token_not_api_key(self, monkeypatch):
+        """When no api_key is set, `reply()` mints an Entra-ID token
+        via `_bearer_token()` and passes it through. Pin the auth
+        plumbing so the production Azure-native path is exercised
+        (the api-key path is the dev-friendly default but enterprise
+        Azure shops use the bearer-token path)."""
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o-prod",
+        )
+        assert backend.api_key == ""  # no key → bearer-token branch
+        # Stub the token-minting so no live azure-identity needed.
+        backend._bearer_token = lambda: "fake-aad-token"  # type: ignore[method-assign]
+
+        captured = {}
+
+        def fake_call(url, *, api_key, bearer_token, prompt, timeout):
+            captured["api_key"] = api_key
+            captured["bearer_token"] = bearer_token
+            return {
+                "choices": [
+                    {"message": {"content": json.dumps({"text": "ok", "confidence": "high"})}}
+                ]
+            }
+
+        with mock.patch(
+            "aml_framework.assistant.azure_openai._call_azure_openai", side_effect=fake_call
+        ):
+            backend.reply("hi", AssistantContext(page="Today"))
+        assert captured["api_key"] is None
+        assert captured["bearer_token"] == "fake-aad-token"
+
+    def test_bearer_token_unmintable_raises_actionable_error(self, monkeypatch):
+        """When DefaultAzureCredential can't resolve a token (no env
+        creds, no UAMI, etc.), `_bearer_token` wraps the raw azure SDK
+        exception in an `AssistantError` that names the two fixes:
+        set the API key or attach a managed identity."""
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+        )
+
+        # Fake an azure.identity module whose DefaultAzureCredential
+        # always fails.
+        class _FakeCred:
+            def get_token(self, _scope):
+                raise RuntimeError("no credential available")
+
+        import sys
+
+        fake_module = type(sys)("azure.identity")
+        fake_module.DefaultAzureCredential = _FakeCred  # type: ignore[attr-defined]
+        with mock.patch.dict(sys.modules, {"azure.identity": fake_module}):
+            with pytest.raises(AssistantError, match="could not mint an Entra-ID token"):
+                backend._bearer_token()
