@@ -296,3 +296,217 @@ class TestAssistantOpenAIBackend:
             pytest.raises(AssistantError, match="non-JSON"),
         ):
             OpenAIBackend().reply("hello", AssistantContext(page="Today"))
+
+
+class TestAssistantAzureOpenAIBackend:
+    """Round 18 PR 4 — Azure OpenAI backend for enterprise tenants
+    with Azure commitments. Mirrors `TestAssistantOpenAIBackend`
+    structurally so the Cloud-OpenAI ↔ Azure-OpenAI swap is just an
+    env-var change for the operator."""
+
+    def test_refuses_without_endpoint_and_deployment(self, monkeypatch):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_ENDPOINT", raising=False)
+        monkeypatch.delenv("AZURE_OPENAI_DEPLOYMENT", raising=False)
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        with pytest.raises(AssistantError, match="AZURE_OPENAI_ENDPOINT"):
+            AzureOpenAIBackend()
+
+    def test_constructor_args_override_env(self, monkeypatch):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o-mini-prod",
+            api_key="aoai-key",
+            api_version="2024-10-01-preview",
+        )
+        assert backend.deployment == "gpt-4o-mini-prod"
+        assert backend.api_key == "aoai-key"
+        assert backend.name == "azure_openai:gpt-4o-mini-prod"
+
+    def test_url_composition_matches_azure_route(self):
+        from aml_framework.assistant.azure_openai import _azure_openai_url
+
+        url = _azure_openai_url(
+            "https://my-aoai.openai.azure.com/",
+            "gpt-4o-mini-prod",
+            "2024-10-01-preview",
+        )
+        assert url == (
+            "https://my-aoai.openai.azure.com/openai/deployments/"
+            "gpt-4o-mini-prod/chat/completions?api-version=2024-10-01-preview"
+        )
+
+    def test_happy_path_with_mocked_call(self, monkeypatch):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        fake_response = {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "text": "Inspect the case queue trend.",
+                                "confidence": "high",
+                                "referenced_case_ids": [],
+                            }
+                        )
+                    }
+                }
+            ]
+        }
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o-prod",
+            api_key="aoai-key",
+        )
+        with mock.patch(
+            "aml_framework.assistant.azure_openai._call_azure_openai",
+            return_value=fake_response,
+        ):
+            reply = backend.reply("what next?", AssistantContext(page="Today"))
+        assert reply.backend == "azure_openai:gpt-4o-prod"
+        assert reply.confidence == "high"
+
+    def test_factory_routes_azure_openai(self, monkeypatch):
+        """`get_assistant("azure_openai")` returns the new backend."""
+        from aml_framework.assistant.factory import get_assistant
+
+        monkeypatch.delenv("AML_AI_BACKEND", raising=False)
+        backend = get_assistant(
+            "azure_openai",
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+            api_key="aoai-key",
+        )
+        assert backend.name == "azure_openai:gpt-4o"
+
+    def test_unexpected_response_shape_raises(self, monkeypatch):
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+            api_key="aoai-key",
+        )
+        with (
+            mock.patch(
+                "aml_framework.assistant.azure_openai._call_azure_openai",
+                return_value={"choices": []},
+            ),
+            pytest.raises(AssistantError, match="response shape"),
+        ):
+            backend.reply("hi", AssistantContext(page="Today"))
+
+    def test_bearer_token_path_passes_token_not_api_key(self, monkeypatch):
+        """When no api_key is set, `reply()` mints an Entra-ID token
+        via `_bearer_token()` and passes it through. Pin the auth
+        plumbing so the production Azure-native path is exercised
+        (the api-key path is the dev-friendly default but enterprise
+        Azure shops use the bearer-token path)."""
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o-prod",
+        )
+        assert backend.api_key == ""  # no key → bearer-token branch
+        # Stub the token-minting so no live azure-identity needed.
+        backend._bearer_token = lambda: "fake-aad-token"  # type: ignore[method-assign]
+
+        captured = {}
+
+        def fake_call(url, *, api_key, bearer_token, prompt, timeout):
+            captured["api_key"] = api_key
+            captured["bearer_token"] = bearer_token
+            return {
+                "choices": [
+                    {"message": {"content": json.dumps({"text": "ok", "confidence": "high"})}}
+                ]
+            }
+
+        with mock.patch(
+            "aml_framework.assistant.azure_openai._call_azure_openai", side_effect=fake_call
+        ):
+            backend.reply("hi", AssistantContext(page="Today"))
+        assert captured["api_key"] is None
+        assert captured["bearer_token"] == "fake-aad-token"
+
+    def test_bearer_token_unmintable_raises_actionable_error(self, monkeypatch):
+        """When DefaultAzureCredential can't resolve a token (no env
+        creds, no UAMI, etc.), `_bearer_token` wraps the raw azure SDK
+        exception in an `AssistantError` that names the two fixes:
+        set the API key or attach a managed identity."""
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+        )
+
+        # Fake an azure.identity module whose DefaultAzureCredential
+        # always fails.
+        class _FakeCred:
+            def get_token(self, _scope):
+                raise RuntimeError("no credential available")
+
+        import sys
+
+        fake_module = type(sys)("azure.identity")
+        fake_module.DefaultAzureCredential = _FakeCred  # type: ignore[attr-defined]
+        with mock.patch.dict(sys.modules, {"azure.identity": fake_module}):
+            with pytest.raises(AssistantError, match="could not mint an Entra-ID token"):
+                backend._bearer_token()
+
+    def test_bearer_token_missing_azure_identity_raises(self, monkeypatch):
+        """When `azure-identity` is not installed (i.e. the `[azure]`
+        extras were skipped), the bearer-token path must raise an
+        AssistantError that points the operator at either installing
+        the extras or setting AZURE_OPENAI_API_KEY — not a bare
+        ImportError."""
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+        )
+
+        import builtins
+
+        real_import = builtins.__import__
+
+        def _raise_for_azure_identity(name, *args, **kwargs):
+            if name == "azure.identity":
+                raise ImportError("simulated missing azure-identity")
+            return real_import(name, *args, **kwargs)
+
+        with mock.patch.object(builtins, "__import__", side_effect=_raise_for_azure_identity):
+            with pytest.raises(AssistantError, match=r"`azure-identity`"):
+                backend._bearer_token()
+
+    def test_non_json_response_raises(self, monkeypatch):
+        """Azure OpenAI is asked for `response_format=json_object`; if
+        the model returns prose instead, we wrap the JSONDecodeError
+        with an actionable message."""
+        from aml_framework.assistant.azure_openai import AzureOpenAIBackend
+
+        backend = AzureOpenAIBackend(
+            endpoint="https://my-aoai.openai.azure.com/",
+            deployment="gpt-4o",
+            api_key="aoai-key",
+        )
+        fake_response = {"choices": [{"message": {"content": "this is not JSON at all"}}]}
+        with (
+            mock.patch(
+                "aml_framework.assistant.azure_openai._call_azure_openai",
+                return_value=fake_response,
+            ),
+            pytest.raises(AssistantError, match="non-JSON despite response_format"),
+        ):
+            backend.reply("hi", AssistantContext(page="Today"))
