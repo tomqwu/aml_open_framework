@@ -982,6 +982,43 @@ def validate(spec_path: Path = typer.Argument(..., exists=True, readable=True)) 
     )
 
 
+@app.command(name="generate-dbt")
+def generate_dbt_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    output_dir: Path = typer.Option(
+        Path("dbt_aml"),
+        "-o",
+        "--output-dir",
+        help="Directory to write the dbt project into. Created if absent.",
+    ),
+    as_of: str | None = typer.Option(
+        None,
+        help="ISO timestamp used as the rule 'now'. Defaults to current time.",
+    ),
+) -> None:
+    """Emit a dbt project from the spec.
+
+    Each `custom_sql` and `aggregation_window` rule becomes one dbt
+    model under `<output_dir>/models/aml/<rule_id>.sql`. The output
+    is drop-in for a bank's existing dbt project — `dbt run
+    --select tag:aml` runs every emitted model.
+
+    Rules using `python_ref` / `list_match` / `network_pattern`
+    are skipped with a note in the emitted README (they need
+    warehouse-side wiring beyond plain SQL).
+    """
+    from datetime import datetime
+
+    from aml_framework.generators.dbt import generate_dbt_project
+
+    spec = load_spec(spec_path)
+    as_of_dt = datetime.fromisoformat(as_of) if as_of else datetime.now().replace(microsecond=0)
+    written = generate_dbt_project(spec, spec_path, output_dir, as_of=as_of_dt)
+    console.print(f"[green]Generated[/green] {len(written)} files into {output_dir}/")
+    for name in sorted(written):
+        console.print(f"  - {name}")
+
+
 @app.command(name="outcomes-pack")
 def outcomes_pack_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
