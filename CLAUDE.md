@@ -32,14 +32,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Before Every Commit
 
+The repo's `Makefile` has a `pre-push` umbrella target that runs the
+**exact same commands every CI job runs**. Use it. There is also a git
+`pre-push` hook in `.githooks/` that invokes `make pre-push`
+automatically — enable it once per clone:
+
 ```bash
-ruff format src/ tests/                                          # auto-format
-ruff check src/ tests/                                           # lint
-pytest tests/ --ignore=tests/test_e2e_dashboard.py -q            # unit + API (~20s)
-pytest tests/test_e2e_dashboard.py -q                            # Playwright (~2min, run before PR)
+make install-hooks      # one-time: git config core.hooksPath .githooks
 ```
 
-Never push without all tests passing locally. CI runs 5 jobs: lint, unit-tests, api-tests, e2e-dashboard, docker-build.
+After that, every `git push` first runs `make pre-push`, which is:
+
+```bash
+make ci-lint ci-unit ci-coverage ci-api ci-e2e ci-deployment ci-security
+```
+
+Each `ci-*` sub-target maps 1:1 to a job in `.github/workflows/ci.yml`:
+
+| Make target        | CI job                | Notes                                  |
+|--------------------|-----------------------|----------------------------------------|
+| `ci-lint`          | lint                  | `ruff check` + `ruff format --check`   |
+| `ci-unit`          | unit-tests            | excludes `test_api.py` + e2e           |
+| `ci-coverage`      | coverage              | `--cov-fail-under=99` (matches CI)     |
+| `ci-api`           | api-tests             | `pytest tests/test_api.py`             |
+| `ci-e2e`           | e2e-dashboard         | Playwright, ~15 min                    |
+| `ci-deployment`    | deployment-validation | `helm lint` + template + compose config|
+| `ci-security`      | security-audit        | `bandit` + `pip-audit`                 |
+
+**The PR is the last gate, not a feedback loop.** If something fails on
+CI that `make pre-push` didn't catch, that's a gap in `make pre-push`
+— fix the gap. Don't push broken code expecting CI to find it.
+
+The hook can be bypassed with `git push --no-verify`, but only for
+pure-WIP pushes you don't intend to merge.
 
 ## PR Workflow With Codex Review
 
