@@ -734,10 +734,27 @@ def generate_dataset(
     # advisory called out as a signature of organized push-fraud rings.
     # All 4 also receive small RTP credits so the dashboard's case
     # investigation panel has evidence rows to display.
-    mule_device = "DEV-MULE-2026-001"
-    for mule_idx, mule_id in enumerate(("C0024", "C0025", "C0026", "C0027")):
-        idx = 24 + mule_idx
-        if n_customers > idx:
+    #
+    # Intentional cross-spec firing (same pattern as C0023 ramp_up):
+    # - cyber_enabled_fraud's `pig_butchering_payout_fan`
+    #   (component_size >= 3) fires on this cluster too — a 4-customer
+    #   device-shared ring IS the pig-butchering payout-fan
+    #   typology. Net coverage gain on that spec.
+    # - crypto_vasp's `nested_wallet_ring` (component_size >= 3)
+    #   likewise fires. The same underlying mule-ring detection works
+    #   across fiat/crypto rails; firing in both specs is correct.
+    # If you ever need C0024-C0027 to fire ONLY us_rtp_fednow, the
+    # architecture can't help: shared synthetic data + similar
+    # network_pattern thresholds means an intentional 4-mule
+    # cluster will fire any spec with that pattern.
+    #
+    # Single-gate guard: cluster only seeds when ALL four ids will
+    # be populated. Partial clusters (n_customers ∈ [25, 27]) would
+    # silently fail component_size >= 4 without warning.
+    if n_customers >= 28:
+        mule_device = "DEV-MULE-2026-001"
+        for mule_idx, mule_id in enumerate(("C0024", "C0025", "C0026", "C0027")):
+            idx = 24 + mule_idx
             customers[idx] = _customer_row(
                 fake,
                 mule_id,

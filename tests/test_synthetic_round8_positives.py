@@ -453,6 +453,23 @@ def test_c0024_to_c0027_have_inbound_rtp_evidence_rows() -> None:
         )
 
 
+def test_mule_cluster_gated_on_n_customers_28_or_more() -> None:
+    """Partial cluster = no detection. Below 4 ids, `component_size >=
+    4` can't fire; pin that the plant short-circuits cleanly rather
+    than emitting a half-formed cluster (e.g., 1 customer with
+    device_id but no peers to cluster with)."""
+    data = generate_dataset(as_of=AS_OF, seed=42, n_customers=27)
+    # The auto-generated customer loop populates customer_ids
+    # `C0001..C{n-1}` regardless of plants, so the customer rows for
+    # those ids may still exist as random Faker rows. The marker is
+    # the `device_id` field — only the plant block sets it. Pin that
+    # no customer carries the mule device id when the gate is closed.
+    with_device = [c for c in data["customer"] if c.get("device_id") == "DEV-MULE-2026-001"]
+    assert with_device == [], (
+        f"expected zero mule device-id plants under n_customers<28; got {[c['customer_id'] for c in with_device]}"
+    )
+
+
 def test_c0020_unit_price_at_least_3x_baseline_median() -> None:
     """The planted unit price must trip `declared_unit_price >= 3 * median`
     against the hs_code_baseline row this PR ships."""
