@@ -787,6 +787,7 @@ def run_spec(
         spec_path=spec_path,
         spec_hash=spec_content_hash(spec_path),
         as_of=as_of,
+        spec=spec,
     )
 
     contract_by_id = {c.id: c for c in spec.data_contracts}
