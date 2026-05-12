@@ -175,3 +175,68 @@ class TestFailFastGuards:
         )
         with pytest.raises(ValueError, match="empty/missing `sql`"):
             generate_dbt_project(cloned, SPEC_RTP, tmp_path, as_of=datetime(2026, 4, 28))
+
+    def test_empty_aggregation_source_raises(self, tmp_path):
+        """An aggregation_window rule with a blank `logic.source`
+        must raise — otherwise the rendered SQL would silently FROM
+        a non-existent table at warehouse run-time."""
+        import copy
+
+        import pytest
+
+        spec = load_spec(SPEC_CA)
+        agg_rules = [
+            r for r in spec.rules if getattr(r.logic, "type", None) == "aggregation_window"
+        ]
+        if not agg_rules:
+            pytest.skip("spec needs an aggregation_window rule for this test")
+        cloned = copy.deepcopy(spec)
+        cloned = cloned.model_copy(
+            update={
+                "rules": [
+                    *[r for r in cloned.rules if r.id != agg_rules[0].id],
+                    agg_rules[0].model_copy(
+                        update={"logic": agg_rules[0].logic.model_copy(update={"source": ""})}
+                    ),
+                ]
+            }
+        )
+        with pytest.raises(ValueError, match="empty/missing.*`logic.source`"):
+            generate_dbt_project(cloned, SPEC_CA, tmp_path, as_of=datetime(2026, 4, 28))
+
+    def test_default_as_of_is_now(self, tmp_path):
+        """`as_of=None` defaults to `datetime.now()` so the operator
+        can run `aml generate-dbt` without supplying a timestamp."""
+        spec = load_spec(SPEC_CA)
+        written = generate_dbt_project(spec, SPEC_CA, tmp_path)
+        # The default branch was taken; some models were emitted.
+        models = [k for k in written if k.startswith("models/aml/") and k.endswith(".sql")]
+        assert models, "expected at least one emitted model under the default as_of"
+
+    def test_no_regulation_refs_emits_placeholder_comment(self, tmp_path):
+        """`_reg_refs_block` returns a `(no regulation_refs declared)`
+        comment when the rule has none — pin that the header still
+        renders so the dbt model body is well-formed."""
+        import copy
+
+        import pytest
+
+        spec = load_spec(SPEC_CA)
+        agg_rules = [
+            r for r in spec.rules if getattr(r.logic, "type", None) == "aggregation_window"
+        ]
+        if not agg_rules:
+            pytest.skip("spec needs an aggregation_window rule for this test")
+        cloned = copy.deepcopy(spec)
+        cloned = cloned.model_copy(
+            update={
+                "rules": [
+                    *[r for r in cloned.rules if r.id != agg_rules[0].id],
+                    agg_rules[0].model_copy(update={"regulation_refs": []}),
+                ]
+            }
+        )
+        written = generate_dbt_project(cloned, SPEC_CA, tmp_path, as_of=datetime(2026, 4, 28))
+        model_path = written[f"models/aml/{_safe_identifier(agg_rules[0].id)}.sql"]
+        body = model_path.read_text(encoding="utf-8")
+        assert "(no regulation_refs declared)" in body
