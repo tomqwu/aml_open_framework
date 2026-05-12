@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -210,6 +211,54 @@ def _freeze_snapshot_files(run_dir: Path) -> None:
                 pass
 
 
+def _pii_columns_from_spec(spec: Any | None) -> frozenset[str]:
+    """Collect column names where `pii: true` across all data_contracts.
+
+    `spec` is an `AMLSpec` Pydantic instance — accepted via `Any` here
+    so the audit module stays import-light (loading models on every
+    audit call is unnecessary).
+    """
+    if spec is None:
+        return frozenset()
+    names: set[str] = set()
+    for contract in getattr(spec, "data_contracts", []) or []:
+        for col in getattr(contract, "columns", []) or []:
+            if getattr(col, "pii", False):
+                names.add(col.name)
+    return frozenset(names)
+
+
+def _pii_mask_value(value: Any, salt: str) -> str:
+    """HMAC-SHA256 over `salt + str(value)`, truncated to 16 hex chars.
+
+    Collision space at 16 hex chars = 2^64; safe for FI-scale dedupe.
+    HMAC (not raw SHA-256) so an attacker who guesses values can't
+    confirm them without knowing the salt — defense against rainbow-
+    table reconstruction of customer_ids etc.
+    """
+    import hmac
+
+    return hmac.new(salt.encode("utf-8"), str(value).encode("utf-8"), hashlib.sha256).hexdigest()[
+        :16
+    ]
+
+
+def _pii_masking_enabled() -> bool:
+    return os.environ.get("AML_PII_MASKING") == "1"
+
+
+def _pii_salt() -> str:
+    """Per-deployment salt. Routes through `SecretsProvider` so the
+    value lives in Key Vault on the Container Apps deploy rather than
+    in the repo. Falls back to a fixed dev-only salt when unset so
+    local runs stay reproducible without leaking 'production-grade'
+    masking guarantees."""
+    from aml_framework.secrets import SECRETS
+
+    salt = SECRETS.get("AML_PII_SALT", "") or ""
+    return salt or "aml-open-framework-dev-salt"
+
+
 @dataclass
 class AuditLedger:
     run_dir: Path
@@ -218,10 +267,22 @@ class AuditLedger:
     as_of: datetime
     input_manifest: dict[str, Any] = field(default_factory=dict)
     rule_outputs: dict[str, str] = field(default_factory=dict)
+    # PR 18.9: PII masking — when enabled (AML_PII_MASKING=1), audit
+    # ledger writes hash the values of any alert/case field whose name
+    # is in `pii_columns` and records the (hash, plaintext) pair to
+    # `pii_map.jsonl` for regulator-only unmask.
+    pii_columns: frozenset[str] = field(default_factory=frozenset)
+    pii_salt: str = field(default="")
 
     @classmethod
     def create(
-        cls, artifacts_root: Path, spec_path: Path, spec_hash: str, as_of: datetime
+        cls,
+        artifacts_root: Path,
+        spec_path: Path,
+        spec_hash: str,
+        as_of: datetime,
+        *,
+        spec: Any | None = None,
     ) -> "AuditLedger":
         ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         run_dir = artifacts_root / f"run-{ts}"
@@ -231,14 +292,65 @@ class AuditLedger:
 
         shutil.copyfile(spec_path, run_dir / "spec_snapshot.yaml")
 
+        # PII masking config is captured at create time so a single
+        # run is internally consistent — toggling AML_PII_MASKING mid-
+        # run would not retroactively rewrite older alerts.
+        if _pii_masking_enabled() and spec is not None:
+            pii_columns = _pii_columns_from_spec(spec)
+            pii_salt = _pii_salt()
+        else:
+            pii_columns = frozenset()
+            pii_salt = ""
+
         ledger = cls(
             run_dir=run_dir,
             spec_path=spec_path,
             spec_content_hash=spec_hash,
             as_of=as_of,
+            pii_columns=pii_columns,
+            pii_salt=pii_salt,
         )
         (run_dir / "decisions.jsonl").touch()
+        if pii_columns:
+            # Sidecar that maps hash → plaintext for auditor-only
+            # unmask. Permissions tightened to 0o600 so other users
+            # on a shared host can't read it.
+            sidecar = run_dir / "pii_map.jsonl"
+            sidecar.touch()
+            try:
+                sidecar.chmod(0o600)
+            except (OSError, NotImplementedError):
+                # Windows + some networked filesystems don't honor
+                # chmod; the sidecar is still gitignored at the
+                # repo root via .artifacts/ in .gitignore.
+                pass
         return ledger
+
+    def _mask_alert(self, alert: dict[str, Any]) -> dict[str, Any]:
+        """Return a copy of `alert` with PII fields hash-replaced.
+
+        Records each (hash, plaintext) pair to the run's `pii_map.jsonl`
+        sidecar so an auditor with sidecar access can recover the
+        original value. Idempotent: same plaintext always maps to the
+        same hash (within this deployment salt), so the sidecar grows
+        only when new plaintext appears.
+        """
+        if not self.pii_columns:
+            return alert
+        masked = dict(alert)
+        sidecar_rows: list[dict[str, str]] = []
+        for key in self.pii_columns:
+            if key in masked and masked[key] not in (None, ""):
+                plaintext = str(masked[key])
+                hashed = _pii_mask_value(plaintext, self.pii_salt)
+                masked[key] = hashed
+                sidecar_rows.append({"field": key, "hash": hashed, "plaintext": plaintext})
+        if sidecar_rows:
+            sidecar = self.run_dir / "pii_map.jsonl"
+            with sidecar.open("ab") as f:
+                for row in sidecar_rows:
+                    f.write(_canonical_json(row) + b"\n")
+        return masked
 
     def record_input(
         self,
@@ -272,6 +384,8 @@ class AuditLedger:
         (self.run_dir / "rules" / f"{rule_id}.sql").write_text(sql, encoding="utf-8")
 
     def record_alerts(self, rule_id: str, alerts: list[dict[str, Any]]) -> str:
+        if self.pii_columns:
+            alerts = [self._mask_alert(a) for a in alerts]
         ordered = sorted(alerts, key=lambda a: _canonical_json(a))
         jsonl = b"\n".join(_canonical_json(a) for a in ordered) + (b"\n" if ordered else b"")
         (self.run_dir / "alerts" / f"{rule_id}.jsonl").write_bytes(jsonl)
@@ -408,3 +522,45 @@ class AuditLedger:
         if computed == stored_hash:
             return True, "Decision log integrity verified"
         return False, f"Tamper detected: stored={stored_hash[:16]}... computed={computed[:16]}..."
+
+
+def unmask_alerts(run_dir: Path) -> dict[str, list[dict[str, Any]]]:
+    """Auditor-only: reload per-rule alerts.jsonl files from a run
+    directory and substitute the original plaintext PII values from
+    the run's `pii_map.jsonl` sidecar.
+
+    Caller MUST already have authorization to read the sidecar — this
+    function trusts the filesystem-level access control set up by
+    `AuditLedger.create()` (chmod 0o600 on the sidecar). Returns a
+    `{rule_id: [alert, ...]}` dict ready for export.
+
+    No-op (returns the unmasked-from-disk alerts as-is) when the run
+    didn't enable masking — `pii_map.jsonl` absent or empty.
+    """
+    sidecar = run_dir / "pii_map.jsonl"
+    plaintext_by_hash: dict[str, str] = {}
+    if sidecar.exists():
+        for line in sidecar.read_bytes().splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            plaintext_by_hash[row["hash"]] = row["plaintext"]
+    alerts_dir = run_dir / "alerts"
+    out: dict[str, list[dict[str, Any]]] = {}
+    if not alerts_dir.exists():
+        return out
+    for path in sorted(alerts_dir.glob("*.jsonl")):
+        rule_id = path.stem
+        rows: list[dict[str, Any]] = []
+        for line in path.read_bytes().splitlines():
+            if not line.strip():
+                continue
+            alert = json.loads(line)
+            for k, v in list(alert.items()):
+                # Hashes are 16 lowercase-hex chars by construction.
+                if isinstance(v, str) and len(v) == 16 and all(c in "0123456789abcdef" for c in v):
+                    if v in plaintext_by_hash:
+                        alert[k] = plaintext_by_hash[v]
+            rows.append(alert)
+        out[rule_id] = rows
+    return out
