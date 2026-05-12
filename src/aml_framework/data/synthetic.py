@@ -189,7 +189,14 @@ def _customer_row(
     vulnerable_customer_flag: bool = False,
     typical_payment_size_p95: Decimal | None = None,
     trade_lic_number: str | None = None,
+    device_id: str | None = None,
 ) -> dict[str, Any]:
+    # `device_id` is a linking attribute for entity resolution
+    # (aml_framework.engine.entity_resolution). When two customers
+    # share a non-null device_id, the resolved_entity_link table
+    # connects them — feeding `network_pattern` rules like
+    # us_rtp_fednow's `mule_receiver_fan_out_rtp`. Default None;
+    # background noise customers don't share devices.
     return {
         "customer_id": customer_id,
         "full_name": full_name or fake.name(),
@@ -203,13 +210,14 @@ def _customer_row(
         "vulnerable_customer_flag": vulnerable_customer_flag,
         "typical_payment_size_p95": typical_payment_size_p95,
         "trade_lic_number": trade_lic_number,
+        "device_id": device_id,
     }
 
 
 def generate_dataset(
     as_of: datetime,
     seed: int = 42,
-    n_customers: int = 25,
+    n_customers: int = 30,
     n_noise_txns: int = 400,
 ) -> dict[str, list[dict[str, Any]]]:
     """Produce ({customer rows, txn rows}) for the example spec's contracts."""
@@ -590,7 +598,17 @@ def generate_dataset(
     # canadian_bank, and community_bank specs. Stripping noise for the
     # RTP/BOI plant ids isolates them so non-RTP specs see only the
     # planted shape, which is rule-inert for them.
-    _rtp_boi_customer_ids = {"C0012", "C0013", "C0014", "C0015", "C0023"}
+    _rtp_boi_customer_ids = {
+        "C0012",
+        "C0013",
+        "C0014",
+        "C0015",
+        "C0023",
+        "C0024",
+        "C0025",
+        "C0026",
+        "C0027",
+    }
     txns = [t for t in txns if t["customer_id"] not in _rtp_boi_customer_ids]
 
     # --- C0012: RTP first-use-payee large amount (push-fraud drain) ---
@@ -702,6 +720,62 @@ def generate_dataset(
                     counterparty_country="US",
                     debtor_country="US",
                     counterparty_id=ramp_counterparty,
+                )
+            )
+            tid += 1
+
+    # --- C0024-C0027: mule_receiver_fan_out_rtp (network_pattern) ---
+    # `mule_receiver_fan_out_rtp` uses entity_resolution's
+    # resolved_entity_link table. Two customers sharing a non-null
+    # `device_id` get linked; the rule's `component_size: { gte: 4 }`
+    # threshold fires when 4+ customers cluster into one component.
+    # Plant 4 mules all opened from the same device — classic
+    # synthetic-identity fraud pattern that the FinCEN-FBI Jan 2026
+    # advisory called out as a signature of organized push-fraud rings.
+    # All 4 also receive small RTP credits so the dashboard's case
+    # investigation panel has evidence rows to display.
+    #
+    # Intentional cross-spec firing (same pattern as C0023 ramp_up):
+    # - cyber_enabled_fraud's `pig_butchering_payout_fan`
+    #   (component_size >= 3) fires on this cluster too — a 4-customer
+    #   device-shared ring IS the pig-butchering payout-fan
+    #   typology. Net coverage gain on that spec.
+    # - crypto_vasp's `nested_wallet_ring` (component_size >= 3)
+    #   likewise fires. The same underlying mule-ring detection works
+    #   across fiat/crypto rails; firing in both specs is correct.
+    # If you ever need C0024-C0027 to fire ONLY us_rtp_fednow, the
+    # architecture can't help: shared synthetic data + similar
+    # network_pattern thresholds means an intentional 4-mule
+    # cluster will fire any spec with that pattern.
+    #
+    # Single-gate guard: cluster only seeds when ALL four ids will
+    # be populated. Partial clusters (n_customers ∈ [25, 27]) would
+    # silently fail component_size >= 4 without warning.
+    if n_customers >= 28:
+        mule_device = "DEV-MULE-2026-001"
+        for mule_idx, mule_id in enumerate(("C0024", "C0025", "C0026", "C0027")):
+            idx = 24 + mule_idx
+            customers[idx] = _customer_row(
+                fake,
+                mule_id,
+                as_of - timedelta(days=10 + mule_idx),  # all newish accounts
+                country="US",
+                risk_rating="medium",
+                full_name=f"Mule Ring Member {mule_idx + 1}",
+                device_id=mule_device,
+            )
+            # One small RTP credit per mule so the case investigation
+            # panel has evidence rows. Not enough to trip velocity_spike
+            # (count<5 per customer) — only the network_pattern fires.
+            txns.append(
+                _make_txn(
+                    tid,
+                    mule_id,
+                    Decimal("250.00") + Decimal(mule_idx * 50),
+                    as_of - timedelta(hours=3 + mule_idx),
+                    channel="rtp",
+                    direction="in",
+                    counterparty_id=f"CP-MULE-RING-2026-{mule_idx + 1:02d}",
                 )
             )
             tid += 1
