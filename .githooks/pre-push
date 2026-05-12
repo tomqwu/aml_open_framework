@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Pre-push hook — runs the same CI jobs locally so failures surface
+# before they reach the PR.
+#
+# Installed via:   make install-hooks
+# (or manually:   git config core.hooksPath .githooks)
+#
+# Skip with `git push --no-verify` only when shipping pure-WIP commits
+# you don't intend to merge. Skipping for "just one fix" is what got
+# Round 18 into the trap of treating CI as the discovery channel for
+# broken code. Don't do that.
+#
+# If CI ever catches something this hook didn't, fix the gap: add the
+# missing check to `make pre-push` and update CLAUDE.md.
+
+set -e
+
+echo "→ Running 'make pre-push' (mirrors all CI jobs)…"
+echo "  Skip with 'git push --no-verify' only for pure-WIP pushes."
+echo ""
+
+if ! command -v make >/dev/null 2>&1; then
+    echo "✗ 'make' not found on PATH — install GNU make or skip the hook with --no-verify."
+    exit 1
+fi
+
+# Invoke the umbrella target. Each sub-target (ci-lint, ci-unit, …)
+# maps 1:1 to a CI job in .github/workflows/ci.yml.
+exec make pre-push
