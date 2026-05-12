@@ -2,9 +2,11 @@ name: Perf nightly
 
 # Run the engine-baseline harness on a schedule (and on demand) so
 # perf regressions surface within a day of merge rather than after a
-# customer notices. The regular unit-test suite already runs a
-# permissive 5× threshold smoke; this workflow tightens to 2× on the
-# dedicated runner.
+# customer notices. The pytest harness `tests/perf/test_engine_baseline.py`
+# is opt-in (`AML_RUN_PERF=1`) so the regular CI unit-test suite
+# doesn't false-fail on slow shared runners. This nightly workflow
+# bypasses pytest entirely and runs the underlying baseline script
+# directly with a tighter 2× regression threshold.
 
 on:
   schedule:

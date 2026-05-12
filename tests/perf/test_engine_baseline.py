@@ -1,12 +1,14 @@
 """Perf-regression smoke test — pytest version of the nightly check.
 
-Runs the same baseline as `run_engine_baseline.py` but with a more
-generous 5× threshold so the regular CI unit-test suite (which runs
-on slower / variably-loaded shared runners) doesn't false-fail. The
-nightly workflow uses a tighter 2× threshold on dedicated hardware.
+Opt-in: skipped unless `AML_RUN_PERF=1` so the regular CI unit-test
+suite (which runs on shared/variably-loaded GitHub runners that are
+~10× slower than the baseline workstation) doesn't false-fail. The
+nightly workflow sets `AML_RUN_PERF=1` and tightens the threshold
+to 2× on its dedicated runner.
 
-Skipped when the env says `AML_SKIP_PERF=1` so contributors with
-slow machines aren't blocked.
+Run locally with:
+
+    AML_RUN_PERF=1 pytest tests/perf/test_engine_baseline.py -q
 """
 
 from __future__ import annotations
@@ -23,14 +25,14 @@ from tests.perf.run_engine_baseline import run_baseline
 PERF_DIR = Path(__file__).resolve().parent
 BASELINE = json.loads((PERF_DIR / "expected_baseline.json").read_text(encoding="utf-8"))
 
-# Generous threshold for the regular unit suite — nightly perf workflow
-# tightens this to 2× on dedicated runners.
+# Pytest threshold (when opt-in). Nightly workflow drives a tighter
+# 2× threshold via `run_engine_baseline.py` directly.
 PYTEST_THRESHOLD = 5.0
 
 
 @pytest.mark.skipif(
-    os.environ.get("AML_SKIP_PERF") == "1",
-    reason="AML_SKIP_PERF=1; perf smoke test skipped",
+    os.environ.get("AML_RUN_PERF") != "1",
+    reason="AML_RUN_PERF not set; perf smoke test is opt-in (nightly workflow runs it)",
 )
 def test_engine_baseline_within_threshold():
     """Run the baseline and assert no stage timing regresses by >5×
