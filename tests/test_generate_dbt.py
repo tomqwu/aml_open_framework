@@ -114,3 +114,64 @@ class TestGenerateDbtProject:
                 continue
             name = _safe_identifier(r.id)
             assert f"name: {name}" in schema_body, f"schema.yml missing model {name}"
+
+
+class TestFailFastGuards:
+    """Codex blockers Q1-Q3: silent overwrites + None defaults must raise."""
+
+    def test_duplicate_normalised_model_names_raise(self, tmp_path):
+        """Two rule ids that normalise to the same dbt identifier must
+        raise rather than silently overwrite. Use a tiny in-memory spec
+        cloned from a real one so we don't have to author YAML."""
+        import copy
+
+        spec = load_spec(SPEC_CA)
+        # Find two aggregation_window rules and force their normalised
+        # names to collide.
+        agg_rules = [
+            r for r in spec.rules if getattr(r.logic, "type", None) == "aggregation_window"
+        ]
+        if len(agg_rules) < 2:
+            import pytest
+
+            pytest.skip("spec needs >=2 aggregation_window rules to test collision")
+        cloned = copy.deepcopy(spec)
+        # Pydantic frozen=True — mutate via model_copy.
+        cloned = cloned.model_copy(
+            update={
+                "rules": [
+                    cloned.rules[0].model_copy(update={"id": "rule-a-b"}),
+                    cloned.rules[1].model_copy(update={"id": "rule_a_b"}),
+                    *cloned.rules[2:],
+                ]
+            }
+        )
+        import pytest
+
+        with pytest.raises(ValueError, match="normalises to dbt model name"):
+            generate_dbt_project(cloned, SPEC_CA, tmp_path, as_of=datetime(2026, 4, 28))
+
+    def test_empty_custom_sql_raises(self, tmp_path):
+        """A custom_sql rule with no SQL would emit a header-only file
+        that dbt rejects; we fail at generation instead."""
+        import copy
+
+        import pytest
+
+        spec = load_spec(SPEC_RTP)
+        custom_rules = [r for r in spec.rules if getattr(r.logic, "type", None) == "custom_sql"]
+        if not custom_rules:
+            pytest.skip("spec needs a custom_sql rule for this test")
+        cloned = copy.deepcopy(spec)
+        cloned = cloned.model_copy(
+            update={
+                "rules": [
+                    *[r for r in cloned.rules if getattr(r.logic, "type", None) != "custom_sql"],
+                    custom_rules[0].model_copy(
+                        update={"logic": custom_rules[0].logic.model_copy(update={"sql": "   "})}
+                    ),
+                ]
+            }
+        )
+        with pytest.raises(ValueError, match="empty/missing `sql`"):
+            generate_dbt_project(cloned, SPEC_RTP, tmp_path, as_of=datetime(2026, 4, 28))

@@ -89,6 +89,16 @@ def _render_window_placeholders(as_of: datetime) -> dict[str, str]:
 
 
 def _render_custom_sql_model(rule: Rule, as_of: datetime, spec_path: Path) -> str:
+    sql_body = (rule.logic.sql or "").strip()
+    if not sql_body:
+        # A custom_sql rule with no SQL would produce a header-only
+        # file that dbt rejects at compile time. Fail fast at
+        # generation so the operator sees the spec error, not a
+        # downstream `dbt compile` traceback.
+        raise ValueError(
+            f"Rule {rule.id!r} is custom_sql but has empty/missing `sql`; "
+            "cannot emit a dbt model for it."
+        )
     header = _MODEL_HEADER.format(
         spec_path=spec_path,
         rule_id=rule.id,
@@ -96,7 +106,6 @@ def _render_custom_sql_model(rule: Rule, as_of: datetime, spec_path: Path) -> st
         severity=rule.severity,
         reg_refs_block=_reg_refs_block(rule),
     )
-    sql_body = (rule.logic.sql or "").strip()
     for placeholder, value in _render_window_placeholders(as_of).items():
         sql_body = sql_body.replace(f"{{{placeholder}}}", value)
     return f"{header}\n{sql_body}\n"
@@ -106,9 +115,21 @@ def _render_aggregation_window_model(rule: Rule, as_of: datetime, spec_path: Pat
     """Inline an aggregation_window rule as dbt SQL by piggybacking on
     the reference SQL renderer. We strip the `-- rule_id` etc. header
     the engine renderer adds and replace with the dbt config block."""
+    # Function-scope import: `generators.sql` imports a handful of
+    # other generator modules that in turn import this one when the
+    # CLI wires up all the generate-* commands. Keep this import lazy
+    # to avoid a circular-import-at-module-load order dependency.
     from aml_framework.generators.sql import compile_rule_sql
 
-    engine_sql = compile_rule_sql(rule, as_of=as_of, source_table=rule.logic.source or "txn")
+    if not rule.logic.source:
+        # Without a source table the engine has nothing to FROM. The
+        # reference engine treats this as a spec error, so do the
+        # same at generation time rather than silently defaulting.
+        raise ValueError(
+            f"Rule {rule.id!r} is aggregation_window but has empty/missing "
+            "`logic.source`; cannot emit a dbt model for it."
+        )
+    engine_sql = compile_rule_sql(rule, as_of=as_of, source_table=rule.logic.source)
     # The engine's `_rule_header` prefixes the SQL with `-- rule_id:`
     # lines — strip those so the dbt model has clean SQL after our
     # own dbt-config header.
@@ -216,6 +237,10 @@ models:
 
     # 2. Per-rule .sql.
     schema_entries: list[str] = ["version: 2", "models:"]
+    # Track model names so two rule ids that normalise to the same
+    # identifier (e.g. `rule-a.b` and `rule_a_b` both → `rule_a_b`)
+    # can't silently overwrite each other — fail fast instead.
+    seen_model_names: dict[str, str] = {}
     for rule in spec.rules:
         logic_type = getattr(rule.logic, "type", None)
         if logic_type == "custom_sql":
@@ -227,6 +252,14 @@ models:
             # README note instead of emitting a broken model.
             continue
         model_name = _safe_identifier(rule.id)
+        if model_name in seen_model_names:
+            raise ValueError(
+                f"Rule {rule.id!r} normalises to dbt model name {model_name!r}, "
+                f"which already maps to rule {seen_model_names[model_name]!r}. "
+                "Rename one of the rules so their `id` fields are distinct under "
+                "dbt's `[a-z][a-z0-9_]*` naming."
+            )
+        seen_model_names[model_name] = rule.id
         model_path = models_dir / f"{model_name}.sql"
         model_path.write_text(sql, encoding="utf-8")
         written[f"models/aml/{model_name}.sql"] = model_path
