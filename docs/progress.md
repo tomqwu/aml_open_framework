@@ -318,6 +318,42 @@ Goal: close the MRM-trustability gap on under-covered specs (us_rtp_fednow, trad
 
 **Out of scope (queued):** `mule_receiver_fan_out_rtp` plant (needs `phone`/`email`/`device_id` linking column on the `customer` contract); `unusual_send_hour_for_customer_rtp` cleanup of the `t.counterparty_id` SELECT now that the column is populated (not strictly needed but tidies the SQL).
 
+### Round 17.5 — Live Azure landing-zone deploy (3 PRs, 2026-05-11)
+
+Goal: prove the Round 16 Phase A scaffolding works end-to-end against the user's actual Azure tenant. First live `terraform apply` surfaced three runtime issues no unit test had caught — each shipped as a focused fix PR.
+
+| PR | Workstream |
+|---|---|
+| #282 | wire `DATABASE_URL` into the dashboard Container App. Helm was fixed in #271; Terraform-deployed dashboard pods still injected only `COSMOS_ENDPOINT`, so on the Postgres path the dashboard silently fell back to local SQLite. New `local.postgres_database_url` hoisted so the value can't drift between API and dashboard. Test asserts both Container App blocks read the same local. |
+| #283 | fetch Entra-ID token for Postgres on Azure deploys. The Terraform-generated DSN included `authentication=azure_ad` which psycopg2's DSN parser rejects. `_get_pg_conn()` now detects the marker, strips it via proper URL parsing (not regex), mints a token via `DefaultAzureCredential().get_token("https://ossrdbms-aad.database.windows.net/.default")`, and passes it as `password=` to psycopg2. Five tests pin the strip behavior across marker-position variants + userinfo false-positive. |
+| #284 | set `AZURE_CLIENT_ID` on both Container Apps + use AD-admin `principal_name` (not object_id) as Postgres user. With UAMI auth, `DefaultAzureCredential` needs `AZURE_CLIENT_ID` set to know which UAMI to pick. Then Postgres validates AD admins by `principal_name`, not by object_id, so the DSN's user component was wrong. Hoisted to `local.postgres_admin_principal_name` shared by the AD admin resource AND the DSN — test asserts both read the same local. |
+
+**Result**: live deploy at https://ca-aml-api-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io with `/api/v1/health` returning `{"status":"ok","version":"0.1.0"}`. Dashboard healthy at the matching domain. Both pods read/write Postgres `psql-aml-dev-2lusik` via UAMI Entra-ID auth. ~$33/mo idle. Tests grew 2,168 → 2,178.
+
+### Round 18 — Plant fan-out + Azure Phase B differentiation (6 PRs, 2026-05-12)
+
+Goal: close Round 17's `mule_receiver_fan_out_rtp` coverage gap (4/5 → 5/5) and ship the three Azure-shop integrations Round 16 Phase B queued (Azure OpenAI assistant, Sentinel SIEM connector, Purview lineage push).
+
+| PR | Workstream |
+|---|---|
+| #285 | Pin `counterparty_id` as evidence column on `unusual_send_hour_for_customer_rtp`. Adds inline comment on the rule + fast SQL-string test + heavier engine-run test that asserts the alert payload carries a non-empty counterparty_id. Regression-safe after #279. |
+| #286 | Plant 4-mule `device_id` cluster (C0024-C0027) sharing `DEV-MULE-2026-001`. Adds `device_id` (pii: true) to the us_rtp_fednow customer contract + `_customer_row()`. Network_pattern rule `mule_receiver_fan_out_rtp` now fires 4 alerts (one per mule). Intentional cross-spec firings on `cyber_enabled_fraud.pig_butchering_payout_fan` + `crypto_vasp.nested_wallet_ring` — same pattern as #280's C0023 coverage extension. Single-gate guard at `n_customers >= 28`. |
+| #287 | Azure OpenAI as 4th GenAI assistant backend. Mirrors the existing `openai.py` Chat Completions shape but routes to per-deployment Azure endpoints. Two auth paths: api-key (header: `api-key`) or Entra-ID bearer token at scope `https://cognitiveservices.azure.com/.default`. Endpoint/deployment/key resolved via SecretsProvider (Key Vault on the deployed Container App). 8 tests cover both auth paths + actionable-error path for unmintable AAD tokens. |
+| #288 | Sentinel SIEM connector — active push complement to the existing CEF-export `integrations/siem.py`. POSTs structured AML decision events to the platform Log Analytics workspace via the v1 Data Collector API at `<workspace>.ods.opinsights.azure.com/api/logs`. Shared-key HMAC-SHA256 auth (v1 API doesn't accept Bearer tokens; Logs Ingestion API migration deferred to Round 19). Opt-in via `AZURE_SENTINEL_WORKSPACE_ID`. Module docstring + in-code NOTE explain the deferred audit-ledger emit-hook wiring. |
+| #289 | Purview lineage push via Atlas REST API. Maps `walk_lineage()` chains to Atlas entity dicts: `Process(rule:<id>)` with `inputs` (source DataSets) and `outputs` (case DataSet). `qualifiedName` uses a stable `aml://<spec>/<part>/...` scheme so re-pushes update rather than duplicate. `ruleVersion` + `specContentHash` stamped on Process attributes so auditors see which spec snapshot drove each case. Auth via DefaultAzureCredential at scope `https://purview.azure.net/.default`. Opt-in via `PURVIEW_ENDPOINT`. 7 tests cover entity-builder shape, qualifiedName stability, sparse-chain handling. |
+
+**Result**: us_rtp_fednow within-spec coverage goes 4/5 → **5/5**. Azure-shop integration surface adds three connectors (assistant, SIEM, governance lineage) all gated by env vars so non-Azure deployments aren't affected. Tests grew 2,178 → 2,187.
+
+**Deferred to Round 19** (originally scoped in plan but not executed):
+- Spec-specific synthetic noise patterns for uk_app_fraud / trade_based_ml / us_rtp_fednow (PR 18.3) — medium-scope refactor; current noise loop works.
+- Performance baseline + locust harness (PR 18.7) — infra work.
+- `python_ref` matched-row lineage hook (PR 18.8) — opt-in `_inspect_context()` contract.
+- PII masking policy layer for audit ledger (PR 18.9) — cross-cutting feature.
+- Engine backend abstraction (PR 18.10) — multi-week scope (Snowflake/BigQuery compile targets).
+- `aml generate-dbt` (PR 18.11) — dbt-model emit command.
+- Audit-ledger emit hooks for the Sentinel + Purview connectors — load-bearing engine change; the surfaces shipped without callers so the wiring can be reviewed in isolation. Future integrators must wrap calls in `try/except` and log-and-continue.
+- Logs Ingestion API (DCE/DCR) migration for Sentinel — unlocks Entra-ID auth on the SIEM push but requires terraform-preprovisioned Data Collection Endpoint + Rule.
+
 ---
 
 ## What the Framework Does Today
