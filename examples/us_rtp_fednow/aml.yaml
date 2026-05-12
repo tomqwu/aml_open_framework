@@ -223,6 +223,11 @@ rules:
         description: "Behavioural-anomaly flags on instant-payment rails."
     logic:
       type: custom_sql
+      # `counterparty_id` is included in the SELECT as evidence-display
+      # metadata only — analysts need to see *who* the unusual-hour
+      # send was to. The rule's filter logic doesn't depend on it.
+      # The column is declared nullable in the txn data_contract and
+      # populated by Round 17 synthetic data + production payments.
       sql: |
         SELECT t.customer_id, t.txn_id, t.amount, t.booked_at, t.counterparty_id
         FROM txn t JOIN customer c USING (customer_id)
