@@ -78,6 +78,13 @@ data_contracts:
       - { name: onboarded_at,  type: timestamp, nullable: false }
       - { name: typical_send_window_start_hour, type: integer, nullable: true }
       - { name: typical_send_window_end_hour,   type: integer, nullable: true }
+      # Linking attribute for entity-resolution (network_pattern rules).
+      # Read by aml_framework.engine.entity_resolution which treats
+      # any two customers sharing a non-null `device_id` as connected
+      # in the `resolved_entity_link` table. Used by rule 4
+      # (mule_receiver_fan_out_rtp) to detect mule herds — 4+ accounts
+      # opened from the same device.
+      - { name: device_id,     type: string,    nullable: true, pii: true }
     quality_checks:
       - { not_null: [customer_id, full_name, onboarded_at] }
       - { unique:   [customer_id] }
