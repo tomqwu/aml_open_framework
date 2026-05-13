@@ -1858,3 +1858,11 @@ def _render_assistant_reply(reply: Any) -> None:
         "</div>",
         unsafe_allow_html=True,
     )
+
+
+# Re-export `section_explainer` so pages can do
+#   from aml_framework.dashboard.components import section_explainer
+# alongside the other dashboard chrome they already import (page_header,
+# kpi_card_rag, data_grid, empty_state). Keeps the per-page import list
+# short and surface-area discoverable.
+from aml_framework.dashboard.section_explainer import section_explainer  # noqa: E402, F401

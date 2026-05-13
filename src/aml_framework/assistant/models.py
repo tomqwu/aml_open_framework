@@ -49,6 +49,16 @@ class AssistantContext(_Base):
     selected_rule_id: str | None = None
     selected_metric_id: str | None = None
 
+    # Per-section scoping — populated by `dashboard.section_explainer`
+    # when the operator clicks the "Explain" popover next to a section
+    # header. Backends should incorporate `section_title` + `section_data`
+    # into the prompt so the reply addresses *this* chart/table rather
+    # than the whole page. Optional everywhere — the sidebar `ai_panel`
+    # leaves these unset.
+    section_id: str | None = None
+    section_title: str | None = None
+    section_data: dict[str, Any] = Field(default_factory=dict)
+
 
 class AssistantReply(_Base):
     """Structured output from any Assistant backend.

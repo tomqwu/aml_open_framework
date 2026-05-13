@@ -54,6 +54,25 @@ def _is_local_host(url: str) -> bool:
 
 def _build_prompt(question: str, context: AssistantContext) -> str:
     """Render question + context as a JSON-output prompt."""
+    # Per-section block — only emitted when the caller is the
+    # `section_explainer` popover (section_id is set). Embeds the
+    # section's curated data summary inline as JSON so the model
+    # has the actual numbers, not just a vague "explain the KPIs".
+    section_block = ""
+    if context.section_id:
+        section_data_json = json.dumps(context.section_data, sort_keys=True, default=str)
+        # Bound the inline blob — section_data is supposed to be small
+        # but a careless page author could pass a large dict. Truncate
+        # at ~2000 chars so we don't blow the context window.
+        if len(section_data_json) > 2000:
+            section_data_json = section_data_json[:2000] + "...(truncated)"
+        section_block = (
+            f"\nSection: {context.section_title or context.section_id}\n"
+            f"Section data: {section_data_json}\n"
+            "Answer specifically about this section's data. Do not reach "
+            "for context outside it unless directly relevant.\n"
+        )
+
     return (
         "You are an AML compliance co-pilot embedded in a dashboard.\n"
         "Answer the operator's question using ONLY the run + spec context "
@@ -74,6 +93,7 @@ def _build_prompt(question: str, context: AssistantContext) -> str:
         )
         + (f"Focused rule: {context.selected_rule_id}\n" if context.selected_rule_id else "")
         + (f"Focused metric: {context.selected_metric_id}\n" if context.selected_metric_id else "")
+        + section_block
         + f"\nQuestion: {question.strip()}\n\n"
         + 'Output JSON ONLY: {"text": "...", "confidence": "high|medium|low", '
         + '"referenced_metric_ids": [], "referenced_case_ids": [], '
