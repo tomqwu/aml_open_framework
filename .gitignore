@@ -36,3 +36,7 @@ _temp/
 # We use pip + pyproject.toml; uv was a passing experiment and its lockfile
 # tracking-vs-not is unsettled. Leave it out of the index until we commit to uv.
 uv.lock
+
+# setuptools-scm writes this at install time from git tags. Committing it
+# would freeze a stale version into the tree.
+src/aml_framework/_version.py

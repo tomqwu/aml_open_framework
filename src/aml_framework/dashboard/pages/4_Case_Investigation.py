@@ -45,6 +45,10 @@ section_explainer(
             else 0
         ),
     },
+    # Investigations benefit from chain-of-thought reasoning over the
+    # case + alert + decision context. Routes to AML_OLLAMA_MODEL_DEEP
+    # (default deepseek-v4:pro) instead of the fast tier.
+    complexity="deep",
 )
 
 

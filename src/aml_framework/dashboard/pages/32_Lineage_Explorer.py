@@ -62,6 +62,10 @@ section_explainer(
             else 0
         ),
     },
+    # Lineage walk-back narratives benefit from chain-of-thought
+    # reasoning over the source → query → alert → case → STR chain.
+    # Routes to AML_OLLAMA_MODEL_DEEP (default deepseek-v4:pro).
+    complexity="deep",
 )
 
 page_header(
