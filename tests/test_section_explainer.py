@@ -5,17 +5,32 @@ button. Because Streamlit must be loaded to test the actual render
 path, these tests use a stub `streamlit` module rather than the real
 one — sufficient to assert the rendering plumbing + cache + audit hook
 without spinning up a dashboard.
+
+`section_explainer.py` does `import streamlit as st` at module top, so
+importing it requires `streamlit` (or the test fixture's stub) to be
+available in `sys.modules`. The unit-tests CI job installs only the
+`[dev]` extras (no streamlit). Skip the whole file there — the same
+suite re-runs under the `coverage` + `api-tests` jobs which DO install
+`[dashboard]` extras and exercise these assertions.
 """
 
 from __future__ import annotations
 
 import concurrent.futures
+import importlib.util
 import sys
 from collections.abc import Mapping
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+
+if importlib.util.find_spec("streamlit") is None:
+    pytest.skip(
+        "streamlit not installed (unit-tests CI installs only [dev]); "
+        "section_explainer tests run under the coverage + api-tests jobs",
+        allow_module_level=True,
+    )
 
 
 class _StubBlock:
