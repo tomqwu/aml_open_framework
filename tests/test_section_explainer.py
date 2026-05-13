@@ -899,6 +899,44 @@ def test_resolve_model_falls_back_through_chain(monkeypatch):
     assert mod._resolve_model("deep") == "deepseek-v4:pro"
 
 
+def test_failing_future_renders_unavailable_caption(stub_st):
+    """If a future somehow resolves with an exception (a worker
+    bypassed `_do_llm_call` and submitted a raising callable, or the
+    pool's pickle path corrupted the result), the polling promotion
+    must catch the .result() exception and render
+    'Explanation unavailable' rather than propagating."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    # Pre-seed _FUTURES with a future whose .result() raises.
+    key = mod._cache_key("P", "s", None, mod._data_hash({"v": 1}))
+    fut = concurrent.futures.Future()
+    fut.set_exception(RuntimeError("simulated worker explosion"))
+    mod._FUTURES[key] = fut
+    mod._FUTURE_META[key] = {"section_title": "t", "complexity": "fast", "model": "x"}
+
+    # Render — _promote_if_done sees the future is done, calls
+    # .result(), catches the exception, renders the unavailable caption.
+    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    with (
+        mock.patch.object(mod, "_log_to_audit"),
+        mock.patch("aml_framework.assistant.factory.get_assistant", return_value=fake_assistant),
+    ):
+        # Should not raise.
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+        )
+    # The defensive caption fired.
+    assert any("unavailable" in c for c in stub_st.caption_calls), (
+        f"expected 'Explanation unavailable' caption; saw {stub_st.caption_calls!r}"
+    )
+    # Future + meta cleared.
+    assert key not in mod._FUTURES
+    assert key not in mod._FUTURE_META
+
+
 def test_future_meta_records_resolved_model(stub_st, monkeypatch):
     """`_FUTURE_META[key]` carries the resolved model so the audit
     trail can see which tier was actually used (post-resolution,
