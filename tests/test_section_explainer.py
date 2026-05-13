@@ -38,13 +38,17 @@ class _StubStreamlit:
         self.session_state: dict = {}
         self.markdown_calls: list = []
         self.caption_calls: list = []
-        self.expander_calls: list = []
-        # Default: button returns False (operator hasn't clicked).
-        self._button_return = False
+        self.container_calls: list = []
+        self.spinner_calls: list = []
 
-    # Expander (context manager).
-    def expander(self, label, **kwargs):
-        self.expander_calls.append((label, kwargs))
+    # Container (context manager) — inline rendering, no expander chrome.
+    def container(self, **kwargs):
+        self.container_calls.append(kwargs)
+        return _StubBlock("container", **kwargs)
+
+    # Spinner (context manager).
+    def spinner(self, label, **kwargs):
+        self.spinner_calls.append((label, kwargs))
         return _StubBlock(label, **kwargs)
 
     # Plain widgets.
@@ -53,9 +57,6 @@ class _StubStreamlit:
 
     def caption(self, text, **kwargs):
         self.caption_calls.append(text)
-
-    def button(self, label, **kwargs):
-        return self._button_return
 
     def toast(self, *_a, **_kw):
         pass
@@ -78,36 +79,55 @@ def stub_st(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_renders_expander_with_section_title(stub_st):
+def test_renders_inline_container_with_header(stub_st):
+    """The explainer renders inline via `st.container()` plus a
+    `##### ℹ <title> — AI Explanation` markdown header. No expander."""
     from aml_framework.dashboard.section_explainer import section_explainer
 
-    section_explainer(
-        page="Executive Dashboard",
-        section_id="exec.kpis.headline",
-        section_title="Top KPIs",
-        data_summary={"alert_total": 12},
-    )
-    assert stub_st.expander_calls, "expected st.expander() to be invoked"
-    # Expander label includes the section title.
-    assert "Top KPIs" in stub_st.expander_calls[0][0]
-
-
-def test_no_backend_call_on_render(stub_st):
-    """The button defaults to not-clicked, so `get_assistant` must not
-    be invoked on first render — that would cost an LLM call per page
-    refresh per section, ~6 sections × 35 pages × every Streamlit
-    rerun. Operator-click is the only trigger."""
-    from aml_framework.dashboard import section_explainer as mod
-
-    with mock.patch.object(mod, "_build_context") as build_ctx:
-        section_explainer = mod.section_explainer
+    # Stub the backend so render doesn't actually call out.
+    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    with (
+        mock.patch("aml_framework.dashboard.section_explainer._log_to_audit"),
+        mock.patch("aml_framework.assistant.factory.get_assistant", return_value=fake_assistant),
+    ):
         section_explainer(
             page="Executive Dashboard",
             section_id="exec.kpis.headline",
             section_title="Top KPIs",
             data_summary={"alert_total": 12},
         )
-    build_ctx.assert_not_called()
+    assert stub_st.container_calls, "expected st.container() to be invoked (inline render)"
+    # The inline header carries the section title.
+    headers = [m for m in stub_st.markdown_calls if "Top KPIs" in m and "AI Explanation" in m]
+    assert headers, (
+        "expected `##### ℹ <title> — AI Explanation` markdown header inside "
+        f"the container. Markdown calls were: {stub_st.markdown_calls!r}"
+    )
+
+
+def test_auto_fires_backend_on_first_render(stub_st, monkeypatch):
+    """Auto-fire is the only behavior now — the LLM call must invoke on
+    the very first render (no button click, no env flag)."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    # Make sure no env flag is set — we're testing the always-on default.
+    monkeypatch.delenv("AML_AUTO_EXPLAIN", raising=False)
+
+    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    with (
+        mock.patch.object(mod, "_log_to_audit"),
+        mock.patch(
+            "aml_framework.assistant.factory.get_assistant", return_value=fake_assistant
+        ) as get_assistant,
+    ):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+        )
+    assert get_assistant.call_count == 1, "backend must auto-fire on first render"
+    assert fake_assistant.reply.call_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -126,12 +146,11 @@ def _fake_reply(text="ok", confidence="high"):
     )
 
 
-def test_clicking_button_invokes_backend_and_caches(stub_st, monkeypatch):
-    """First click → backend call + cache write. Same page rerun with
-    button click-state still True → cache hit (no second backend call)."""
+def test_first_render_fires_backend_then_caches(stub_st, monkeypatch):
+    """First render → backend call + cache write. Second render with
+    identical data_summary → cache hit (no second backend call)."""
     from aml_framework.dashboard import section_explainer as mod
 
-    stub_st._button_return = True
     fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
 
     with (
@@ -170,7 +189,6 @@ def test_data_change_invalidates_cache(stub_st, monkeypatch):
     feeds in) invalidate cleanly."""
     from aml_framework.dashboard import section_explainer as mod
 
-    stub_st._button_return = True
     fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
 
     with (
@@ -198,7 +216,6 @@ def test_audit_log_event_is_distinct(stub_st, monkeypatch):
     an auditor reviews the run."""
     from aml_framework.dashboard import section_explainer as mod
 
-    stub_st._button_return = True
     captured: dict = {}
 
     def fake_append(_run_dir, row, jsonl_name=None):
@@ -241,7 +258,6 @@ def test_backend_error_falls_back_to_template(stub_st, monkeypatch):
     something — never re-raise."""
     from aml_framework.dashboard import section_explainer as mod
 
-    stub_st._button_return = True
     with (
         mock.patch.object(mod, "_log_to_audit"),
         mock.patch(
@@ -268,7 +284,6 @@ def test_missing_api_key_is_graceful(stub_st, monkeypatch):
 
     monkeypatch.setenv("AML_AI_BACKEND", "ollama")
     monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
-    stub_st._button_return = True
 
     with mock.patch.object(mod, "_log_to_audit"):
         # Should not raise even if get_assistant routes to a backend
@@ -493,3 +508,66 @@ def test_ollama_build_prompt_truncates_oversized_section_data():
     prompt = _build_prompt("explain", ctx)
     assert "(truncated)" in prompt
     assert len(prompt) < 5000
+
+
+# ---------------------------------------------------------------------------
+# UX — visible spinner during the LLM call + opt-in pre-population
+# ---------------------------------------------------------------------------
+
+
+def test_spinner_renders_during_backend_call(stub_st):
+    """When the operator clicks Generate, st.spinner wraps the LLM
+    call so the page doesn't appear to hang. The spinner label names
+    the backend so the operator can sanity-check what's running."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+
+    with (
+        mock.patch.object(mod, "_log_to_audit"),
+        mock.patch("aml_framework.assistant.factory.get_assistant", return_value=fake_assistant),
+    ):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+        )
+    assert stub_st.spinner_calls, "expected st.spinner() during the backend call"
+    label, _ = stub_st.spinner_calls[0]
+    assert "Generating explanation" in label
+    # The backend name appears in the label so the operator knows
+    # whether they're hitting `template` (canned) or `ollama` (real LLM).
+    assert "template" in label.lower() or "ollama" in label.lower()
+
+
+def test_cache_hit_short_circuits_render(stub_st):
+    """When the cache already has a reply for this
+    (section_id, data_hash, persona) triplet, the helper renders the
+    cached reply inline and does NOT call the backend or show the
+    spinner. Pin that filter-state stability across reruns is free."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    # Seed the cache.
+    reply = _fake_reply()
+    stub_st.session_state["section_explanations"] = {
+        ("P", "s", "", mod._data_hash({"v": 1})): reply
+    }
+
+    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    with (
+        mock.patch.object(mod, "_log_to_audit"),
+        mock.patch(
+            "aml_framework.assistant.factory.get_assistant", return_value=fake_assistant
+        ) as get_assistant,
+    ):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+        )
+    # No backend call, no spinner — cache hit short-circuited.
+    assert get_assistant.call_count == 0
+    assert fake_assistant.reply.call_count == 0
+    assert not stub_st.spinner_calls
