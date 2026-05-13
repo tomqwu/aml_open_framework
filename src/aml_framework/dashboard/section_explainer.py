@@ -28,7 +28,6 @@ Design:
 
 from __future__ import annotations
 
-import concurrent.futures
 import hashlib
 import json
 import os
@@ -58,56 +57,6 @@ def _resolve_model(complexity: Literal["fast", "deep"]) -> str:
     tier_var = "AML_OLLAMA_MODEL_DEEP" if complexity == "deep" else "AML_OLLAMA_MODEL_FAST"
     tier_default = _DEFAULT_MODEL_DEEP if complexity == "deep" else _DEFAULT_MODEL_FAST
     return os.environ.get(tier_var) or os.environ.get("AML_OLLAMA_MODEL") or tier_default
-
-
-# Background worker pool for LLM calls. Lazy-initialised on first use
-# (some tests don't want the pool spinning up at import time). Bounded
-# at 4 workers — at most 4 concurrent backend calls per replica; later
-# fires queue. The pool is shared across all Streamlit sessions in this
-# container.
-_EXECUTOR: concurrent.futures.ThreadPoolExecutor | None = None
-
-# In-flight futures keyed by (page, section_id, persona, data_hash).
-# When a section_explainer call first encounters a cache miss, it
-# submits the LLM call to _EXECUTOR and stores the future here. The
-# next page rerun (any user interaction) calls section_explainer
-# again, which checks `.done()` and either keeps showing the spinner
-# or promotes the result into _PROCESS_CACHE and renders the reply.
-_FUTURES: dict[tuple[str, str, str, str], concurrent.futures.Future] = {}
-
-# Per-future metadata that the audit-hook needs but isn't carried in
-# the future's return value (section_title is a human label, not
-# something the LLM produced). Populated at dispatch, drained when the
-# future resolves into the cache.
-_FUTURE_META: dict[tuple[str, str, str, str], dict[str, str]] = {}
-
-
-def _get_executor() -> concurrent.futures.ThreadPoolExecutor:
-    global _EXECUTOR
-    if _EXECUTOR is None:
-        _EXECUTOR = concurrent.futures.ThreadPoolExecutor(
-            max_workers=4, thread_name_prefix="aml-explain"
-        )
-    return _EXECUTOR
-
-
-def _do_llm_call(question: str, context: Any, backend_name: str, model: str | None = None) -> Any:
-    """Worker-thread entry point — blocking LLM call. Falls back to the
-    template backend on any failure so the polling path always sees a
-    valid AssistantReply rather than an exception. `model` overrides
-    the backend's default model (so per-tier routing works without
-    touching the env)."""
-    try:
-        from aml_framework.assistant.factory import get_assistant
-
-        kwargs: dict[str, Any] = {}
-        if model:
-            kwargs["model"] = model
-        return get_assistant(backend_name, **kwargs).reply(question, context)
-    except Exception:  # noqa: BLE001
-        from aml_framework.assistant.template import TemplateBackend
-
-        return TemplateBackend().reply(question, context)
 
 
 # Process-global cache — shared across all Streamlit sessions in this
@@ -313,8 +262,6 @@ def section_explainer(
     `st.caption("Explanation unavailable")` line.
     """
     try:
-        import os
-
         data_hash = _data_hash(data_summary)
         effective_persona = persona or st.session_state.get("selected_audience")
         cached_reply = _cache_get(page, section_id, effective_persona, data_hash)
@@ -322,12 +269,22 @@ def section_explainer(
         # Inline render — no expander, no click, no env flag. The
         # explanation is part of the page flow: after the section's
         # content, the explainer renders its own header + spinner +
-        # reply. On first render the LLM call fires automatically;
-        # subsequent reruns hit the (section_id, data_hash, persona)
-        # cache and render in <1 ms. For cost-conscious deployments,
-        # the operator sets `AML_AI_BACKEND=template` (the framework
-        # default) — TemplateBackend returns canned scaffolding with
-        # zero network calls.
+        # reply. On first render the LLM call fires synchronously
+        # inside `st.spinner(...)` so the user sees a legible "in
+        # flight" state; the reply lands in place when the call
+        # returns. Subsequent reruns hit the (section_id, data_hash,
+        # persona) `_PROCESS_CACHE` and render in <1 ms.
+        #
+        # The synchronous path replaces an earlier async-dispatch
+        # attempt (PR #304) where the LLM call ran on a background
+        # ThreadPoolExecutor. That model made the page interactive
+        # in ~5 ms but the reply never surfaced without an
+        # interaction-driven rerun — operators saw spinners that
+        # never resolved. A polling fragment fixed visibility but
+        # killed Playwright e2e via networkidle starvation. The
+        # synchronous baseline is the trade-off: ~2-3 sec block per
+        # unique section on first paint, but the AI output is
+        # actually visible.
         with st.container():
             st.markdown(f"##### ℹ {section_title} — AI Explanation")
             if effective_persona:
@@ -337,56 +294,34 @@ def section_explainer(
                 _render_reply(cached_reply)
                 return
 
-            # ----------------------------------------------------------
-            # Cache miss — dispatch the LLM call to the background pool
-            # so the script returns immediately. The page becomes
-            # interactive within ~5 ms; the AI block fills in via a
-            # polling fragment as the future resolves (~2-3 sec).
-            # ----------------------------------------------------------
-            key = _cache_key(page, section_id, effective_persona, data_hash)
             backend_name = os.environ.get("AML_AI_BACKEND", "template")
-
-            future = _FUTURES.get(key)
-            if future is None:
-                context = _build_context(
-                    page=page,
-                    section_id=section_id,
-                    section_title=section_title,
-                    section_data=data_summary,
-                    persona=effective_persona,
-                )
-                question = (
-                    f"Explain the '{section_title}' section to the operator. "
-                    "Highlight what is normal, what is unusual, and what an "
-                    "analyst should do next."
-                )
-                # Pick model per complexity tier (DeepSeek V4 Flash for
-                # simple summaries, Pro for narrative/reasoning).
-                model = _resolve_model(complexity)
-                future = _get_executor().submit(
-                    _do_llm_call, question, context, backend_name, model
-                )
-                _FUTURES[key] = future
-                # Carry section_title + chosen model so the cache-promotion
-                # path can tag the audit log entry with the human label
-                # and the resolved tier.
-                _FUTURE_META[key] = {
-                    "section_title": section_title,
-                    "complexity": complexity,
-                    "model": model,
-                }
-
-            placeholder = st.empty()
-            _poll_and_render(
-                placeholder=placeholder,
-                key=key,
+            context = _build_context(
                 page=page,
                 section_id=section_id,
                 section_title=section_title,
+                section_data=data_summary,
                 persona=effective_persona,
-                data_hash=data_hash,
-                backend_name=backend_name,
             )
+            question = (
+                f"Explain the '{section_title}' section to the operator. "
+                "Highlight what is normal, what is unusual, and what an "
+                "analyst should do next."
+            )
+            # Pick model per complexity tier (DeepSeek V4 Flash for
+            # simple summaries, Pro for narrative/reasoning).
+            model = _resolve_model(complexity)
+
+            with st.spinner(f"Generating explanation via `{backend_name}` — typically 2-3 sec…"):
+                reply = _call_backend(
+                    question=question,
+                    context=context,
+                    backend_name=backend_name,
+                    model=model,
+                )
+
+            _cache_put(page, section_id, effective_persona, data_hash, reply)
+            _log_to_audit(reply, section_id=section_id, section_title=section_title)
+            _render_reply(reply)
     except Exception:  # noqa: BLE001
         # Don't break the page. The host section has already rendered
         # — just skip the explainer chrome.
@@ -396,100 +331,22 @@ def section_explainer(
             return
 
 
-def _poll_and_render(
-    *,
-    placeholder: Any,
-    key: tuple[str, str, str, str],
-    page: str,
-    section_id: str,
-    section_title: str,
-    persona: str | None,
-    data_hash: str,
-    backend_name: str,
-) -> None:
-    """Resolve the future + render. Synchronous promotion when the
-    future has already resolved; otherwise register a polling
-    fragment that re-runs every 1 sec until it does.
-
-    Synchronous fast-path matters for: (a) cache hits across sessions —
-    the same data triggers `_FUTURES.get` to return a done future from
-    an earlier session that has since completed; (b) fast backends
-    (template) that return in <5 ms; (c) tests, which can `.result()`
-    the future and call back into `section_explainer` to deterministically
-    drive the polling without relying on the 1-sec fragment timer.
+def _call_backend(*, question: str, context: Any, backend_name: str, model: str | None) -> Any:
+    """Blocking LLM call with template fallback. Any failure (backend
+    down, no key, JSON parse error) falls through to TemplateBackend
+    so the caller always gets a valid AssistantReply rather than
+    raising — keeps the spinner from being followed by an
+    `Explanation unavailable` caption when the configured backend is
+    flaky but the template path still works.
     """
-    # Synchronous promotion attempt — covers already-done futures.
-    if _promote_if_done(
-        placeholder=placeholder,
-        key=key,
-        page=page,
-        section_id=section_id,
-        section_title=section_title,
-        persona=persona,
-        data_hash=data_hash,
-    ):
-        return
+    try:
+        from aml_framework.assistant.factory import get_assistant
 
-    # Still in flight — render the spinner placeholder and return.
-    # On the operator's next interaction (any widget change / persona
-    # flip / filter / chart click) Streamlit reruns the page script;
-    # section_explainer is called again; `_promote_if_done` picks up
-    # the resolved future synchronously and renders the reply.
-    #
-    # NOTE: an earlier iteration used `@st.fragment(run_every=1.0)` to
-    # auto-poll without requiring user interaction. Removed because
-    # the 1-sec poll generated continuous Streamlit network chatter
-    # that prevented Playwright's `networkidle` wait from settling —
-    # the full e2e suite went from 100/100 to 15/100. The trade-off:
-    # the reply lands on the next interaction rather than auto-filling
-    # within 2-3 sec. For dashboards where the operator typically
-    # filters / scrolls / clicks within seconds of landing, this is
-    # essentially indistinguishable from auto-polling. Re-introducing
-    # the auto-fill via a less-chatty mechanism (e.g. `st_autorefresh`
-    # tied to a `done()` predicate, or `st.experimental_rerun()` from
-    # a thread-safe broker) is a follow-up.
-    with placeholder.container():
-        with st.spinner(f"Generating explanation via `{backend_name}` — typically 2-3 sec…"):
-            pass
+        kwargs: dict[str, Any] = {}
+        if model:
+            kwargs["model"] = model
+        return get_assistant(backend_name, **kwargs).reply(question, context)
+    except Exception:  # noqa: BLE001
+        from aml_framework.assistant.template import TemplateBackend
 
-
-def _promote_if_done(
-    *,
-    placeholder: Any,
-    key: tuple[str, str, str, str],
-    page: str,
-    section_id: str,
-    section_title: str,
-    persona: str | None,
-    data_hash: str,
-) -> bool:
-    """If the future for `key` is resolved (or already cached), promote
-    the reply into `_PROCESS_CACHE`, fire the audit hook, and render
-    inline. Returns True when the cache hit is now satisfied — caller
-    can short-circuit further work.
-    """
-    fut = _FUTURES.get(key)
-    if fut is not None and fut.done():
-        try:
-            reply = fut.result()
-        except Exception:  # noqa: BLE001
-            _FUTURES.pop(key, None)
-            _FUTURE_META.pop(key, None)
-            with placeholder.container():
-                st.caption("Explanation unavailable")
-            return True
-        # Prefer the dispatched section_title (stored at dispatch) so
-        # the audit row stays consistent even when the caller of
-        # _promote_if_done passes a stale fallback.
-        title = _FUTURE_META.get(key, {}).get("section_title", section_title)
-        _cache_put(page, section_id, persona, data_hash, reply)
-        _log_to_audit(reply, section_id=section_id, section_title=title)
-        _FUTURES.pop(key, None)
-        _FUTURE_META.pop(key, None)
-
-    cached = _PROCESS_CACHE.get(key)
-    if cached is not None:
-        with placeholder.container():
-            _render_reply(cached)
-        return True
-    return False
+        return TemplateBackend().reply(question, context)
