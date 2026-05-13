@@ -353,6 +353,18 @@ class TestAssistantOllamaBackend:
         assert not _is_local_host("https://ollama.com/api/chat")
         assert not _is_local_host("https://anything-else.example.com/api/chat")
 
+    def test_is_local_host_returns_false_on_malformed_url(self):
+        """urlparse can raise ValueError on some pathological strings
+        (e.g. a port that doesn't fit a uint16). The try/except
+        treats those as 'not local' rather than crashing — so the
+        Bearer-required guard still fires for misconfigured URLs."""
+        from aml_framework.assistant.ollama import _is_local_host
+
+        # Malformed IPv6 brackets — `urlparse(...).hostname` raises
+        # ValueError. Helper must return False (i.e. treat as non-local
+        # so the Bearer-required guard fires).
+        assert not _is_local_host("http://[invalid:ipv6:url/")
+
 
 class TestAssistantOpenAIBackend:
     def test_refuses_without_api_key(self, monkeypatch):

@@ -361,6 +361,89 @@ def test_assistant_context_section_fields_set():
 
 
 # ---------------------------------------------------------------------------
+# Coverage-gap closers — exercise the defensive branches CI flagged
+# ---------------------------------------------------------------------------
+
+
+def test_persona_caption_renders_when_persona_set(stub_st):
+    """When `selected_audience` is set, the expander shows a `Tailored
+    for persona: <p>` caption. Pinning ensures the persona context is
+    visibly surfaced (otherwise the operator can't tell the reply
+    is persona-scoped)."""
+    from aml_framework.dashboard.section_explainer import section_explainer
+
+    stub_st.session_state["selected_audience"] = "cco"
+    section_explainer(
+        page="Executive Dashboard",
+        section_id="exec.kpis",
+        section_title="KPIs",
+        data_summary={"v": 1},
+    )
+    assert any("cco" in c for c in stub_st.caption_calls)
+
+
+def test_log_to_audit_skips_when_no_run_dir(stub_st):
+    """The audit hook short-circuits when `run_dir` isn't in
+    session_state (cold dashboard before the engine has produced a
+    run). Path must not raise."""
+    from aml_framework.dashboard.section_explainer import _log_to_audit
+
+    stub_st.session_state.pop("run_dir", None)
+    # Must not raise.
+    _log_to_audit(object(), section_id="s", section_title="t")
+
+
+def test_log_to_audit_swallows_audit_ledger_failure(stub_st):
+    """If `AuditLedger.append_to_run_dir` raises (e.g. read-only
+    artifacts root), the helper must swallow — never break the page."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    stub_st.session_state["run_dir"] = "/tmp/fake_run_dir"
+    stub_st.session_state["spec"] = SimpleNamespace(
+        program=SimpleNamespace(ai_audit_log="hash_only")
+    )
+
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+        side_effect=PermissionError("read-only"),
+    ):
+        # Must not raise.
+        mod._log_to_audit(_fake_reply(), section_id="s", section_title="t")
+
+
+def test_caption_fallback_also_swallows(monkeypatch):
+    """The outermost try/except calls st.caption() as the last-resort
+    fallback. If that itself raises (Streamlit context lost), we must
+    not propagate — the host page already rendered, the explainer
+    chrome is just absent. Pin that the function returns silently."""
+    import sys
+    from aml_framework.dashboard import section_explainer as mod
+
+    # A stub st where caption itself raises — simulates a torn-down
+    # Streamlit context.
+    class _BadStreamlit:
+        session_state = {}
+
+        @staticmethod
+        def expander(*_a, **_kw):
+            raise RuntimeError("context lost")
+
+        @staticmethod
+        def caption(*_a, **_kw):
+            raise RuntimeError("context also lost")
+
+    monkeypatch.setitem(sys.modules, "streamlit", _BadStreamlit)
+    monkeypatch.setattr(mod, "st", _BadStreamlit)
+    # Must not raise even though both expander() and caption() blow up.
+    mod.section_explainer(
+        page="P",
+        section_id="s",
+        section_title="t",
+        data_summary={"v": 1},
+    )
+
+
+# ---------------------------------------------------------------------------
 # Prompt builder picks up section context
 # ---------------------------------------------------------------------------
 
