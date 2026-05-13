@@ -46,7 +46,23 @@ def test_ensure_initialized_reapplies_theme_on_direct_page_hit(monkeypatch):
     `app.py` doesn't run, so its `apply_theme()` call doesn't run.
     Without re-applying the custom CSS on the page, body background
     falls back to the browser UA — black if `prefers-color-scheme:
-    dark`. Pin that `ensure_initialized()` re-injects the theme."""
+    dark`. Pin that `ensure_initialized()` re-injects the theme.
+
+    The dashboard module chain imports `pandas` + `streamlit` (heavy
+    optional deps that the unit-tests CI job's `[dev]` extras don't
+    include). Skip when those aren't installed — the api-tests +
+    coverage CI jobs do install them and exercise this assertion.
+    """
+    import importlib.util
+
+    import pytest
+
+    if (
+        importlib.util.find_spec("streamlit") is None
+        or importlib.util.find_spec("pandas") is None
+    ):
+        pytest.skip("streamlit/pandas not installed (unit-tests CI installs only [dev])")
+
     import sys
     from unittest import mock
 
