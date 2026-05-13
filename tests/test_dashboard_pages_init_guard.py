@@ -39,3 +39,56 @@ def test_every_page_calls_ensure_initialized():
         "    from aml_framework.dashboard.state import ensure_initialized\n\n"
         "    ensure_initialized()\n"
     )
+
+
+def test_ensure_initialized_reapplies_theme_on_direct_page_hit(monkeypatch):
+    """A direct-URL hit on a sub-page only executes the page script —
+    `app.py` doesn't run, so its `apply_theme()` call doesn't run.
+    Without re-applying the custom CSS on the page, body background
+    falls back to the browser UA — black if `prefers-color-scheme:
+    dark`. Pin that `ensure_initialized()` re-injects the theme.
+
+    The dashboard module chain imports `pandas` + `streamlit` (heavy
+    optional deps that the unit-tests CI job's `[dev]` extras don't
+    include). Skip when those aren't installed — the api-tests +
+    coverage CI jobs do install them and exercise this assertion.
+    """
+    import importlib.util
+
+    import pytest
+
+    if importlib.util.find_spec("streamlit") is None or importlib.util.find_spec("pandas") is None:
+        pytest.skip("streamlit/pandas not installed (unit-tests CI installs only [dev])")
+
+    import sys
+    from unittest import mock
+
+    # Fake `streamlit` so the imports inside state.py / components.py
+    # succeed without a real Streamlit context.
+    fake_st = mock.MagicMock()
+    fake_st.session_state = {"spec": object(), "active_cache_key": "x:42"}
+    monkeypatch.setitem(sys.modules, "streamlit", fake_st)
+
+    # Rebind the module-global `st` reference inside state.py + components.
+    import aml_framework.dashboard.components as components_mod
+    import aml_framework.dashboard.state as state_mod
+
+    monkeypatch.setattr(state_mod, "st", fake_st)
+    monkeypatch.setattr(components_mod, "st", fake_st)
+
+    # Patch apply_theme so we can observe whether ensure_initialized
+    # calls it. Use a real attribute (function-attr trick) so the import
+    # inside ensure_initialized resolves to our mock.
+    apply_theme_calls: list[None] = []
+
+    def fake_apply_theme():
+        apply_theme_calls.append(None)
+
+    monkeypatch.setattr(components_mod, "apply_theme", fake_apply_theme)
+
+    state_mod.ensure_initialized()
+    assert apply_theme_calls, (
+        "ensure_initialized() must call apply_theme() — otherwise a "
+        "direct sub-page hit shows browser-default styling on the body "
+        "(black background in dark mode)."
+    )

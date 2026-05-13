@@ -65,13 +65,31 @@ def ensure_initialized() -> None:
     Without this guard, every page that reads ``st.session_state.spec``
     raises ``AttributeError`` because the entry script never ran.
 
-    Call this at the top of every sub-page (after the imports, before any
-    ``st.session_state.<x>`` read). Cheap no-op when state is already
-    populated — ``initialize_session`` short-circuits on its cache_key
-    check.
+    Also re-applies the custom theme CSS. Streamlit's ``[theme]`` block
+    in ``.streamlit/config.toml`` sets the base palette on every page
+    automatically, but the *custom* CSS in
+    ``components.apply_theme()`` (which carries ``color-scheme: light``
+    + every dna-* class our pages render against) is injected by
+    ``app.py`` only. A direct sub-page hit on a browser running
+    ``prefers-color-scheme: dark`` falls back to the browser UA — body
+    bg goes black, slate-blue section headers vanish into it. Pinned
+    by `tests/test_dashboard_pages_init_guard.py` so we can't drop the
+    helper from a page silently.
+
+    Call this at the top of every sub-page (after the imports, before
+    any ``st.session_state.<x>`` read). Cheap no-op when state is
+    already populated — ``initialize_session`` short-circuits on its
+    cache_key check, and ``apply_theme`` is idempotent (Streamlit
+    de-dupes identical ``st.markdown`` injections per rerun).
     """
     if "spec" not in st.session_state:
         initialize_session()
+    # Re-apply the custom CSS — required even when state is already
+    # populated, because Streamlit doesn't carry CSS injections across
+    # the script-rerun boundary on a page navigation.
+    from aml_framework.dashboard.components import apply_theme
+
+    apply_theme()
 
 
 def initialize_session() -> None:
