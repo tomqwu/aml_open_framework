@@ -187,7 +187,14 @@ section[data-testid="stSidebar"] {
 }
 
 /* ---- Global ---- */
-.block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
+.block-container { padding-top: 1.5rem; padding-bottom: 4rem; }
+/* `padding-bottom: 4rem` matches Streamlit's default scaffolding and
+ * gives the page-level section_explainer (added in PR #302) and any
+ * trailing content room to render fully before the viewport scroll
+ * boundary. Previously tightened to 1rem for landing-page chrome — that
+ * worked when pages ended with charts whose own margins absorbed the
+ * gap, but the inline AI explanation at the bottom of every page
+ * pushed it over and clipped the confidence pill / reply body. */
 /* Apply Inter narrowly. Two hard constraints learned the wrong way
  * (PR-M iteration):
  *  1. Don't touch the sidebar — Streamlit's nav uses Material Symbols
