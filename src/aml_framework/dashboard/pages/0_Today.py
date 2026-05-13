@@ -17,12 +17,29 @@ from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
     kpi_card_rag,
     link_to_page,
+    section_explainer,
 )
 from aml_framework.dashboard.today import build_cards_for_audience
 
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Today",
+    section_id="today.page",
+    section_title="Today",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 audience = st.session_state.get("selected_audience")
 spec = st.session_state.spec

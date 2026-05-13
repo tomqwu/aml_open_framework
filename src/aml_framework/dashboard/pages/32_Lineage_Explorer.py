@@ -36,12 +36,33 @@ import streamlit as st
 import streamlit.components.v1 as _components
 
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import data_grid, empty_state, page_header
+from aml_framework.dashboard.components import (
+    data_grid,
+    empty_state,
+    page_header,
+    section_explainer,
+)
 from aml_framework.dashboard.query_params import consume_param
 from aml_framework.dashboard.state import ensure_initialized
 from aml_framework.engine.audit import walk_lineage
 
 ensure_initialized()
+
+section_explainer(
+    page="Lineage Explorer",
+    section_id="lineage_explorer.page",
+    section_title="Lineage Explorer",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 page_header(
     "Lineage Explorer",

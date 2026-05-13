@@ -29,6 +29,7 @@ from aml_framework.dashboard.components import (
     id_link,
     kpi_card_rag,
     page_header,
+    section_explainer,
     terminal_block,
     tooltip_banner,
     tour_panel,
@@ -38,6 +39,22 @@ from aml_framework.engine.audit import AuditLedger
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Audit Evidence",
+    section_id="audit_evidence.page",
+    section_title="Audit Evidence",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 # Audit-event palette — mirrors the values event_type_cell_style used to
 # colour: escalations (red), workflow transitions (amber), closures (green).

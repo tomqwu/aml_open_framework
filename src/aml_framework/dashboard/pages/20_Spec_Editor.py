@@ -5,11 +5,27 @@ from __future__ import annotations
 import streamlit as st
 import yaml
 
-from aml_framework.dashboard.components import empty_state, kpi_card, page_header
+from aml_framework.dashboard.components import empty_state, kpi_card, page_header, section_explainer
 
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Spec Editor",
+    section_id="spec_editor.page",
+    section_title="Spec Editor",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 page_header(
     "Spec Editor",

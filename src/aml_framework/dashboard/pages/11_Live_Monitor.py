@@ -19,11 +19,28 @@ from aml_framework.dashboard.components import (
     empty_state,
     line_chart,
     page_header,
+    section_explainer,
 )
 
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Live Monitor",
+    section_id="live_monitor.page",
+    section_title="Live Monitor",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 page_header(
     "Live Monitor",

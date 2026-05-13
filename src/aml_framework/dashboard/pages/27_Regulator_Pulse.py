@@ -31,6 +31,7 @@ from aml_framework.dashboard.components import (
     glossary_legend,
     kpi_card_rag,
     page_header,
+    section_explainer,
     tooltip_banner,
     tour_panel,
 )
@@ -39,6 +40,22 @@ from aml_framework.dashboard.data.regulator_pulse import EVENTS, THEMES
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Regulator Pulse",
+    section_id="regulator_pulse.page",
+    section_title="Regulator Pulse",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 page_header(
     "Regulator Pulse",

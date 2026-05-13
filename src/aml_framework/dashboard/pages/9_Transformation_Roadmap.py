@@ -8,6 +8,7 @@ import streamlit as st
 from aml_framework.dashboard.components import (
     kpi_card,
     page_header,
+    section_explainer,
     see_also_footer,
     timeline_chart,
 )
@@ -16,6 +17,22 @@ from aml_framework.dashboard.data_layer import get_roadmap_phases
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Transformation Roadmap",
+    section_id="transformation_roadmap.page",
+    section_title="Transformation Roadmap",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 spec = st.session_state.spec
 jurisdiction = spec.program.jurisdiction
