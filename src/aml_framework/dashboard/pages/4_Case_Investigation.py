@@ -17,6 +17,7 @@ from aml_framework.dashboard.components import (
     risk_color,
     sankey_chart,
     scatter_chart,
+    section_explainer,
     severity_color,
     sla_band_color,
     tooltip_banner,
@@ -28,6 +29,23 @@ from aml_framework.engine.constants import Event, Queue
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+
+section_explainer(
+    page="Case Investigation",
+    section_id="case_investigation.page",
+    section_title="Case Investigation",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 
 def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:

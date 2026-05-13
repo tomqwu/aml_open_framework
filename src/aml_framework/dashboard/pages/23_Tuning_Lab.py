@@ -28,6 +28,7 @@ from aml_framework.dashboard.components import (
     link_to_page,
     page_header,
     scatter_chart,
+    section_explainer,
 )
 from aml_framework.dashboard.query_params import consume_param as _consume_param
 from aml_framework.dashboard.tuning_state import (
@@ -42,6 +43,22 @@ from aml_framework.engine.tuning import sweep_rule
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Tuning Lab",
+    section_id="tuning_lab.page",
+    section_title="Tuning Lab",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 PAGE_TITLE = "Tuning Lab"
 

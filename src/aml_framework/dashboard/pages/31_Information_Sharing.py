@@ -23,11 +23,32 @@ from pathlib import Path
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import data_grid, empty_state, page_header
+from aml_framework.dashboard.components import (
+    data_grid,
+    empty_state,
+    page_header,
+    section_explainer,
+)
 
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Information Sharing",
+    section_id="information_sharing.page",
+    section_title="Information Sharing",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 page_header(
     "Information Sharing",

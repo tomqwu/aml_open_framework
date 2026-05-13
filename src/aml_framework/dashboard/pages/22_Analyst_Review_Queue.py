@@ -19,7 +19,7 @@ from __future__ import annotations
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import kpi_card, page_header
+from aml_framework.dashboard.components import kpi_card, page_header, section_explainer
 from aml_framework.dashboard.queue_state import (
     NARRATIVE_ACCEPT,
     NARRATIVE_AMEND,
@@ -35,6 +35,22 @@ from aml_framework.engine.explain import to_mermaid
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
+
+section_explainer(
+    page="Analyst Review Queue",
+    section_id="analyst_review_queue.page",
+    section_title="Analyst Review Queue",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
 
 PAGE_TITLE = "Analyst Review Queue"
 
