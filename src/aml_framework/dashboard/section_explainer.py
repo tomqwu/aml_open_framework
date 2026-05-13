@@ -1,23 +1,29 @@
-"""Per-section GenAI Explain popover.
+"""Per-section GenAI explanations — inline, auto-loaded.
 
 The sidebar `ai_panel()` in `components.py` answers freeform questions
 about the *whole page*. This module gives every visual section
-(KPI card, chart, table) its own "ℹ Explain" popover that asks the
-backend to explain *that specific section's data*.
+(KPI card, chart, table) its own AI explanation that fires
+automatically on page render, scoped to *that specific section's data*.
 
-Design constraints:
+Design:
 
-- Streamlit reruns top-to-bottom on every interaction, so calling the
-  LLM on every render is too expensive. The helper renders a button
-  inside an `st.popover`; the LLM call fires only when the operator
-  clicks it.
-- Same `(section_id, data_hash, persona)` triplet hits the same cached
-  reply in `st.session_state` — re-clicking is free.
-- The backend may be `template` (no LLM key, no install of optional
-  deps). The helper degrades to a caption rather than raising.
-- Every call is logged to the run's `ai_interactions.jsonl` with
-  `event="ai_section_explanation"` so an auditor can see exactly which
-  sections the operator asked about.
+- **Inline.** Renders directly into the page flow via `st.container()`
+  + a `#####` markdown header. No expander, no click.
+- **Auto-fire on first render.** Every `section_explainer()` call
+  invokes the configured backend during page render. The
+  `(section_id, data_hash, persona)` cache key short-circuits repeat
+  visits in the same session — only the first paint per filter-state
+  pays the LLM cost. Within an Ollama Cloud free-tier session, this
+  is cheap; for paid backends, the operator can switch to
+  `AML_AI_BACKEND=template` for zero-cost canned scaffolding.
+- **Visible spinner.** Wrapped in `st.spinner(...)` so the operator
+  sees the LLM call is in flight rather than a frozen page.
+- **Audit-logged.** Every reply appended to the run's
+  `ai_interactions.jsonl` with `event="ai_section_explanation"` so an
+  auditor can trace exactly which sections were explained.
+- **Failure-safe.** Outer try/except catches any error (backend down,
+  no key, JSON parse failure) and renders a single
+  `st.caption("Explanation unavailable")` instead of breaking the page.
 """
 
 from __future__ import annotations
@@ -162,13 +168,14 @@ def section_explainer(
     data_summary: Mapping[str, Any],
     persona: str | None = None,
 ) -> None:
-    """Render a "ℹ Explain" popover for a dashboard section.
+    """Render an inline AI explanation for a dashboard section.
 
     Drop this immediately after a section's content (chart, table,
-    KPI card). The popover stays closed until the operator clicks it;
-    clicking the "Generate explanation" button inside fires the LLM
-    call once per (section_id, data_hash, persona) triplet. Subsequent
-    clicks render the cached reply for free.
+    KPI card). On first render, the LLM call fires automatically and
+    the reply lands inline below the section. The
+    `(section_id, data_hash, persona)` cache short-circuits repeat
+    renders in the same session — only the first paint per
+    filter-state pays the LLM cost.
 
     Args:
         page: Page title — matches the value passed to `page_header()`.
@@ -191,17 +198,23 @@ def section_explainer(
     `st.caption("Explanation unavailable")` line.
     """
     try:
+        import os
+
         data_hash = _data_hash(data_summary)
         effective_persona = persona or st.session_state.get("selected_audience")
         cached_reply = _cache_get(page, section_id, effective_persona, data_hash)
 
-        # Using `st.expander` (battle-tested in this codebase) rather
-        # than `st.popover` — popovers caused intermittent timing flakes
-        # in the e2e suite when 3+ landed on a single page (Streamlit's
-        # popover component holds open a JS handle that slows full-page
-        # network-idle settle, which exceeded the persona-selector's
-        # 30s scroll-into-view timeout).
-        with st.expander(f"ℹ Explain · {section_title}", expanded=False):
+        # Inline render — no expander, no click, no env flag. The
+        # explanation is part of the page flow: after the section's
+        # content, the explainer renders its own header + spinner +
+        # reply. On first render the LLM call fires automatically;
+        # subsequent reruns hit the (section_id, data_hash, persona)
+        # cache and render in <1 ms. For cost-conscious deployments,
+        # the operator sets `AML_AI_BACKEND=template` (the framework
+        # default) — TemplateBackend returns canned scaffolding with
+        # zero network calls.
+        with st.container():
+            st.markdown(f"##### ℹ {section_title} — AI Explanation")
             if effective_persona:
                 st.caption(f"Tailored for persona: `{effective_persona}`")
 
@@ -209,15 +222,9 @@ def section_explainer(
                 _render_reply(cached_reply)
                 return
 
-            button_key = f"section_explain_gen::{page}::{section_id}::{data_hash}"
-            if not st.button("Generate explanation", key=button_key):
-                st.caption(
-                    "Click to generate. Uses the current AML_AI_BACKEND "
-                    "(`template` is canned; `ollama` / `openai` call out)."
-                )
-                return
-
-            # Build context + invoke backend.
+            # Build context + invoke backend. Wrapped in st.spinner so the
+            # operator sees that the ~2-3 sec LLM call is in flight rather
+            # than a frozen page.
             context = _build_context(
                 page=page,
                 section_id=section_id,
@@ -225,24 +232,23 @@ def section_explainer(
                 section_data=data_summary,
                 persona=effective_persona,
             )
-            import os
-
             backend_name = os.environ.get("AML_AI_BACKEND", "template")
-            try:
-                from aml_framework.assistant.factory import get_assistant
+            with st.spinner(f"Generating explanation via `{backend_name}` — typically 2-3 sec…"):
+                try:
+                    from aml_framework.assistant.factory import get_assistant
 
-                assistant = get_assistant(backend_name)
-                question = (
-                    f"Explain the '{section_title}' section to the operator. "
-                    "Highlight what is normal, what is unusual, and what an "
-                    "analyst should do next."
-                )
-                reply = assistant.reply(question, context)
-            except Exception:  # noqa: BLE001
-                from aml_framework.assistant.template import TemplateBackend
+                    assistant = get_assistant(backend_name)
+                    question = (
+                        f"Explain the '{section_title}' section to the operator. "
+                        "Highlight what is normal, what is unusual, and what an "
+                        "analyst should do next."
+                    )
+                    reply = assistant.reply(question, context)
+                except Exception:  # noqa: BLE001
+                    from aml_framework.assistant.template import TemplateBackend
 
-                question = f"Explain '{section_title}'."
-                reply = TemplateBackend().reply(question, context)
+                    question = f"Explain '{section_title}'."
+                    reply = TemplateBackend().reply(question, context)
 
             _cache_put(page, section_id, effective_persona, data_hash, reply)
             _log_to_audit(reply, section_id=section_id, section_title=section_title)
