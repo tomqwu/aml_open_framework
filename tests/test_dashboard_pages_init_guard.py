@@ -57,10 +57,7 @@ def test_ensure_initialized_reapplies_theme_on_direct_page_hit(monkeypatch):
 
     import pytest
 
-    if (
-        importlib.util.find_spec("streamlit") is None
-        or importlib.util.find_spec("pandas") is None
-    ):
+    if importlib.util.find_spec("streamlit") is None or importlib.util.find_spec("pandas") is None:
         pytest.skip("streamlit/pandas not installed (unit-tests CI installs only [dev])")
 
     import sys
