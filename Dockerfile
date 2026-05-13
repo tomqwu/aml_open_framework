@@ -18,6 +18,15 @@ COPY data/ data/
 COPY docs/ docs/
 COPY tests/ tests/
 
+# `setuptools-scm` derives the package version from git tags, but the
+# image doesn't carry `.git/`. The acr-build wrapper passes the
+# already-resolved version via `--build-arg APP_VERSION=$(git describe
+# --tags --always --dirty)`; setuptools-scm honors the project-scoped
+# pretend-version env. Default `0.1.0+local` keeps non-CI `docker build`
+# from blowing up.
+ARG APP_VERSION=0.1.0+local
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_AML_OPEN_FRAMEWORK=$APP_VERSION
+
 RUN pip install --no-cache-dir -e ".[dev,dashboard,api,azure]"
 
 # Capture the git SHA the image was built from so the running container

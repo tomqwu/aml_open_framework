@@ -9,6 +9,7 @@ without spinning up a dashboard.
 
 from __future__ import annotations
 
+import concurrent.futures
 import sys
 from collections.abc import Mapping
 from types import SimpleNamespace
@@ -31,6 +32,18 @@ class _StubBlock:
         return False
 
 
+class _StubEmpty:
+    """`st.empty()` returns a slot that can be populated later. Provides
+    its own `.container()` so `placeholder.container():` works."""
+
+    def __init__(self, owner):
+        self.owner = owner
+
+    def container(self, **kwargs):
+        self.owner.container_calls.append(kwargs)
+        return _StubBlock("placeholder-container", **kwargs)
+
+
 class _StubStreamlit:
     """Minimal stand-in for `streamlit` that records calls."""
 
@@ -40,16 +53,37 @@ class _StubStreamlit:
         self.caption_calls: list = []
         self.container_calls: list = []
         self.spinner_calls: list = []
+        self.empty_calls: list = []
+        self.fragment_calls: list = []
 
     # Container (context manager) — inline rendering, no expander chrome.
     def container(self, **kwargs):
         self.container_calls.append(kwargs)
         return _StubBlock("container", **kwargs)
 
+    def empty(self, **kwargs):
+        self.empty_calls.append(kwargs)
+        return _StubEmpty(self)
+
     # Spinner (context manager).
     def spinner(self, label, **kwargs):
         self.spinner_calls.append((label, kwargs))
         return _StubBlock(label, **kwargs)
+
+    def fragment(self, *args, **kwargs):
+        """`st.fragment` is used as `@st.fragment(run_every=1.0)`. The
+        decorator returns a wrapper that calls the wrapped function
+        exactly once for tests (no actual polling — the test triggers
+        re-runs by calling `section_explainer` again)."""
+        self.fragment_calls.append((args, kwargs))
+
+        def _wrap(fn):
+            # Invoke immediately so the test sees the placeholder fill
+            # behavior as a single render pass.
+            fn()
+            return fn
+
+        return _wrap
 
     # Plain widgets.
     def markdown(self, text, **kwargs):
@@ -72,6 +106,23 @@ def stub_st(monkeypatch):
 
     monkeypatch.setattr(mod, "st", stub)
     return stub
+
+
+@pytest.fixture(autouse=True)
+def _clear_process_cache():
+    """The section_explainer cache + future registry are process-global
+    so they survive across Streamlit sessions in a deployed dashboard.
+    For tests we clear them before each case so cross-test pollution
+    doesn't fake a pass via a cache hit from a prior test."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    mod._PROCESS_CACHE.clear()
+    mod._FUTURES.clear()
+    mod._FUTURE_META.clear()
+    yield
+    mod._PROCESS_CACHE.clear()
+    mod._FUTURES.clear()
+    mod._FUTURE_META.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -107,18 +158,17 @@ def test_renders_inline_container_with_header(stub_st):
 
 def test_auto_fires_backend_on_first_render(stub_st, monkeypatch):
     """Auto-fire is the only behavior now — the LLM call must invoke on
-    the very first render (no button click, no env flag)."""
+    the very first render (no button click, no env flag). The call runs
+    in a background worker; we patch `_do_llm_call` and wait for the
+    submitted future to complete so the assertion is deterministic."""
     from aml_framework.dashboard import section_explainer as mod
 
-    # Make sure no env flag is set — we're testing the always-on default.
     monkeypatch.delenv("AML_AUTO_EXPLAIN", raising=False)
 
-    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    do_llm = mock.MagicMock(return_value=_fake_reply())
     with (
+        mock.patch.object(mod, "_do_llm_call", side_effect=do_llm),
         mock.patch.object(mod, "_log_to_audit"),
-        mock.patch(
-            "aml_framework.assistant.factory.get_assistant", return_value=fake_assistant
-        ) as get_assistant,
     ):
         mod.section_explainer(
             page="P",
@@ -126,8 +176,12 @@ def test_auto_fires_backend_on_first_render(stub_st, monkeypatch):
             section_title="t",
             data_summary={"v": 1},
         )
-    assert get_assistant.call_count == 1, "backend must auto-fire on first render"
-    assert fake_assistant.reply.call_count == 1
+        # Wait for the background worker to fire.
+        key = mod._cache_key("P", "s", None, mod._data_hash({"v": 1}))
+        fut = mod._FUTURES.get(key)
+        if fut is not None:
+            fut.result(timeout=5)
+    assert do_llm.call_count == 1, "backend must auto-fire on first render"
 
 
 # ---------------------------------------------------------------------------
@@ -146,18 +200,39 @@ def _fake_reply(text="ok", confidence="high"):
     )
 
 
+def _wait_for_future(mod, key):
+    """Block until the background worker resolves the future for `key`,
+    then trigger one more `_promote_if_done` poll so the cache gets
+    populated synchronously. In production, Streamlit's
+    `@st.fragment(run_every=1.0)` would handle this on its own; in
+    tests the stub fragment fires only once per `section_explainer`
+    call, so we drive the second poll manually.
+    """
+    fut = mod._FUTURES.get(key)
+    if fut is not None:
+        fut.result(timeout=5)
+    # Synchronously promote the resolved future into the cache.
+    mod._promote_if_done(
+        placeholder=mod.st.empty(),
+        key=key,
+        page=key[0],
+        section_id=key[1],
+        section_title=key[1],  # title irrelevant for the cache-promotion path
+        persona=key[2] or None,
+        data_hash=key[3],
+    )
+
+
 def test_first_render_fires_backend_then_caches(stub_st, monkeypatch):
-    """First render → backend call + cache write. Second render with
-    identical data_summary → cache hit (no second backend call)."""
+    """First render → backend call submitted to worker → cache write.
+    Second render with identical data_summary → cache hit (no
+    additional backend call)."""
     from aml_framework.dashboard import section_explainer as mod
 
-    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
-
+    do_llm = mock.MagicMock(return_value=_fake_reply())
     with (
+        mock.patch.object(mod, "_do_llm_call", side_effect=do_llm),
         mock.patch.object(mod, "_log_to_audit"),
-        mock.patch(
-            "aml_framework.assistant.factory.get_assistant", return_value=fake_assistant
-        ) as get_assistant,
     ):
         mod.section_explainer(
             page="Executive Dashboard",
@@ -165,21 +240,24 @@ def test_first_render_fires_backend_then_caches(stub_st, monkeypatch):
             section_title="Top KPIs",
             data_summary={"alert_total": 12},
         )
-        assert get_assistant.call_count == 1
-        assert fake_assistant.reply.call_count == 1
+        key = mod._cache_key(
+            "Executive Dashboard", "exec.kpis.headline", None, mod._data_hash({"alert_total": 12})
+        )
+        _wait_for_future(mod, key)
+        # The polling fragment fired synchronously in our stub, so
+        # by now the reply should be cached and the future cleared.
+        assert key in mod._PROCESS_CACHE
+        assert do_llm.call_count == 1
 
-        # Second invocation with the same data: should NOT call backend
-        # because the cached reply is returned early.
-        get_assistant.reset_mock()
-        fake_assistant.reply.reset_mock()
+        # Second render with same data_summary: cache hit, no new call.
+        do_llm.reset_mock()
         mod.section_explainer(
             page="Executive Dashboard",
             section_id="exec.kpis.headline",
             section_title="Top KPIs",
             data_summary={"alert_total": 12},
         )
-        assert get_assistant.call_count == 0
-        assert fake_assistant.reply.call_count == 0
+        assert do_llm.call_count == 0
 
 
 def test_data_change_invalidates_cache(stub_st, monkeypatch):
@@ -189,11 +267,11 @@ def test_data_change_invalidates_cache(stub_st, monkeypatch):
     feeds in) invalidate cleanly."""
     from aml_framework.dashboard import section_explainer as mod
 
-    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    do_llm = mock.MagicMock(return_value=_fake_reply())
 
     with (
+        mock.patch.object(mod, "_do_llm_call", side_effect=do_llm),
         mock.patch.object(mod, "_log_to_audit"),
-        mock.patch("aml_framework.assistant.factory.get_assistant", return_value=fake_assistant),
     ):
         mod.section_explainer(
             page="P",
@@ -201,13 +279,15 @@ def test_data_change_invalidates_cache(stub_st, monkeypatch):
             section_title="t",
             data_summary={"v": 1},
         )
+        _wait_for_future(mod, mod._cache_key("P", "s", None, mod._data_hash({"v": 1})))
         mod.section_explainer(
             page="P",
             section_id="s",
             section_title="t",
             data_summary={"v": 2},  # different value → different hash
         )
-        assert fake_assistant.reply.call_count == 2
+        _wait_for_future(mod, mod._cache_key("P", "s", None, mod._data_hash({"v": 2})))
+        assert do_llm.call_count == 2
 
 
 def test_audit_log_event_is_distinct(stub_st, monkeypatch):
@@ -227,12 +307,12 @@ def test_audit_log_event_is_distinct(stub_st, monkeypatch):
         program=SimpleNamespace(ai_audit_log="hash_only")
     )
 
-    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    do_llm = mock.MagicMock(return_value=_fake_reply())
     with (
+        mock.patch.object(mod, "_do_llm_call", side_effect=do_llm),
         mock.patch(
             "aml_framework.engine.audit.AuditLedger.append_to_run_dir", side_effect=fake_append
         ),
-        mock.patch("aml_framework.assistant.factory.get_assistant", return_value=fake_assistant),
     ):
         mod.section_explainer(
             page="P",
@@ -240,6 +320,7 @@ def test_audit_log_event_is_distinct(stub_st, monkeypatch):
             section_title="t",
             data_summary={"v": 1},
         )
+        _wait_for_future(mod, mod._cache_key("P", "s", None, mod._data_hash({"v": 1})))
 
     assert captured["row"]["event"] == "ai_section_explanation"
     assert captured["row"]["section_id"] == "s"
@@ -253,9 +334,9 @@ def test_audit_log_event_is_distinct(stub_st, monkeypatch):
 
 
 def test_backend_error_falls_back_to_template(stub_st, monkeypatch):
-    """If the configured backend (e.g. ollama) raises, the helper
-    falls back to TemplateBackend so the popover still shows
-    something — never re-raise."""
+    """If the configured backend (e.g. ollama) raises, the worker
+    catches it and falls back to TemplateBackend so the polling
+    fragment always sees a valid reply, never an unhandled exception."""
     from aml_framework.dashboard import section_explainer as mod
 
     with (
@@ -272,9 +353,10 @@ def test_backend_error_falls_back_to_template(stub_st, monkeypatch):
             section_title="t",
             data_summary={"v": 1},
         )
-    # And the reply was cached, so a subsequent click renders without
-    # hitting the backend again.
-    assert any("DRAFT" in m or "review" in m for m in stub_st.markdown_calls)
+        _wait_for_future(mod, mod._cache_key("P", "s", None, mod._data_hash({"v": 1})))
+    # The worker's fallback fired (template backend) and the reply was
+    # cached. The next render hits the cache and shows the DRAFT banner.
+    assert mod._cache_key("P", "s", None, mod._data_hash({"v": 1})) in mod._PROCESS_CACHE
 
 
 def test_missing_api_key_is_graceful(stub_st, monkeypatch):
@@ -541,6 +623,53 @@ def test_spinner_renders_during_backend_call(stub_st):
     assert "template" in label.lower() or "ollama" in label.lower()
 
 
+def test_cache_survives_across_sessions(monkeypatch):
+    """The cache is process-global, not session-scoped — so the SAME
+    data summary on a NEW Streamlit session hits the cached reply
+    populated by an earlier session. This is the regression user
+    flagged: a page refresh creates a new session, but should not
+    re-fire the LLM call if the underlying data is unchanged."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    # Session A — fresh stub, no session_state cache entry.
+    stub_a = _StubStreamlit()
+    monkeypatch.setitem(sys.modules, "streamlit", stub_a)
+    monkeypatch.setattr(mod, "st", stub_a)
+    do_llm = mock.MagicMock(return_value=_fake_reply())
+    with (
+        mock.patch.object(mod, "_do_llm_call", side_effect=do_llm),
+        mock.patch.object(mod, "_log_to_audit"),
+    ):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+        )
+        _wait_for_future(mod, mod._cache_key("P", "s", None, mod._data_hash({"v": 1})))
+        assert do_llm.call_count == 1, "first session fires the LLM call"
+
+    # Session B — completely new stub object, empty session_state.
+    # Should hit the process-global cache populated by session A.
+    stub_b = _StubStreamlit()
+    monkeypatch.setitem(sys.modules, "streamlit", stub_b)
+    monkeypatch.setattr(mod, "st", stub_b)
+    do_llm_b = mock.MagicMock(return_value=_fake_reply())
+    with (
+        mock.patch.object(mod, "_do_llm_call", side_effect=do_llm_b),
+        mock.patch.object(mod, "_log_to_audit"),
+    ):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+        )
+    assert do_llm_b.call_count == 0, (
+        "second session with same data should hit the process cache, not the backend"
+    )
+
+
 def test_cache_hit_short_circuits_render(stub_st):
     """When the cache already has a reply for this
     (section_id, data_hash, persona) triplet, the helper renders the
@@ -548,11 +677,10 @@ def test_cache_hit_short_circuits_render(stub_st):
     spinner. Pin that filter-state stability across reruns is free."""
     from aml_framework.dashboard import section_explainer as mod
 
-    # Seed the cache.
+    # Seed the process-global cache (the new shared cache surface).
     reply = _fake_reply()
-    stub_st.session_state["section_explanations"] = {
-        ("P", "s", "", mod._data_hash({"v": 1})): reply
-    }
+    mod._PROCESS_CACHE.clear()
+    mod._PROCESS_CACHE[("P", "s", "", mod._data_hash({"v": 1}))] = reply
 
     fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
     with (
@@ -571,3 +699,213 @@ def test_cache_hit_short_circuits_render(stub_st):
     assert get_assistant.call_count == 0
     assert fake_assistant.reply.call_count == 0
     assert not stub_st.spinner_calls
+
+
+# ---------------------------------------------------------------------------
+# Deferred render — page renders first, LLM call runs in background
+# ---------------------------------------------------------------------------
+
+
+def test_first_render_returns_before_backend_resolves(stub_st):
+    """The LLM call must run in a background worker — the script
+    returns immediately after submitting the future. Pin that by
+    making the worker block forever; assert section_explainer
+    completes synchronously and the spinner placeholder rendered."""
+    import time
+    import threading
+
+    import aml_framework.dashboard.section_explainer as mod
+
+    # Replace the LLM-call worker with one that blocks forever.
+    blocker = threading.Event()
+    monkey_calls = []
+
+    def _block_forever(question, context, backend_name):
+        monkey_calls.append((question, backend_name))
+        blocker.wait()
+        return _fake_reply()
+
+    with mock.patch.object(mod, "_do_llm_call", side_effect=_block_forever):
+        t0 = time.perf_counter()
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+        )
+        elapsed = time.perf_counter() - t0
+
+    # The worker is still blocked, but section_explainer must have
+    # returned in well under a second (we measure < 0.5s as a generous
+    # bound — the synchronous path runs in ~5ms in practice).
+    assert elapsed < 0.5, f"section_explainer blocked for {elapsed:.3f}s (must return immediately)"
+    # A future was registered for this key.
+    key = mod._cache_key("P", "s", None, mod._data_hash({"v": 1}))
+    assert key in mod._FUTURES
+    # The polling fragment fired (synchronously in our stub) and
+    # rendered the spinner because the future isn't done yet.
+    assert stub_st.spinner_calls, "expected spinner during the pending state"
+    # Release the worker so it cleans up.
+    blocker.set()
+
+
+def test_polling_fragment_renders_reply_when_future_done(stub_st):
+    """When the future has resolved between renders, the polling
+    fragment promotes the result into the cache and renders the reply
+    in place of the spinner."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    # Pre-seed a resolved future for the cache key.
+    key = mod._cache_key("P", "s", None, mod._data_hash({"v": 1}))
+    fut = concurrent.futures.Future()
+    fut.set_result(_fake_reply(text="done"))
+    mod._FUTURES[key] = fut
+
+    # The submit path shouldn't fire — the future is already present.
+    submitted = []
+    original_submit = mod._get_executor().submit
+
+    def _track_submit(*args, **kwargs):
+        submitted.append((args, kwargs))
+        return original_submit(*args, **kwargs)
+
+    with mock.patch.object(mod._get_executor(), "submit", side_effect=_track_submit):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+        )
+
+    assert not submitted, "section_explainer must not submit when a future is already in flight"
+    # The reply was promoted to the process cache.
+    assert key in mod._PROCESS_CACHE
+    assert mod._PROCESS_CACHE[key].text == "done"
+    # The future was cleaned up.
+    assert key not in mod._FUTURES
+
+
+def test_executor_is_singleton():
+    """Multiple section_explainer calls share one ThreadPoolExecutor —
+    don't leak a new pool per call."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    e1 = mod._get_executor()
+    e2 = mod._get_executor()
+    assert e1 is e2
+
+
+# ---------------------------------------------------------------------------
+# Model routing — fast / deep tiers
+# ---------------------------------------------------------------------------
+
+
+def test_complexity_fast_uses_fast_model(stub_st, monkeypatch):
+    """`complexity="fast"` (the default) picks `AML_OLLAMA_MODEL_FAST`
+    when set. Operator can flip the fast tier without touching the
+    deep tier."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    monkeypatch.setenv("AML_OLLAMA_MODEL_FAST", "deepseek-v4:flash-override")
+    monkeypatch.setenv("AML_OLLAMA_MODEL_DEEP", "deepseek-v4:pro")
+    monkeypatch.delenv("AML_OLLAMA_MODEL", raising=False)
+
+    captured = []
+
+    def fake_do(question, context, backend_name, model=None):
+        captured.append({"model": model})
+        return _fake_reply()
+
+    with (
+        mock.patch.object(mod, "_do_llm_call", side_effect=fake_do),
+        mock.patch.object(mod, "_log_to_audit"),
+    ):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+            complexity="fast",
+        )
+        _wait_for_future(mod, mod._cache_key("P", "s", None, mod._data_hash({"v": 1})))
+    assert captured[0]["model"] == "deepseek-v4:flash-override"
+
+
+def test_complexity_deep_uses_deep_model(stub_st, monkeypatch):
+    """`complexity="deep"` picks `AML_OLLAMA_MODEL_DEEP` — the heavier
+    reasoning tier reserved for lineage / investigation pages."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    monkeypatch.setenv("AML_OLLAMA_MODEL_FAST", "deepseek-v4:flash")
+    monkeypatch.setenv("AML_OLLAMA_MODEL_DEEP", "deepseek-v4:pro-override")
+    monkeypatch.delenv("AML_OLLAMA_MODEL", raising=False)
+
+    captured = []
+
+    def fake_do(question, context, backend_name, model=None):
+        captured.append({"model": model})
+        return _fake_reply()
+
+    with (
+        mock.patch.object(mod, "_do_llm_call", side_effect=fake_do),
+        mock.patch.object(mod, "_log_to_audit"),
+    ):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+            complexity="deep",
+        )
+        _wait_for_future(mod, mod._cache_key("P", "s", None, mod._data_hash({"v": 1})))
+    assert captured[0]["model"] == "deepseek-v4:pro-override"
+
+
+def test_resolve_model_falls_back_through_chain(monkeypatch):
+    """Resolution chain: per-tier env → AML_OLLAMA_MODEL → hardcoded
+    default. Pin all three rungs so an operator unsetting one var
+    doesn't blow up the model name."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    # Rung 1: tier-specific env wins.
+    monkeypatch.setenv("AML_OLLAMA_MODEL_FAST", "tier-fast")
+    monkeypatch.setenv("AML_OLLAMA_MODEL", "global")
+    assert mod._resolve_model("fast") == "tier-fast"
+
+    # Rung 2: tier-specific env unset → fall back to AML_OLLAMA_MODEL.
+    monkeypatch.delenv("AML_OLLAMA_MODEL_FAST", raising=False)
+    monkeypatch.delenv("AML_OLLAMA_MODEL_DEEP", raising=False)
+    assert mod._resolve_model("fast") == "global"
+    assert mod._resolve_model("deep") == "global"
+
+    # Rung 3: everything unset → hardcoded DeepSeek defaults.
+    monkeypatch.delenv("AML_OLLAMA_MODEL", raising=False)
+    assert mod._resolve_model("fast") == "deepseek-v4:flash"
+    assert mod._resolve_model("deep") == "deepseek-v4:pro"
+
+
+def test_future_meta_records_resolved_model(stub_st, monkeypatch):
+    """`_FUTURE_META[key]` carries the resolved model so the audit
+    trail can see which tier was actually used (post-resolution,
+    after the env-var chain). Pin it for forensic clarity."""
+    import aml_framework.dashboard.section_explainer as mod
+
+    monkeypatch.setenv("AML_OLLAMA_MODEL_FAST", "fast-tier-foo")
+
+    with (
+        mock.patch.object(mod, "_do_llm_call", return_value=_fake_reply()),
+        mock.patch.object(mod, "_log_to_audit"),
+    ):
+        mod.section_explainer(
+            page="P",
+            section_id="s",
+            section_title="t",
+            data_summary={"v": 1},
+            complexity="fast",
+        )
+        key = mod._cache_key("P", "s", None, mod._data_hash({"v": 1}))
+        # Read meta BEFORE wait_for_future drains it.
+        meta = mod._FUTURE_META.get(key, {}).copy()
+    assert meta.get("complexity") == "fast"
+    assert meta.get("model") == "fast-tier-foo"
+    assert meta.get("section_title") == "t"
