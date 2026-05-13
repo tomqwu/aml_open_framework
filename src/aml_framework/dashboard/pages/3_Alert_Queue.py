@@ -13,6 +13,7 @@ from aml_framework.dashboard.components import (
     kpi_card,
     page_header,
     pie_chart,
+    section_explainer,
     tooltip_banner,
     tour_panel,
 )
@@ -286,6 +287,16 @@ with col_left:
         height=320,
         key="alertqueue_volume_chart",
     )
+    section_explainer(
+        page="Alert Queue",
+        section_id="alerts.volume_by_rule",
+        section_title="Alert Volume by Rule",
+        data_summary={
+            "top_5_rules": chart.tail(5).set_index("rule_id")["count"].to_dict(),
+            "rules_firing": int((chart["count"] > 0).sum()),
+            "total_alerts": int(chart["count"].sum()),
+        },
+    )
 
 with col_right:
     st.markdown("### Severity Distribution")
@@ -299,10 +310,35 @@ with col_right:
         height=320,
         key="alertqueue_severity_pie",
     )
+    section_explainer(
+        page="Alert Queue",
+        section_id="alerts.severity_distribution",
+        section_title="Severity Distribution",
+        data_summary={
+            "severity_counts": sev_counts.set_index("severity")["count"].to_dict(),
+            "total_alerts": int(sev_counts["count"].sum()),
+        },
+    )
+
 
 # --- Case Queue (Analyst Inbox) ---
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("### Case Queue")
+_cq_df = st.session_state.get("df_cases")
+section_explainer(
+    page="Alert Queue",
+    section_id="alerts.case_queue",
+    section_title="Case Queue",
+    data_summary={
+        "case_count": int(len(_cq_df)) if _cq_df is not None else 0,
+        "status_counts": (
+            _cq_df["status"].value_counts().to_dict()
+            if _cq_df is not None and not _cq_df.empty and "status" in _cq_df.columns
+            else {}
+        ),
+    },
+)
+del _cq_df
 
 df_cases = st.session_state.df_cases
 if not df_cases.empty and "status" in df_cases.columns:

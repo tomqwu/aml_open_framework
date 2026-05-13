@@ -34,6 +34,7 @@ from aml_framework.dashboard.components import (
     page_header,
     radar_chart,
     sankey_chart,
+    section_explainer,
     terminal_block,
     waterfall_chart,
 )
@@ -316,12 +317,34 @@ with col_left:
             height=350,
             key="exec_alerts_by_rule",
         )
+        section_explainer(
+            page="Executive Dashboard",
+            section_id="exec.alerts_by_rule",
+            section_title="Alerts by Rule",
+            data_summary={
+                "top_5_rules": chart_df.tail(5).set_index("rule_id")["count"].to_dict(),
+                "rules_firing": int((chart_df["count"] > 0).sum()),
+                "total_alerts": int(chart_df["count"].sum()),
+            },
+        )
     else:
         st.info("No alerts generated.")
 
 with col_right:
     st.markdown("### RAG Status")
     metric_table(result.metrics, audience=audience)
+    section_explainer(
+        page="Executive Dashboard",
+        section_id="exec.rag_status",
+        section_title="RAG Status",
+        data_summary={
+            "rag_breakdown": {
+                rag: int(sum(1 for m in result.metrics if m.rag == rag))
+                for rag in ("red", "amber", "green", "unset")
+            },
+            "metrics_total": len(result.metrics),
+        },
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -353,6 +376,17 @@ with col_radar:
             st.caption(f"**Gaps to target:** {gap_caption}")
         else:
             st.caption(f"**At target across all {len(categories)} dimensions.**")
+        section_explainer(
+            page="Executive Dashboard",
+            section_id="exec.program_health_radar",
+            section_title="Program Health",
+            data_summary={
+                "categories": list(categories),
+                "current_scores": list(values),
+                "gaps_to_target": {cat: int(3 - v) for cat, v in gaps[:5]},
+                "at_target": not gaps,
+            },
+        )
 
 with col_summary:
     st.markdown("### Run Summary")
