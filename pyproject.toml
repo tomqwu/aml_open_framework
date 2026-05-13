@@ -112,6 +112,10 @@ addopts = "-ra"
 [tool.coverage.run]
 source = ["aml_framework"]
 omit = [
+    # Generated at install time by setuptools-scm — not testable;
+    # excluded so the coverage gate isn't dragged down by 11 lines
+    # of pure assignment.
+    "*/aml_framework/_version.py",
     "*/dashboard/pages/*",
     "*/dashboard/app.py",
     "*/dashboard/state.py",
