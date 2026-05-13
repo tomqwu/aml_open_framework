@@ -98,3 +98,33 @@ variable "platform_tfstate_container" {
   type        = string
   default     = "tfstate"
 }
+
+# --- GenAI Assistant backend ----------------------------------------------
+# These env vars route the dashboard's GenAI co-pilot through one of the
+# four backends in src/aml_framework/assistant/. The default 'template'
+# uses no LLM (canned scaffolding). Set 'ollama' + AML_OLLAMA_URL to
+# https://ollama.com/api/chat to route through Ollama Cloud — the
+# OLLAMA-API-KEY secret is pre-seeded in the per-app Key Vault; the
+# Python `SECRETS.get("OLLAMA_API_KEY")` path fetches it at runtime.
+
+variable "ai_backend" {
+  description = "AML_AI_BACKEND env value. One of: template, ollama, openai, azure_openai. Defaults to template (no LLM)."
+  type        = string
+  default     = "template"
+  validation {
+    condition     = contains(["template", "ollama", "openai", "azure_openai"], var.ai_backend)
+    error_message = "ai_backend must be one of: template, ollama, openai, azure_openai."
+  }
+}
+
+variable "ollama_url" {
+  description = "AML_OLLAMA_URL env value. Set to https://ollama.com/api/chat for Ollama Cloud, or leave at localhost for an in-cluster Ollama daemon (not provisioned by this module)."
+  type        = string
+  default     = "https://ollama.com/api/chat"
+}
+
+variable "ollama_model" {
+  description = "AML_OLLAMA_MODEL env value. Pick from https://ollama.com/library when using Ollama Cloud. Default 'gpt-oss:120b' matches the docs.ollama.com/cloud example; flip to a DeepSeek variant or other free-tier model as available."
+  type        = string
+  default     = "gpt-oss:120b"
+}
