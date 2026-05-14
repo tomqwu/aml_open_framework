@@ -187,14 +187,24 @@ section[data-testid="stSidebar"] {
 }
 
 /* ---- Global ---- */
-.block-container { padding-top: 1.5rem; padding-bottom: 4rem; }
-/* `padding-bottom: 4rem` matches Streamlit's default scaffolding and
- * gives the page-level section_explainer (added in PR #302) and any
- * trailing content room to render fully before the viewport scroll
- * boundary. Previously tightened to 1rem for landing-page chrome — that
- * worked when pages ended with charts whose own margins absorbed the
- * gap, but the inline AI explanation at the bottom of every page
- * pushed it over and clipped the confidence pill / reply body. */
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 8rem;
+    min-height: calc(100vh - var(--dna-topbar-h));
+}
+/* `padding-bottom: 8rem` (was 4rem in #305) gives the page-level
+ * section_explainer + any trailing content generous room to breathe
+ * above the viewport edge. The earlier 4rem was enough when pages
+ * ended with charts/tables whose own margins absorbed the gap, but
+ * short empty-state pages (e.g. My Queue with no resolution data)
+ * had their final caption sitting flush against the viewport — felt
+ * cut off.
+ *
+ * `min-height: calc(100vh - var(--dna-topbar-h))` ensures every page
+ * fills the viewport vertically even when its content is short. Short
+ * pages get whitespace BELOW their content; long pages still scroll.
+ * Either way the content sits above a clear, consistent bottom edge
+ * instead of floating mid-viewport on cold empty-state paths. */
 /* Apply Inter narrowly. Two hard constraints learned the wrong way
  * (PR-M iteration):
  *  1. Don't touch the sidebar — Streamlit's nav uses Material Symbols
