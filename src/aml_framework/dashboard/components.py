@@ -1729,10 +1729,17 @@ def ai_panel(*, page: str) -> None:
     """
     import os
 
+    from aml_framework.dashboard.section_explainer import _resolve_model
+
     if "ai_transcript" not in st.session_state:
         st.session_state["ai_transcript"] = {}
 
     backend_name = os.environ.get("AML_AI_BACKEND", "template").lower()
+    # The sidebar advisor uses the deep tier; surface the resolved
+    # model in the pill so the operator can tell at a glance which
+    # model is going to answer (`deepseek-v4:pro`, `gpt-oss:120b`,
+    # etc.). Template backend has no real model — render an em-dash.
+    resolved_model = _resolve_model("deep") if backend_name != "template" else "—"
 
     with st.sidebar:
         st.markdown("---")
@@ -1748,7 +1755,7 @@ def ai_panel(*, page: str) -> None:
             f'background:{pill_color}; box-shadow:0 0 6px {pill_color};"></span>'
             f'<span style="font-family:JetBrains Mono,monospace; font-size:11px; '
             f'letter-spacing:0.05em; text-transform:uppercase; color:#94a3b8;">'
-            f"AI Assistant · {backend_name}</span></div>",
+            f"AI Assistant · {backend_name} · {resolved_model}</span></div>",
             unsafe_allow_html=True,
         )
 
@@ -1774,13 +1781,23 @@ def ai_panel(*, page: str) -> None:
 
 
 def _handle_ai_submission(*, page: str, question: str, backend_name: str) -> None:
-    """Build context, call backend, log to audit ledger, store reply."""
+    """Build context, call backend, log to audit ledger, store reply.
+
+    The sidebar advisor uses the **deep** model tier (DSv4 Pro by
+    default) because it answers freeform questions about the whole
+    page — those need stronger reasoning than the per-section
+    inline summaries (which use the fast tier). Without this, the
+    advisor falls through to the global `AML_OLLAMA_MODEL` env, which
+    on deployed stacks is set to whatever the per-tier vars were
+    overriding — defeating the whole point of fast/deep routing.
+    """
     if not question.strip():
         st.toast("Type a question first.", icon="ℹ️")
         return
 
     from aml_framework.assistant.factory import get_assistant
     from aml_framework.assistant.models import AssistantContext, reply_to_audit_dict
+    from aml_framework.dashboard.section_explainer import _resolve_model
 
     spec = st.session_state.get("spec")
     result = st.session_state.get("result")
@@ -1806,15 +1823,23 @@ def _handle_ai_submission(*, page: str, question: str, backend_name: str) -> Non
         selected_metric_id=st.session_state.get("selected_metric_id"),
     )
 
+    # Only ollama accepts a model kwarg whose value names an ollama
+    # model string (e.g. `deepseek-v4:pro`). OpenAI / Azure OpenAI pick
+    # their own model from `AML_OPENAI_MODEL` / deployment name — if we
+    # forwarded the ollama-tier resolution to them, OpenAI would 400
+    # on `deepseek-v4:pro` and Azure would reject the kwarg outright.
+    model = _resolve_model("deep") if backend_name == "ollama" else None
+    kwargs: dict[str, Any] = {"model": model} if model else {}
     try:
-        assistant = get_assistant(backend_name)
+        assistant = get_assistant(backend_name, **kwargs)
         reply = assistant.reply(question, context)
     except Exception as exc:  # noqa: BLE001
         # Show the real error and stop. Previously this fell back to
         # TemplateBackend, which silently replaced a failing ollama /
         # openai reply with canned scaffolding — masking the actual
         # bug while making the panel look functional.
-        st.error(f"Assistant backend `{backend_name}` failed: {exc}")
+        suffix = f" (model `{model}`)" if model else ""
+        st.error(f"Assistant backend `{backend_name}`{suffix} failed: {exc}")
         # Drop any stale reply for this page so the panel doesn't
         # render an old answer below the error banner — operators
         # could otherwise mistake the previous successful reply for a
@@ -1865,16 +1890,25 @@ def _render_assistant_reply(reply: Any) -> None:
     )
     st.markdown(reply.text)
 
-    # Confidence + citation summary
+    # Confidence + model + citation summary. The model chip is parsed
+    # from `reply.backend` which backends emit as `ollama:<model>` /
+    # `openai:<model>` / `template:v1`. Surfacing this lets the operator
+    # see which model rated their question (a "low confidence" answer
+    # from gpt-oss:120b means something different than one from
+    # deepseek-v4:pro).
     citation_count = len(getattr(reply, "citations", []) or [])
     metric_count = len(getattr(reply, "referenced_metric_ids", []) or [])
     case_count = len(getattr(reply, "referenced_case_ids", []) or [])
+    backend_label = str(getattr(reply, "backend", "") or "unknown")
     st.markdown(
         f'<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">'
         f'<span style="font-family:JetBrains Mono,monospace; font-size:10px; '
         f"padding:2px 6px; border-radius:3px; background:{confidence_color}22; "
         f'color:{confidence_color}; font-weight:600;">'
         f"confidence · {reply.confidence}</span>"
+        f'<span style="font-family:JetBrains Mono,monospace; font-size:10px; '
+        f"padding:2px 6px; border-radius:3px; background:#1e293b; "
+        f'color:#94a3b8;">{backend_label}</span>'
         f'<span style="font-family:JetBrains Mono,monospace; font-size:10px; '
         f'color:#64748b;">{citation_count} citation(s) · '
         f"{metric_count} metric(s) · {case_count} case(s)</span>"
