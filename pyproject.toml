@@ -43,7 +43,12 @@ ai = [
     "ollama>=0.1",
 ]
 dashboard = [
-    "streamlit>=1.35",
+    # `st.container(key=...)` (used by the PR3 AI-advisor FAB to pin
+    # the floating button position via the generated `st-key-<key>`
+    # CSS class) requires Streamlit 1.39+. Older allowed installs
+    # would silently swallow an exception from page_header's
+    # try/except and the FAB would never render.
+    "streamlit>=1.39",
     "streamlit-agraph>=0.0.45",
     "streamlit-echarts>=0.6.0",
     "streamlit-aggrid>=1.2.1",
