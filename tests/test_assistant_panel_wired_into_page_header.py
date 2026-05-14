@@ -150,6 +150,98 @@ class TestAiAssistantPageExists:
         assert "AI Assistant" in body
 
 
+class TestAiPanelFab:
+    """PR3 adds `ai_panel_fab()` — a floating-action-button entry point
+    for the AI advisor pinned to the viewport's bottom-right corner so
+    it's reachable without scrolling past Streamlit's 32-page nav.
+    Mounted by `page_header()` alongside the legacy sidebar `ai_panel`.
+    """
+
+    def test_ai_panel_fab_function_defined(self):
+        body = COMPONENTS.read_text(encoding="utf-8")
+        assert "def ai_panel_fab(" in body, (
+            "PR3 must define `ai_panel_fab(*, page: str) -> None` in components.py "
+            "as the FAB entry point for the AI advisor"
+        )
+
+    def test_page_header_mounts_fab(self):
+        fn = _page_header_body()
+        assert "ai_panel_fab(" in fn, (
+            "page_header() must invoke ai_panel_fab() — the single call wiring "
+            "the FAB onto every dashboard page, mirroring the ai_panel wire-up"
+        )
+
+    def test_fab_call_is_inside_try_block(self):
+        """Same crash-isolation contract as the sidebar `ai_panel`: a
+        misconfigured FAB must NEVER break a page render."""
+        fn = _page_header_body()
+        fab_idx = fn.find("ai_panel_fab(")
+        try_before_fab = fn.rfind("try:", 0, fab_idx)
+        assert try_before_fab > 0, (
+            "ai_panel_fab(...) must be inside a try/except inside page_header()"
+        )
+
+    def test_fab_uses_streamlit_native_popover(self):
+        """Use `st.popover` (not `st.dialog`) so the panel persists
+        across reruns — a dialog auto-closes after the Ask button's
+        submission rerun, hiding the reply the operator just asked for."""
+        body = COMPONENTS.read_text(encoding="utf-8")
+        # Find the ai_panel_fab body
+        start = body.index("def ai_panel_fab(")
+        end = body.index("\ndef ", start + 1)
+        fab_body = body[start:end]
+        assert "st.popover(" in fab_body, (
+            "ai_panel_fab must use `st.popover` so the chat panel persists "
+            "across reruns (st.dialog auto-closes on submission)"
+        )
+        assert "st.dialog(" not in fab_body, (
+            "ai_panel_fab must NOT use st.dialog — submission reruns would "
+            "auto-close it before the reply renders"
+        )
+
+    def test_fab_widget_keys_are_distinct_from_sidebar(self):
+        """Widget keys must be suffixed `_fab_` so they don't collide
+        with the sidebar `ai_panel` keys on the same page — Streamlit
+        errors on duplicate widget keys."""
+        body = COMPONENTS.read_text(encoding="utf-8")
+        start = body.index("def ai_panel_fab(")
+        end = body.index("\ndef ", start + 1)
+        fab_body = body[start:end]
+        assert 'f"ai_question_fab_{page}"' in fab_body, (
+            "FAB textarea key must be suffixed `_fab_` to avoid collision "
+            'with the sidebar ai_panel\'s f"ai_question_{page}"'
+        )
+        assert 'f"ai_ask_fab_{page}"' in fab_body, (
+            "FAB Ask button key must be suffixed `_fab_` to avoid collision"
+        )
+
+    def test_fab_css_pins_container_bottom_right(self):
+        """The injected CSS must position the FAB container `fixed` to
+        the viewport's bottom-right corner. Without this, Streamlit
+        renders the popover button inline in document flow and the
+        whole 'floating' concept doesn't apply."""
+        body = COMPONENTS.read_text(encoding="utf-8")
+        start = body.index("def ai_panel_fab(")
+        end = body.index("\ndef ", start + 1)
+        fab_body = body[start:end]
+        assert "position: fixed" in fab_body
+        assert "bottom: 1.5rem" in fab_body
+        assert "right: 1.5rem" in fab_body
+        assert "st-key-ai_fab_container" in fab_body, (
+            "CSS must target the keyed container class `st-key-ai_fab_container` "
+            "produced by `st.container(key='ai_fab_container')`"
+        )
+
+    # Note: a runtime check that the installed Streamlit's
+    # `st.container` actually accepts the `key=` kwarg (the dependency
+    # contract for the FAB's CSS hook) lives in
+    # `test_sidebar_advisor_submission.py` rather than here — that file
+    # already imports streamlit transitively (via dashboard.components)
+    # and sorts after `test_dashboard_tuning_state.py`, whose autouse
+    # fixture forbids any test from leaving `streamlit` in sys.modules
+    # before it runs. This file deliberately stays source-text-only.
+
+
 class TestSidebarUsesDeepModelTier:
     """The sidebar advisor must route through `_resolve_model("deep")`
     so the deep tier (DSv4 Pro by default) is what answers freeform

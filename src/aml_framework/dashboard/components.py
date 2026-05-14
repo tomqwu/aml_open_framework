@@ -802,9 +802,20 @@ def page_header(title: str, description: str | None = None) -> None:
         unsafe_allow_html=True,
     )
     # AI assistant — present on every page via this single wire-up (PR-K).
+    # Two entry points mounted: the sidebar `ai_panel` (legacy, buried
+    # below Streamlit's 32-page navigation widget) and the floating-
+    # action-button `ai_panel_fab` (PR3, pinned bottom-right of the
+    # viewport so it's reachable without scrolling past the nav). Both
+    # share `_handle_ai_submission` and the same `ai_transcript`
+    # session-state key, so a reply asked via either surface shows up
+    # in the other.
     try:
         ai_panel(page=title)
     except Exception:  # noqa: BLE001 — assistant must NEVER crash a page render
+        pass
+    try:
+        ai_panel_fab(page=title)
+    except Exception:  # noqa: BLE001 — same crash protection
         pass
 
 
@@ -1802,6 +1813,123 @@ def ai_panel(*, page: str) -> None:
         last_reply = st.session_state["ai_transcript"].get(page)
         if last_reply is not None:
             _render_assistant_reply(last_reply)
+
+
+def ai_panel_fab(*, page: str) -> None:
+    """Floating-action-button entry point for the AI advisor (PR3).
+
+    The sidebar `ai_panel()` is rendered BELOW Streamlit's 32-page
+    navigation widget — operators have to scroll a full viewport to
+    reach it. This function adds a fixed-position chat button to the
+    bottom-right corner of the viewport that opens an `st.popover`
+    containing the same chat UI. Visible from any page, any scroll
+    position; clicking it pops the chat panel up in-place.
+
+    Implementation notes:
+      * Streamlit's `st.container(key=...)` adds CSS class
+        `st-key-<key>` to the rendered `<div>`. We target that with
+        injected CSS to pin the container `position: fixed` in the
+        viewport's bottom-right corner — Streamlit itself has no
+        floating-widget primitive.
+      * `st.popover` is used (not `st.dialog`) because popovers
+        persist across reruns; a dialog would auto-close after the
+        Ask button submission and the operator would have to reopen
+        to see the reply.
+      * Widget keys are suffixed with `_fab_` so they don't collide
+        with the sidebar `ai_panel()` widget keys on the same page.
+      * Share `_handle_ai_submission` and `_render_assistant_reply`
+        with the sidebar advisor; the transcript key
+        `session_state["ai_transcript"][page]` is shared so a reply
+        from either surface shows on the other.
+    """
+    import html as _html
+    import os
+
+    from aml_framework.dashboard.section_explainer import _resolve_model
+
+    if "ai_transcript" not in st.session_state:
+        st.session_state["ai_transcript"] = {}
+
+    backend_name = os.environ.get("AML_AI_BACKEND", "template").lower()
+    if backend_name == "ollama":
+        resolved_model = _resolve_model("deep")
+    elif backend_name == "openai":
+        resolved_model = os.environ.get("AML_OPENAI_MODEL", "gpt-4o-mini")
+    elif backend_name in ("azure_openai", "azure-openai"):
+        resolved_model = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "—")
+    else:
+        resolved_model = "—"
+
+    safe_backend = _html.escape(backend_name)
+    safe_model = _html.escape(resolved_model)
+
+    # CSS: pin the FAB container to the viewport's bottom-right corner.
+    # `width: auto` overrides Streamlit's default 100%-width container.
+    # The button styling (rounded pill, shadow) targets the popover
+    # trigger button rendered inside our keyed container.
+    st.markdown(
+        """
+        <style>
+        .st-key-ai_fab_container {
+            position: fixed !important;
+            bottom: 1.5rem !important;
+            right: 1.5rem !important;
+            z-index: 9999 !important;
+            width: auto !important;
+        }
+        .st-key-ai_fab_container button {
+            border-radius: 9999px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
+            padding: 0.75rem 1.25rem !important;
+            background: #2563eb !important;
+            color: white !important;
+            font-weight: 600 !important;
+            border: none !important;
+            transition: transform 120ms ease, background 120ms ease;
+        }
+        .st-key-ai_fab_container button:hover {
+            background: #1d4ed8 !important;
+            transform: translateY(-1px);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    pill_color = {"template": "#94a3b8", "ollama": "#16a34a", "openai": "#67e8f9"}.get(
+        backend_name, "#94a3b8"
+    )
+
+    with st.container(key="ai_fab_container"):
+        with st.popover("💬 AI Advisor", use_container_width=False):
+            st.markdown(
+                f'<div style="display:flex; align-items:center; gap:8px; '
+                f'margin-bottom:8px;">'
+                f'<span style="width:8px; height:8px; border-radius:50%; '
+                f'background:{pill_color}; box-shadow:0 0 6px {pill_color};"></span>'
+                f'<span style="font-family:JetBrains Mono,monospace; font-size:11px; '
+                f'letter-spacing:0.05em; text-transform:uppercase; color:#94a3b8;">'
+                f"AI Assistant · {safe_backend} · {safe_model}</span></div>",
+                unsafe_allow_html=True,
+            )
+
+            question = st.text_area(
+                "Ask the assistant",
+                key=f"ai_question_fab_{page}",
+                height=120,
+                placeholder="e.g. why is channel_coverage_gap red on this run?",
+                label_visibility="collapsed",
+            )
+
+            if backend_name == "openai":
+                st.caption("⚠️ PII may be transmitted to OpenAI.")
+
+            if st.button("Ask", key=f"ai_ask_fab_{page}", type="primary"):
+                _handle_ai_submission(page=page, question=question, backend_name=backend_name)
+
+            last_reply = st.session_state["ai_transcript"].get(page)
+            if last_reply is not None:
+                _render_assistant_reply(last_reply)
 
 
 def _handle_ai_submission(*, page: str, question: str, backend_name: str) -> None:

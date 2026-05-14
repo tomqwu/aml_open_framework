@@ -59,6 +59,8 @@ class _StubStreamlit:
         self.text_area_calls: list = []
         self.button_calls: list = []
         self.caption_calls: list = []
+        self.container_keys: list = []
+        self.popover_labels: list = []
         self.sidebar = _StubSidebar()
 
     def error(self, text, **_kw):
@@ -80,6 +82,14 @@ class _StubStreamlit:
 
     def caption(self, text, **_kw):
         self.caption_calls.append(text)
+
+    def container(self, key=None, **_kw):
+        self.container_keys.append(key)
+        return _StubBlock()
+
+    def popover(self, label, **_kw):
+        self.popover_labels.append(label)
+        return _StubBlock()
 
 
 @pytest.fixture
@@ -272,4 +282,94 @@ def test_pill_for_ollama_shows_deep_tier_model(stub_st, monkeypatch):
     assert "ollama" in sidebar_html
     assert "deepseek-v4:pro" in sidebar_html, (
         f"ollama pill must surface the resolved deep-tier model; sidebar was: {sidebar_html!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# PR3 — ai_panel_fab behavior. Codex flagged that source-string tests alone
+# could pass even if `st.container(key=...)` raised on Streamlit 1.35-1.38
+# (where the kwarg didn't exist). These runtime checks pin the actual
+# Streamlit-API surface the FAB depends on.
+# ---------------------------------------------------------------------------
+
+
+def test_ai_panel_fab_uses_keyed_container_and_popover(stub_st, monkeypatch):
+    """`ai_panel_fab` must call:
+      - `st.container(key="ai_fab_container")` so the rendered <div>
+        gets CSS class `st-key-ai_fab_container` (which is what the
+        position-fixed CSS targets).
+      - `st.popover("💬 AI Advisor")` so the chat panel persists across
+        reruns (st.dialog would auto-close on the Ask-button rerun).
+    And the injected CSS must include `position: fixed` + the
+    `st-key-ai_fab_container` selector. If any of these regress, the
+    FAB silently fails to float and the operator sees nothing.
+    """
+    from aml_framework.dashboard import components as mod
+
+    monkeypatch.setenv("AML_AI_BACKEND", "ollama")
+    monkeypatch.setenv("AML_OLLAMA_MODEL_DEEP", "deepseek-v4:pro")
+
+    mod.ai_panel_fab(page="Today")
+
+    assert "ai_fab_container" in stub_st.container_keys, (
+        f"expected st.container(key='ai_fab_container'); got keys {stub_st.container_keys!r}"
+    )
+    assert any("AI Advisor" in lbl for lbl in stub_st.popover_labels), (
+        f"expected st.popover('💬 AI Advisor'); got {stub_st.popover_labels!r}"
+    )
+    css = "\n".join(stub_st.markdown_calls)
+    assert "position: fixed" in css, "FAB CSS must pin container with `position: fixed`"
+    assert "st-key-ai_fab_container" in css, (
+        "FAB CSS must target the `.st-key-ai_fab_container` selector that "
+        "Streamlit's keyed container produces"
+    )
+
+
+def test_ai_panel_fab_does_not_collide_with_sidebar_keys(stub_st, monkeypatch):
+    """Widget keys for the FAB must be suffixed `_fab_` so the same
+    page can mount both `ai_panel` (sidebar) and `ai_panel_fab` (FAB)
+    without Streamlit raising on duplicate widget keys.
+    """
+    from aml_framework.dashboard import components as mod
+
+    monkeypatch.setenv("AML_AI_BACKEND", "ollama")
+    mod.ai_panel_fab(page="MyPage")
+
+    text_area_keys = [k for k, _ in stub_st.text_area_calls]
+    button_keys = [k for k, _ in stub_st.button_calls]
+    assert "ai_question_fab_MyPage" in text_area_keys
+    assert "ai_ask_fab_MyPage" in button_keys
+    # And no collision with the non-FAB keys.
+    assert "ai_question_MyPage" not in text_area_keys
+    assert "ai_ask_MyPage" not in button_keys
+
+
+def test_real_streamlit_supports_container_key_kwarg():
+    """The FAB tests above stub `st.container(key=...)` and `st.popover`
+    so they pass regardless of whether the installed Streamlit accepts
+    those signatures. Assert the REAL `streamlit.container` signature
+    exposes `key=` and that `st.popover` exists — those are the actual
+    Streamlit-API surfaces the FAB depends on. The dependency floor in
+    `pyproject.toml` is only meaningful when a runtime check catches a
+    regression in that floor.
+
+    This test lives in this file (not the source-text companion) so it
+    runs AFTER `test_dashboard_tuning_state.py` alphabetically — that
+    file's autouse fixture forbids any test from leaving `streamlit` in
+    sys.modules before it runs, and importing real streamlit here
+    would otherwise pollute it.
+    """
+    import inspect
+
+    import streamlit as real_st
+
+    params = inspect.signature(real_st.container).parameters
+    assert "key" in params, (
+        f"Installed Streamlit ({real_st.__version__}) `st.container` does not "
+        f"accept `key=...` — the FAB's CSS positioning depends on it. Bump the "
+        f"`streamlit` floor in pyproject.toml's `dashboard` extra."
+    )
+    assert hasattr(real_st, "popover"), (
+        f"Installed Streamlit ({real_st.__version__}) lacks `st.popover` — "
+        f"the FAB's chat panel depends on it."
     )
