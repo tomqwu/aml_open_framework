@@ -79,10 +79,24 @@ if backend_name == "openai":
         ("Privacy", "PII may transit to OpenAI", "warn"),
     )
 elif backend_name == "ollama":
+    from aml_framework.dashboard.section_explainer import _resolve_model
+
     backend_status.append(
         ("URL", os.environ.get("AML_OLLAMA_URL", "http://localhost:11434/api/generate"), ""),
     )
-    backend_status.append(("Model", os.environ.get("AML_OLLAMA_MODEL", "llama3.1"), ""))
+    # Two-tier routing (PR #304) splits inline page-summary calls from
+    # sidebar-advisor calls. Show both resolved model names so the
+    # operator can tell what's actually running on each surface — the
+    # earlier single-`Model` row hid the per-tier resolution and made
+    # it look like every AI call used `AML_OLLAMA_MODEL` (which is
+    # only the legacy single-model fallback).
+    backend_status.append(("Model · fast (inline summaries)", _resolve_model("fast"), ""))
+    backend_status.append(("Model · deep (sidebar advisor)", _resolve_model("deep"), ""))
+    legacy_global = os.environ.get("AML_OLLAMA_MODEL")
+    if legacy_global:
+        backend_status.append(
+            ("Model · fallback (AML_OLLAMA_MODEL)", legacy_global, "warn"),
+        )
     backend_status.append(("Privacy", "PII stays on host", "ok"))
 else:
     backend_status.append(("Mode", "canned scaffolding (no LLM)", "warn"))

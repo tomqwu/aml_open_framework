@@ -148,3 +148,70 @@ class TestAiAssistantPageExists:
         body = (PAGES_DIR / "29_AI_Assistant.py").read_text(encoding="utf-8")
         assert "page_header(" in body
         assert "AI Assistant" in body
+
+
+class TestSidebarUsesDeepModelTier:
+    """The sidebar advisor must route through `_resolve_model("deep")`
+    so the deep tier (DSv4 Pro by default) is what answers freeform
+    questions. Before this wiring, `get_assistant(backend_name)` was
+    called with no `model=` kwarg and OllamaBackend fell back to
+    `AML_OLLAMA_MODEL`, defeating fast/deep routing on deployed stacks
+    where the legacy env was still set."""
+
+    def test_handle_ai_submission_resolves_deep_model(self):
+        body = COMPONENTS.read_text(encoding="utf-8")
+        # The call must thread the deep-tier model into the factory.
+        assert '_resolve_model("deep")' in body, (
+            "ai_panel must resolve the deep-tier model and pass it to get_assistant — "
+            "otherwise the sidebar falls back to AML_OLLAMA_MODEL (the legacy single-model env)"
+        )
+        # And `_resolve_model("deep")` must be gated on the ollama
+        # backend so OpenAI / Azure aren't handed an ollama model name.
+        assert 'if backend_name == "ollama"' in body, (
+            "ai_panel must only resolve the ollama-tier model when backend is ollama — "
+            "passing it to OpenAI overrides AML_OPENAI_MODEL with a deepseek string "
+            "and forces a 400 from the OpenAI API"
+        )
+
+    def test_sidebar_pill_shows_model_name(self):
+        body = COMPONENTS.read_text(encoding="utf-8")
+        # The backend pill in ai_panel must surface the resolved model
+        # so the operator can see at a glance which model will answer.
+        # The backend + model are HTML-escaped before interpolation
+        # (env-var values could otherwise inject markup) so we look
+        # for the escaped-variable form rather than the raw names.
+        assert "AI Assistant · {safe_backend} · {safe_model}" in body, (
+            "Backend pill must include the resolved model identifier "
+            "(`AI Assistant · ollama · deepseek-v4:pro` etc.)"
+        )
+
+    def test_reply_chip_includes_backend_label(self):
+        body = COMPONENTS.read_text(encoding="utf-8")
+        # The reply rendering must include a backend chip parsed from
+        # reply.backend (which is `ollama:<model>` / `openai:<model>` /
+        # `template:v1`) so a "low confidence" answer is attributable
+        # to a specific model.
+        assert 'getattr(reply, "backend"' in body, (
+            "_render_assistant_reply must read reply.backend to render the model chip"
+        )
+        assert "backend_label" in body, (
+            "Backend label variable must be threaded into the reply chip markdown"
+        )
+
+
+class TestAiAssistantPageShowsPerTierModels:
+    """Page 29 must show both the fast and deep resolved model names —
+    not just `AML_OLLAMA_MODEL` (which is only the legacy fallback)."""
+
+    def test_page_shows_per_tier_models(self):
+        body = (PAGES_DIR / "29_AI_Assistant.py").read_text(encoding="utf-8")
+        assert "_resolve_model" in body, (
+            "Page 29 must import _resolve_model to show the per-tier resolution"
+        )
+        assert "fast (inline summaries)" in body, (
+            "Page 29 must label the fast-tier row so operators can tell it from deep"
+        )
+        assert "deep (sidebar advisor)" in body, (
+            "Page 29 must label the deep-tier row so operators can tell which model "
+            "answers their sidebar questions"
+        )

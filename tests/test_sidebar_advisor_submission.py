@@ -28,17 +28,58 @@ if importlib.util.find_spec("streamlit") is None:
     )
 
 
+class _StubBlock:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+class _StubSidebar:
+    def __init__(self):
+        self.markdown_calls: list[str] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def markdown(self, text, **_kw):
+        self.markdown_calls.append(text)
+
+
 class _StubStreamlit:
     def __init__(self):
         self.session_state: dict = {"ai_transcript": {}}
         self.error_calls: list = []
         self.toast_calls: list = []
+        self.markdown_calls: list[str] = []
+        self.text_area_calls: list = []
+        self.button_calls: list = []
+        self.caption_calls: list = []
+        self.sidebar = _StubSidebar()
 
     def error(self, text, **_kw):
         self.error_calls.append(text)
 
     def toast(self, text, **_kw):
         self.toast_calls.append(text)
+
+    def markdown(self, text, **_kw):
+        self.markdown_calls.append(text)
+
+    def text_area(self, _label, key=None, **_kw):
+        self.text_area_calls.append((key, _kw))
+        return ""
+
+    def button(self, _label, key=None, **_kw):
+        self.button_calls.append((key, _kw))
+        return False
+
+    def caption(self, text, **_kw):
+        self.caption_calls.append(text)
 
 
 @pytest.fixture
@@ -113,3 +154,122 @@ def test_handle_success_writes_new_reply(stub_st):
     stored = stub_st.session_state["ai_transcript"]["Today"]
     assert stored.text == "fresh"
     assert not stub_st.error_calls
+
+
+def test_ollama_backend_receives_deep_tier_model_value(stub_st, monkeypatch):
+    """When backend is ollama, `_handle_ai_submission` must thread the
+    DEEP-tier model into `get_assistant(..., model=...)` — not the
+    fast tier, not a hardcoded value. Patch `_resolve_model` with a
+    sentinel so the test catches accidental routing through
+    `_resolve_model("fast")` or a direct env read.
+    """
+    from aml_framework.dashboard import components as mod
+    from aml_framework.dashboard import section_explainer as se_mod
+
+    captured: dict = {}
+
+    def fake_get_assistant(name, **kwargs):
+        captured["name"] = name
+        captured["kwargs"] = kwargs
+        return SimpleNamespace(reply=lambda *_: _fake_reply())
+
+    seen_tiers: list[str] = []
+
+    def sentinel_resolve(tier):
+        seen_tiers.append(tier)
+        return f"sentinel-model-for-{tier}"
+
+    monkeypatch.setattr(se_mod, "_resolve_model", sentinel_resolve)
+
+    with mock.patch(
+        "aml_framework.assistant.factory.get_assistant", side_effect=fake_get_assistant
+    ):
+        mod._handle_ai_submission(page="Today", question="q", backend_name="ollama")
+
+    assert captured["name"] == "ollama"
+    assert captured["kwargs"].get("model") == "sentinel-model-for-deep", (
+        f"ollama must receive the DEEP tier (`sentinel-model-for-deep`); "
+        f"got {captured['kwargs']!r}, observed tier calls: {seen_tiers!r}"
+    )
+    assert "deep" in seen_tiers, "expected _resolve_model('deep') to be invoked"
+    assert "fast" not in seen_tiers, "advisor must NOT use the fast tier"
+
+
+def test_openai_backend_does_not_receive_ollama_model(stub_st):
+    """`_resolve_model("deep")` returns an ollama model string
+    (`deepseek-v4:pro` by default). Passing it as `model=` to
+    OpenAIBackend overrides `AML_OPENAI_MODEL` with that string and
+    the OpenAI API rejects it with a 400. Contract: when backend is
+    openai, no `model=` kwarg is forwarded — OpenAI picks its model
+    from its own env in its constructor.
+    """
+    from aml_framework.dashboard import components as mod
+
+    captured: dict = {}
+
+    def fake_get_assistant(name, **kwargs):
+        captured["name"] = name
+        captured["kwargs"] = kwargs
+        return SimpleNamespace(reply=lambda *_: _fake_reply())
+
+    with mock.patch(
+        "aml_framework.assistant.factory.get_assistant", side_effect=fake_get_assistant
+    ):
+        mod._handle_ai_submission(page="Today", question="q", backend_name="openai")
+
+    assert captured["name"] == "openai"
+    assert "model" not in captured["kwargs"], (
+        f"openai backend must not receive an ollama-tier model kwarg; got {captured['kwargs']!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Backend pill labels — Codex caught a regression where the pill rendered
+# `AI Assistant · openai · deepseek-v4:pro` because `_resolve_model("deep")`
+# was called unconditionally. Pin the per-backend label here.
+# ---------------------------------------------------------------------------
+
+
+def test_pill_for_openai_does_not_show_ollama_model(stub_st, monkeypatch):
+    """When `AML_AI_BACKEND=openai`, the sidebar pill must show the
+    OpenAI-configured model (or the OpenAI default), NEVER the ollama
+    deep-tier resolution. Otherwise an operator on OpenAI sees a
+    `deepseek-v4:pro` label and concludes (wrongly) that OpenAI is
+    running a DeepSeek model.
+    """
+    from aml_framework.dashboard import components as mod
+
+    monkeypatch.setenv("AML_AI_BACKEND", "openai")
+    monkeypatch.setenv("AML_OPENAI_MODEL", "gpt-4o-mini")
+    monkeypatch.delenv("AML_OLLAMA_MODEL_DEEP", raising=False)
+    monkeypatch.delenv("AML_OLLAMA_MODEL", raising=False)
+
+    mod.ai_panel(page="Today")
+
+    sidebar_html = "\n".join(stub_st.markdown_calls)
+    assert "openai" in sidebar_html
+    assert "gpt-4o-mini" in sidebar_html, (
+        f"openai pill must show AML_OPENAI_MODEL value; sidebar was: {sidebar_html!r}"
+    )
+    assert "deepseek" not in sidebar_html, (
+        f"openai pill must NOT leak the ollama-tier model; sidebar was: {sidebar_html!r}"
+    )
+
+
+def test_pill_for_ollama_shows_deep_tier_model(stub_st, monkeypatch):
+    """Inverse pin: when `AML_AI_BACKEND=ollama`, the pill DOES show
+    `_resolve_model("deep")`. Without this the prior fix to make the
+    label backend-specific could over-correct and hide the ollama model.
+    """
+    from aml_framework.dashboard import components as mod
+
+    monkeypatch.setenv("AML_AI_BACKEND", "ollama")
+    monkeypatch.setenv("AML_OLLAMA_MODEL_DEEP", "deepseek-v4:pro")
+
+    mod.ai_panel(page="Today")
+
+    sidebar_html = "\n".join(stub_st.markdown_calls)
+    assert "ollama" in sidebar_html
+    assert "deepseek-v4:pro" in sidebar_html, (
+        f"ollama pill must surface the resolved deep-tier model; sidebar was: {sidebar_html!r}"
+    )
