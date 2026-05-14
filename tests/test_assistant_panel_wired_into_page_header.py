@@ -177,7 +177,10 @@ class TestSidebarUsesDeepModelTier:
         body = COMPONENTS.read_text(encoding="utf-8")
         # The backend pill in ai_panel must surface the resolved model
         # so the operator can see at a glance which model will answer.
-        assert "AI Assistant · {backend_name} · {resolved_model}" in body, (
+        # The backend + model are HTML-escaped before interpolation
+        # (env-var values could otherwise inject markup) so we look
+        # for the escaped-variable form rather than the raw names.
+        assert "AI Assistant · {safe_backend} · {safe_model}" in body, (
             "Backend pill must include the resolved model identifier "
             "(`AI Assistant · ollama · deepseek-v4:pro` etc.)"
         )

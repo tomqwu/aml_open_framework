@@ -1755,6 +1755,16 @@ def ai_panel(*, page: str) -> None:
     else:
         resolved_model = "—"
 
+    # Escape the model label before interpolating into unsafe_allow_html
+    # markdown — `AML_OPENAI_MODEL` / `AZURE_OPENAI_DEPLOYMENT` come from
+    # operator-controlled env vars and a malformed value could otherwise
+    # inject markup into the sidebar pill. Matches the same escape on
+    # the reply chip in `_render_assistant_reply`.
+    import html as _html
+
+    safe_backend = _html.escape(backend_name)
+    safe_model = _html.escape(resolved_model)
+
     with st.sidebar:
         st.markdown("---")
         # Backend pill — operator sees what's running before submitting.
@@ -1769,7 +1779,7 @@ def ai_panel(*, page: str) -> None:
             f'background:{pill_color}; box-shadow:0 0 6px {pill_color};"></span>'
             f'<span style="font-family:JetBrains Mono,monospace; font-size:11px; '
             f'letter-spacing:0.05em; text-transform:uppercase; color:#94a3b8;">'
-            f"AI Assistant · {backend_name} · {resolved_model}</span></div>",
+            f"AI Assistant · {safe_backend} · {safe_model}</span></div>",
             unsafe_allow_html=True,
         )
 
