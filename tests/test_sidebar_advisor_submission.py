@@ -342,3 +342,34 @@ def test_ai_panel_fab_does_not_collide_with_sidebar_keys(stub_st, monkeypatch):
     # And no collision with the non-FAB keys.
     assert "ai_question_MyPage" not in text_area_keys
     assert "ai_ask_MyPage" not in button_keys
+
+
+def test_real_streamlit_supports_container_key_kwarg():
+    """The FAB tests above stub `st.container(key=...)` and `st.popover`
+    so they pass regardless of whether the installed Streamlit accepts
+    those signatures. Assert the REAL `streamlit.container` signature
+    exposes `key=` and that `st.popover` exists — those are the actual
+    Streamlit-API surfaces the FAB depends on. The dependency floor in
+    `pyproject.toml` is only meaningful when a runtime check catches a
+    regression in that floor.
+
+    This test lives in this file (not the source-text companion) so it
+    runs AFTER `test_dashboard_tuning_state.py` alphabetically — that
+    file's autouse fixture forbids any test from leaving `streamlit` in
+    sys.modules before it runs, and importing real streamlit here
+    would otherwise pollute it.
+    """
+    import inspect
+
+    import streamlit as real_st
+
+    params = inspect.signature(real_st.container).parameters
+    assert "key" in params, (
+        f"Installed Streamlit ({real_st.__version__}) `st.container` does not "
+        f"accept `key=...` — the FAB's CSS positioning depends on it. Bump the "
+        f"`streamlit` floor in pyproject.toml's `dashboard` extra."
+    )
+    assert hasattr(real_st, "popover"), (
+        f"Installed Streamlit ({real_st.__version__}) lacks `st.popover` — "
+        f"the FAB's chat panel depends on it."
+    )

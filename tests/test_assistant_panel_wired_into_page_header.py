@@ -232,6 +232,15 @@ class TestAiPanelFab:
             "produced by `st.container(key='ai_fab_container')`"
         )
 
+    # Note: a runtime check that the installed Streamlit's
+    # `st.container` actually accepts the `key=` kwarg (the dependency
+    # contract for the FAB's CSS hook) lives in
+    # `test_sidebar_advisor_submission.py` rather than here — that file
+    # already imports streamlit transitively (via dashboard.components)
+    # and sorts after `test_dashboard_tuning_state.py`, whose autouse
+    # fixture forbids any test from leaving `streamlit` in sys.modules
+    # before it runs. This file deliberately stays source-text-only.
+
 
 class TestSidebarUsesDeepModelTier:
     """The sidebar advisor must route through `_resolve_model("deep")`
