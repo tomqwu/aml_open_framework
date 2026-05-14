@@ -60,6 +60,12 @@ jobs:
 
   e2e-dashboard:
     runs-on: ubuntu-latest
+    # The 12-minute Playwright suite runs only on main pushes (post-merge
+    # safety net) — local `make pre-push` is the canonical gate for PRs.
+    # CLAUDE.md "PR/CI is the last gate, not a feedback loop": shifting
+    # e2e off the PR matrix cuts PR feedback from ~15min to ~5min while
+    # the same pre-push hook on the contributor's machine still runs it.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
