@@ -354,6 +354,20 @@ Goal: close Round 17's `mule_receiver_fan_out_rtp` coverage gap (4/5 → 5/5) an
 - Audit-ledger emit hooks for the Sentinel + Purview connectors — load-bearing engine change; the surfaces shipped without callers so the wiring can be reviewed in isolation. Future integrators must wrap calls in `try/except` and log-and-continue.
 - Logs Ingestion API (DCE/DCR) migration for Sentinel — unlocks Entra-ID auth on the SIEM push but requires terraform-preprovisioned Data Collection Endpoint + Rule.
 
+### Round 19 — GenAI UX polish + CI streamlining (3 PRs, 2026-05-13 → 2026-05-14)
+
+Goal: fix the live-site regression where per-section AI explanations rendered above the page hero (or never resolved on first paint), and stop paying the ~12-min Playwright e2e cost on every PR push.
+
+| PR | Workstream |
+|---|---|
+| #306 | Revert PR #304's async `ThreadPoolExecutor` dispatch back to synchronous `assistant.reply()` inside `st.spinner()`. The async model returned in ~5 ms but the reply never surfaced without an interaction-driven rerun — operators saw a permanent spinner. A 1-sec polling fragment had fixed visibility but killed the Playwright suite via networkidle starvation (100/100 → 15/100). Synchronous baseline trades ~2-3 sec first-paint per unique section for actually-visible AI output. Kept: process-global `_PROCESS_CACHE` (cross-session), `_resolve_model` complexity-tier routing, audit hook. Module dropped from 445 lines → 320 with 100% test coverage. |
+| #307 | Gate `e2e-dashboard` to push-to-main only via `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`. PR feedback drops ~15 min → ~5 min. Local `make pre-push` still runs e2e — CLAUDE.md "PR/CI is the last gate, not a feedback loop" makes the local hook the canonical contract. Main-push e2e remains as post-merge safety net; Azure auto-deploy gates on main green so a broken e2e blocks deploy rather than reaching live. Branch protection on main updated via `gh api` to drop `e2e-dashboard` from required status checks (without that, every future PR would be permanently waiting on the now-skipped required check). |
+| #308 | Move page-level `section_explainer(...)` below each page's hero/intro on 32 dashboard pages. Streamlit renders in script order — the explainer was firing before `page_header()` / dna-hero / `show_audience_context()` on most pages. AST-respecting script relocated the call to right after the last intro marker; stable `section_id` preserved so the cross-session `_PROCESS_CACHE` + audit trail stay continuous. 3 pages (`1_Executive_Dashboard`, `3_Alert_Queue`, `5_Rule_Performance`) already called section_explainer deep-inline after specific charts and were untouched. |
+
+**Azure redeploy**: two `az acr build` + `az containerapp update` cycles ran during the round (after #306 merge, again after #308 merge). Image tags use `+` → `-` sanitization since Docker tags reject PEP440 local-version markers. Dashboard Container App's `OLLAMA_API_KEY` secret + env-var binding added (was missing — explained the live site's template-backend placeholder text in the user's screenshot evidence). Both apps now live on `aml-framework:0.1.1.dev5-g83045d6de` at https://ca-aml-api-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io/api/v1/health and the matching dashboard host.
+
+**Result**: AI explanations render below the hero on every page, fire synchronously on first paint with a visible spinner, and cache cross-session so revisits are <1 ms. PR feedback time cut by ~60% with the same coverage guarantee. Tests grew 2,187 → 2,272 (+85, mostly section_explainer test simplification + the sync-flow test rewrite).
+
 ---
 
 ## What the Framework Does Today
