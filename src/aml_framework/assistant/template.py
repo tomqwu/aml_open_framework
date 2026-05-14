@@ -9,8 +9,11 @@ Returns a structured reply that:
     citation column on the panel is never empty when the operator
     drilled into the page
 
-This is what runs in CI and what production should fall back to when
-the configured backend errors out. Same posture as
+This is what runs in CI and when the operator explicitly selects
+`AML_AI_BACKEND=template`. It is NOT a silent fallback for failing
+ollama / openai backends — those now surface their real errors via
+the dashboard's `st.error(...)` banners so misconfiguration is
+visible rather than masked by canned scaffolding. Same posture as
 `narratives.template.TemplateBackend`.
 """
 
@@ -26,9 +29,14 @@ class TemplateBackend:
 
     name = "template:v1"
 
-    def __init__(self, *, _now: datetime | None = None) -> None:
+    def __init__(self, *, _now: datetime | None = None, model: str | None = None) -> None:
         # `_now` is for tests; production should leave it None.
+        # `model` is accepted but ignored — callers (factory, section
+        # explainer) pass it generically so every backend has a uniform
+        # constructor signature. The template reply is hard-coded so
+        # there is no per-model behavior to vary.
         self._now = _now
+        self._model = model
 
     def reply(self, question: str, context: AssistantContext) -> AssistantReply:
         focus = self._focus_line(context)

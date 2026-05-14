@@ -28,7 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Convert tasks into verifiable goals with test assertions.
 - "Add a rule" → validate spec, run engine, assert alerts fire, verify audit trail.
-- For multi-step tasks, state a brief plan before coding.
+- For multi-step tasks, outline your approach inline in 1-2 sentences as prose, then proceed directly to implementation. Do not call exit_plan_mode.
 
 ## Before Every Commit
 

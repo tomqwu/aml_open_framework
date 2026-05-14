@@ -21,9 +21,12 @@ Design:
 - **Audit-logged.** Every reply appended to the run's
   `ai_interactions.jsonl` with `event="ai_section_explanation"` so an
   auditor can trace exactly which sections were explained.
-- **Failure-safe.** Outer try/except catches any error (backend down,
-  no key, JSON parse failure) and renders a single
-  `st.caption("Explanation unavailable")` instead of breaking the page.
+- **Failure-visible.** Outer try/except catches any error (backend
+  down, no key, JSON parse failure) and renders a visible
+  `st.error(...)` banner naming the backend, model, and underlying
+  exception so the operator can diagnose. Previously this swallowed
+  errors and rendered a canned TemplateBackend reply, which masked
+  ollama / openai bugs behind text that looked correct.
 """
 
 from __future__ import annotations
@@ -258,9 +261,16 @@ def section_explainer(
             current sidebar selection.
 
     The function never raises — every failure (no key, backend down,
-    JSON parse error, missing session state) collapses to a single
-    `st.caption("Explanation unavailable")` line.
+    JSON parse error, missing session state) is surfaced as a single
+    `st.error(...)` banner naming the backend and underlying exception.
     """
+    # Resolve backend + model up-front so the outer except handler can
+    # name them in the error banner even if a failure happens before
+    # the main code path reaches its own resolution step (e.g. a
+    # `_data_hash` failure on exotic data types).
+    backend_name = os.environ.get("AML_AI_BACKEND", "template")
+    model = _resolve_model(complexity)
+
     try:
         data_hash = _data_hash(data_summary)
         effective_persona = persona or st.session_state.get("selected_audience")
@@ -294,7 +304,6 @@ def section_explainer(
                 _render_reply(cached_reply)
                 return
 
-            backend_name = os.environ.get("AML_AI_BACKEND", "template")
             context = _build_context(
                 page=page,
                 section_id=section_id,
@@ -307,9 +316,6 @@ def section_explainer(
                 "Highlight what is normal, what is unusual, and what an "
                 "analyst should do next."
             )
-            # Pick model per complexity tier (DeepSeek V4 Flash for
-            # simple summaries, Pro for narrative/reasoning).
-            model = _resolve_model(complexity)
 
             with st.spinner(f"Generating explanation via `{backend_name}` — typically 2-3 sec…"):
                 reply = _call_backend(
@@ -322,31 +328,36 @@ def section_explainer(
             _cache_put(page, section_id, effective_persona, data_hash, reply)
             _log_to_audit(reply, section_id=section_id, section_title=section_title)
             _render_reply(reply)
-    except Exception:  # noqa: BLE001
-        # Don't break the page. The host section has already rendered
-        # — just skip the explainer chrome.
+    except Exception as exc:  # noqa: BLE001
+        # Don't break the page (the host section already rendered) but
+        # surface the actual error so the operator can diagnose the LLM
+        # backend instead of silently seeing canned TemplateBackend
+        # text while believing they're on ollama/openai.
         try:
-            st.caption("Explanation unavailable")
+            st.error(f"AI Explanation failed via `{backend_name}` (model `{model}`): {exc!s}")
         except Exception:  # noqa: BLE001
             return
 
 
 def _call_backend(*, question: str, context: Any, backend_name: str, model: str | None) -> Any:
-    """Blocking LLM call with template fallback. Any failure (backend
-    down, no key, JSON parse error) falls through to TemplateBackend
-    so the caller always gets a valid AssistantReply rather than
-    raising — keeps the spinner from being followed by an
-    `Explanation unavailable` caption when the configured backend is
-    flaky but the template path still works.
+    """Blocking LLM call. Raises on backend failure so the caller can
+    surface the real error — historically this swallowed every
+    exception and returned a TemplateBackend reply, which masked auth /
+    model-name / network bugs on ollama and openai backends behind
+    canned scaffolding text. Template responses now only appear when
+    the operator explicitly selects `AML_AI_BACKEND=template`.
+
+    The `model` kwarg is only threaded to the **ollama** backend —
+    `_resolve_model` reads `AML_OLLAMA_MODEL_FAST/DEEP/MODEL` which name
+    ollama model strings. Passing that to OpenAI / Azure OpenAI would
+    either send `deepseek-v4:pro` to the OpenAI API (400) or pass an
+    unsupported kwarg to AzureOpenAIBackend. OpenAI reads its own
+    `AML_OPENAI_MODEL` env in its backend constructor, and the Azure
+    backend reads its deployment name from `AML_AZURE_OPENAI_DEPLOYMENT`.
     """
-    try:
-        from aml_framework.assistant.factory import get_assistant
+    from aml_framework.assistant.factory import get_assistant
 
-        kwargs: dict[str, Any] = {}
-        if model:
-            kwargs["model"] = model
-        return get_assistant(backend_name, **kwargs).reply(question, context)
-    except Exception:  # noqa: BLE001
-        from aml_framework.assistant.template import TemplateBackend
-
-        return TemplateBackend().reply(question, context)
+    kwargs: dict[str, Any] = {}
+    if model and backend_name == "ollama":
+        kwargs["model"] = model
+    return get_assistant(backend_name, **kwargs).reply(question, context)
