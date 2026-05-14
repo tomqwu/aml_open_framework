@@ -1738,8 +1738,22 @@ def ai_panel(*, page: str) -> None:
     # The sidebar advisor uses the deep tier; surface the resolved
     # model in the pill so the operator can tell at a glance which
     # model is going to answer (`deepseek-v4:pro`, `gpt-oss:120b`,
-    # etc.). Template backend has no real model — render an em-dash.
-    resolved_model = _resolve_model("deep") if backend_name != "template" else "—"
+    # etc.). Resolution is backend-specific because `_resolve_model`
+    # reads `AML_OLLAMA_MODEL_*` env vars whose values name ollama
+    # model strings — they have no meaning for OpenAI / Azure, and
+    # showing `openai · deepseek-v4:pro` in the pill would be false
+    # model visibility (the actual OpenAI model comes from its own
+    # env). Template backend has no real model — render an em-dash.
+    if backend_name == "ollama":
+        resolved_model = _resolve_model("deep")
+    elif backend_name == "openai":
+        resolved_model = os.environ.get("AML_OPENAI_MODEL", "gpt-4o-mini")
+    elif backend_name in ("azure_openai", "azure-openai"):
+        # Azure routes by deployment name (not model id); the
+        # deployment definition decides the actual model server-side.
+        resolved_model = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "—")
+    else:
+        resolved_model = "—"
 
     with st.sidebar:
         st.markdown("---")
@@ -1896,10 +1910,16 @@ def _render_assistant_reply(reply: Any) -> None:
     # see which model rated their question (a "low confidence" answer
     # from gpt-oss:120b means something different than one from
     # deepseek-v4:pro).
+    import html
+
     citation_count = len(getattr(reply, "citations", []) or [])
     metric_count = len(getattr(reply, "referenced_metric_ids", []) or [])
     case_count = len(getattr(reply, "referenced_case_ids", []) or [])
-    backend_label = str(getattr(reply, "backend", "") or "unknown")
+    # Escape the backend label before interpolating into the HTML chip
+    # — the value comes from a backend-emitted string (`ollama:<model>`)
+    # and a maliciously-named or accidentally-special-charactered model
+    # could otherwise inject markup into the unsafe_allow_html chip.
+    backend_label = html.escape(str(getattr(reply, "backend", "") or "unknown"))
     st.markdown(
         f'<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;">'
         f'<span style="font-family:JetBrains Mono,monospace; font-size:10px; '

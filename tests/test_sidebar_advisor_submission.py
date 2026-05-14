@@ -115,14 +115,15 @@ def test_handle_success_writes_new_reply(stub_st):
     assert not stub_st.error_calls
 
 
-def test_ollama_backend_receives_deep_model(stub_st):
+def test_ollama_backend_receives_deep_tier_model_value(stub_st, monkeypatch):
     """When backend is ollama, `_handle_ai_submission` must thread the
-    deep-tier model into `get_assistant(..., model=...)`. Without this,
-    the sidebar falls back to `AML_OLLAMA_MODEL` (the legacy env), so
-    the per-tier routing (PR #304) is silently bypassed for the
-    advisor — which is the surface that benefits from Pro the most.
+    DEEP-tier model into `get_assistant(..., model=...)` — not the
+    fast tier, not a hardcoded value. Patch `_resolve_model` with a
+    sentinel so the test catches accidental routing through
+    `_resolve_model("fast")` or a direct env read.
     """
     from aml_framework.dashboard import components as mod
+    from aml_framework.dashboard import section_explainer as se_mod
 
     captured: dict = {}
 
@@ -131,15 +132,26 @@ def test_ollama_backend_receives_deep_model(stub_st):
         captured["kwargs"] = kwargs
         return SimpleNamespace(reply=lambda *_: _fake_reply())
 
+    seen_tiers: list[str] = []
+
+    def sentinel_resolve(tier):
+        seen_tiers.append(tier)
+        return f"sentinel-model-for-{tier}"
+
+    monkeypatch.setattr(se_mod, "_resolve_model", sentinel_resolve)
+
     with mock.patch(
         "aml_framework.assistant.factory.get_assistant", side_effect=fake_get_assistant
     ):
         mod._handle_ai_submission(page="Today", question="q", backend_name="ollama")
 
     assert captured["name"] == "ollama"
-    assert "model" in captured["kwargs"], (
-        "ollama backend must receive the resolved deep-tier model kwarg"
+    assert captured["kwargs"].get("model") == "sentinel-model-for-deep", (
+        f"ollama must receive the DEEP tier (`sentinel-model-for-deep`); "
+        f"got {captured['kwargs']!r}, observed tier calls: {seen_tiers!r}"
     )
+    assert "deep" in seen_tiers, "expected _resolve_model('deep') to be invoked"
+    assert "fast" not in seen_tiers, "advisor must NOT use the fast tier"
 
 
 def test_openai_backend_does_not_receive_ollama_model(stub_st):
