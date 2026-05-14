@@ -113,3 +113,58 @@ def test_handle_success_writes_new_reply(stub_st):
     stored = stub_st.session_state["ai_transcript"]["Today"]
     assert stored.text == "fresh"
     assert not stub_st.error_calls
+
+
+def test_ollama_backend_receives_deep_model(stub_st):
+    """When backend is ollama, `_handle_ai_submission` must thread the
+    deep-tier model into `get_assistant(..., model=...)`. Without this,
+    the sidebar falls back to `AML_OLLAMA_MODEL` (the legacy env), so
+    the per-tier routing (PR #304) is silently bypassed for the
+    advisor — which is the surface that benefits from Pro the most.
+    """
+    from aml_framework.dashboard import components as mod
+
+    captured: dict = {}
+
+    def fake_get_assistant(name, **kwargs):
+        captured["name"] = name
+        captured["kwargs"] = kwargs
+        return SimpleNamespace(reply=lambda *_: _fake_reply())
+
+    with mock.patch(
+        "aml_framework.assistant.factory.get_assistant", side_effect=fake_get_assistant
+    ):
+        mod._handle_ai_submission(page="Today", question="q", backend_name="ollama")
+
+    assert captured["name"] == "ollama"
+    assert "model" in captured["kwargs"], (
+        "ollama backend must receive the resolved deep-tier model kwarg"
+    )
+
+
+def test_openai_backend_does_not_receive_ollama_model(stub_st):
+    """`_resolve_model("deep")` returns an ollama model string
+    (`deepseek-v4:pro` by default). Passing it as `model=` to
+    OpenAIBackend overrides `AML_OPENAI_MODEL` with that string and
+    the OpenAI API rejects it with a 400. Contract: when backend is
+    openai, no `model=` kwarg is forwarded — OpenAI picks its model
+    from its own env in its constructor.
+    """
+    from aml_framework.dashboard import components as mod
+
+    captured: dict = {}
+
+    def fake_get_assistant(name, **kwargs):
+        captured["name"] = name
+        captured["kwargs"] = kwargs
+        return SimpleNamespace(reply=lambda *_: _fake_reply())
+
+    with mock.patch(
+        "aml_framework.assistant.factory.get_assistant", side_effect=fake_get_assistant
+    ):
+        mod._handle_ai_submission(page="Today", question="q", backend_name="openai")
+
+    assert captured["name"] == "openai"
+    assert "model" not in captured["kwargs"], (
+        f"openai backend must not receive an ollama-tier model kwarg; got {captured['kwargs']!r}"
+    )

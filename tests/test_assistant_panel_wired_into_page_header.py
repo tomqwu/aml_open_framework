@@ -165,10 +165,12 @@ class TestSidebarUsesDeepModelTier:
             "ai_panel must resolve the deep-tier model and pass it to get_assistant — "
             "otherwise the sidebar falls back to AML_OLLAMA_MODEL (the legacy single-model env)"
         )
-        # And get_assistant must receive that model kwarg.
-        assert "get_assistant(backend_name, model=model)" in body, (
-            "ai_panel must call get_assistant(backend_name, model=model) so the "
-            "resolved deep-tier model reaches the OllamaBackend constructor"
+        # And `_resolve_model("deep")` must be gated on the ollama
+        # backend so OpenAI / Azure aren't handed an ollama model name.
+        assert 'if backend_name == "ollama"' in body, (
+            "ai_panel must only resolve the ollama-tier model when backend is ollama — "
+            "passing it to OpenAI overrides AML_OPENAI_MODEL with a deepseek string "
+            "and forces a 400 from the OpenAI API"
         )
 
     def test_sidebar_pill_shows_model_name(self):
