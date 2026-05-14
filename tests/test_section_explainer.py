@@ -677,3 +677,23 @@ def test_call_backend_passes_model_through_to_assistant(monkeypatch):
 
     assert captured["name"] == "ollama"
     assert captured["kwargs"]["model"] == "deepseek-v4:flash"
+
+
+def test_template_backend_accepts_model_kwarg_end_to_end(stub_st, monkeypatch):
+    """With AML_AI_BACKEND=template (the default), section_explainer must
+    still render a real reply — not an `st.error` banner. `_resolve_model`
+    always returns a non-empty string and `_call_backend` always threads
+    it through `get_assistant(name, model=...)`. If the template backend
+    rejects the kwarg, every page on a vanilla dev install renders an
+    error instead of the canned explanation.
+    """
+    from aml_framework.dashboard import section_explainer as mod
+
+    monkeypatch.setenv("AML_AI_BACKEND", "template")
+    with mock.patch.object(mod, "_log_to_audit"):
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+
+    # No error banner — the template backend handled the request.
+    assert not stub_st.error_calls, f"template backend should not error; got: {stub_st.error_calls}"
+    # And a reply was cached.
+    assert mod._cache_key("P", "s", None, mod._data_hash({"v": 1})) in mod._PROCESS_CACHE
