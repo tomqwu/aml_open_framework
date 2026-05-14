@@ -1810,11 +1810,12 @@ def _handle_ai_submission(*, page: str, question: str, backend_name: str) -> Non
         assistant = get_assistant(backend_name)
         reply = assistant.reply(question, context)
     except Exception as exc:  # noqa: BLE001
+        # Show the real error and stop. Previously this fell back to
+        # TemplateBackend, which silently replaced a failing ollama /
+        # openai reply with canned scaffolding — masking the actual
+        # bug while making the panel look functional.
         st.error(f"Assistant backend `{backend_name}` failed: {exc}")
-        # Always fall back to template so the panel never silent-fails.
-        from aml_framework.assistant.template import TemplateBackend
-
-        reply = TemplateBackend().reply(question, context)
+        return
 
     st.session_state["ai_transcript"][page] = reply
 

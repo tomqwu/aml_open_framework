@@ -56,6 +56,7 @@ class _StubStreamlit:
         self.caption_calls: list = []
         self.container_calls: list = []
         self.spinner_calls: list = []
+        self.error_calls: list = []
 
     def container(self, **kwargs):
         self.container_calls.append(kwargs)
@@ -70,6 +71,9 @@ class _StubStreamlit:
 
     def caption(self, text, **kwargs):
         self.caption_calls.append(text)
+
+    def error(self, text, **kwargs):
+        self.error_calls.append(text)
 
     def toast(self, *_a, **_kw):
         pass
@@ -307,10 +311,12 @@ def test_audit_log_event_is_distinct(stub_st):
 # ---------------------------------------------------------------------------
 
 
-def test_backend_error_falls_back_to_template(stub_st):
-    """If the configured backend (e.g. ollama) raises, `_call_backend`
-    catches it and falls back to TemplateBackend so the helper always
-    sees a valid reply, never an unhandled exception."""
+def test_backend_error_surfaces_no_silent_template(stub_st):
+    """When the configured backend (e.g. ollama) raises, the helper
+    must render an `st.error(...)` with the underlying message — NOT
+    silently fall back to TemplateBackend. Caching a template reply on
+    failure used to mask auth/model bugs by making the panel look like
+    it was working on ollama when it wasn't."""
     from aml_framework.dashboard import section_explainer as mod
 
     with (
@@ -321,12 +327,17 @@ def test_backend_error_falls_back_to_template(stub_st):
         ),
     ):
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
-    assert mod._cache_key("P", "s", None, mod._data_hash({"v": 1})) in mod._PROCESS_CACHE
+    # The error message must include the underlying exception text so
+    # the operator can diagnose the failure.
+    assert any("ollama down" in e for e in stub_st.error_calls)
+    # No template reply should have been cached as a fake success.
+    assert mod._cache_key("P", "s", None, mod._data_hash({"v": 1})) not in mod._PROCESS_CACHE
 
 
-def test_missing_api_key_is_graceful(stub_st, monkeypatch):
+def test_missing_api_key_surfaces_error(stub_st, monkeypatch):
     """OLLAMA_API_KEY unset + AML_AI_BACKEND=ollama → factory raises;
-    helper still renders something. No exception propagates."""
+    helper must surface the error rather than propagate. No exception
+    escapes the section_explainer call (host page keeps rendering)."""
     from aml_framework.dashboard import section_explainer as mod
 
     monkeypatch.setenv("AML_AI_BACKEND", "ollama")
@@ -334,18 +345,19 @@ def test_missing_api_key_is_graceful(stub_st, monkeypatch):
 
     with mock.patch.object(mod, "_log_to_audit"):
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+    assert stub_st.error_calls, "expected st.error to surface the backend failure"
 
 
-def test_caption_when_outer_failure(stub_st):
-    """If something in the helper's own body raises (e.g. broken
-    data_summary that hashing can't handle), the host page must not
-    crash — a single 'Explanation unavailable' caption is the
-    contract."""
+def test_error_banner_when_outer_failure(stub_st):
+    """If something in the helper's body raises (e.g. backend call
+    fails or hashing breaks), the host page must not crash — instead
+    a visible `st.error(...)` banner with the actual exception text
+    is rendered so the operator can diagnose."""
     from aml_framework.dashboard import section_explainer as mod
 
     with mock.patch.object(mod, "_data_hash", side_effect=RuntimeError("boom")):
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
-    assert any("unavailable" in c for c in stub_st.caption_calls)
+    assert any("boom" in e for e in stub_st.error_calls)
 
 
 # ---------------------------------------------------------------------------
@@ -460,9 +472,11 @@ def test_log_to_audit_swallows_audit_ledger_failure(stub_st):
         mod._log_to_audit(_fake_reply(), section_id="s", section_title="t")
 
 
-def test_caption_fallback_also_swallows(monkeypatch):
-    """The outermost try/except calls st.caption() as the last-resort
-    fallback. If that itself raises, we must not propagate."""
+def test_error_fallback_also_swallows(monkeypatch):
+    """The outermost try/except calls st.error() as the last-resort
+    surface for backend failures. If that itself raises, we must not
+    propagate — the host page is already rendered and a busted
+    Streamlit primitive can't be allowed to abort the request."""
     import sys
     from aml_framework.dashboard import section_explainer as mod
 
@@ -474,7 +488,7 @@ def test_caption_fallback_also_swallows(monkeypatch):
             raise RuntimeError("context lost")
 
         @staticmethod
-        def caption(*_a, **_kw):
+        def error(*_a, **_kw):
             raise RuntimeError("context also lost")
 
     monkeypatch.setitem(sys.modules, "streamlit", _BadStreamlit)
