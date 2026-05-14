@@ -346,10 +346,18 @@ def _call_backend(*, question: str, context: Any, backend_name: str, model: str 
     model-name / network bugs on ollama and openai backends behind
     canned scaffolding text. Template responses now only appear when
     the operator explicitly selects `AML_AI_BACKEND=template`.
+
+    The `model` kwarg is only threaded to the **ollama** backend —
+    `_resolve_model` reads `AML_OLLAMA_MODEL_FAST/DEEP/MODEL` which name
+    ollama model strings. Passing that to OpenAI / Azure OpenAI would
+    either send `deepseek-v4:pro` to the OpenAI API (400) or pass an
+    unsupported kwarg to AzureOpenAIBackend. OpenAI reads its own
+    `AML_OPENAI_MODEL` env in its backend constructor, and the Azure
+    backend reads its deployment name from `AML_AZURE_OPENAI_DEPLOYMENT`.
     """
     from aml_framework.assistant.factory import get_assistant
 
     kwargs: dict[str, Any] = {}
-    if model:
+    if model and backend_name == "ollama":
         kwargs["model"] = model
     return get_assistant(backend_name, **kwargs).reply(question, context)

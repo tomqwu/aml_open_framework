@@ -679,6 +679,66 @@ def test_call_backend_passes_model_through_to_assistant(monkeypatch):
     assert captured["kwargs"]["model"] == "deepseek-v4:flash"
 
 
+def test_call_backend_does_not_pass_model_to_openai(monkeypatch):
+    """`_resolve_model` reads `AML_OLLAMA_MODEL_*` env vars whose values
+    name **ollama** models (e.g. `deepseek-v4:flash`). Threading that
+    kwarg into OpenAIBackend would override `AML_OPENAI_MODEL` with an
+    ollama model string, then the OpenAI API rejects the call with a
+    400. The factory call must only forward `model=` when the backend
+    is ollama; other backends pick their own model from their own env.
+    """
+    from aml_framework.dashboard import section_explainer as mod
+
+    captured: dict = {}
+
+    def fake_get_assistant(name, **kwargs):
+        captured["name"] = name
+        captured["kwargs"] = kwargs
+        return SimpleNamespace(reply=lambda *_: _fake_reply())
+
+    with mock.patch(
+        "aml_framework.assistant.factory.get_assistant", side_effect=fake_get_assistant
+    ):
+        mod._call_backend(
+            question="q",
+            context=object(),
+            backend_name="openai",
+            model="deepseek-v4:flash",  # the ollama-tier resolution
+        )
+
+    assert captured["name"] == "openai"
+    assert "model" not in captured["kwargs"], (
+        f"openai backend must not receive the ollama model kwarg; got {captured['kwargs']!r}"
+    )
+
+
+def test_call_backend_does_not_pass_model_to_azure_openai(monkeypatch):
+    """Azure OpenAI uses a deployment name (not a model name), so the
+    ollama tier model must be filtered out for that backend too.
+    """
+    from aml_framework.dashboard import section_explainer as mod
+
+    captured: dict = {}
+
+    def fake_get_assistant(name, **kwargs):
+        captured["name"] = name
+        captured["kwargs"] = kwargs
+        return SimpleNamespace(reply=lambda *_: _fake_reply())
+
+    with mock.patch(
+        "aml_framework.assistant.factory.get_assistant", side_effect=fake_get_assistant
+    ):
+        mod._call_backend(
+            question="q",
+            context=object(),
+            backend_name="azure_openai",
+            model="deepseek-v4:flash",
+        )
+
+    assert captured["name"] == "azure_openai"
+    assert "model" not in captured["kwargs"]
+
+
 def test_template_backend_accepts_model_kwarg_end_to_end(stub_st, monkeypatch):
     """With AML_AI_BACKEND=template (the default), section_explainer must
     still render a real reply — not an `st.error` banner. `_resolve_model`

@@ -9,8 +9,11 @@ Returns a structured reply that:
     citation column on the panel is never empty when the operator
     drilled into the page
 
-This is what runs in CI and what production should fall back to when
-the configured backend errors out. Same posture as
+This is what runs in CI and when the operator explicitly selects
+`AML_AI_BACKEND=template`. It is NOT a silent fallback for failing
+ollama / openai backends — those now surface their real errors via
+the dashboard's `st.error(...)` banners so misconfiguration is
+visible rather than masked by canned scaffolding. Same posture as
 `narratives.template.TemplateBackend`.
 """
 

@@ -1815,6 +1815,11 @@ def _handle_ai_submission(*, page: str, question: str, backend_name: str) -> Non
         # openai reply with canned scaffolding — masking the actual
         # bug while making the panel look functional.
         st.error(f"Assistant backend `{backend_name}` failed: {exc}")
+        # Drop any stale reply for this page so the panel doesn't
+        # render an old answer below the error banner — operators
+        # could otherwise mistake the previous successful reply for a
+        # response to the new (failed) question.
+        st.session_state["ai_transcript"].pop(page, None)
         return
 
     st.session_state["ai_transcript"][page] = reply
