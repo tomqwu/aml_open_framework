@@ -21,6 +21,12 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Risk Assessment",
+    "Customer risk distribution, geographic exposure, and risk heatmaps.",
+)
+show_audience_context("Risk Assessment")
+
 section_explainer(
     page="Risk Assessment",
     section_id="risk_assessment.page",
@@ -37,11 +43,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Risk Assessment",
-    "Customer risk distribution, geographic exposure, and risk heatmaps.",
-)
-show_audience_context("Risk Assessment")
 
 df_customers = st.session_state.df_customers
 df_txns = st.session_state.df_txns

@@ -49,6 +49,15 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+PAGE_TITLE = "Metrics Taxonomy"
+
+page_header(
+    PAGE_TITLE,
+    "What this program measures — by category, owner, target, and live RAG. "
+    "The defendable counterpart to the Typology Catalogue.",
+)
+show_audience_context(PAGE_TITLE)
+
 section_explainer(
     page="Metrics Taxonomy",
     section_id="metrics_taxonomy.page",
@@ -65,14 +74,6 @@ section_explainer(
     },
 )
 
-PAGE_TITLE = "Metrics Taxonomy"
-
-page_header(
-    PAGE_TITLE,
-    "What this program measures — by category, owner, target, and live RAG. "
-    "The defendable counterpart to the Typology Catalogue.",
-)
-show_audience_context(PAGE_TITLE)
 
 spec = st.session_state.spec
 result = st.session_state.result

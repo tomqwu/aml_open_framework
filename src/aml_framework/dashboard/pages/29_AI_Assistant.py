@@ -33,6 +33,16 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+PAGE_TITLE = "AI Assistant"
+
+page_header(
+    PAGE_TITLE,
+    "Where the dashboard's GenAI co-pilot lives. Backend status, this "
+    "session's transcript, and the run's AI audit trail — one place, "
+    "auditable, with the same DRAFT-tagged citation discipline the "
+    "narrative drafter uses.",
+)
+
 section_explainer(
     page="AI Assistant",
     section_id="ai_assistant.page",
@@ -49,15 +59,6 @@ section_explainer(
     },
 )
 
-PAGE_TITLE = "AI Assistant"
-
-page_header(
-    PAGE_TITLE,
-    "Where the dashboard's GenAI co-pilot lives. Backend status, this "
-    "session's transcript, and the run's AI audit trail — one place, "
-    "auditable, with the same DRAFT-tagged citation discipline the "
-    "narrative drafter uses.",
-)
 
 # ---------------------------------------------------------------------------
 # Section 1 — Backend status

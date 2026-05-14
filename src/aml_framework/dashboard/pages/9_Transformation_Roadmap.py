@@ -18,6 +18,17 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+spec = st.session_state.spec
+jurisdiction = spec.program.jurisdiction
+ROADMAP_PHASES = get_roadmap_phases(jurisdiction)
+
+regulator_label = "FINTRAC / OSFI" if jurisdiction == "CA" else "FinCEN"
+
+page_header(
+    "Transformation Roadmap",
+    f"4-phase AML program transformation for {jurisdiction} ({regulator_label}).",
+)
+
 section_explainer(
     page="Transformation Roadmap",
     section_id="transformation_roadmap.page",
@@ -34,16 +45,6 @@ section_explainer(
     },
 )
 
-spec = st.session_state.spec
-jurisdiction = spec.program.jurisdiction
-ROADMAP_PHASES = get_roadmap_phases(jurisdiction)
-
-regulator_label = "FINTRAC / OSFI" if jurisdiction == "CA" else "FinCEN"
-
-page_header(
-    "Transformation Roadmap",
-    f"4-phase AML program transformation for {jurisdiction} ({regulator_label}).",
-)
 
 st.caption(
     "This is a reference roadmap template. Phases, timelines, and milestones "

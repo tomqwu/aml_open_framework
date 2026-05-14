@@ -36,6 +36,15 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+PAGE_TITLE = "Analyst Review Queue"
+
+page_header(
+    PAGE_TITLE,
+    "Triage finalised cases with draft narratives and pKYC triggers — "
+    "actions are recorded in the audit ledger.",
+)
+show_audience_context(PAGE_TITLE)
+
 section_explainer(
     page="Analyst Review Queue",
     section_id="analyst_review_queue.page",
@@ -52,14 +61,6 @@ section_explainer(
     },
 )
 
-PAGE_TITLE = "Analyst Review Queue"
-
-page_header(
-    PAGE_TITLE,
-    "Triage finalised cases with draft narratives and pKYC triggers — "
-    "actions are recorded in the audit ledger.",
-)
-show_audience_context(PAGE_TITLE)
 
 spec = st.session_state.spec
 data = st.session_state.data

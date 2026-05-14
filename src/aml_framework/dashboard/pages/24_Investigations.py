@@ -43,6 +43,18 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+# ---------------------------------------------------------------------------
+# Page setup
+# ---------------------------------------------------------------------------
+
+page_header(
+    title="Investigations",
+    description=(
+        "Active investigations across teams, ranked by SLA urgency. "
+        "One row per subject — the unit of analyst work — with live time-in-queue."
+    ),
+)
+
 section_explainer(
     page="Investigations",
     section_id="investigations.page",
@@ -59,17 +71,6 @@ section_explainer(
     },
 )
 
-# ---------------------------------------------------------------------------
-# Page setup
-# ---------------------------------------------------------------------------
-
-page_header(
-    title="Investigations",
-    description=(
-        "Active investigations across teams, ranked by SLA urgency. "
-        "One row per subject — the unit of analyst work — with live time-in-queue."
-    ),
-)
 
 spec = st.session_state.get("spec")
 df_cases = st.session_state.get("df_cases", pd.DataFrame())

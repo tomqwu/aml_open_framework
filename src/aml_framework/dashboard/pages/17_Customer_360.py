@@ -25,6 +25,12 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Customer 360",
+    "Complete view of a customer: profile, transactions, alerts, cases, and risk.",
+)
+show_audience_context("Customer 360")
+
 section_explainer(
     page="Customer 360",
     section_id="customer_360.page",
@@ -41,11 +47,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Customer 360",
-    "Complete view of a customer: profile, transactions, alerts, cases, and risk.",
-)
-show_audience_context("Customer 360")
 
 df_customers = st.session_state.df_customers
 df_txns = st.session_state.df_txns

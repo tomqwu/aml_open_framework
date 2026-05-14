@@ -27,6 +27,12 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Network Explorer",
+    "Entity relationship graph based on transaction flow correlations.",
+)
+show_audience_context("Network Explorer")
+
 section_explainer(
     page="Network Explorer",
     section_id="network_explorer.page",
@@ -43,11 +49,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Network Explorer",
-    "Entity relationship graph based on transaction flow correlations.",
-)
-show_audience_context("Network Explorer")
 
 df_txns = st.session_state.df_txns
 df_customers = st.session_state.df_customers

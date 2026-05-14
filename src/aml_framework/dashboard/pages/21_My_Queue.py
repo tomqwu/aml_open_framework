@@ -22,6 +22,11 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "My Queue",
+    "Personal analyst dashboard — your assigned cases, workload, and activity.",
+)
+
 section_explainer(
     page="My Queue",
     section_id="my_queue.page",
@@ -38,10 +43,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "My Queue",
-    "Personal analyst dashboard — your assigned cases, workload, and activity.",
-)
 
 spec = st.session_state.spec
 df_cases = st.session_state.df_cases

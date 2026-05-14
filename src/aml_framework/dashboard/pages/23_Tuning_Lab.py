@@ -44,6 +44,14 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+PAGE_TITLE = "Tuning Lab"
+
+page_header(
+    PAGE_TITLE,
+    "Test a threshold change before it goes live. See exactly which alerts you'd add or remove.",
+)
+show_audience_context(PAGE_TITLE)
+
 section_explainer(
     page="Tuning Lab",
     section_id="tuning_lab.page",
@@ -60,13 +68,6 @@ section_explainer(
     },
 )
 
-PAGE_TITLE = "Tuning Lab"
-
-page_header(
-    PAGE_TITLE,
-    "Test a threshold change before it goes live. See exactly which alerts you'd add or remove.",
-)
-show_audience_context(PAGE_TITLE)
 
 spec = st.session_state.spec
 data = st.session_state.data

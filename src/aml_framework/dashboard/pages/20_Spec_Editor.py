@@ -11,6 +11,11 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Spec Editor",
+    "Edit the Compliance Manifest (an aml.yaml file, for engineers) and validate in real time.",
+)
+
 section_explainer(
     page="Spec Editor",
     section_id="spec_editor.page",
@@ -27,10 +32,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Spec Editor",
-    "Edit the Compliance Manifest (an aml.yaml file, for engineers) and validate in real time.",
-)
 
 spec = st.session_state.spec
 spec_path = st.session_state.spec_path
