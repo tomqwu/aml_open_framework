@@ -20,6 +20,11 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Rule Tuning",
+    "Adjust detection thresholds and preview alert volume impact.",
+)
+
 section_explainer(
     page="Rule Tuning",
     section_id="rule_tuning.page",
@@ -36,10 +41,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Rule Tuning",
-    "Adjust detection thresholds and preview alert volume impact.",
-)
 
 spec = st.session_state.spec
 data = st.session_state.data

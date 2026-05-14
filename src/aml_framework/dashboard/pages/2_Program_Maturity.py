@@ -19,6 +19,11 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Program Maturity Assessment",
+    "Where the program sits today — and the concrete gaps to close before the next exam.",
+)
+
 section_explainer(
     page="Program Maturity",
     section_id="program_maturity.page",
@@ -35,10 +40,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Program Maturity Assessment",
-    "Where the program sits today — and the concrete gaps to close before the next exam.",
-)
 
 st.caption(
     "Scores are derived from spec coverage (rule count, queue structure, "

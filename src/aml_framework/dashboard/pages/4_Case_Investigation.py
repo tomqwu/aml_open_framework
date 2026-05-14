@@ -31,27 +31,6 @@ from aml_framework.dashboard.state import ensure_initialized
 ensure_initialized()
 
 
-section_explainer(
-    page="Case Investigation",
-    section_id="case_investigation.page",
-    section_title="Case Investigation",
-    data_summary={
-        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
-        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
-        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
-        "case_count": (
-            len(st.session_state.get("df_cases"))
-            if st.session_state.get("df_cases") is not None
-            else 0
-        ),
-    },
-    # Investigations benefit from chain-of-thought reasoning over the
-    # case + alert + decision context. Routes to AML_OLLAMA_MODEL_DEEP
-    # (default deepseek-v4:pro) instead of the fast tier.
-    complexity="deep",
-)
-
-
 def _record_action(run_dir, case: dict, event: str, disposition: str) -> None:
     """Write a decision to the audit ledger, update case file, and sync session state."""
     import json
@@ -106,6 +85,27 @@ page_header(
     "Case Investigation",
     "Deep-dive into individual cases with entity profile, transaction timeline, and evidence.",
 )
+
+section_explainer(
+    page="Case Investigation",
+    section_id="case_investigation.page",
+    section_title="Case Investigation",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+    # Investigations benefit from chain-of-thought reasoning over the
+    # case + alert + decision context. Routes to AML_OLLAMA_MODEL_DEEP
+    # (default deepseek-v4:pro) instead of the fast tier.
+    complexity="deep",
+)
+
 
 spec = st.session_state.spec
 result = st.session_state.result

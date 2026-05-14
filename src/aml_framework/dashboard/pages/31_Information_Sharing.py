@@ -34,6 +34,12 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Information Sharing",
+    "Cross-bank obfuscated-pattern exchange · FATF R.18 / Wolfsberg CBDDQ / 314(b)",
+)
+show_audience_context("Information Sharing")
+
 section_explainer(
     page="Information Sharing",
     section_id="information_sharing.page",
@@ -50,11 +56,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Information Sharing",
-    "Cross-bank obfuscated-pattern exchange · FATF R.18 / Wolfsberg CBDDQ / 314(b)",
-)
-show_audience_context("Information Sharing")
 
 spec = st.session_state.spec
 

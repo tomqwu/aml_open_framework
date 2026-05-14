@@ -26,6 +26,11 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Live Monitor",
+    "Simulated real-time transaction monitoring with spec-driven alert detection.",
+)
+
 section_explainer(
     page="Live Monitor",
     section_id="live_monitor.page",
@@ -42,10 +47,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Live Monitor",
-    "Simulated real-time transaction monitoring with spec-driven alert detection.",
-)
 
 spec = st.session_state.spec
 df_txns = st.session_state.df_txns

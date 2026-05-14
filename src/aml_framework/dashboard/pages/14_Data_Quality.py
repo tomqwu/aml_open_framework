@@ -18,6 +18,16 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+# Local status palettes — values come from the contract / check rows.
+FRESHNESS_PALETTE = {"breach": "#dc2626", "ok": "#16a34a"}
+CHECK_PALETTE = {"fail": "#dc2626", "pass": "#16a34a"}
+
+page_header(
+    "Data Quality",
+    "Data contract compliance, quality check results, and column-level statistics.",
+)
+show_audience_context("Data Quality")
+
 section_explainer(
     page="Data Quality",
     section_id="data_quality.page",
@@ -34,15 +44,6 @@ section_explainer(
     },
 )
 
-# Local status palettes — values come from the contract / check rows.
-FRESHNESS_PALETTE = {"breach": "#dc2626", "ok": "#16a34a"}
-CHECK_PALETTE = {"fail": "#dc2626", "pass": "#16a34a"}
-
-page_header(
-    "Data Quality",
-    "Data contract compliance, quality check results, and column-level statistics.",
-)
-show_audience_context("Data Quality")
 
 spec = st.session_state.spec
 data = st.session_state.data

@@ -34,6 +34,16 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+PAGE_TITLE = "Welcome"
+
+page_header(
+    title="What this is, and what to do next",
+    description=(
+        "An anti-money-laundering program you can show to your regulator "
+        "without a six-week reconstruction."
+    ),
+)
+
 section_explainer(
     page="Welcome",
     section_id="welcome.page",
@@ -50,15 +60,6 @@ section_explainer(
     },
 )
 
-PAGE_TITLE = "Welcome"
-
-page_header(
-    title="What this is, and what to do next",
-    description=(
-        "An anti-money-laundering program you can show to your regulator "
-        "without a six-week reconstruction."
-    ),
-)
 
 # ---------------------------------------------------------------------------
 # Section 1 — What problem does this solve?

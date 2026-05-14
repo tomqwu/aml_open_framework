@@ -41,6 +41,11 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Regulator Pulse",
+    "What's moved in the last 90 days. Every event cites the regulator's primary source — no industry briefings, no vendor analysis as the load-bearing citation.",
+)
+
 section_explainer(
     page="Regulator Pulse",
     section_id="regulator_pulse.page",
@@ -57,10 +62,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Regulator Pulse",
-    "What's moved in the last 90 days. Every event cites the regulator's primary source — no industry briefings, no vendor analysis as the load-bearing citation.",
-)
 
 tour_panel("Regulator Pulse")
 tooltip_banner(

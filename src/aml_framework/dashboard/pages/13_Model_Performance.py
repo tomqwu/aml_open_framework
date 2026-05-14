@@ -19,6 +19,12 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Model Performance",
+    "How the scoring models behave — and what your validation team would ask about them.",
+)
+show_audience_context("Model Performance")
+
 section_explainer(
     page="Model Performance",
     section_id="model_performance.page",
@@ -35,11 +41,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Model Performance",
-    "How the scoring models behave — and what your validation team would ask about them.",
-)
-show_audience_context("Model Performance")
 
 spec = st.session_state.spec
 result = st.session_state.result

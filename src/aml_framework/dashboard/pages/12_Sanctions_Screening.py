@@ -12,6 +12,12 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Sanctions Screening",
+    "Sanctions list match results from SEMA, OFAC SDN, and other reference lists.",
+)
+show_audience_context("Sanctions Screening")
+
 section_explainer(
     page="Sanctions Screening",
     section_id="sanctions_screening.page",
@@ -28,11 +34,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Sanctions Screening",
-    "Sanctions list match results from SEMA, OFAC SDN, and other reference lists.",
-)
-show_audience_context("Sanctions Screening")
 
 spec = st.session_state.spec
 result = st.session_state.result

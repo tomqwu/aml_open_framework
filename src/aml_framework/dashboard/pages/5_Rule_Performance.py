@@ -23,6 +23,12 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Rule Performance",
+    "Is each detector still earning its keep? Volume, severity mix, and the regulation each one answers.",
+)
+show_audience_context("Rule Performance")
+
 section_explainer(
     page="Rule Performance",
     section_id="rule_performance.page",
@@ -39,11 +45,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Rule Performance",
-    "Is each detector still earning its keep? Volume, severity mix, and the regulation each one answers.",
-)
-show_audience_context("Rule Performance")
 
 spec = st.session_state.spec
 result = st.session_state.result

@@ -48,6 +48,12 @@ from aml_framework.engine.audit import walk_lineage
 
 ensure_initialized()
 
+page_header(
+    "Lineage Explorer",
+    "Trace every alert from source row to STR · the regulator-defendable walk-back",
+)
+show_audience_context("Lineage Explorer")
+
 section_explainer(
     page="Lineage Explorer",
     section_id="lineage_explorer.page",
@@ -68,11 +74,6 @@ section_explainer(
     complexity="deep",
 )
 
-page_header(
-    "Lineage Explorer",
-    "Trace every alert from source row to STR · the regulator-defendable walk-back",
-)
-show_audience_context("Lineage Explorer")
 
 run_dir = Path(st.session_state.run_dir)
 

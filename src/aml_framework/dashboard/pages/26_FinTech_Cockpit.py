@@ -51,6 +51,11 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "FinTech Cockpit",
+    "1-MLRO operating surface. Sponsor-bank cure-notice timer · 8 FinTech realities · evidence pack on one button.",
+)
+
 section_explainer(
     page="FinTech Cockpit",
     section_id="fintech_cockpit.page",
@@ -67,10 +72,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "FinTech Cockpit",
-    "1-MLRO operating surface. Sponsor-bank cure-notice timer · 8 FinTech realities · evidence pack on one button.",
-)
 
 tour_panel("FinTech Cockpit")
 tooltip_banner(

@@ -19,6 +19,12 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Run History",
+    "Past engine executions stored in the persistence layer.",
+)
+show_audience_context("Run History")
+
 section_explainer(
     page="Run History",
     section_id="run_history.page",
@@ -35,11 +41,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Run History",
-    "Past engine executions stored in the persistence layer.",
-)
-show_audience_context("Run History")
 
 if st.session_state.get("guided_demo"):
     st.info(

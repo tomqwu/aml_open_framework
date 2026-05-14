@@ -41,22 +41,6 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
-section_explainer(
-    page="BOI Workflow",
-    section_id="boi_workflow.page",
-    section_title="BOI Workflow",
-    data_summary={
-        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
-        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
-        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
-        "case_count": (
-            len(st.session_state.get("df_cases"))
-            if st.session_state.get("df_cases") is not None
-            else 0
-        ),
-    },
-)
-
 # BOI status palette — local to this page (not part of severity / RAG).
 # Filing required = red (action), in-window/up-to-date = green, etc.
 BOI_STATUS_PALETTE = {
@@ -76,6 +60,23 @@ page_header(
         "into three systems."
     ),
 )
+
+section_explainer(
+    page="BOI Workflow",
+    section_id="boi_workflow.page",
+    section_title="BOI Workflow",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
+
 
 spec = st.session_state.get("spec")
 df_customers = st.session_state.get("df_customers", pd.DataFrame())

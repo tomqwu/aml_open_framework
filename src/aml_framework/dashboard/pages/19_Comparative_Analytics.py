@@ -20,6 +20,11 @@ from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
 
+page_header(
+    "Comparative Analytics",
+    "Compare current run results against baseline metrics and historical trends.",
+)
+
 section_explainer(
     page="Comparative Analytics",
     section_id="comparative_analytics.page",
@@ -36,10 +41,6 @@ section_explainer(
     },
 )
 
-page_header(
-    "Comparative Analytics",
-    "Compare current run results against baseline metrics and historical trends.",
-)
 
 result = st.session_state.result
 spec = st.session_state.spec
