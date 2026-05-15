@@ -7,46 +7,46 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://docs.astral.sh/ruff/)
 
-> **🎥 [View the live 27-slide pitch deck →](https://tomqwu.github.io/aml_open_framework_demo/)**
+> **🎥 [View the live deck — board briefing & technical →](https://tomqwu.github.io/aml_open_framework_demo/)**
 > Architecture, dashboard tour, animated workflows, real screenshots — runs in the browser.
 
 **An anti-money-laundering program you can show to your regulator without a six-week reconstruction.**
 
 > **9 connectors · ISO 20022 native · contract-validated · 11 data pains, one surface.** *(See the [Data Integration page](https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration) for the operator view, or the [data-problem whitepaper](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) for the regulatory grounding.)*
 
-The hard part of AML at a bank is not detection. It’s proving — months later — that the right rule fired, was reviewed, was acted on, and that nothing was quietly turned off. *(See [PAIN-1, PAIN-2 in the leader pain doc](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) — across recent enforcement orders, regulators rarely allege missed typologies; they allege the bank cannot evidence what it did.)*
+The hard part of AML at a bank is not detection. It's proving — months later — that the right rule fired, was reviewed, was acted on, and that nothing was quietly turned off. *(See [PAIN-1, PAIN-2 in the leader pain doc](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) — across recent enforcement orders, regulators rarely allege missed typologies; they allege the bank cannot evidence what it did.)*
 
-The other hard part is the **data layer underneath the controls** — the binding constraint behind every recent consent order. The framework’s [data-problem whitepaper](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) enumerates 11 specific pains; the [Data Integration page](https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration) maps every one to the concrete framework artifact that closes it.
+The other hard part is the **data layer underneath the controls** — the binding constraint behind every recent consent order. The framework's [data-problem whitepaper](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) enumerates 11 specific pains; the [Data Integration page](https://github.com/tomqwu/aml_open_framework/blob/main/docs/dashboard-tour.md#data-integration) maps every one to the concrete framework artifact that closes it.
 
 This framework gives the AML org one source of truth that compliance can read, engineering can ship, and an auditor can replay byte-for-byte. The day-to-day result: analysts stop hunting across eight tabs, supervisors see real status not Excel rumours, and when the regulator walks in, the examination ZIP is already on the shelf.
 
 ## Where this fits in your stack
 
-This is the **spec / control-plane layer above your AML stack** — not a replacement for any tool inside it. Think Terraform for AML controls: it didn’t replace AWS, Azure, or GCP, it made whichever one you use declarative, peer-reviewed, and reproducible. We’re trying to do the same for AML — one versioned `aml.yaml` drives whatever detection engine, data pipeline, and case tool you already own, and produces an evidence bundle a regulator can replay against stored output hashes.
+This is the **spec / control-plane layer above your AML stack** — not a replacement for any tool inside it. Think Terraform for AML controls: it didn't replace AWS, Azure, or GCP, it made whichever one you use declarative, peer-reviewed, and reproducible. We're trying to do the same for AML — one versioned `aml.yaml` drives whatever detection engine, data pipeline, and case tool you already own, and produces an evidence bundle a regulator can replay against stored output hashes.
 
 It is *not* a transaction-monitoring platform (Actimize, SAS AML, NICE, Quantexa), not a data warehouse or pipeline (Snowflake, Databricks, dbt, Fivetran), not a case-management system (Pega, Hummingbird, Unit21), and not a SAR/STR filing service. It is *not* an AI detection model — though rules can call ML scorers via the `python_ref` escape hatch with `model_id` + `model_version` recorded for audit. The framework sits **above** those systems and makes them governed-by-spec, peer-reviewed, and audit-replayable — without replacing them.
 
 ## In-bank, not SaaS
 
-The dominant AML AI-vendor model is hosted SaaS: the bank ships transactions, KYC, and case data to the vendor’s cloud, the vendor runs detection and review there, and pricing is per-event. That shape is structurally incompatible with how regulated banks actually want to operate. Data egress at scale is uneconomic, the bank loses control of the model-risk surface, and *“your data leaves our perimeter”* is the first question OSFI / Fed / FCA exam teams ask about.
+The dominant AML AI-vendor model is hosted SaaS: the bank ships transactions, KYC, and case data to the vendor's cloud, the vendor runs detection and review there, and pricing is per-event. That shape is structurally incompatible with how regulated banks actually want to operate. Data egress at scale is uneconomic, the bank loses control of the model-risk surface, and *"your data leaves our perimeter"* is the first question OSFI / Fed / FCA exam teams ask about.
 
-This framework is built for the opposite shape: it runs **inside the bank’s environment**. Apache 2.0, single Python package, deployable into existing VPCs, on-prem clusters, or air-gapped environments. Data does not move. The bank owns the spec, the engine, the audit ledger, and the operating cost — no per-event meter, no perpetual data-export contract.
+This framework is built for the opposite shape: it runs **inside the bank's environment**. Apache 2.0, single Python package, deployable into existing VPCs, on-prem clusters, or air-gapped environments. Data does not move. The bank owns the spec, the engine, the audit ledger, and the operating cost — no per-event meter, no perpetual data-export contract.
 
 **Three deployment shapes ship today.** On-prem K8s / EKS / GKE / self-managed AKS via the Helm chart in `deploy/helm/`. Azure cloud-landing-zone via the Terraform module in `deploy/terraform/` (Container Apps + Postgres, **federated identity end-to-end — no client secrets**). See [`docs/deployment.md`](docs/deployment.md) for cookbooks.
 
 Practical implications:
 
-- **No data leaves the perimeter** — detection runs against the bank’s warehouse, audit bundles land in the bank’s storage, reports render in the bank’s dashboards.
+- **No data leaves the perimeter** — detection runs against the bank's warehouse, audit bundles land in the bank's storage, reports render in the bank's dashboards.
 - **No SaaS lock-in** — Apache 2.0 means a fork is always available. Worst-case exit is reading our spec, which is YAML.
 - **Compatible with existing MRM** — detection logic is reviewable code, not a vendor black box. ML scorers invoked via `python_ref` carry `model_id` + `model_version` for SR 11-7 / E-23 / SS1/23 evidence.
-- **Future agentic-AI extensions stay in-bank** — when LLM-based case-data assembly and review-draft assistants land on the roadmap, they run inside the bank’s environment too. Same deployment shape, same data-egress posture (none).
+- **Future agentic-AI extensions stay in-bank** — when LLM-based case-data assembly and review-draft assistants land on the roadmap, they run inside the bank's environment too. Same deployment shape, same data-egress posture (none).
 
 ## What changes for each role
 
 | If you are a… | What changes |
 |---|---|
 | **CCO / Head of FCC** | Board reports compute themselves from the live program — no more 18-month-stale risk assessment in a binder |
-| **MLRO / 2LoD** | You read the same artifact 1LoD ships. “Is this rule still earning its keep?” is one command, not a six-week vendor study |
+| **MLRO / 2LoD** | You read the same artifact 1LoD ships. "Is this rule still earning its keep?" is one command, not a six-week vendor study |
 | **Analyst** | Each alert opens with the transaction list, KYC, sanctions hit, network neighbours, and prior STRs already attached |
 | **Auditor** | Replay any historical run; verify the hash chain (CLI: `aml verify-decisions`); **paste any case_id and walk the 7-link lineage chain to its source rows** (dashboard, CLI: `aml lineage`, or API `/runs/{id}/cases/{id}/lineage`); pull the FINTRAC / OSFI / FinCEN exam pack — every regulator bundle now carries the lineage chain inline |
 | **CRO / CFO** | Apache 2.0 — runs in your perimeter, no per-seat licence. Effectiveness pack quantifies what the spend bought. **Now deployable on AKS with Microsoft Entra ID + Key Vault + workload identity — zero static secrets** (Round 15) |
@@ -94,7 +94,7 @@ aml dashboard examples/community_bank/aml.yaml
 
 | Doc | Use when |
 |---|---|
-| 🎥 [Live Pitch Deck](https://tomqwu.github.io/aml_open_framework_demo/) | 27 slides · architecture, dashboard tour, animated workflows · runs in browser |
+| 🎥 [Live Deck](https://tomqwu.github.io/aml_open_framework_demo/) | Board briefing (12 exhibits) + Technical deck (22 slides) + primary-source research · runs in browser |
 | 📖 [Getting Started](docs/getting-started.md) | First install through your first audit bundle (15 min) |
 | 👥 [Personas & Workflows](docs/personas.md) | Map your role (CCO / MLRO / Analyst / Auditor / Developer) to the framework |
 | 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 32 pages with screenshots (partial coverage; 22 of 32) + audience filtering — incl. GenAI assistant on every page |
@@ -122,7 +122,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 📚 [Case Studies](docs/case-studies/) | Real enforcement walkthroughs (TD 2024 etc.) |
 | 🤝 [Contributing](CONTRIBUTING.md) | Setup, PR process, project rules |
 | 📋 [Changelog](CHANGELOG.md) | Round-by-round PR-level history |
-| 📊 [Progress Snapshot](docs/progress.md) | Fact-based audit of what’s shipped (modules, tests, regulatory coverage) |
+| 📊 [Progress Snapshot](docs/progress.md) | Fact-based audit of what's shipped (modules, tests, regulatory coverage) |
 | 🔍 [Competitive Positioning Research](docs/research/2026-04-competitive-positioning.md) | Where this framework slots vs. Actimize / Hawk / Marble / Jube |
 | 📀 [Data is the AML Problem](docs/research/2026-05-aml-data-problem.md) | Why the binding constraint is data, not detection — 11 faces, primary-source only |
 
@@ -148,7 +148,7 @@ Full catalogue: [`docs/getting-started.md#cli-commands`](docs/getting-started.md
 
 ## How it works under the hood
 
-The framework’s mechanics — for engineers and 2LoD model-validation teams — sit below the leader-facing surface:
+The framework's mechanics — for engineers and 2LoD model-validation teams — sit below the leader-facing surface:
 
 - **One YAML spec** declares data contracts, detection rules, case workflow, metrics, and reporting forms. Every artifact (SQL, dashboards, audit logs, SAR exports) is generated from it and traceable back to a regulation citation.
 - **JSON Schema + Pydantic two-layer validation** catches structural and cross-reference errors before the engine starts.
