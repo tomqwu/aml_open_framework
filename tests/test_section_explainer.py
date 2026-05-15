@@ -648,8 +648,12 @@ def test_resolve_model_falls_back_through_chain(monkeypatch):
     assert mod._resolve_model("deep") == "global"
 
     monkeypatch.delenv("AML_OLLAMA_MODEL", raising=False)
-    assert mod._resolve_model("fast") == "deepseek-v4:flash"
-    assert mod._resolve_model("deep") == "deepseek-v4:pro"
+    # Tag separator is a HYPHEN — Ollama Cloud serves these as
+    # `deepseek-v4-flash` / `deepseek-v4-pro`. The colon form
+    # (`deepseek-v4:flash`) 404'd on the live endpoint; this
+    # assertion is the regression guard for that bug.
+    assert mod._resolve_model("fast") == "deepseek-v4-flash"
+    assert mod._resolve_model("deep") == "deepseek-v4-pro"
 
 
 def test_call_backend_passes_model_through_to_assistant(monkeypatch):

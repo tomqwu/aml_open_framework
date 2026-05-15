@@ -43,10 +43,18 @@ import streamlit as st
 # override via `AML_OLLAMA_MODEL_FAST` / `AML_OLLAMA_MODEL_DEEP` env
 # vars on the Container App; if those are unset, fall back to
 # `AML_OLLAMA_MODEL` (the historical single-model env). The defaults
-# below match the user's Ollama Cloud tier — DeepSeek V4 Flash for
+# below match the Ollama Cloud catalog — DeepSeek V4 Flash for
 # cheap/fast summaries and DeepSeek V4 Pro for deep reasoning.
-_DEFAULT_MODEL_FAST = "deepseek-v4:flash"
-_DEFAULT_MODEL_DEEP = "deepseek-v4:pro"
+#
+# NOTE: the tag separator is a HYPHEN, not a colon. Ollama Cloud
+# serves these as `deepseek-v4-flash` / `deepseek-v4-pro`. The earlier
+# `deepseek-v4:flash` / `deepseek-v4:pro` values 404'd on
+# https://ollama.com/api/chat ("model not found"); verified against
+# the live `/api/tags` + a 1-token probe on 2026-05-15. Only
+# `gpt-oss:120b` worked before this fix because that was the legacy
+# single-model env value.
+_DEFAULT_MODEL_FAST = "deepseek-v4-flash"
+_DEFAULT_MODEL_DEEP = "deepseek-v4-pro"
 
 
 def _resolve_model(complexity: Literal["fast", "deep"]) -> str:
@@ -55,7 +63,7 @@ def _resolve_model(complexity: Literal["fast", "deep"]) -> str:
     Resolution order:
       1. `AML_OLLAMA_MODEL_FAST` / `AML_OLLAMA_MODEL_DEEP` (per-tier).
       2. `AML_OLLAMA_MODEL` (global single-model fallback).
-      3. Hardcoded defaults: deepseek-v4:flash / deepseek-v4:pro.
+      3. Hardcoded defaults: deepseek-v4-flash / deepseek-v4-pro.
     """
     tier_var = "AML_OLLAMA_MODEL_DEEP" if complexity == "deep" else "AML_OLLAMA_MODEL_FAST"
     tier_default = _DEFAULT_MODEL_DEEP if complexity == "deep" else _DEFAULT_MODEL_FAST
@@ -350,7 +358,7 @@ def _call_backend(*, question: str, context: Any, backend_name: str, model: str 
     The `model` kwarg is only threaded to the **ollama** backend —
     `_resolve_model` reads `AML_OLLAMA_MODEL_FAST/DEEP/MODEL` which name
     ollama model strings. Passing that to OpenAI / Azure OpenAI would
-    either send `deepseek-v4:pro` to the OpenAI API (400) or pass an
+    either send `deepseek-v4-pro` to the OpenAI API (400) or pass an
     unsupported kwarg to AzureOpenAIBackend. OpenAI reads its own
     `AML_OPENAI_MODEL` env in its backend constructor, and the Azure
     backend reads its deployment name from `AML_AZURE_OPENAI_DEPLOYMENT`.
