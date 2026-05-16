@@ -130,6 +130,14 @@ _FAILED: dict[tuple[str, str, str, str], BaseException] = {}
 # contention.
 _DRAIN_LOCK = threading.Lock()
 
+# Sentinel distinguishing "caller omitted run_dir" (direct synchronous
+# callers / the sidebar advisor → fall back to the current session's
+# state) from "caller explicitly passed run_dir, and it happened to be
+# None" (the dispatch snapshot had no run_dir → must NOT fall back to
+# the *draining* session, which would mis-attribute the audit row;
+# warn + drop instead).
+_UNSET: Any = object()
+
 
 def _get_executor() -> concurrent.futures.ThreadPoolExecutor:
     """Lazily build the shared worker pool. Bounded at 4 — at most 4
@@ -287,7 +295,7 @@ def _log_to_audit(
     *,
     section_id: str,
     section_title: str,
-    run_dir: Any = None,
+    run_dir: Any = _UNSET,
     audit_mode: str | None = None,
 ) -> None:
     """Append the section-explanation reply to `ai_interactions.jsonl`
@@ -296,21 +304,27 @@ def _log_to_audit(
 
     `run_dir`/`audit_mode` are passed explicitly from the dispatch-time
     snapshot (`_FUTURE_META`) so the entry lands in the asking
-    session's run dir. They fall back to the current session's state
-    when omitted (direct synchronous callers / the sidebar advisor)."""
+    session's run dir. When OMITTED entirely (`run_dir is _UNSET` —
+    direct synchronous callers / the sidebar advisor) they fall back
+    to the current session's state. An EXPLICIT `run_dir=None` (the
+    snapshot had no run_dir) must NOT fall back: that would attribute
+    the row to whatever session's poller drained the future. Warn +
+    drop instead."""
     try:
         from pathlib import Path
 
         from aml_framework.assistant.models import reply_to_audit_dict
         from aml_framework.engine.audit import AuditLedger
 
-        if run_dir is None:
+        if run_dir is _UNSET:
+            # Caller omitted it — safe to read the current session
+            # (this is a same-thread, same-session direct call).
             run_dir, audit_mode = _audit_ctx()
         if run_dir is None:
-            # A successful reply we cannot attribute (engine not yet
-            # initialised at dispatch). Don't crash the page, but don't
-            # drop it silently either — same observability contract as
-            # the failure-audit path.
+            # Either an explicit None snapshot (do NOT fall back —
+            # would mis-attribute to the draining session) or the
+            # fallback itself found no run_dir. Don't crash the page,
+            # don't drop silently — same contract as the failure path.
             _LOG.warning(
                 "section-explanation reply produced but no run_dir to "
                 "audit (section=%s) — audit row dropped",
@@ -502,43 +516,38 @@ def section_explainer(
                 )
                 return
 
-            # Dispatch once per key; concurrent sessions share the
-            # future (same model as the shared cache).
-            if key not in _FUTURES:
-                context = _build_context(
-                    page=page,
-                    section_id=section_id,
-                    section_title=section_title,
-                    section_data=data_summary,
-                    persona=effective_persona,
-                )
-                question = (
-                    f"Explain the '{section_title}' section to the operator. "
-                    "Highlight what is normal, what is unusual, and what an "
-                    "analyst should do next."
-                )
-                # Snapshot the audit destination NOW, on this session's
-                # main thread, so the reply is attributed to the run_dir
-                # of the session that asked — not whichever session's
-                # poller drains the future (run_dir is per-session
-                # session_state; any replica poller can drain any
-                # global future).
-                ctx_run_dir, ctx_audit_mode = _audit_ctx()
-                fut = _get_executor().submit(
-                    _do_llm_call,
-                    question=question,
-                    context=context,
-                    backend_name=backend_name,
-                    model=model,
-                )
-                # Publish meta + future ATOMICALLY under the drain lock,
-                # and meta FIRST. The future can be `.done()` the
-                # instant submit() returns (sync/fast backend); a
-                # poller draining under `_DRAIN_LOCK` must never observe
-                # `_FUTURES[key]` without its `_FUTURE_META[key]` —
-                # otherwise meta={}, run_dir=None, and the audit
-                # mis-attributes (success) or is skipped (failure).
-                with _DRAIN_LOCK:
+            # Snapshot the audit destination NOW, on this session's
+            # main thread, so the reply is attributed to the run_dir of
+            # the session that asked — not whichever session's poller
+            # drains the future (run_dir is per-session session_state;
+            # any replica poller can drain any global future).
+            ctx_run_dir, ctx_audit_mode = _audit_ctx()
+            context = _build_context(
+                page=page,
+                section_id=section_id,
+                section_title=section_title,
+                section_data=data_summary,
+                persona=effective_persona,
+            )
+            question = (
+                f"Explain the '{section_title}' section to the operator. "
+                "Highlight what is normal, what is unusual, and what an "
+                "analyst should do next."
+            )
+            # Dispatch once per key. The existence check, submit, and
+            # publish must all happen UNDER `_DRAIN_LOCK` and as one
+            # atomic step: if the check were outside the lock two
+            # sessions could both see `key not in _FUTURES`, both
+            # submit, and the second publish would overwrite the
+            # first's future/meta — orphaning a backend call that is
+            # never drained, cached, or audited. submit() is
+            # non-blocking (just enqueues) and `_build_context` /
+            # `_audit_ctx` already ran above, so holding the lock here
+            # is brief. The drain also takes this lock, so it never
+            # observes a future without its meta. Concurrent sessions
+            # still SHARE one future per key (same model as the cache).
+            with _DRAIN_LOCK:
+                if key not in _FUTURES:
                     _FUTURE_META[key] = {
                         "section_title": section_title,
                         "backend_name": backend_name,
@@ -546,7 +555,13 @@ def section_explainer(
                         "run_dir": ctx_run_dir,
                         "audit_mode": ctx_audit_mode,
                     }
-                    _FUTURES[key] = fut
+                    _FUTURES[key] = _get_executor().submit(
+                        _do_llm_call,
+                        question=question,
+                        context=context,
+                        backend_name=backend_name,
+                        model=model,
+                    )
 
             # Non-blocking placeholder. NOT `st.spinner` (that blocks
             # the script). The poller replaces this on the next rerun.

@@ -682,6 +682,69 @@ def test_log_to_audit_skips_when_no_run_dir(stub_st):
     _log_to_audit(object(), section_id="s", section_title="t")
 
 
+def test_explicit_none_run_dir_does_not_fall_back_to_session(stub_st):
+    """Codex compliance race: `_promote_resolved` passes the dispatch
+    snapshot explicitly. If the snapshot had no run_dir it passes
+    `run_dir=None` — `_log_to_audit` must NOT then fall back to the
+    CURRENT (draining) session's run_dir (that would mis-attribute the
+    audit row to the wrong run). Explicit None → warn + drop. Omitted
+    (`_UNSET`) → fall back (direct sync callers). This test pins the
+    sentinel distinction."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    # The draining session HAS a run_dir — the explicit-None call must
+    # ignore it, not write there.
+    stub_st.session_state["run_dir"] = "/runs/WRONG-draining-session"
+    stub_st.session_state["spec"] = SimpleNamespace(
+        program=SimpleNamespace(ai_audit_log="hash_only")
+    )
+    wrote: list = []
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+        side_effect=lambda *a, **k: wrote.append((a, k)),
+    ):
+        # Explicit None (simulates a None dispatch snapshot).
+        mod._log_to_audit(_fake_reply(), section_id="s", section_title="t", run_dir=None)
+        assert wrote == [], (
+            "explicit run_dir=None must NOT fall back to the draining "
+            f"session — would mis-attribute; wrote: {wrote!r}"
+        )
+        # Omitted → _UNSET → DOES fall back to the current session.
+        mod._log_to_audit(_fake_reply(), section_id="s", section_title="t")
+        assert len(wrote) == 1, "omitted run_dir must fall back to session state"
+        assert "WRONG-draining-session" in str(wrote[0][0][0])
+
+
+def test_concurrent_dispatch_shares_one_future(stub_st):
+    """Codex race: the `key not in _FUTURES` check + submit + publish
+    must be atomic under `_DRAIN_LOCK`. Two `section_explainer` calls
+    for the same key (same data) must result in exactly ONE future /
+    ONE backend submission — never two, where the second publish
+    orphans the first (an untracked, never-audited backend call)."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    submits: list = []
+
+    class _CountingExecutor:
+        def submit(self, fn, *a, **kw):
+            import concurrent.futures
+
+            submits.append(1)
+            f: concurrent.futures.Future = concurrent.futures.Future()
+            f.set_result(_fake_reply())
+            return f
+
+    with (
+        mock.patch.object(mod, "_get_executor", return_value=_CountingExecutor()),
+        mock.patch.object(mod, "_call_backend", return_value=_fake_reply()),
+    ):
+        se = dict(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        mod.section_explainer(**se)
+        mod.section_explainer(**se)  # same key, before drain
+    assert sum(submits) == 1, f"same key must dispatch exactly one backend call; got {sum(submits)}"
+    assert len(mod._FUTURES) == 1
+
+
 def test_log_to_audit_swallows_audit_ledger_failure(stub_st):
     """If `AuditLedger.append_to_run_dir` raises, the helper must
     swallow — never break the page."""
