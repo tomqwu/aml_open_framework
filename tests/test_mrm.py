@@ -363,3 +363,77 @@ class TestCadenceTable:
             < DEFAULT_CADENCE_MONTHS["medium"]
             < DEFAULT_CADENCE_MONTHS["low"]
         )
+
+
+# ---------------------------------------------------------------------------
+# Conceptual-soundness logic summary — network_pattern rule type
+# ---------------------------------------------------------------------------
+
+
+class TestConceptualSoundnessNetworkPattern:
+    """`_conceptual_soundness` summarises each RuleLogic discriminator.
+    The 4 SQL-shaped types are exercised by other dossier tests; this
+    pins the `network_pattern` branch (mrm.py:158-159) so a graph rule
+    surfaces pattern / max_hops / having in its MRM dossier."""
+
+    def test_network_pattern_logic_summarised_in_dossier(self):
+        from aml_framework.spec.models import NetworkPatternLogic
+
+        rule = _rule(rule_id="ring_detector")
+        rule = rule.model_copy(
+            update={
+                "logic": NetworkPatternLogic(
+                    type="network_pattern",
+                    source="customer",
+                    pattern="component_size",
+                    max_hops=3,
+                    having={"component_size": {"gte": 4}},
+                )
+            }
+        )
+        dossier = build_dossier(rule)
+        logic = dossier.conceptual_soundness["logic"]
+        assert logic["type"] == "network_pattern"
+        assert logic["pattern"] == "component_size"
+        assert logic["max_hops"] == 3
+        assert logic["having"] == {"component_size": {"gte": 4}}
+
+
+# ---------------------------------------------------------------------------
+# export_bundle_from_run_dir — malformed manifest as_of
+# ---------------------------------------------------------------------------
+
+
+class TestExportHandlesBadManifestAsOf:
+    """When `manifest.json` carries an `as_of` that isn't ISO-8601
+    (corrupt/legacy run), the exporter must degrade to `as_of=None`
+    rather than crash (mrm.py:469-470). The bundle still writes."""
+
+    def test_invalid_as_of_does_not_crash_export(self, tmp_path):
+        spec = load_spec(EXAMPLE_US)
+        run_dir = tmp_path / "run-corrupt"
+        run_dir.mkdir()
+        (run_dir / "manifest.json").write_text(json.dumps({"as_of": "not-a-real-timestamp"}))
+        out_dir = tmp_path / "mrm-out"
+
+        bundle = export_bundle_from_run_dir(spec, run_dir, out_dir)
+
+        assert (out_dir / "inventory.json").exists()
+        assert bundle["summary"]["total_rules"] == len(spec.rules)
+
+
+# ---------------------------------------------------------------------------
+# _today() indirection helper
+# ---------------------------------------------------------------------------
+
+
+class TestTodayHelper:
+    """`_today()` exists so cadence-due tests can pin 'today'. It must
+    return the current UTC date (mrm.py:511)."""
+
+    def test_today_returns_current_utc_date(self):
+        from datetime import datetime, timezone
+
+        from aml_framework.generators.mrm import _today
+
+        assert _today() == datetime.now(tz=timezone.utc).date()

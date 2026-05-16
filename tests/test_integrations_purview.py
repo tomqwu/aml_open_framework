@@ -197,3 +197,64 @@ class TestPushLineageHTTP:
         with mock.patch.dict(sys.modules, {"azure.identity": fake_module}):
             with pytest.raises(purview.PurviewError, match="Purview Data Curator"):
                 purview._bearer_token()
+
+    def test_actionable_error_when_azure_identity_not_installed(self):
+        """`.[azure]` extras absent → `from azure.identity import ...`
+        raises ImportError. `_bearer_token` must convert that into a
+        `PurviewError` naming the extras (purview.py:251-252).
+
+        Unit-test CI installs only `.[dev]`, so `azure.identity` is
+        genuinely missing — make that a hard precondition rather than
+        mocking the import system (which would break coverage's own
+        import tracing during collection)."""
+        import importlib.util
+
+        if importlib.util.find_spec("azure.identity") is not None:
+            pytest.skip("azure.identity installed; ImportError path unreachable here")
+
+        with pytest.raises(purview.PurviewError, match=r"\[azure\]. extras"):
+            purview._bearer_token()
+
+
+class TestBuildEntitiesSkipsEmptyInputPaths:
+    """An `input_files` entry with no usable `path` (empty string or a
+    dict missing `path`) must be skipped, not turned into a bogus
+    DataSet (purview.py:133)."""
+
+    def test_input_file_without_path_is_skipped(self):
+        chain = {
+            "case_id": "case-x",
+            "rule_id": "r1",
+            "input_files": [
+                {"sha256": "abc"},  # dict missing 'path' -> path is None
+                "",  # falsy str -> skipped
+                {"path": "data/real.csv", "sha256": "def"},
+            ],
+        }
+        entities = purview._build_entities(chain, "demo")
+        sources = [
+            e
+            for e in entities
+            if e["typeName"] == "DataSet" and "source" in e["attributes"]["qualifiedName"]
+        ]
+        # Only the one real path produced a source DataSet.
+        assert len(sources) == 1
+        assert "data%2Freal.csv" in sources[0]["attributes"]["qualifiedName"]
+
+
+class TestPushLineageSkipsSparseChain:
+    """When the endpoint IS configured but the chain is too sparse to
+    produce any entities (old run predating Round 12), `push_lineage`
+    must short-circuit without minting a token or POSTing
+    (purview.py:282)."""
+
+    def test_sparse_chain_with_endpoint_set_is_noop(self, monkeypatch):
+        monkeypatch.setenv("PURVIEW_ENDPOINT", "https://my-purview.purview.azure.com")
+        with (
+            mock.patch.object(purview, "_bearer_token") as tok,
+            mock.patch.object(purview, "_post_to_purview") as posted,
+        ):
+            # No rule_id/case_id -> _build_entities returns [].
+            purview.push_lineage({"case_id": "case-only"}, spec_name="demo")
+        tok.assert_not_called()
+        posted.assert_not_called()

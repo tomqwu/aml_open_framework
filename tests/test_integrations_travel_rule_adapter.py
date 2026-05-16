@@ -105,6 +105,54 @@ def test_parse_sumsub_tolerates_missing_envelope() -> None:
     assert e.beneficiary_name == "Dan Receiver"
 
 
+def test_parse_sumsub_webhook_accepts_string_payload() -> None:
+    """Sumsub webhooks arrive as a raw JSON string off the wire; the
+    parser must json.loads it before extracting (adapter.py:138),
+    matching the Notabene string-payload behaviour."""
+    e = parse_sumsub_webhook(json.dumps(SUMSUB_PAYLOAD))
+    assert e.provider == "sumsub"
+    assert e.txn_id == "TXN-200"
+    assert e.beneficiary_country == "JP"
+
+
+def test_enrichment_to_dict_round_trips_all_fatf_fields() -> None:
+    """`TravelRuleEnrichment.to_dict()` (adapter.py:65) must emit every
+    FATF R.16 required field with received_at ISO-formatted so the
+    existing validate_travel_rule scorer reads it without translation."""
+    e = parse_notabene_webhook(NOTABENE_PAYLOAD)
+    d = e.to_dict()
+    assert d["provider"] == "notabene"
+    assert d["provider_message_id"] == "nbn-msg-001"
+    assert d["txn_id"] == "TXN-100"
+    assert d["originator_name"] == "Alice Sender"
+    assert d["beneficiary_name"] == "Bob Receiver"
+    assert d["beneficiary_country"] == "DE"
+    assert d["purpose_code"] == "INVS"
+    # received_at must be a string (ISO format), not a datetime.
+    assert isinstance(d["received_at"], str)
+    assert d["received_at"] == e.received_at.isoformat()
+
+
+def test_parse_iso_defaults_to_now_when_timestamp_absent() -> None:
+    """A webhook with no received_at / createdAt must still produce a
+    record — `_parse_iso(None)` falls back to utcnow (adapter.py:88)
+    so the analyst queue isn't blocked on a missing optional field."""
+    from datetime import datetime
+
+    from aml_framework.integrations.travel_rule_adapter import _parse_iso
+
+    before = datetime.utcnow()
+    got = _parse_iso(None)
+    after = datetime.utcnow()
+    assert isinstance(got, datetime)
+    assert before <= got <= after
+
+    # End-to-end: a Notabene payload with no timestamp keys.
+    payload = {k: v for k, v in NOTABENE_PAYLOAD.items() if k != "createdAt"}
+    e = parse_notabene_webhook(payload)
+    assert isinstance(e.received_at, datetime)
+
+
 # ---------------------------------------------------------------------------
 # Apply enrichment to warehouse
 # ---------------------------------------------------------------------------

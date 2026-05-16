@@ -562,3 +562,101 @@ def test_python_ref_audit_trail(tmp_path):
     content = sql_file.read_text()
     assert "python_ref" in content
     assert "heuristic_risk_v1" in content
+
+
+# ---------------------------------------------------------------------------
+# load_csv_source row-level parse failure (fail-closed)
+# ---------------------------------------------------------------------------
+
+
+class TestLoadCsvParseFailure:
+    """A type-invalid cell in a *present* file must raise
+    `DataSourceLoadError` with the offending file/row/column — the
+    fail-closed contract (sources.py:149-150). Distinct from a missing
+    file (which honours allow_empty)."""
+
+    def test_unparseable_decimal_raises_with_location(self, tmp_path):
+        from aml_framework.data.sources import DataSourceLoadError
+
+        (tmp_path / "customer.csv").write_text(
+            "customer_id,full_name,country,risk_rating,onboarded_at,"
+            "business_activity,edd_last_review\n"
+            "C0001,Test User,CA,low,2025-01-01T00:00:00,retail,\n"
+        )
+        # amount column is `decimal`; "not-a-number" can't parse.
+        (tmp_path / "txn.csv").write_text(
+            "txn_id,customer_id,amount,currency,channel,direction,booked_at\n"
+            "T001,C0001,not-a-number,CAD,cash,in,2026-04-01T10:00:00\n"
+        )
+        spec = load_spec(SPEC)
+        with pytest.raises(DataSourceLoadError) as exc:
+            load_csv_source(tmp_path, spec)
+        msg = str(exc.value)
+        assert "txn" in msg
+        assert "row 2" in msg
+        assert "amount" in msg
+
+
+# ---------------------------------------------------------------------------
+# infer_source_paths — non-Azure logical-path shapes (PR-LIN-2)
+# ---------------------------------------------------------------------------
+
+
+class TestInferSourcePathsCore:
+    """`infer_source_paths` mirrors `resolve_source` routing so the
+    lineage walk-back can name the physical origin. The Azure shapes
+    are pinned in test_data_sources_azure.py; this covers the
+    synthetic / csv / parquet / duckdb / s3 / gcs / warehouse /
+    iso20022 branches (sources.py:252,254,256,265-266)."""
+
+    def test_synthetic_shape(self):
+        from aml_framework.data.sources import infer_source_paths
+
+        spec = load_spec(SPEC)
+        paths = infer_source_paths("synthetic", spec)
+        assert all(v == "synthetic" for v in paths.values())
+
+    def test_csv_and_parquet_shapes(self):
+        from aml_framework.data.sources import infer_source_paths
+
+        spec = load_spec(SPEC)
+        csv_paths = infer_source_paths("csv", spec, data_dir="/data/input")
+        assert csv_paths["txn"] == "data/input/txn.csv"
+        pq_paths = infer_source_paths("parquet", spec, data_dir="/data/input")
+        assert pq_paths["txn"] == "data/input/txn.parquet"
+
+    def test_duckdb_shape(self):
+        from aml_framework.data.sources import infer_source_paths
+
+        spec = load_spec(SPEC)
+        paths = infer_source_paths("duckdb", spec, db_path="/tmp/aml.duckdb")
+        assert paths["txn"] == "duckdb:/tmp/aml.duckdb#txn"
+
+    def test_s3_and_gcs_shapes(self):
+        from aml_framework.data.sources import infer_source_paths
+
+        spec = load_spec(SPEC)
+        s3 = infer_source_paths("s3", spec, data_dir="s3://bucket/prefix/")
+        assert s3["txn"] == "s3://bucket/prefix/txn"
+        gcs = infer_source_paths("gcs", spec, data_dir="gs://bucket/raw")
+        assert gcs["txn"] == "gs://bucket/raw/txn"
+
+    def test_snowflake_and_bigquery_shapes(self):
+        from aml_framework.data.sources import infer_source_paths
+
+        spec = load_spec(SPEC)
+        sf = infer_source_paths("snowflake", spec, data_dir="acct.region")
+        txn_contract = next(c for c in spec.data_contracts if c.id == "txn")
+        assert sf["txn"] == f"snowflake:acct.region#{txn_contract.source}"
+        bq = infer_source_paths("bigquery", spec, data_dir="proj.dataset")
+        assert bq["txn"] == f"bigquery:proj.dataset#{txn_contract.source}"
+
+    def test_iso20022_only_maps_txn_contract(self):
+        from aml_framework.data.sources import infer_source_paths
+
+        spec = load_spec(SPEC)
+        paths = infer_source_paths("iso20022", spec, data_dir="/msgs")
+        # Only txn gets a path; other contracts (e.g. customer) are
+        # absent because ISO20022 ingests pacs.008/009 txns only.
+        assert paths["txn"] == "iso20022:/msgs"
+        assert "customer" not in paths
