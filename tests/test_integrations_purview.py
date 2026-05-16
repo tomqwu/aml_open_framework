@@ -209,7 +209,16 @@ class TestPushLineageHTTP:
         import tracing during collection)."""
         import importlib.util
 
-        if importlib.util.find_spec("azure.identity") is not None:
+        # When the `azure` namespace package itself is absent (the
+        # `.[dev]`-only CI case), `find_spec("azure.identity")` RAISES
+        # ModuleNotFoundError trying to import the missing parent —
+        # it does not return None. Treat that as "not installed" so we
+        # proceed to the intended PurviewError assertion.
+        try:
+            spec = importlib.util.find_spec("azure.identity")
+        except ModuleNotFoundError:
+            spec = None
+        if spec is not None:
             pytest.skip("azure.identity installed; ImportError path unreachable here")
 
         with pytest.raises(purview.PurviewError, match=r"\[azure\]. extras"):

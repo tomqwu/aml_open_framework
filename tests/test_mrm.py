@@ -436,4 +436,10 @@ class TestTodayHelper:
 
         from aml_framework.generators.mrm import _today
 
-        assert _today() == datetime.now(tz=timezone.utc).date()
+        # Bracket the call so a UTC-midnight straddle between the two
+        # clock reads can't flake: `_today()` must be the date before
+        # OR after the call, never anything else.
+        before = datetime.now(tz=timezone.utc).date()
+        got = _today()
+        after = datetime.now(tz=timezone.utc).date()
+        assert got in {before, after}

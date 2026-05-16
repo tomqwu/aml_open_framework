@@ -1,10 +1,13 @@
 """Cosmos-DB-backed code paths in `aml_framework.api.db`.
 
 `test_db_precedence.py` pins postgres-first precedence and the SQL
-path; this file exercises the *Cosmos* branches of every public CRUD
-function — the cross-partition query path, the point-read path, and
-the JSON-decode + not-found helpers — by mocking the Cosmos container
-client. No live Azure required.
+path; this file exercises the previously-uncovered *Cosmos* branches
+of `api.db` — the cross-partition query path, the point-read /
+not-found path, the `_from_json` bytes+scalar branches, the
+`_get_cosmos_db` cache, and the `_CosmosNotFound` ImportError shim —
+by mocking the Cosmos container client. No live Azure required.
+(Not every CRUD function — `store_run` / `list_runs` /
+`store_spec_version` retain their existing coverage elsewhere.)
 
 Each test forces `_active_backend() == "cosmos"` (postgres + sqlite
 unset) and patches `_cosmos_container` to return a MagicMock whose
