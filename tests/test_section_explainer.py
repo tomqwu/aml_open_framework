@@ -1099,3 +1099,86 @@ def test_template_backend_accepts_model_kwarg_end_to_end(stub_st, monkeypatch):
     assert not stub_st.error_calls, f"template backend should not error; got: {stub_st.error_calls}"
     # And a reply was cached.
     assert mod._cache_key("P", "s", None, mod._data_hash({"v": 1})) in mod._PROCESS_CACHE
+
+
+# ---------------------------------------------------------------------------
+# Coverage of residual branches (CI enforces --cov-fail-under=99)
+# ---------------------------------------------------------------------------
+
+
+def test_cache_get_legacy_session_state_fallback(stub_st):
+    """`_cache_get` falls back to the legacy `st.session_state`
+    cache when `_PROCESS_CACHE` misses — kept for tests/older code
+    that seed the session-scoped dict directly."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    key = ("P", "s", "", mod._data_hash({"v": 1}))
+    reply = _fake_reply(text="from-session")
+    stub_st.session_state[mod._CACHE_KEY] = {key: reply}
+    # _PROCESS_CACHE is empty (autouse fixture clears it) → fallback.
+    got = mod._cache_get("P", "s", None, mod._data_hash({"v": 1}))
+    assert got is reply
+
+
+def test_log_to_audit_defaults_audit_mode_when_explicit_run_dir(stub_st):
+    """Explicit `run_dir` + `audit_mode=None` (e.g. a snapshot that
+    captured no spec) defaults to `hash_only` rather than crashing or
+    leaking full text."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    captured: dict = {}
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+        side_effect=lambda _rd, row, jsonl_name=None: captured.update(row=row),
+    ):
+        mod._log_to_audit(
+            _fake_reply(),
+            section_id="s",
+            section_title="t",
+            run_dir="/runs/x",
+            audit_mode=None,
+        )
+    # hash_only (the default) → reply text is hashed, not embedded.
+    assert "reply_text" not in captured["row"]
+    assert "reply_text_hash" in captured["row"]
+
+
+def test_log_failure_to_audit_swallows_write_error(stub_st):
+    """A failure-audit write that itself raises must be swallowed
+    (best-effort, page never breaks) but logged as a WARNING so a
+    dropped compliance row is detectable."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    with (
+        mock.patch(
+            "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+            side_effect=PermissionError("read-only fs"),
+        ),
+        mock.patch.object(mod._LOG, "warning") as warn,
+    ):
+        mod._log_failure_to_audit(
+            RuntimeError("boom"),
+            section_id="s",
+            section_title="t",
+            run_dir="/runs/x",
+            backend="ollama",
+            model="m",
+        )  # no exception = swallowed
+    assert warn.called
+
+
+def test_promote_resolved_skips_not_done_future(stub_st):
+    """A future still in flight is left in `_FUTURES` (not claimed),
+    so the poller keeps polling it on the next tick."""
+    import concurrent.futures
+
+    from aml_framework.dashboard import section_explainer as mod
+
+    pending: concurrent.futures.Future = concurrent.futures.Future()  # never resolved
+    key = ("P", "s", "", mod._data_hash({"v": 1}))
+    mod._FUTURES[key] = pending
+    mod._FUTURE_META[key] = {"section_title": "t", "run_dir": "/runs/x"}
+
+    assert mod._promote_resolved() is False
+    assert key in mod._FUTURES  # untouched — still pending
+    pending.cancel()
