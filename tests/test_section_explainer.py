@@ -717,31 +717,71 @@ def test_explicit_none_run_dir_does_not_fall_back_to_session(stub_st):
 
 def test_concurrent_dispatch_shares_one_future(stub_st):
     """Codex race: the `key not in _FUTURES` check + submit + publish
-    must be atomic under `_DRAIN_LOCK`. Two `section_explainer` calls
-    for the same key (same data) must result in exactly ONE future /
-    ONE backend submission — never two, where the second publish
-    orphans the first (an untracked, never-audited backend call)."""
+    must be atomic under `_DRAIN_LOCK`. Two sessions dispatching the
+    same key CONCURRENTLY must yield exactly ONE future / ONE backend
+    submission — never two, where the second publish orphans the first
+    (an untracked, never-audited backend call).
+
+    This spawns two real threads and rendezvouses them on a
+    `Barrier(2)` placed INSIDE `_build_context` — so both threads exit
+    `_build_context` together and race into the `with _DRAIN_LOCK:`
+    dispatch region simultaneously. Without the lock-guarded
+    check-then-publish, both would pass `key not in _FUTURES` and
+    submit twice; with it, exactly one submits. (A barrier-forced
+    interleaving is deterministic where a bare thread race would be
+    flaky.)"""
+    import threading
+
     from aml_framework.dashboard import section_explainer as mod
 
     submits: list = []
+    submit_lock = threading.Lock()
+    barrier = threading.Barrier(2)
+    real_build_context = mod._build_context
+
+    def _rendezvous_build_context(**kw):
+        ctx = real_build_context(**kw)
+        # Both threads block here until both arrive, then both race
+        # into the dispatch critical section together.
+        barrier.wait(timeout=5)
+        return ctx
 
     class _CountingExecutor:
         def submit(self, fn, *a, **kw):
             import concurrent.futures
 
-            submits.append(1)
+            with submit_lock:
+                submits.append(1)
             f: concurrent.futures.Future = concurrent.futures.Future()
             f.set_result(_fake_reply())
             return f
 
+    se = dict(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+    errors: list = []
+
+    def _worker():
+        try:
+            mod.section_explainer(**se)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
     with (
         mock.patch.object(mod, "_get_executor", return_value=_CountingExecutor()),
         mock.patch.object(mod, "_call_backend", return_value=_fake_reply()),
+        mock.patch.object(mod, "_build_context", side_effect=_rendezvous_build_context),
     ):
-        se = dict(page="P", section_id="s", section_title="t", data_summary={"v": 1})
-        mod.section_explainer(**se)
-        mod.section_explainer(**se)  # same key, before drain
-    assert sum(submits) == 1, f"same key must dispatch exactly one backend call; got {sum(submits)}"
+        t1 = threading.Thread(target=_worker)
+        t2 = threading.Thread(target=_worker)
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+    assert not errors, f"workers raised: {errors!r}"
+    assert sum(submits) == 1, (
+        f"concurrent same-key dispatch must submit exactly one backend "
+        f"call (the lock serializes check+publish); got {sum(submits)}"
+    )
     assert len(mod._FUTURES) == 1
 
 
