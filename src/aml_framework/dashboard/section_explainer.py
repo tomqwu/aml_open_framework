@@ -9,18 +9,30 @@ Design:
 
 - **Inline.** Renders directly into the page flow via `st.container()`
   + a `#####` markdown header. No expander, no click.
-- **Auto-fire on first render.** Every `section_explainer()` call
-  invokes the configured backend during page render. The
-  `(section_id, data_hash, persona)` cache key short-circuits repeat
-  visits in the same session — only the first paint per filter-state
-  pays the LLM cost. Within an Ollama Cloud free-tier session, this
-  is cheap; for paid backends, the operator can switch to
-  `AML_AI_BACKEND=template` for zero-cost canned scaffolding.
-- **Visible spinner.** Wrapped in `st.spinner(...)` so the operator
-  sees the LLM call is in flight rather than a frozen page.
+- **Auto-fire, non-blocking.** Every `section_explainer()` call
+  dispatches the LLM call to a background thread pool and returns
+  immediately with a "Generating…" placeholder — the page is fully
+  usable at t=0, never blocked waiting on the model. A polling
+  fragment (`render_explainer_poller`, mounted once per page by
+  `page_header`) auto-fills each box ~2-3 sec later with NO user
+  interaction. The `(page, section_id, persona, data_hash)` cache
+  key short-circuits repeat visits — only the first paint per
+  filter-state pays the LLM cost; cache hits render <1 ms with no
+  thread. Operators can switch to `AML_AI_BACKEND=template` for
+  zero-cost canned scaffolding.
+- **e2e-safe.** The poll fragment ticks every ~1.2 s while work is
+  pending. The Playwright suite was moved off `wait_until=
+  "networkidle"` onto a deterministic page-shell selector so the
+  poll chatter no longer starves it (the regression that forced
+  PR #306 to revert the earlier async attempt).
 - **Audit-logged.** Every reply appended to the run's
-  `ai_interactions.jsonl` with `event="ai_section_explanation"` so an
-  auditor can trace exactly which sections were explained.
+  `ai_interactions.jsonl` with `event="ai_section_explanation"`;
+  attempted-but-failed calls get a distinct
+  `event="ai_section_explanation_failed"` row. An auditor can trace
+  exactly which sections were explained AND which were asked but did
+  not answer. The audit destination is snapshotted at dispatch from
+  the asking session, and the drain is lock-serialized so a reply is
+  logged exactly once even with multiple concurrent session pollers.
 - **Failure-visible.** Outer try/except catches any error (backend
   down, no key, JSON parse failure) and renders a visible
   `st.error(...)` banner naming the backend, model, and underlying
@@ -31,13 +43,20 @@ Design:
 
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import json
+import logging
 import os
+import threading
 from collections.abc import Mapping
 from typing import Any, Literal
 
 import streamlit as st
+
+# Audit-write failures are best-effort (must never break the page) but
+# NOT silent — a compliance ledger needs dropped rows to be detectable.
+_LOG = logging.getLogger("aml.dashboard")
 
 # Default model identifiers for the two complexity tiers. Operators
 # override via `AML_OLLAMA_MODEL_FAST` / `AML_OLLAMA_MODEL_DEEP` env
@@ -68,6 +87,79 @@ def _resolve_model(complexity: Literal["fast", "deep"]) -> str:
     tier_var = "AML_OLLAMA_MODEL_DEEP" if complexity == "deep" else "AML_OLLAMA_MODEL_FAST"
     tier_default = _DEFAULT_MODEL_DEEP if complexity == "deep" else _DEFAULT_MODEL_FAST
     return os.environ.get(tier_var) or os.environ.get("AML_OLLAMA_MODEL") or tier_default
+
+
+# --------------------------------------------------------------------
+# Async dispatch — keep the page non-blocking on first paint.
+# --------------------------------------------------------------------
+# The LLM call runs on a background thread pool so `section_explainer`
+# returns in ~5 ms and the page hero/tables/charts are usable
+# immediately. A polling fragment (`render_explainer_poller`, mounted
+# once per page by `page_header`) auto-fills each AI box ~2-3 sec later
+# with NO user interaction. The earlier sync `st.spinner` blocked the
+# whole script for ~2-3 sec/section; the even-earlier #304 async attempt
+# only surfaced the reply on the next manual interaction (spinner
+# forever) and its 1-sec poll fragment starved Playwright's
+# `networkidle`. This revision keeps async + restores the auto-poll,
+# and the e2e suite was moved off `networkidle` onto a deterministic
+# page-shell selector so the poll chatter no longer breaks it.
+_EXECUTOR: concurrent.futures.ThreadPoolExecutor | None = None
+
+# In-flight futures keyed by the `_cache_key` tuple
+# (page, section_id, persona, data_hash). The poller drains these.
+_FUTURES: dict[tuple[str, str, str, str], concurrent.futures.Future] = {}
+
+# Per-future metadata the audit hook needs but the future's return
+# value doesn't carry (section_title is a human label; backend/model
+# are for the error banner). Populated at dispatch, drained on resolve.
+_FUTURE_META: dict[tuple[str, str, str, str], dict[str, str]] = {}
+
+# Keys whose LLM call raised. The next `section_explainer` render for
+# that key surfaces an `st.error(...)` banner (post-#311 posture: real
+# errors are visible, never masked by a canned template reply) and
+# clears the entry so a later navigation can retry.
+_FAILED: dict[tuple[str, str, str, str], BaseException] = {}
+
+# Serializes the poller drain. Multiple Streamlit sessions/tabs on one
+# replica each mount their own poller fragment over these shared
+# globals; without this, two pollers can both observe the same
+# `.done()` future before either pops it and `_log_to_audit` fires
+# twice for one reply (a duplicate compliance-audit entry). The lock
+# makes "claim (pop) + promote" atomic so exactly one poller handles
+# each future. Held briefly on a ~1.2 s cadence — negligible
+# contention.
+_DRAIN_LOCK = threading.Lock()
+
+# Sentinel distinguishing "caller omitted run_dir" (direct synchronous
+# callers / the sidebar advisor → fall back to the current session's
+# state) from "caller explicitly passed run_dir, and it happened to be
+# None" (the dispatch snapshot had no run_dir → must NOT fall back to
+# the *draining* session, which would mis-attribute the audit row;
+# warn + drop instead).
+_UNSET: Any = object()
+
+
+def _get_executor() -> concurrent.futures.ThreadPoolExecutor:
+    """Lazily build the shared worker pool. Bounded at 4 — at most 4
+    concurrent backend calls per replica; later submits queue. Shared
+    across all Streamlit sessions on this container (same model as
+    `_PROCESS_CACHE`)."""
+    global _EXECUTOR
+    if _EXECUTOR is None:
+        _EXECUTOR = concurrent.futures.ThreadPoolExecutor(
+            max_workers=4, thread_name_prefix="aml-explain"
+        )
+    return _EXECUTOR
+
+
+def _do_llm_call(*, question: str, context: Any, backend_name: str, model: str | None) -> Any:
+    """Worker-thread entry point. Delegates to `_call_backend` and lets
+    any exception propagate into the `Future` — it is NOT swallowed
+    into a TemplateBackend reply here. The poller captures the
+    exception into `_FAILED` so the operator sees the real error (the
+    #311 contract: a failing ollama/openai backend must be visible,
+    not masked by canned scaffolding)."""
+    return _call_backend(question=question, context=context, backend_name=backend_name, model=model)
 
 
 # Process-global cache — shared across all Streamlit sessions in this
@@ -183,22 +275,64 @@ def _build_context(
     )
 
 
-def _log_to_audit(reply: Any, *, section_id: str, section_title: str) -> None:
+def _audit_ctx() -> tuple[Any, str]:
+    """Snapshot the audit destination from the CURRENT session's state.
+
+    Called on the main thread of the originating session at DISPATCH
+    time and stored in `_FUTURE_META`, so the reply is later attributed
+    to the run_dir of the session that asked — not whichever session's
+    poller happens to drain the future (`run_dir` is per-session
+    `st.session_state`; any replica poller can drain any global
+    future). Returns `(run_dir, audit_mode)`."""
+    run_dir = st.session_state.get("run_dir")
+    spec = st.session_state.get("spec")
+    audit_mode = getattr(getattr(spec, "program", None), "ai_audit_log", "hash_only")
+    return run_dir, audit_mode
+
+
+def _log_to_audit(
+    reply: Any,
+    *,
+    section_id: str,
+    section_title: str,
+    run_dir: Any = _UNSET,
+    audit_mode: str | None = None,
+) -> None:
     """Append the section-explanation reply to `ai_interactions.jsonl`
     under `event="ai_section_explanation"`. Best-effort: any failure
     (no run_dir, write error) is swallowed so the page never breaks.
-    """
+
+    `run_dir`/`audit_mode` are passed explicitly from the dispatch-time
+    snapshot (`_FUTURE_META`) so the entry lands in the asking
+    session's run dir. When OMITTED entirely (`run_dir is _UNSET` —
+    direct synchronous callers / the sidebar advisor) they fall back
+    to the current session's state. An EXPLICIT `run_dir=None` (the
+    snapshot had no run_dir) must NOT fall back: that would attribute
+    the row to whatever session's poller drained the future. Warn +
+    drop instead."""
     try:
         from pathlib import Path
 
         from aml_framework.assistant.models import reply_to_audit_dict
         from aml_framework.engine.audit import AuditLedger
 
-        run_dir = st.session_state.get("run_dir")
+        if run_dir is _UNSET:
+            # Caller omitted it — safe to read the current session
+            # (this is a same-thread, same-session direct call).
+            run_dir, audit_mode = _audit_ctx()
         if run_dir is None:
+            # Either an explicit None snapshot (do NOT fall back —
+            # would mis-attribute to the draining session) or the
+            # fallback itself found no run_dir. Don't crash the page,
+            # don't drop silently — same contract as the failure path.
+            _LOG.warning(
+                "section-explanation reply produced but no run_dir to "
+                "audit (section=%s) — audit row dropped",
+                section_id,
+            )
             return
-        spec = st.session_state.get("spec")
-        audit_mode = getattr(getattr(spec, "program", None), "ai_audit_log", "hash_only")
+        if audit_mode is None:
+            audit_mode = "hash_only"
         row = reply_to_audit_dict(reply, full_text=(audit_mode == "full_text"))
         row["section_id"] = section_id
         row["section_title"] = section_title
@@ -207,7 +341,73 @@ def _log_to_audit(reply: Any, *, section_id: str, section_title: str) -> None:
             {"event": "ai_section_explanation", **row},
             jsonl_name="ai_interactions.jsonl",
         )
-    except Exception:  # noqa: BLE001
+    except Exception as audit_exc:  # noqa: BLE001
+        # Best-effort: a write failure must never break the page. But a
+        # SILENT loss is weak for a compliance ledger — emit a WARNING
+        # so an operator/log pipeline can detect dropped audit rows.
+        _LOG.warning(
+            "section-explanation audit write failed for %s: %s",
+            section_id,
+            audit_exc,
+        )
+        return
+
+
+def _log_failure_to_audit(
+    exc: BaseException,
+    *,
+    section_id: str,
+    section_title: str,
+    run_dir: Any,
+    backend: str,
+    model: str,
+) -> None:
+    """Record an attempted-but-failed section explanation under
+    `event="ai_section_explanation_failed"`. A compliance framework
+    must be able to prove the AI was *asked* — and that it did not
+    answer — not just log successes. Distinct event so it never
+    pollutes the success audit trail. Best-effort like
+    `_log_to_audit`."""
+    try:
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        from aml_framework.engine.audit import AuditLedger
+
+        if run_dir is None:
+            # No run dir to write to (e.g. dispatched before the engine
+            # initialised). Still surface it so the dropped failure-row
+            # isn't completely silent for a compliance ledger.
+            _LOG.warning(
+                "section-explanation FAILED but no run_dir to audit (section=%s, %s): %s",
+                section_id,
+                type(exc).__name__,
+                exc,
+            )
+            return
+        AuditLedger.append_to_run_dir(
+            Path(run_dir),
+            {
+                "event": "ai_section_explanation_failed",
+                "ts": datetime.now(tz=timezone.utc).isoformat(),
+                "section_id": section_id,
+                "section_title": section_title,
+                "backend": backend,
+                "model": model,
+                # Class name kept distinct from the message so an
+                # auditor can filter `CancelledError` / `TimeoutError`
+                # / API errors without substring-matching `error`.
+                "error_type": type(exc).__name__,
+                "error": str(exc)[:500],
+            },
+            jsonl_name="ai_interactions.jsonl",
+        )
+    except Exception as audit_exc:  # noqa: BLE001
+        _LOG.warning(
+            "section-explanation failure-audit write failed for %s: %s",
+            section_id,
+            audit_exc,
+        )
         return
 
 
@@ -246,10 +446,12 @@ def section_explainer(
     """Render an inline AI explanation for a dashboard section.
 
     Drop this immediately after a section's content (chart, table,
-    KPI card). On first render, the LLM call fires automatically and
-    the reply lands inline below the section. The
-    `(section_id, data_hash, persona)` cache short-circuits repeat
-    renders in the same session — only the first paint per
+    KPI card). On first paint the LLM call is dispatched to a
+    background thread and the function returns immediately with a
+    non-blocking placeholder; `render_explainer_poller` (mounted by
+    `page_header`) auto-fills the reply ~2-3 sec later with no user
+    interaction. The `(page, section_id, persona, data_hash)` cache
+    short-circuits repeat renders — only the first paint per
     filter-state pays the LLM cost.
 
     Args:
@@ -285,24 +487,16 @@ def section_explainer(
         cached_reply = _cache_get(page, section_id, effective_persona, data_hash)
 
         # Inline render — no expander, no click, no env flag. The
-        # explanation is part of the page flow: after the section's
-        # content, the explainer renders its own header + spinner +
-        # reply. On first render the LLM call fires synchronously
-        # inside `st.spinner(...)` so the user sees a legible "in
-        # flight" state; the reply lands in place when the call
-        # returns. Subsequent reruns hit the (section_id, data_hash,
-        # persona) `_PROCESS_CACHE` and render in <1 ms.
-        #
-        # The synchronous path replaces an earlier async-dispatch
-        # attempt (PR #304) where the LLM call ran on a background
-        # ThreadPoolExecutor. That model made the page interactive
-        # in ~5 ms but the reply never surfaced without an
-        # interaction-driven rerun — operators saw spinners that
-        # never resolved. A polling fragment fixed visibility but
-        # killed Playwright e2e via networkidle starvation. The
-        # synchronous baseline is the trade-off: ~2-3 sec block per
-        # unique section on first paint, but the AI output is
-        # actually visible.
+        # explanation is part of the page flow. On first paint of an
+        # uncached section the LLM call is dispatched to a background
+        # thread and the function returns immediately with a
+        # non-blocking "Generating…" placeholder — the page hero,
+        # tables and charts are usable at t=0. `render_explainer_poller`
+        # (mounted once per page by `page_header`) auto-fills the box
+        # ~2-3 sec later with no user interaction. Subsequent reruns
+        # hit the (page, section_id, persona, data_hash)
+        # `_PROCESS_CACHE` and render in <1 ms with no thread.
+        key = _cache_key(page, section_id, effective_persona, data_hash)
         with st.container():
             st.markdown(f"##### ℹ {section_title} — AI Explanation")
             if effective_persona:
@@ -312,6 +506,22 @@ def section_explainer(
                 _render_reply(cached_reply)
                 return
 
+            # The worker raised on a prior poll. Surface the real
+            # error (post-#311: never mask a failing backend with a
+            # canned reply) and clear it so a later navigation retries.
+            failed = _FAILED.pop(key, None)
+            if failed is not None:
+                st.error(
+                    f"AI Explanation failed via `{backend_name}` (model `{model}`): {failed!s}"
+                )
+                return
+
+            # Snapshot the audit destination NOW, on this session's
+            # main thread, so the reply is attributed to the run_dir of
+            # the session that asked — not whichever session's poller
+            # drains the future (run_dir is per-session session_state;
+            # any replica poller can drain any global future).
+            ctx_run_dir, ctx_audit_mode = _audit_ctx()
             context = _build_context(
                 page=page,
                 section_id=section_id,
@@ -324,27 +534,149 @@ def section_explainer(
                 "Highlight what is normal, what is unusual, and what an "
                 "analyst should do next."
             )
+            # Dispatch once per key. The existence check, submit, and
+            # publish must all happen UNDER `_DRAIN_LOCK` and as one
+            # atomic step: if the check were outside the lock two
+            # sessions could both see `key not in _FUTURES`, both
+            # submit, and the second publish would overwrite the
+            # first's future/meta — orphaning a backend call that is
+            # never drained, cached, or audited. submit() is
+            # non-blocking (just enqueues) and `_build_context` /
+            # `_audit_ctx` already ran above, so holding the lock here
+            # is brief. The drain also takes this lock, so it never
+            # observes a future without its meta. Concurrent sessions
+            # still SHARE one future per key (same model as the cache).
+            with _DRAIN_LOCK:
+                if key not in _FUTURES:
+                    _FUTURE_META[key] = {
+                        "section_title": section_title,
+                        "backend_name": backend_name,
+                        "model": model or "",
+                        "run_dir": ctx_run_dir,
+                        "audit_mode": ctx_audit_mode,
+                    }
+                    _FUTURES[key] = _get_executor().submit(
+                        _do_llm_call,
+                        question=question,
+                        context=context,
+                        backend_name=backend_name,
+                        model=model,
+                    )
 
-            with st.spinner(f"Generating explanation via `{backend_name}` — typically 2-3 sec…"):
-                reply = _call_backend(
-                    question=question,
-                    context=context,
-                    backend_name=backend_name,
-                    model=model,
-                )
-
-            _cache_put(page, section_id, effective_persona, data_hash, reply)
-            _log_to_audit(reply, section_id=section_id, section_title=section_title)
-            _render_reply(reply)
+            # Non-blocking placeholder. NOT `st.spinner` (that blocks
+            # the script). The poller replaces this on the next rerun.
+            st.caption("⟳ Generating explanation…")
     except Exception as exc:  # noqa: BLE001
         # Don't break the page (the host section already rendered) but
-        # surface the actual error so the operator can diagnose the LLM
-        # backend instead of silently seeing canned TemplateBackend
-        # text while believing they're on ollama/openai.
+        # surface the actual error so the operator can diagnose instead
+        # of a silent failure.
+        #
+        # NOTE: this catches PRE-DISPATCH failures (e.g. `_data_hash`
+        # or `_build_context` raising) — the AI call was never
+        # submitted. We deliberately do NOT write an
+        # `ai_section_explanation_failed` audit row here: that event
+        # means "the AI was asked and did not answer." No future was
+        # dispatched, so there is no AI interaction to attribute — the
+        # `st.error` banner is the correct (and only) surface.
+        # Post-dispatch failures (the future itself raising) ARE
+        # failure-audited in `_promote_resolved`.
         try:
             st.error(f"AI Explanation failed via `{backend_name}` (model `{model}`): {exc!s}")
         except Exception:  # noqa: BLE001
             return
+
+
+def section_explainer_has_pending() -> bool:
+    """True when at least one section's LLM call is still in flight.
+
+    Introspection helper for tests/observability — NOT used to gate
+    the poller mount (the poller is mounted unconditionally because
+    `page_header` runs before any `section_explainer` call; see the
+    comment there)."""
+    return bool(_FUTURES)
+
+
+def _promote_resolved() -> bool:
+    """Drain every `.done()` future into `_PROCESS_CACHE` (+ exactly one
+    `_log_to_audit` call) or record its exception into `_FAILED` (+ one
+    `_log_failure_to_audit`). Returns True if anything resolved.
+
+    Two phases:
+
+    1. **Claim (under `_DRAIN_LOCK`).** Pop each done future +its meta
+       from the shared globals into a local list. Dispatch publishes
+       meta+future under the same lock, so a claimed future ALWAYS has
+       its meta (no run_dir=None mis-attribution). Because the pop is
+       atomic, when N session pollers tick exactly one claims a given
+       future — no duplicate audit entries.
+    2. **Process (lock released).** `fut.result()`, cache, and the
+       audit disk writes happen OUTSIDE the lock — the jsonl append
+       must not serialize every replica poller behind one file handle.
+       Each future is owned by exactly one poller by then, so no
+       further synchronization is needed.
+
+    Audit destination is the dispatch-time snapshot in `_FUTURE_META`
+    (the asking session's run_dir), not the draining session's state.
+    No `st.*` calls — unit-testable without a fragment/run context."""
+    claimed: list[tuple[tuple[str, str, str, str], Any, dict]] = []
+    with _DRAIN_LOCK:
+        for key in list(_FUTURES.keys()):
+            fut = _FUTURES.get(key)
+            if fut is None or not fut.done():
+                continue
+            meta = _FUTURE_META.pop(key, {})
+            _FUTURES.pop(key, None)
+            claimed.append((key, fut, meta))
+
+    for key, fut, meta in claimed:
+        run_dir = meta.get("run_dir")
+        try:
+            reply = fut.result()
+        except BaseException as exc:  # noqa: BLE001 — surface ALL failures
+            _FAILED[key] = exc
+            _log_failure_to_audit(
+                exc,
+                section_id=key[1],
+                section_title=meta.get("section_title", key[1]),
+                run_dir=run_dir,
+                backend=meta.get("backend_name", ""),
+                model=meta.get("model", ""),
+            )
+            continue
+        page, section_id, persona, data_hash = key
+        _cache_put(page, section_id, persona or None, data_hash, reply)
+        _log_to_audit(
+            reply,
+            section_id=section_id,
+            section_title=meta.get("section_title", section_id),
+            run_dir=run_dir,
+            audit_mode=meta.get("audit_mode"),
+        )
+    return bool(claimed)
+
+
+@st.fragment(run_every="1.2s")
+def render_explainer_poller() -> None:
+    """Thin fragment wrapper around `_promote_resolved`. Mounted once
+    per page by `page_header`, unconditionally (it runs before any
+    `section_explainer` call, so a "pending?" gate would never arm on
+    first paint — see the page_header comment). It therefore ticks
+    every ~1.2 s for the page's lifetime; the body is a cheap no-op
+    over an empty `_FUTURES` when nothing is in flight.
+
+    Each tick promotes resolved futures; if anything resolved it calls
+    `st.rerun()` so `section_explainer` re-runs and renders the reply
+    (or the error banner) in place via the cache-hit fast path. The
+    body is a no-op while nothing is done yet, so the only cost while
+    waiting is a cheap 1.2-sec partial rerun. e2e no longer waits on
+    `networkidle`, so this ticking is safe.
+
+    Coverage: Streamlit's real `@st.fragment` decorator no-ops the body
+    outside a script-run context, so these two lines can't execute in
+    unit tests. All logic is in `_promote_resolved` (fully covered);
+    this wrapper is exercised by the Playwright e2e suite."""
+    if _promote_resolved():  # pragma: no cover
+        st.rerun()  # pragma: no cover
 
 
 def _call_backend(*, question: str, context: Any, backend_name: str, model: str | None) -> Any:

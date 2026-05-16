@@ -78,6 +78,40 @@ class _StubStreamlit:
     def toast(self, *_a, **_kw):
         pass
 
+    def fragment(self, *_a, **_kw):
+        # No-op decorator factory: @st.fragment(run_every=...) → identity.
+        def _wrap(fn):
+            return fn
+
+        return _wrap
+
+    def rerun(self, *_a, **_kw):
+        self.rerun_calls = getattr(self, "rerun_calls", 0) + 1
+
+
+class _SyncExecutor:
+    """Drop-in for the section_explainer ThreadPoolExecutor that runs
+    the submitted callable inline and returns an already-resolved
+    Future. Makes the async dispatch deterministic in unit tests —
+    after `section_explainer` submits, the future is immediately
+    `.done()` so `_promote_resolved()` drains it on the next call."""
+
+    def submit(self, fn, *args, **kwargs):
+        import concurrent.futures
+
+        fut: concurrent.futures.Future = concurrent.futures.Future()
+        try:
+            fut.set_result(fn(*args, **kwargs))
+        except BaseException as exc:  # noqa: BLE001
+            fut.set_exception(exc)
+        return fut
+
+
+def _sync_exec(mod):
+    """Context-manager patching `_get_executor` to the synchronous
+    executor for deterministic tests."""
+    return mock.patch.object(mod, "_get_executor", return_value=_SyncExecutor())
+
 
 @pytest.fixture
 def stub_st(monkeypatch):
@@ -100,8 +134,14 @@ def _clear_process_cache():
     import aml_framework.dashboard.section_explainer as mod
 
     mod._PROCESS_CACHE.clear()
+    mod._FUTURES.clear()
+    mod._FUTURE_META.clear()
+    mod._FAILED.clear()
     yield
     mod._PROCESS_CACHE.clear()
+    mod._FUTURES.clear()
+    mod._FUTURE_META.clear()
+    mod._FAILED.clear()
 
 
 def _fake_reply(text="ok", confidence="high"):
@@ -145,22 +185,29 @@ def test_renders_inline_container_with_header(stub_st):
 
 
 def test_auto_fires_backend_on_first_render(stub_st, monkeypatch):
-    """The LLM call must invoke synchronously on the first render — no
-    button, no env flag, no future to wait on."""
+    """First render DISPATCHES the LLM call to the background pool (no
+    button, no env flag, no blocking spinner) and renders a
+    non-blocking placeholder. The backend runs exactly once for the
+    dispatched future; the reply lands via `_promote_resolved`."""
     from aml_framework.dashboard import section_explainer as mod
 
     call_backend = mock.MagicMock(return_value=_fake_reply())
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", side_effect=call_backend),
         mock.patch.object(mod, "_log_to_audit"),
     ):
-        mod.section_explainer(
-            page="P",
-            section_id="s",
-            section_title="t",
-            data_summary={"v": 1},
-        )
-    assert call_backend.call_count == 1, "backend must fire synchronously on first render"
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        # First paint: future submitted, placeholder shown, NOT blocked.
+        assert any("Generating explanation" in c for c in stub_st.caption_calls)
+        assert mod.section_explainer_has_pending()
+        # Backend ran once (on the sync-executor submit).
+        assert call_backend.call_count == 1
+        # Poller drains → cache; second render shows the reply.
+        mod._promote_resolved()
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        assert call_backend.call_count == 1, "backend must not re-fire after cache populated"
+        assert not mod.section_explainer_has_pending()
 
 
 # ---------------------------------------------------------------------------
@@ -175,15 +222,18 @@ def test_first_render_fires_backend_then_caches(stub_st):
 
     call_backend = mock.MagicMock(return_value=_fake_reply())
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", side_effect=call_backend),
         mock.patch.object(mod, "_log_to_audit"),
     ):
-        mod.section_explainer(
+        se = dict(
             page="Executive Dashboard",
             section_id="exec.kpis.headline",
             section_title="Top KPIs",
             data_summary={"alert_total": 12},
         )
+        mod.section_explainer(**se)
+        mod._promote_resolved()
         key = mod._cache_key(
             "Executive Dashboard", "exec.kpis.headline", None, mod._data_hash({"alert_total": 12})
         )
@@ -191,12 +241,7 @@ def test_first_render_fires_backend_then_caches(stub_st):
         assert call_backend.call_count == 1
 
         call_backend.reset_mock()
-        mod.section_explainer(
-            page="Executive Dashboard",
-            section_id="exec.kpis.headline",
-            section_title="Top KPIs",
-            data_summary={"alert_total": 12},
-        )
+        mod.section_explainer(**se)
         assert call_backend.call_count == 0
 
 
@@ -208,9 +253,11 @@ def test_data_change_invalidates_cache(stub_st):
 
     call_backend = mock.MagicMock(return_value=_fake_reply())
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", side_effect=call_backend),
         mock.patch.object(mod, "_log_to_audit"),
     ):
+        # Two distinct data hashes → two distinct keys → two dispatches.
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 2})
     assert call_backend.call_count == 2
@@ -227,10 +274,12 @@ def test_cache_survives_across_sessions(monkeypatch):
     monkeypatch.setattr(mod, "st", stub_a)
     call_a = mock.MagicMock(return_value=_fake_reply())
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", side_effect=call_a),
         mock.patch.object(mod, "_log_to_audit"),
     ):
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        mod._promote_resolved()  # session A's poller promotes into the shared cache
         assert call_a.call_count == 1, "first session fires the LLM call"
 
     stub_b = _StubStreamlit()
@@ -238,6 +287,7 @@ def test_cache_survives_across_sessions(monkeypatch):
     monkeypatch.setattr(mod, "st", stub_b)
     call_b = mock.MagicMock(return_value=_fake_reply())
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", side_effect=call_b),
         mock.patch.object(mod, "_log_to_audit"),
     ):
@@ -293,17 +343,186 @@ def test_audit_log_event_is_distinct(stub_st):
     )
 
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", return_value=_fake_reply()),
         mock.patch(
             "aml_framework.engine.audit.AuditLedger.append_to_run_dir", side_effect=fake_append
         ),
     ):
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        # Audit fires at promotion (the single audit point), not at dispatch.
+        mod._promote_resolved()
 
     assert captured["row"]["event"] == "ai_section_explanation"
     assert captured["row"]["section_id"] == "s"
     assert captured["row"]["section_title"] == "t"
     assert captured["jsonl_name"] == "ai_interactions.jsonl"
+
+
+# ---------------------------------------------------------------------------
+# Async poller
+# ---------------------------------------------------------------------------
+
+
+def test_cache_hit_spawns_no_thread(stub_st):
+    """A cached section must render with zero background work — no
+    executor, no future. This is the <1ms fast path; regressing it
+    would make every revisit pay thread-pool overhead."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    reply = _fake_reply()
+    mod._PROCESS_CACHE[("P", "s", "", mod._data_hash({"v": 1}))] = reply
+
+    with mock.patch.object(mod, "_get_executor", side_effect=AssertionError("executor used")):
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+    assert not mod.section_explainer_has_pending()
+    assert not stub_st.error_calls
+
+
+def test_promote_resolved_audits_exactly_once(stub_st):
+    """`_promote_resolved` is the single audit point. Draining a future
+    logs the reply once; a second drain (idempotent) must NOT re-log —
+    the future was already popped."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    audit = mock.MagicMock()
+    with (
+        _sync_exec(mod),
+        mock.patch.object(mod, "_call_backend", return_value=_fake_reply()),
+        mock.patch.object(mod, "_log_to_audit", side_effect=audit),
+    ):
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        assert mod._promote_resolved() is True
+        assert mod._promote_resolved() is False  # nothing left to drain
+    assert audit.call_count == 1, "reply must be audited exactly once"
+
+
+def test_audit_attributed_to_dispatching_session_run_dir(stub_st):
+    """The audit entry must land in the run_dir of the session that
+    ASKED, not whichever session's poller drains the future. run_dir is
+    per-session `st.session_state`; any replica poller can drain any
+    global future. We snapshot run_dir at dispatch into `_FUTURE_META`
+    and pass it explicitly to `_log_to_audit`. Simulate: dispatch with
+    session A's run_dir, then a different session (run_dir B) drains."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    captured: dict = {}
+
+    def fake_log(reply, *, section_id, section_title, run_dir=None, audit_mode=None):
+        captured["run_dir"] = run_dir
+
+    stub_st.session_state["run_dir"] = "/runs/session-A"
+    stub_st.session_state["spec"] = SimpleNamespace(
+        program=SimpleNamespace(ai_audit_log="hash_only")
+    )
+    with (
+        _sync_exec(mod),
+        mock.patch.object(mod, "_call_backend", return_value=_fake_reply()),
+        mock.patch.object(mod, "_log_to_audit", side_effect=fake_log),
+    ):
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        # A different session drains (its state points elsewhere).
+        stub_st.session_state["run_dir"] = "/runs/session-B"
+        mod._promote_resolved()
+
+    assert captured["run_dir"] == "/runs/session-A", (
+        "audit must use the dispatch-time run_dir of the asking session, "
+        f"not the draining session's; got {captured['run_dir']!r}"
+    )
+
+
+def test_promote_resolved_routes_exception_to_failed(stub_st):
+    """A worker exception is captured into `_FAILED` (not cached, not
+    success-audited). It IS recorded as a distinct failure audit event
+    — a compliance framework must prove the AI was *asked* and did not
+    answer, not just log successes. The key is removed from `_FUTURES`
+    so the poller stops re-promoting it."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    success_audit = mock.MagicMock()
+    failure_audit = mock.MagicMock()
+    with (
+        _sync_exec(mod),
+        mock.patch.object(mod, "_call_backend", side_effect=RuntimeError("model 'x' not found")),
+        mock.patch.object(mod, "_log_to_audit", side_effect=success_audit),
+        mock.patch.object(mod, "_log_failure_to_audit", side_effect=failure_audit),
+    ):
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        mod._promote_resolved()
+    key = mod._cache_key("P", "s", None, mod._data_hash({"v": 1}))
+    assert key in mod._FAILED
+    assert key not in mod._PROCESS_CACHE
+    assert not mod.section_explainer_has_pending()
+    # Success audit NOT called; failure audit called exactly once with
+    # the section + the underlying error.
+    assert success_audit.call_count == 0
+    assert failure_audit.call_count == 1
+    _, kw = failure_audit.call_args
+    assert kw["section_id"] == "s"
+    assert "model 'x' not found" in str(failure_audit.call_args[0][0])
+
+
+def test_failure_audit_row_shape(stub_st):
+    """`_log_failure_to_audit` writes a row with the distinct event,
+    an `error_type` class field separate from the `error` message
+    (so an auditor can filter CancelledError/TimeoutError/API errors
+    without substring-matching), the section, backend and model. This
+    is the compliance contract Codex flagged."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    captured: dict = {}
+
+    def fake_append(_run_dir, row, jsonl_name=None):
+        captured["row"] = row
+        captured["jsonl"] = jsonl_name
+
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir", side_effect=fake_append
+    ):
+        mod._log_failure_to_audit(
+            TimeoutError("ollama timed out after 60s"),
+            section_id="exec.kpis",
+            section_title="Top KPIs",
+            run_dir="/runs/session-A",
+            backend="ollama",
+            model="deepseek-v4-pro",
+        )
+
+    row = captured["row"]
+    assert row["event"] == "ai_section_explanation_failed"
+    assert row["section_id"] == "exec.kpis"
+    assert row["error_type"] == "TimeoutError"
+    assert "ollama timed out" in row["error"]
+    assert row["backend"] == "ollama"
+    assert row["model"] == "deepseek-v4-pro"
+    assert captured["jsonl"] == "ai_interactions.jsonl"
+
+
+def test_failure_audit_noop_without_run_dir(stub_st):
+    """No run_dir (e.g. dispatched before the engine initialised) →
+    no write attempt, no crash. Best-effort, page never breaks."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+        side_effect=AssertionError("must not write without run_dir"),
+    ):
+        mod._log_failure_to_audit(
+            RuntimeError("x"),
+            section_id="s",
+            section_title="t",
+            run_dir=None,
+            backend="ollama",
+            model="m",
+        )  # no exception = pass
+
+
+# NOTE: `render_explainer_poller` itself is a 2-line `@st.fragment`
+# wrapper (`if _promote_resolved(): st.rerun()`). Streamlit's real
+# fragment decorator no-ops the body outside a script-run context, so
+# it can't be exercised in unit tests — it carries a `# pragma: no
+# cover`. All of its logic lives in `_promote_resolved`, covered
+# above (audit-once, exception→_FAILED, idempotent re-drain).
 
 
 # ---------------------------------------------------------------------------
@@ -320,18 +539,24 @@ def test_backend_error_surfaces_no_silent_template(stub_st):
     from aml_framework.dashboard import section_explainer as mod
 
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_log_to_audit"),
         mock.patch(
             "aml_framework.assistant.factory.get_assistant",
             side_effect=RuntimeError("ollama down"),
         ),
     ):
+        # Dispatch (sync executor runs the failing call into the future).
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
-    # The error message must include the underlying exception text so
-    # the operator can diagnose the failure.
+        # Poller moves the exception into _FAILED (NOT a cached template).
+        mod._promote_resolved()
+        # Next render surfaces the real error banner.
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
     assert any("ollama down" in e for e in stub_st.error_calls)
     # No template reply should have been cached as a fake success.
     assert mod._cache_key("P", "s", None, mod._data_hash({"v": 1})) not in mod._PROCESS_CACHE
+    # _FAILED cleared after surfacing so a later navigation can retry.
+    assert mod._cache_key("P", "s", None, mod._data_hash({"v": 1})) not in mod._FAILED
 
 
 def test_missing_api_key_surfaces_error(stub_st, monkeypatch):
@@ -343,7 +568,9 @@ def test_missing_api_key_surfaces_error(stub_st, monkeypatch):
     monkeypatch.setenv("AML_AI_BACKEND", "ollama")
     monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
 
-    with mock.patch.object(mod, "_log_to_audit"):
+    with _sync_exec(mod), mock.patch.object(mod, "_log_to_audit"):
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        mod._promote_resolved()
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
     assert stub_st.error_calls, "expected st.error to surface the backend failure"
 
@@ -455,6 +682,109 @@ def test_log_to_audit_skips_when_no_run_dir(stub_st):
     _log_to_audit(object(), section_id="s", section_title="t")
 
 
+def test_explicit_none_run_dir_does_not_fall_back_to_session(stub_st):
+    """Codex compliance race: `_promote_resolved` passes the dispatch
+    snapshot explicitly. If the snapshot had no run_dir it passes
+    `run_dir=None` — `_log_to_audit` must NOT then fall back to the
+    CURRENT (draining) session's run_dir (that would mis-attribute the
+    audit row to the wrong run). Explicit None → warn + drop. Omitted
+    (`_UNSET`) → fall back (direct sync callers). This test pins the
+    sentinel distinction."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    # The draining session HAS a run_dir — the explicit-None call must
+    # ignore it, not write there.
+    stub_st.session_state["run_dir"] = "/runs/WRONG-draining-session"
+    stub_st.session_state["spec"] = SimpleNamespace(
+        program=SimpleNamespace(ai_audit_log="hash_only")
+    )
+    wrote: list = []
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+        side_effect=lambda *a, **k: wrote.append((a, k)),
+    ):
+        # Explicit None (simulates a None dispatch snapshot).
+        mod._log_to_audit(_fake_reply(), section_id="s", section_title="t", run_dir=None)
+        assert wrote == [], (
+            "explicit run_dir=None must NOT fall back to the draining "
+            f"session — would mis-attribute; wrote: {wrote!r}"
+        )
+        # Omitted → _UNSET → DOES fall back to the current session.
+        mod._log_to_audit(_fake_reply(), section_id="s", section_title="t")
+        assert len(wrote) == 1, "omitted run_dir must fall back to session state"
+        assert "WRONG-draining-session" in str(wrote[0][0][0])
+
+
+def test_concurrent_dispatch_shares_one_future(stub_st):
+    """Codex race: the `key not in _FUTURES` check + submit + publish
+    must be atomic under `_DRAIN_LOCK`. Two sessions dispatching the
+    same key CONCURRENTLY must yield exactly ONE future / ONE backend
+    submission — never two, where the second publish orphans the first
+    (an untracked, never-audited backend call).
+
+    This spawns two real threads and rendezvouses them on a
+    `Barrier(2)` placed INSIDE `_build_context` — so both threads exit
+    `_build_context` together and race into the `with _DRAIN_LOCK:`
+    dispatch region simultaneously. Without the lock-guarded
+    check-then-publish, both would pass `key not in _FUTURES` and
+    submit twice; with it, exactly one submits. (A barrier-forced
+    interleaving is deterministic where a bare thread race would be
+    flaky.)"""
+    import threading
+
+    from aml_framework.dashboard import section_explainer as mod
+
+    submits: list = []
+    submit_lock = threading.Lock()
+    barrier = threading.Barrier(2)
+    real_build_context = mod._build_context
+
+    def _rendezvous_build_context(**kw):
+        ctx = real_build_context(**kw)
+        # Both threads block here until both arrive, then both race
+        # into the dispatch critical section together.
+        barrier.wait(timeout=5)
+        return ctx
+
+    class _CountingExecutor:
+        def submit(self, fn, *a, **kw):
+            import concurrent.futures
+
+            with submit_lock:
+                submits.append(1)
+            f: concurrent.futures.Future = concurrent.futures.Future()
+            f.set_result(_fake_reply())
+            return f
+
+    se = dict(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+    errors: list = []
+
+    def _worker():
+        try:
+            mod.section_explainer(**se)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    with (
+        mock.patch.object(mod, "_get_executor", return_value=_CountingExecutor()),
+        mock.patch.object(mod, "_call_backend", return_value=_fake_reply()),
+        mock.patch.object(mod, "_build_context", side_effect=_rendezvous_build_context),
+    ):
+        t1 = threading.Thread(target=_worker)
+        t2 = threading.Thread(target=_worker)
+        t1.start()
+        t2.start()
+        t1.join(timeout=10)
+        t2.join(timeout=10)
+
+    assert not errors, f"workers raised: {errors!r}"
+    assert sum(submits) == 1, (
+        f"concurrent same-key dispatch must submit exactly one backend "
+        f"call (the lock serializes check+publish); got {sum(submits)}"
+    )
+    assert len(mod._FUTURES) == 1
+
+
 def test_log_to_audit_swallows_audit_ledger_failure(stub_st):
     """If `AuditLedger.append_to_run_dir` raises, the helper must
     swallow — never break the page."""
@@ -547,27 +877,31 @@ def test_ollama_build_prompt_truncates_oversized_section_data():
 
 
 # ---------------------------------------------------------------------------
-# UX — visible spinner during the LLM call
+# UX — non-blocking placeholder on first paint (NOT a blocking spinner)
 # ---------------------------------------------------------------------------
 
 
-def test_spinner_renders_during_backend_call(stub_st):
-    """The synchronous LLM call is wrapped in st.spinner so the page
-    doesn't appear to hang. The spinner label names the backend so the
-    operator can sanity-check what's running."""
+def test_placeholder_renders_and_does_not_block(stub_st):
+    """First paint must NOT use `st.spinner` (which blocks the whole
+    script ~2-3 sec). It dispatches to the background pool and renders
+    a lightweight non-blocking `st.caption` placeholder instead — the
+    page stays interactive at t=0. This is the core 'do not make the
+    user wait' contract."""
     from aml_framework.dashboard import section_explainer as mod
 
     fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
 
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_log_to_audit"),
         mock.patch("aml_framework.assistant.factory.get_assistant", return_value=fake_assistant),
     ):
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
-    assert stub_st.spinner_calls, "expected st.spinner() during the backend call"
-    label, _ = stub_st.spinner_calls[0]
-    assert "Generating explanation" in label
-    assert "template" in label.lower() or "ollama" in label.lower()
+
+    assert not stub_st.spinner_calls, "first paint must NOT block on st.spinner"
+    assert any("Generating explanation" in c for c in stub_st.caption_calls), (
+        "expected a non-blocking '⟳ Generating explanation…' caption placeholder"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -591,6 +925,7 @@ def test_complexity_fast_uses_fast_model(stub_st, monkeypatch):
         return _fake_reply()
 
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", side_effect=fake_call),
         mock.patch.object(mod, "_log_to_audit"),
     ):
@@ -620,6 +955,7 @@ def test_complexity_deep_uses_deep_model(stub_st, monkeypatch):
         return _fake_reply()
 
     with (
+        _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", side_effect=fake_call),
         mock.patch.object(mod, "_log_to_audit"),
     ):
@@ -754,10 +1090,95 @@ def test_template_backend_accepts_model_kwarg_end_to_end(stub_st, monkeypatch):
     from aml_framework.dashboard import section_explainer as mod
 
     monkeypatch.setenv("AML_AI_BACKEND", "template")
-    with mock.patch.object(mod, "_log_to_audit"):
+    with _sync_exec(mod), mock.patch.object(mod, "_log_to_audit"):
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        mod._promote_resolved()
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
 
     # No error banner — the template backend handled the request.
     assert not stub_st.error_calls, f"template backend should not error; got: {stub_st.error_calls}"
     # And a reply was cached.
     assert mod._cache_key("P", "s", None, mod._data_hash({"v": 1})) in mod._PROCESS_CACHE
+
+
+# ---------------------------------------------------------------------------
+# Coverage of residual branches (CI enforces --cov-fail-under=99)
+# ---------------------------------------------------------------------------
+
+
+def test_cache_get_legacy_session_state_fallback(stub_st):
+    """`_cache_get` falls back to the legacy `st.session_state`
+    cache when `_PROCESS_CACHE` misses — kept for tests/older code
+    that seed the session-scoped dict directly."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    key = ("P", "s", "", mod._data_hash({"v": 1}))
+    reply = _fake_reply(text="from-session")
+    stub_st.session_state[mod._CACHE_KEY] = {key: reply}
+    # _PROCESS_CACHE is empty (autouse fixture clears it) → fallback.
+    got = mod._cache_get("P", "s", None, mod._data_hash({"v": 1}))
+    assert got is reply
+
+
+def test_log_to_audit_defaults_audit_mode_when_explicit_run_dir(stub_st):
+    """Explicit `run_dir` + `audit_mode=None` (e.g. a snapshot that
+    captured no spec) defaults to `hash_only` rather than crashing or
+    leaking full text."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    captured: dict = {}
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+        side_effect=lambda _rd, row, jsonl_name=None: captured.update(row=row),
+    ):
+        mod._log_to_audit(
+            _fake_reply(),
+            section_id="s",
+            section_title="t",
+            run_dir="/runs/x",
+            audit_mode=None,
+        )
+    # hash_only (the default) → reply text is hashed, not embedded.
+    assert "reply_text" not in captured["row"]
+    assert "reply_text_hash" in captured["row"]
+
+
+def test_log_failure_to_audit_swallows_write_error(stub_st):
+    """A failure-audit write that itself raises must be swallowed
+    (best-effort, page never breaks) but logged as a WARNING so a
+    dropped compliance row is detectable."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    with (
+        mock.patch(
+            "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+            side_effect=PermissionError("read-only fs"),
+        ),
+        mock.patch.object(mod._LOG, "warning") as warn,
+    ):
+        mod._log_failure_to_audit(
+            RuntimeError("boom"),
+            section_id="s",
+            section_title="t",
+            run_dir="/runs/x",
+            backend="ollama",
+            model="m",
+        )  # no exception = swallowed
+    assert warn.called
+
+
+def test_promote_resolved_skips_not_done_future(stub_st):
+    """A future still in flight is left in `_FUTURES` (not claimed),
+    so the poller keeps polling it on the next tick."""
+    import concurrent.futures
+
+    from aml_framework.dashboard import section_explainer as mod
+
+    pending: concurrent.futures.Future = concurrent.futures.Future()  # never resolved
+    key = ("P", "s", "", mod._data_hash({"v": 1}))
+    mod._FUTURES[key] = pending
+    mod._FUTURE_META[key] = {"section_title": "t", "run_dir": "/runs/x"}
+
+    assert mod._promote_resolved() is False
+    assert key in mod._FUTURES  # untouched — still pending
+    pending.cancel()

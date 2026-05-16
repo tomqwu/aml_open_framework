@@ -154,7 +154,8 @@ def browser_page(dashboard_server):
             "console",
             lambda msg: page.console_errors.append(msg.text) if msg.type == "error" else None,
         )
-        page.goto(dashboard_server, wait_until="networkidle", timeout=60000)
+        page.goto(dashboard_server, wait_until="domcontentloaded", timeout=60000)
+        _await_shell(page, timeout=60000)
         page.wait_for_timeout(10000)  # Let the engine run on first load.
         yield page
         browser.close()
@@ -199,6 +200,24 @@ _PAGE_TO_SECTION: dict[str, str] = {
 }
 
 
+def _await_shell(page, timeout: int = 30000) -> None:
+    """Wait for the page shell to paint — the deterministic readiness
+    signal for a Streamlit page.
+
+    Replaces `wait_until="networkidle"`. The section-explanation poller
+    (`render_explainer_poller`) runs an `st.fragment(run_every="1.2s")`
+    while LLM calls are in flight, so the page is NEVER network-idle
+    until every AI box resolves — `networkidle` waits would time out
+    (this is exactly the regression that forced PR #306 to revert the
+    earlier async attempt). The page hero `<h1>` (emitted by
+    `page_header()` via `st.markdown(f"# {title}")`, rendered BEFORE
+    any `section_explainer` call) is a stable AI-independent anchor.
+    The existing per-call `wait_for_timeout(...)` budgets still give
+    the async AI reply time to land for content assertions.
+    """
+    page.wait_for_selector("[data-testid='stHeading'], h1", state="visible", timeout=timeout)
+
+
 def _navigate(page, title: str) -> None:
     """Navigate to a page by URL — bypasses the sidebar entirely.
 
@@ -216,7 +235,8 @@ def _navigate(page, title: str) -> None:
       - No state leakage from prior tests' nav expansion
     """
     slug = title.replace(" & ", "_").replace(" ", "_")
-    page.goto(f"http://localhost:{PORT}/{slug}", wait_until="networkidle", timeout=30000)
+    page.goto(f"http://localhost:{PORT}/{slug}", wait_until="domcontentloaded", timeout=30000)
+    _await_shell(page)
     page.wait_for_timeout(3500)
 
 
@@ -415,8 +435,9 @@ class TestLiveMonitor:
     def test_live_monitor_renders(self, browser_page, dashboard_server):
         # Navigate directly via URL since it may be behind "View more".
         browser_page.goto(
-            f"{dashboard_server}/Live_Monitor", wait_until="networkidle", timeout=30000
+            f"{dashboard_server}/Live_Monitor", wait_until="domcontentloaded", timeout=30000
         )
+        _await_shell(browser_page)
         browser_page.wait_for_timeout(4000)
         text = browser_page.inner_text("body")
         assert "Live Monitor" in text or "Start Monitoring" in text or "screening rules" in text
@@ -451,7 +472,8 @@ class TestSidebarCollapseExpand:
 
     def test_collapse_then_reopen_round_trip(self, browser_page):
         # Reset to a known state by reloading the dashboard root.
-        browser_page.goto(browser_page.url, wait_until="networkidle", timeout=30000)
+        browser_page.goto(browser_page.url, wait_until="domcontentloaded", timeout=30000)
+        _await_shell(browser_page)
         browser_page.wait_for_timeout(2000)
         collapse = browser_page.locator("[data-testid='stSidebarCollapseButton']").first
         assert collapse.count() > 0, (
@@ -507,7 +529,8 @@ class TestPersonaCoverage:
         # specific personas fail intermittently without this reset).
         # A fresh `goto /` re-runs Streamlit's main, restoring the
         # persona selectbox to its default-clickable state.
-        browser_page.goto(f"http://localhost:{PORT}/", wait_until="networkidle", timeout=30000)
+        browser_page.goto(f"http://localhost:{PORT}/", wait_until="domcontentloaded", timeout=30000)
+        _await_shell(browser_page)
         browser_page.wait_for_timeout(2000)
         _select_persona(browser_page, persona_label)
         for page_title in _persona_smoke_pages(persona_code):
@@ -528,7 +551,8 @@ class TestExecutiveDashboardDrillDowns:
 
     def test_drill_downs_render_for_default_persona(self, browser_page):
         # Reset to default ("All pages" — every page in nav).
-        browser_page.goto(browser_page.url, wait_until="networkidle", timeout=30000)
+        browser_page.goto(browser_page.url, wait_until="domcontentloaded", timeout=30000)
+        _await_shell(browser_page)
         browser_page.wait_for_timeout(3000)
         _navigate(browser_page, "Executive Dashboard")
         # No exception should fire; drill-down links to Alert Queue +

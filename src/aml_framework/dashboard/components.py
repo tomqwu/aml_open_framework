@@ -817,6 +817,27 @@ def page_header(title: str, description: str | None = None) -> None:
         ai_panel_fab(page=title)
     except Exception:  # noqa: BLE001 — same crash protection
         pass
+    # Mount the section-explanation poller ONCE per page (not once per
+    # section_explainer call). It drains resolved futures and reruns so
+    # each AI box auto-fills without the user waiting or clicking.
+    #
+    # Mounted UNCONDITIONALLY, not gated on "is anything pending": this
+    # function runs at the TOP of the page (it renders the hero),
+    # BEFORE any `section_explainer()` call further down the script. On
+    # first paint no future exists yet, so a `has_pending()` gate would
+    # skip the mount, nothing would ever call `st.rerun()`, and the
+    # background reply would never surface (the exact #304 failure).
+    # The fragment body is a no-op when `_FUTURES` is empty — a cheap
+    # ~1.2 s partial rerun over an empty dict — so always-on is fine.
+    # The e2e suite was moved off `networkidle` precisely because this
+    # tick keeps the page non-idle by design. Same crash-isolation
+    # contract as the assistant panels above.
+    try:
+        from aml_framework.dashboard.section_explainer import render_explainer_poller
+
+        render_explainer_poller()
+    except Exception:  # noqa: BLE001 — poller must NEVER crash a page render
+        pass
 
 
 def research_link(label: str, doc_path: str, anchor: str | None = None) -> str:
@@ -1807,7 +1828,16 @@ def ai_panel(*, page: str) -> None:
             st.caption("⚠️ PII may be transmitted to OpenAI. Use `ollama` for on-prem inference.")
 
         if st.button("Ask", key=f"ai_ask_{page}", use_container_width=True):
-            _handle_ai_submission(page=page, question=question, backend_name=backend_name)
+            # Click-initiated, so a BLOCKING spinner here is correct
+            # (unlike the inline auto-fire which must stay non-blocking):
+            # the operator explicitly asked and is waiting for THIS
+            # answer. Without it the page just looks frozen while the
+            # synchronous backend call runs. Streamlit also can't
+            # re-trigger the button mid-call (the script is busy), so
+            # the spinner doubles as the "thinking / don't double-click"
+            # affordance.
+            with st.spinner("Thinking…"):
+                _handle_ai_submission(page=page, question=question, backend_name=backend_name)
 
         # Last reply on this page (one-shot Q&A in MVP — no multi-turn).
         last_reply = st.session_state["ai_transcript"].get(page)
@@ -1925,7 +1955,12 @@ def ai_panel_fab(*, page: str) -> None:
                 st.caption("⚠️ PII may be transmitted to OpenAI.")
 
             if st.button("Ask", key=f"ai_ask_fab_{page}", type="primary"):
-                _handle_ai_submission(page=page, question=question, backend_name=backend_name)
+                # Same blocking-spinner rationale as the sidebar ai_panel
+                # Ask button: click-initiated, operator is waiting for
+                # this specific answer; the spinner is the "thinking"
+                # affordance while the synchronous backend call runs.
+                with st.spinner("Thinking…"):
+                    _handle_ai_submission(page=page, question=question, backend_name=backend_name)
 
             last_reply = st.session_state["ai_transcript"].get(page)
             if last_reply is not None:

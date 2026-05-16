@@ -82,7 +82,13 @@ def _open_mobile_page(playwright, dashboard_url: str, viewport: dict[str, int]):
     except Exception:
         pytest.skip("Chromium not installed — run: python -m playwright install chromium")
     page = browser.new_page(viewport=viewport)
-    page.goto(dashboard_url, wait_until="networkidle", timeout=60000)
+    # `domcontentloaded` + shell-selector wait, NOT `networkidle`: the
+    # section-explanation poller runs an `st.fragment(run_every=...)`
+    # while LLM calls are in flight, so the page is never network-idle
+    # until every AI box resolves. The page hero `<h1>` paints before
+    # any section_explainer call and is the stable readiness anchor.
+    page.goto(dashboard_url, wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_selector("[data-testid='stHeading'], h1", state="visible", timeout=60000)
     page.wait_for_timeout(10000)  # Engine warm-up on first load.
     return browser, page
 
