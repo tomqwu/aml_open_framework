@@ -1,8 +1,8 @@
 # Regulator Pulse: AML / Sanctions Events, 2026-02-01 → 2026-05-08
 
-This is a CCO/MLRO-facing chronological log of AML, sanctions, and BSA-related regulator actions published between 2026-02-01 and 2026-05-08 (97 days, 31 events). Every event below cites the regulator’s primary source — press releases, signed orders, Federal Register notices, Council of the EU press corner, FATF outcomes, FCA final notices, FINTRAC public-notice pages. Industry briefings were used only as navigation aids; they are not cited here. Each entry states what an MLRO needs to do or know differently because of the action — not generic awareness language.
+This is a CCO/MLRO-facing chronological log of AML, sanctions, and BSA-related regulator actions published between 2026-02-01 and 2026-05-08 (97 days, 32 events). Every event below cites the regulator’s primary source — press releases, signed orders, Federal Register notices, Council of the EU press corner, FATF outcomes, FCA final notices, FINTRAC public-notice pages. Industry briefings were used only as navigation aids; they are not cited here. Each entry states what an MLRO needs to do or know differently because of the action — not generic awareness language.
 
-The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rules, SR 26-2, AMLA’s first wave of CDD/sanctions RTS consultations (two of which closed on the final day of this window, 2026-05-08), the FATF grey-listing of Kuwait and Papua New Guinea, FinCEN’s first Section 311 action in three years, and the EU’s 20th Russia sanctions package all landed inside the window. Five active deadlines extend into June–July 2026; see the Forward Calendar section.
+The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rules, SR 26-2, the first-ever mandatory sanctions compliance program for stablecoin issuers under the GENIUS Act, AMLA’s first wave of CDD/sanctions RTS consultations (two of which closed on the final day of this window, 2026-05-08), the FATF grey-listing of Kuwait and Papua New Guinea, FinCEN’s first Section 311 action in three years, and the EU’s 20th Russia sanctions package all landed inside the window. Five active deadlines extend into June–July 2026; see the Forward Calendar section.
 
 ---
 
@@ -40,7 +40,7 @@ The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rule
 
 ---
 
-## 2. FinCEN — Effectiveness Rule, Section 311, GTOs, Whistleblower
+## 2. FinCEN — Effectiveness Rule, GENIUS Act, Section 311, GTOs, Whistleblower
 
 ### 2026-02-13 · FinCEN — Launches public Whistleblower webpage
 
@@ -78,6 +78,12 @@ The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rule
 **What changed for AML buyers** (2-3 sentences): A documented enterprise-wide AML/CFT risk assessment becomes a pillar (not just expected practice), and FinCEN national priorities must be incorporated into the program; “effectiveness” is split into (1) program established and (2) program maintained, distinguishing technical from systemic failure. MLROs should kick off a gap analysis now — **comments are due 2026-06-09** and the proposed implementation period is 12 months after a final rule. Expected final rule late 2026 / early 2027 — see the Forward Calendar.
 **Source:** [Federal Register notice 2026-07033, published 2026-04-10](https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs) · [FinCEN Fact Sheet PDF](https://www.fincen.gov/system/files/2026-04/Program-NPRM-FactSheet.pdf) · [Key Changes summary PDF](https://www.fincen.gov/system/files/2026-04/Key-Changes-Program-NPRM.pdf) · [OCC Bulletin 2026-11](https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-11.html) · [Joint OCC/FDIC/NCUA news release NR-IA-2026-25](https://www.occ.gov/news-issuances/news-releases/2026/nr-ia-2026-25.html)
 
+### 2026-04-08 · FinCEN + OFAC — GENIUS Act NPRM: Permitted Payment Stablecoin Issuers required to maintain AML/CFT and sanctions programs
+
+**What it is** (1 sentence): FinCEN and OFAC jointly published a Notice of Proposed Rulemaking implementing the GENIUS Act’s directive to treat permitted payment stablecoin issuers (PPSIs) as financial institutions under the Bank Secrecy Act, and for the first time imposing a mandatory, legally-binding sanctions compliance program obligation on a defined category of payment-system participants under new 31 CFR Part 502.
+**What changed for AML buyers** (2-3 sentences): PPSIs must establish full BSA-program equivalents — risk-based internal policies, independent testing, designated AML/CFT officer, ongoing training, and CDD — alongside a mandatory OFAC-specific sanctions compliance program. Banks sponsoring or providing correspondent services to PPSIs must update their BSA/AML third-party risk assessments: the rule makes PPSI AML/CFT posture a regulatory exposure for the sponsoring bank, not just the PPSI. Comments due 2026-06-09 — the same deadline as the Effectiveness NPRM, compressing the industry’s comment bandwidth.
+**Source:** [Treasury Press Release SB0435](https://home.treasury.gov/news/press-releases/sb0435) · [Federal Register 2026-06963, published 2026-04-10](https://www.federalregister.gov/documents/2026/04/10/2026-06963/permitted-payment-stablecoin-issuer-anti-money-launderingcountering-the-financing-of-terrorism) · [FinCEN PPSI NPRM PDF](https://www.fincen.gov/system/files/2026-04/PPSI-AMLCFT-NPRM.pdf)
+
 ---
 
 ## 3. EU AMLA — Single Rulebook in Motion
@@ -85,7 +91,7 @@ The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rule
 ### 2026-02-09 · AMLA — Three draft RTS consultations open (CDD, occasional/linked transactions, pecuniary sanctions)
 
 **What it is** (1 sentence): AMLA opened simultaneous public consultations on three core draft RTS implementing AMLR Articles 28(1) and 19(9) and AMLD6 Article 53(10).
-**What changed for AML buyers** (2-3 sentences): The CDD RTS sets EU-wide minimum data points and verification methods that will replace each member-state’s local list — non-EU firms with EU subsidiaries must align before AMLR application date 2027-07-10. The pecuniary-sanctions RTS will determine how breaches are scored across member states, ending the current dispersion in fine levels; CDD consultation closed 2026-03-09, the other two closed 2026-05-08 (today), and AMLA must submit final drafts to the Commission by 2026-07-10.
+**What changed for AML buyers** (2-3 sentences): The CDD RTS sets EU-wide minimum data points and verification methods that will replace each member-state’s local list — non-EU firms with EU subsidiaries must align before AMLR application date 2027-07-10. The pecuniary-sanctions RTS will determine how breaches are scored across member states, ending the current dispersion in fine levels; CDD consultation closed 2026-03-09, the other two closed 2026-05-08, and AMLA must submit final drafts to the Commission by 2026-07-10.
 **Source:** [AMLA consultation: CDD RTS](https://www.amla.europa.eu/policy/public-consultations/consultation-draft-rts-customer-due-diligence_en) · [AMLA consultation: Business relationships and linked transactions](https://www.amla.europa.eu/policy/public-consultations/consultation-draft-rts-criteria-identifying-business-relationships-occasional-and-linked_en) · [AMLA consultation: Pecuniary sanctions and administrative measures](https://www.amla.europa.eu/policy/public-consultations/consultation-draft-rts-pecuniary-sanctions-administrative-measures-and-periodic-penalty-payments_en)
 
 ### 2026-03 · AMLA — Data-collection exercise begins for direct-supervision selection methodology
@@ -260,13 +266,13 @@ Regulatory actions confirmed in the 97-day window that continue to generate comp
 **Action required:** Compliance teams should review their internal reporting channel KPIs before the rule finalises. A strong external whistleblower incentive makes the adequacy of internal escalation — and the audit ledger’s coverage of internal reports — a front-line regulatory concern.
 **Source:** [Federal Register: Whistleblower Incentives & Protections](https://www.federalregister.gov/documents/2026/04/01/2026-06271/whistleblower-incentives-and-protections)
 
-### 2026-06-09 · FinCEN + OCC + FDIC + NCUA — Effectiveness NPRM comment deadline
+### 2026-06-09 · FinCEN + OCC + FDIC + NCUA + OFAC — Effectiveness NPRM and GENIUS Act stablecoin NPRM comment deadlines (same day)
 
-**What it is:** The April 7 joint NPRM reframing the BSA program rule around an explicit “effective, risk-based, reasonably designed” standard closes for public comment on 2026-06-09. The proposed implementation period is 12 months after a final rule.
-**Action required:** MLROs who have not mapped their BRA to the current FinCEN national priorities list (published February 2024) should do so before the final rule drops. The comment window is the right moment to push back on implementation-period length or request clarification on how “effectiveness” will be measured in a multi-system AML environment.
-**Source:** [Federal Register 2026-07033](https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs) · [FinCEN Fact Sheet PDF](https://www.fincen.gov/system/files/2026-04/Program-NPRM-FactSheet.pdf)
+**What it is:** Both the April 7 joint AML/CFT Program NPRM and the April 8 GENIUS Act stablecoin NPRM share a comment deadline of 2026-06-09.
+**Action required:** MLROs should complete gap analyses against both NPRMs before June 9. The concurrent deadline compresses industry comment bandwidth — firms with stablecoin custody or correspondent relationships face dual exposure. The Effectiveness Rule’s 12-month implementation period starts at the final rule; GENIUS Act implementation timing will be set separately.
+**Source:** [Federal Register 2026-07033 (Effectiveness NPRM)](https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs) · [Federal Register 2026-06963 (GENIUS Act NPRM)](https://www.federalregister.gov/documents/2026/04/10/2026-06963/permitted-payment-stablecoin-issuer-anti-money-launderingcountering-the-financing-of-terrorism)
 
-### 2026-07-01 · AUSTRAC — Tranche 2 enforcement begins for DNFBPs
+### 2026-07-01 · AUSTRAC — Tranche 2 enforcement begins for Australian DNFBPs
 
 **What it is:** AUSTRAC’s Tranche 2 reform brings lawyers, accountants, real-estate agents, and dealers in precious metals and stones under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs enforceable from 2026-07-01.
 **Action required:** Australian DNFBPs must be enrolled and have a documented, board-approved program before July 1. AUSTRAC’s stated posture favours enforceable undertakings over fines in the first cycle — but only for firms with documented, good-faith compliance efforts.
@@ -282,13 +288,13 @@ Regulatory actions confirmed in the 97-day window that continue to generate comp
 
 ## Themes (97 days: 2026-02-01 → 2026-05-08)
 
-**1. Enforcement softens, rulemaking accelerates.** New BSA/AML cease-and-desist orders are absent from OCC’s Feb–Mar releases, while the FinCEN/OCC/FDIC/NCUA joint Effectiveness NPRM, the SR 26-2 model-risk rewrite, and the reputation-risk final rule represent the largest US AML-program reset since the AMLA 2020. The Treasury narrative (“stop measuring paperwork”) is consistent across all four federal agencies.
+**1. Enforcement softens, rulemaking accelerates.** New BSA/AML cease-and-desist orders are absent from OCC’s Feb–Mar releases, while the FinCEN/OCC/FDIC/NCUA joint Effectiveness NPRM, the SR 26-2 model-risk rewrite, the reputation-risk final rule, and the GENIUS Act stablecoin NPRM represent the largest US AML-program reset since the AMLA 2020. The Treasury narrative (“stop measuring paperwork”) is consistent across all four federal agencies.
 
 **2. Models are now first-class compliance citizens.** SR 26-2 collapsed the BSA/AML-specific model-risk regime (SR 21-8) into the general MRM framework. Combined with the Effectiveness NPRM’s emphasis on documented, risk-based program design, examiners will expect a model inventory that treats TM, sanctions screening, name-matching, and CDD scoring identically to credit and market models.
 
-**3. Sanctions reach deeper into crypto and correspondent banking.** OFAC’s Iran “Economic Fury” actions and the EU’s 20th-package crypto-sector ban represent a structural shift: CASP-level transaction prohibitions, RUBx and CBDC bans, and Section 311 against MBaer all extend sanctions into the rails AML programs depend on. Correspondent-bank EDD frameworks need a Section 311 control, and crypto VASPs need a Russia-sectoral block.
+**3. Sanctions reach deeper into crypto and correspondent banking.** OFAC’s Iran “Economic Fury” actions, the GENIUS Act mandating OFAC sanctions programs for stablecoin issuers, and the EU’s 20th-package crypto-sector ban represent a structural shift: CASP-level transaction prohibitions, RUBx and CBDC bans, and Section 311 against MBaer all extend sanctions into the rails AML programs depend on. Correspondent-bank EDD frameworks need a Section 311 control, and crypto VASPs need a Russia-sectoral block.
 
-**4. EU AMLA shifts from talking to building.** Three RTS consultations, two final reports, and the data-collection-for-selection exercise all happened inside ten weeks. Two consultation periods closed on the final day of this window (2026-05-08); by 2026-07-10, AMLA must submit all final RTS to the Commission. Obliged entities operating in 6+ member states should treat 2026 H2 as the last preparation window before AMLA’s 2027 selection of its first 40 directly-supervised firms.
+**4. EU AMLA shifts from talking to building.** Three RTS consultations, two final reports, and the data-collection-for-selection exercise all happened inside fourteen weeks. Two consultation periods closed on the final day of this window (2026-05-08); by 2026-07-10, AMLA must submit all final RTS to the Commission. Obliged entities operating in 6+ member states should treat 2026 H2 as the last preparation window before AMLA’s 2027 selection of its first 40 directly-supervised firms.
 
 ---
 
