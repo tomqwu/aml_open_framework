@@ -257,6 +257,61 @@ class TestRegwatchNotification:
         assert "cite_4" in body
         assert "cite_5" not in body  # truncated
 
+    @patch("urllib.request.urlopen")
+    def test_summary_includes_unreachable_new_and_removed_lines(self, mock_urlopen):
+        """A report with only unreachable / new / removed findings (no
+        drifted) must still notify, and the summary must enumerate each
+        category count (notifications.py:117,119,121)."""
+        from aml_framework.integrations import notifications
+        from aml_framework.integrations.notifications import notify_regwatch_drift
+
+        report = {
+            "drifted": [],
+            "unreachable": [{"citation": "31 CFR 1020.220"}, {"citation": "x"}],
+            "new": [{"citation": "FATF R.16"}],
+            "removed": [
+                {"citation": "old_a"},
+                {"citation": "old_b"},
+                {"citation": "old_c"},
+            ],
+            "unchanged_count": 1,
+        }
+        with patch.object(notifications, "_SLACK_URL", "https://hooks.slack.com/test"):
+            notify_regwatch_drift(report)
+
+        body = mock_urlopen.call_args[0][0].data.decode("utf-8")
+        assert "2 unreachable" in body
+        assert "1 new" in body
+        assert "3 removed" in body
+
+    @patch("urllib.request.urlopen")
+    def test_teams_webhook_receives_drift_summary(self, mock_urlopen):
+        """When only the Teams webhook is configured, the drift summary
+        goes out via the Teams adaptive-card path
+        (notifications.py:128)."""
+        from aml_framework.integrations import notifications
+        from aml_framework.integrations.notifications import notify_regwatch_drift
+
+        report = {
+            "drifted": [{"citation": "31 CFR 1010.230", "url": "https://x"}],
+            "unreachable": [],
+            "new": [],
+            "removed": [],
+            "unchanged_count": 0,
+        }
+        with (
+            patch.object(notifications, "_SLACK_URL", ""),
+            patch.object(notifications, "_TEAMS_URL", "https://outlook.webhook.test"),
+        ):
+            notify_regwatch_drift(report)
+
+        mock_urlopen.assert_called_once()
+        # Teams path wraps the text in an adaptive card.
+        body = mock_urlopen.call_args[0][0].data.decode("utf-8")
+        assert "AdaptiveCard" in body
+        assert "Regulator Drift Detected" in body
+        assert "31 CFR 1010.230" in body
+
     @patch("urllib.request.urlopen", side_effect=Exception("fail"))
     def test_teams_failure_doesnt_raise(self, mock_urlopen):
         from aml_framework.integrations import notifications

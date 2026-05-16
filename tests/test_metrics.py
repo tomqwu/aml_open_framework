@@ -550,3 +550,88 @@ def test_repeat_alert_proxy_with_decisions():
     formula = SQLFormula(type="sql", sql="SELECT repeat_closed FROM closed_cases")
     result = _compute_sql_proxy(formula, ctx)
     assert result >= 0.0
+
+
+# ---------------------------------------------------------------------------
+# _proxy_filing_latency — real-latency path edge cases (PR-DATA-9)
+# ---------------------------------------------------------------------------
+
+
+class TestProxyFilingLatencyEdgeCases:
+    """When a run_dir with filing sidecars is present, the metric uses
+    wall-clock latency. Two defensive branches:
+
+      - a `case_opened` decision whose `ts` is a string but not
+        ISO-8601 (corrupt/legacy ledger) must be skipped, not crash
+        (engine.py:225-226);
+      - a filing whose case has no `case_opened` decision must be
+        skipped so it doesn't contribute a bogus latency
+        (engine.py:230).
+    """
+
+    def test_bad_ts_and_orphan_filing_are_skipped(self, tmp_path):
+        from datetime import datetime, timezone
+
+        from aml_framework.cases.filing import record_filing
+        from aml_framework.metrics.engine import _proxy_filing_latency
+
+        run_dir = tmp_path / "run-1"
+        run_dir.mkdir()
+
+        opened_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
+        # Case A: has a *valid* case_opened + a filing 4 days later ->
+        # this is the only record that should drive the metric.
+        record_filing(run_dir, "caseA", filed_at=opened_at.replace(day=5), channel="bsa_e_filing")
+        # Case C: filed but never opened -> orphan, skipped (230).
+        record_filing(run_dir, "caseC", filed_at=opened_at.replace(day=9), channel="bsa_e_filing")
+
+        decisions = [
+            {"event": "case_opened", "case_id": "caseA", "ts": opened_at.isoformat()},
+            # caseB: ts is a string but unparseable -> dropped (225-226).
+            {"event": "case_opened", "case_id": "caseB", "ts": "NOT-A-TIMESTAMP"},
+            # caseC intentionally has NO case_opened decision.
+        ]
+        ctx = MetricContext(
+            spec=load_spec(SPEC_CA),
+            alerts={},
+            cases=[],
+            decisions=decisions,
+            data={},
+            run_dir=run_dir,
+        )
+
+        value = _proxy_filing_latency(ctx)
+        # Only caseA contributes: opened day 1, filed day 5 -> 4 days.
+        assert value == 4.0
+
+    def test_ts_not_a_string_does_not_register_open(self, tmp_path):
+        """A `case_opened` decision whose `ts` isn't a str at all is
+        ignored (the `isinstance(ts_raw, str)` guard), so its filing
+        becomes an orphan and is skipped — metric falls back to the
+        proxy and stays >= 0."""
+        from datetime import datetime, timezone
+
+        from aml_framework.cases.filing import record_filing
+        from aml_framework.metrics.engine import _proxy_filing_latency
+
+        run_dir = tmp_path / "run-2"
+        run_dir.mkdir()
+        record_filing(
+            run_dir,
+            "caseX",
+            filed_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
+            channel="bsa_e_filing",
+        )
+        decisions = [
+            {"event": "case_opened", "case_id": "caseX", "ts": 1700000000},
+        ]
+        ctx = MetricContext(
+            spec=load_spec(SPEC_CA),
+            alerts={},
+            cases=[],
+            decisions=decisions,
+            data={},
+            run_dir=run_dir,
+        )
+        # No usable real latency -> proxy fallback, non-negative.
+        assert _proxy_filing_latency(ctx) >= 0.0
