@@ -397,16 +397,55 @@ def test_promote_resolved_audits_exactly_once(stub_st):
     assert audit.call_count == 1, "reply must be audited exactly once"
 
 
-def test_promote_resolved_routes_exception_to_failed(stub_st):
-    """A worker exception is captured into `_FAILED` (not cached, not
-    audited). The key is removed from `_FUTURES` so the poller unmounts."""
+def test_audit_attributed_to_dispatching_session_run_dir(stub_st):
+    """The audit entry must land in the run_dir of the session that
+    ASKED, not whichever session's poller drains the future. run_dir is
+    per-session `st.session_state`; any replica poller can drain any
+    global future. We snapshot run_dir at dispatch into `_FUTURE_META`
+    and pass it explicitly to `_log_to_audit`. Simulate: dispatch with
+    session A's run_dir, then a different session (run_dir B) drains."""
     from aml_framework.dashboard import section_explainer as mod
 
-    audit = mock.MagicMock()
+    captured: dict = {}
+
+    def fake_log(reply, *, section_id, section_title, run_dir=None, audit_mode=None):
+        captured["run_dir"] = run_dir
+
+    stub_st.session_state["run_dir"] = "/runs/session-A"
+    stub_st.session_state["spec"] = SimpleNamespace(
+        program=SimpleNamespace(ai_audit_log="hash_only")
+    )
+    with (
+        _sync_exec(mod),
+        mock.patch.object(mod, "_call_backend", return_value=_fake_reply()),
+        mock.patch.object(mod, "_log_to_audit", side_effect=fake_log),
+    ):
+        mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
+        # A different session drains (its state points elsewhere).
+        stub_st.session_state["run_dir"] = "/runs/session-B"
+        mod._promote_resolved()
+
+    assert captured["run_dir"] == "/runs/session-A", (
+        "audit must use the dispatch-time run_dir of the asking session, "
+        f"not the draining session's; got {captured['run_dir']!r}"
+    )
+
+
+def test_promote_resolved_routes_exception_to_failed(stub_st):
+    """A worker exception is captured into `_FAILED` (not cached, not
+    success-audited). It IS recorded as a distinct failure audit event
+    — a compliance framework must prove the AI was *asked* and did not
+    answer, not just log successes. The key is removed from `_FUTURES`
+    so the poller stops re-promoting it."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    success_audit = mock.MagicMock()
+    failure_audit = mock.MagicMock()
     with (
         _sync_exec(mod),
         mock.patch.object(mod, "_call_backend", side_effect=RuntimeError("model 'x' not found")),
-        mock.patch.object(mod, "_log_to_audit", side_effect=audit),
+        mock.patch.object(mod, "_log_to_audit", side_effect=success_audit),
+        mock.patch.object(mod, "_log_failure_to_audit", side_effect=failure_audit),
     ):
         mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
         mod._promote_resolved()
@@ -414,7 +453,13 @@ def test_promote_resolved_routes_exception_to_failed(stub_st):
     assert key in mod._FAILED
     assert key not in mod._PROCESS_CACHE
     assert not mod.section_explainer_has_pending()
-    assert audit.call_count == 0
+    # Success audit NOT called; failure audit called exactly once with
+    # the section + the underlying error.
+    assert success_audit.call_count == 0
+    assert failure_audit.call_count == 1
+    _, kw = failure_audit.call_args
+    assert kw["section_id"] == "s"
+    assert "model 'x' not found" in str(failure_audit.call_args[0][0])
 
 
 # NOTE: `render_explainer_poller` itself is a 2-line `@st.fragment`
