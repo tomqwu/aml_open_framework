@@ -46,12 +46,17 @@ from __future__ import annotations
 import concurrent.futures
 import hashlib
 import json
+import logging
 import os
 import threading
 from collections.abc import Mapping
 from typing import Any, Literal
 
 import streamlit as st
+
+# Audit-write failures are best-effort (must never break the page) but
+# NOT silent — a compliance ledger needs dropped rows to be detectable.
+_LOG = logging.getLogger("aml.dashboard")
 
 # Default model identifiers for the two complexity tiers. Operators
 # override via `AML_OLLAMA_MODEL_FAST` / `AML_OLLAMA_MODEL_DEEP` env
@@ -313,7 +318,15 @@ def _log_to_audit(
             {"event": "ai_section_explanation", **row},
             jsonl_name="ai_interactions.jsonl",
         )
-    except Exception:  # noqa: BLE001
+    except Exception as audit_exc:  # noqa: BLE001
+        # Best-effort: a write failure must never break the page. But a
+        # SILENT loss is weak for a compliance ledger — emit a WARNING
+        # so an operator/log pipeline can detect dropped audit rows.
+        _LOG.warning(
+            "section-explanation audit write failed for %s: %s",
+            section_id,
+            audit_exc,
+        )
         return
 
 
@@ -339,6 +352,15 @@ def _log_failure_to_audit(
         from aml_framework.engine.audit import AuditLedger
 
         if run_dir is None:
+            # No run dir to write to (e.g. dispatched before the engine
+            # initialised). Still surface it so the dropped failure-row
+            # isn't completely silent for a compliance ledger.
+            _LOG.warning(
+                "section-explanation FAILED but no run_dir to audit (section=%s, %s): %s",
+                section_id,
+                type(exc).__name__,
+                exc,
+            )
             return
         AuditLedger.append_to_run_dir(
             Path(run_dir),
@@ -349,11 +371,20 @@ def _log_failure_to_audit(
                 "section_title": section_title,
                 "backend": backend,
                 "model": model,
+                # Class name kept distinct from the message so an
+                # auditor can filter `CancelledError` / `TimeoutError`
+                # / API errors without substring-matching `error`.
+                "error_type": type(exc).__name__,
                 "error": str(exc)[:500],
             },
             jsonl_name="ai_interactions.jsonl",
         )
-    except Exception:  # noqa: BLE001
+    except Exception as audit_exc:  # noqa: BLE001
+        _LOG.warning(
+            "section-explanation failure-audit write failed for %s: %s",
+            section_id,
+            audit_exc,
+        )
         return
 
 
@@ -484,20 +515,29 @@ def section_explainer(
                 # session_state; any replica poller can drain any
                 # global future).
                 ctx_run_dir, ctx_audit_mode = _audit_ctx()
-                _FUTURES[key] = _get_executor().submit(
+                fut = _get_executor().submit(
                     _do_llm_call,
                     question=question,
                     context=context,
                     backend_name=backend_name,
                     model=model,
                 )
-                _FUTURE_META[key] = {
-                    "section_title": section_title,
-                    "backend_name": backend_name,
-                    "model": model or "",
-                    "run_dir": ctx_run_dir,
-                    "audit_mode": ctx_audit_mode,
-                }
+                # Publish meta + future ATOMICALLY under the drain lock,
+                # and meta FIRST. The future can be `.done()` the
+                # instant submit() returns (sync/fast backend); a
+                # poller draining under `_DRAIN_LOCK` must never observe
+                # `_FUTURES[key]` without its `_FUTURE_META[key]` —
+                # otherwise meta={}, run_dir=None, and the audit
+                # mis-attributes (success) or is skipped (failure).
+                with _DRAIN_LOCK:
+                    _FUTURE_META[key] = {
+                        "section_title": section_title,
+                        "backend_name": backend_name,
+                        "model": model or "",
+                        "run_dir": ctx_run_dir,
+                        "audit_mode": ctx_audit_mode,
+                    }
+                    _FUTURES[key] = fut
 
             # Non-blocking placeholder. NOT `st.spinner` (that blocks
             # the script). The poller replaces this on the next rerun.
@@ -527,50 +567,58 @@ def _promote_resolved() -> bool:
     `_log_to_audit` call) or record its exception into `_FAILED` (+ one
     `_log_failure_to_audit`). Returns True if anything resolved.
 
-    Concurrency: the whole drain runs under `_DRAIN_LOCK`, and each
-    future is *claimed* (popped from `_FUTURES`/`_FUTURE_META`) before
-    its result is processed. So when N session pollers tick over the
-    shared globals, exactly one promotes a given future — no duplicate
-    audit entries. Audit destination comes from the dispatch-time
-    snapshot in `_FUTURE_META` (the asking session's run_dir), not the
-    draining session's state. No `st.*` calls — unit-testable without
-    a fragment/run context."""
-    promoted = False
+    Two phases:
+
+    1. **Claim (under `_DRAIN_LOCK`).** Pop each done future +its meta
+       from the shared globals into a local list. Dispatch publishes
+       meta+future under the same lock, so a claimed future ALWAYS has
+       its meta (no run_dir=None mis-attribution). Because the pop is
+       atomic, when N session pollers tick exactly one claims a given
+       future — no duplicate audit entries.
+    2. **Process (lock released).** `fut.result()`, cache, and the
+       audit disk writes happen OUTSIDE the lock — the jsonl append
+       must not serialize every replica poller behind one file handle.
+       Each future is owned by exactly one poller by then, so no
+       further synchronization is needed.
+
+    Audit destination is the dispatch-time snapshot in `_FUTURE_META`
+    (the asking session's run_dir), not the draining session's state.
+    No `st.*` calls — unit-testable without a fragment/run context."""
+    claimed: list[tuple[tuple[str, str, str, str], Any, dict]] = []
     with _DRAIN_LOCK:
         for key in list(_FUTURES.keys()):
             fut = _FUTURES.get(key)
             if fut is None or not fut.done():
                 continue
-            # Claim atomically: pop BEFORE processing so a concurrent
-            # poller can't also pick up this future.
             meta = _FUTURE_META.pop(key, {})
             _FUTURES.pop(key, None)
-            run_dir = meta.get("run_dir")
-            try:
-                reply = fut.result()
-            except BaseException as exc:  # noqa: BLE001 — surface ALL failures
-                _FAILED[key] = exc
-                _log_failure_to_audit(
-                    exc,
-                    section_id=key[1],
-                    section_title=meta.get("section_title", key[1]),
-                    run_dir=run_dir,
-                    backend=meta.get("backend_name", ""),
-                    model=meta.get("model", ""),
-                )
-                promoted = True
-                continue
-            page, section_id, persona, data_hash = key
-            _cache_put(page, section_id, persona or None, data_hash, reply)
-            _log_to_audit(
-                reply,
-                section_id=section_id,
-                section_title=meta.get("section_title", section_id),
+            claimed.append((key, fut, meta))
+
+    for key, fut, meta in claimed:
+        run_dir = meta.get("run_dir")
+        try:
+            reply = fut.result()
+        except BaseException as exc:  # noqa: BLE001 — surface ALL failures
+            _FAILED[key] = exc
+            _log_failure_to_audit(
+                exc,
+                section_id=key[1],
+                section_title=meta.get("section_title", key[1]),
                 run_dir=run_dir,
-                audit_mode=meta.get("audit_mode"),
+                backend=meta.get("backend_name", ""),
+                model=meta.get("model", ""),
             )
-            promoted = True
-    return promoted
+            continue
+        page, section_id, persona, data_hash = key
+        _cache_put(page, section_id, persona or None, data_hash, reply)
+        _log_to_audit(
+            reply,
+            section_id=section_id,
+            section_title=meta.get("section_title", section_id),
+            run_dir=run_dir,
+            audit_mode=meta.get("audit_mode"),
+        )
+    return bool(claimed)
 
 
 @st.fragment(run_every="1.2s")

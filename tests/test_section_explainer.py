@@ -462,6 +462,61 @@ def test_promote_resolved_routes_exception_to_failed(stub_st):
     assert "model 'x' not found" in str(failure_audit.call_args[0][0])
 
 
+def test_failure_audit_row_shape(stub_st):
+    """`_log_failure_to_audit` writes a row with the distinct event,
+    an `error_type` class field separate from the `error` message
+    (so an auditor can filter CancelledError/TimeoutError/API errors
+    without substring-matching), the section, backend and model. This
+    is the compliance contract Codex flagged."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    captured: dict = {}
+
+    def fake_append(_run_dir, row, jsonl_name=None):
+        captured["row"] = row
+        captured["jsonl"] = jsonl_name
+
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir", side_effect=fake_append
+    ):
+        mod._log_failure_to_audit(
+            TimeoutError("ollama timed out after 60s"),
+            section_id="exec.kpis",
+            section_title="Top KPIs",
+            run_dir="/runs/session-A",
+            backend="ollama",
+            model="deepseek-v4-pro",
+        )
+
+    row = captured["row"]
+    assert row["event"] == "ai_section_explanation_failed"
+    assert row["section_id"] == "exec.kpis"
+    assert row["error_type"] == "TimeoutError"
+    assert "ollama timed out" in row["error"]
+    assert row["backend"] == "ollama"
+    assert row["model"] == "deepseek-v4-pro"
+    assert captured["jsonl"] == "ai_interactions.jsonl"
+
+
+def test_failure_audit_noop_without_run_dir(stub_st):
+    """No run_dir (e.g. dispatched before the engine initialised) →
+    no write attempt, no crash. Best-effort, page never breaks."""
+    from aml_framework.dashboard import section_explainer as mod
+
+    with mock.patch(
+        "aml_framework.engine.audit.AuditLedger.append_to_run_dir",
+        side_effect=AssertionError("must not write without run_dir"),
+    ):
+        mod._log_failure_to_audit(
+            RuntimeError("x"),
+            section_id="s",
+            section_title="t",
+            run_dir=None,
+            backend="ollama",
+            model="m",
+        )  # no exception = pass
+
+
 # NOTE: `render_explainer_poller` itself is a 2-line `@st.fragment`
 # wrapper (`if _promote_resolved(): st.rerun()`). Streamlit's real
 # fragment decorator no-ops the body outside a script-run context, so
