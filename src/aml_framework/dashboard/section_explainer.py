@@ -307,6 +307,15 @@ def _log_to_audit(
         if run_dir is None:
             run_dir, audit_mode = _audit_ctx()
         if run_dir is None:
+            # A successful reply we cannot attribute (engine not yet
+            # initialised at dispatch). Don't crash the page, but don't
+            # drop it silently either — same observability contract as
+            # the failure-audit path.
+            _LOG.warning(
+                "section-explanation reply produced but no run_dir to "
+                "audit (section=%s) — audit row dropped",
+                section_id,
+            )
             return
         if audit_mode is None:
             audit_mode = "hash_only"
@@ -546,6 +555,16 @@ def section_explainer(
         # Don't break the page (the host section already rendered) but
         # surface the actual error so the operator can diagnose instead
         # of a silent failure.
+        #
+        # NOTE: this catches PRE-DISPATCH failures (e.g. `_data_hash`
+        # or `_build_context` raising) — the AI call was never
+        # submitted. We deliberately do NOT write an
+        # `ai_section_explanation_failed` audit row here: that event
+        # means "the AI was asked and did not answer." No future was
+        # dispatched, so there is no AI interaction to attribute — the
+        # `st.error` banner is the correct (and only) surface.
+        # Post-dispatch failures (the future itself raising) ARE
+        # failure-audited in `_promote_resolved`.
         try:
             st.error(f"AI Explanation failed via `{backend_name}` (model `{model}`): {exc!s}")
         except Exception:  # noqa: BLE001
