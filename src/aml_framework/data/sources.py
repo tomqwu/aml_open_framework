@@ -33,6 +33,69 @@ class DataSourceLoadError(RuntimeError):
         )
 
 
+# --- Local mock for the cloud / warehouse source types -------------------
+# snowflake / bigquery / s3 / gcs / azure_blob / adls / synapse / azuresql
+# all need live infra + credentials, so they're undemonstrable in a
+# local demo or on CI. An EXPLICIT opt-in — passing the literal
+# ``mock`` (or ``mock:<anything>``) as the connection/bucket arg —
+# resolves the source from the seeded synthetic generator via an
+# in-memory DuckDB instead. This is deliberately NOT a silent
+# credential fake: a real connection string / URI never equals
+# ``mock`` so production paths are untouched, and every mock load
+# logs a loud "local mock (no live credentials)" line so it can never
+# be mistaken for a real warehouse pull in an audit.
+_MOCK_TOKENS = frozenset({"mock", "mock:", "local-mock", "localmock"})
+
+
+def _is_mock_target(arg: str | None) -> bool:
+    if not arg:
+        return False
+    a = arg.strip().lower()
+    return a in _MOCK_TOKENS or a.startswith("mock:")
+
+
+def _load_local_mock(
+    spec: AMLSpec,
+    source_type: str,
+    as_of: datetime,
+    seed: int,
+) -> dict[str, list[dict[str, Any]]]:
+    """Resolve a cloud/warehouse source from the seeded synthetic data
+    through an in-memory DuckDB — honestly labelled, deterministic,
+    credential-free. Lazy-imports duckdb/pyarrow (runtime extras, not
+    in the lean ``[dev]`` install)."""
+    import duckdb
+    import pyarrow as pa
+
+    from aml_framework.data import generate_dataset
+
+    logger.warning(
+        "%s: LOCAL MOCK (no live credentials) — serving the seeded "
+        "synthetic dataset via in-memory DuckDB. NOT a real %s pull.",
+        source_type,
+        source_type,
+    )
+    data = generate_dataset(as_of=as_of, seed=seed)
+    out: dict[str, list[dict[str, Any]]] = {}
+    con = duckdb.connect(":memory:")
+    try:
+        for contract in spec.data_contracts:
+            rows = data.get(contract.id, [])
+            cols = [c.name for c in contract.columns] or (list(rows[0].keys()) if rows else [])
+            if not rows:
+                out[contract.id] = []
+                continue
+            table = pa.table({c: [r.get(c) for r in rows] for c in cols})
+            con.register("_mock_view", table)
+            res = con.execute("SELECT * FROM _mock_view")
+            names = [d[0] for d in res.description]
+            out[contract.id] = [dict(zip(names, r)) for r in res.fetchall()]
+            con.unregister("_mock_view")
+    finally:
+        con.close()
+    return out
+
+
 def _empty_or_raise(source_type: str, contract: DataContract, cause: str) -> list[dict[str, Any]]:
     if contract.allow_empty:
         logger.warning(
@@ -299,6 +362,8 @@ def resolve_source(
         return load_duckdb_source(db_path, spec)
 
     if source_type == "snowflake":
+        if _is_mock_target(data_dir):
+            return _load_local_mock(spec, source_type, as_of, seed)
         return _load_warehouse_via_duckdb(
             spec,
             "snowflake",
@@ -307,6 +372,8 @@ def resolve_source(
         )
 
     if source_type == "bigquery":
+        if _is_mock_target(data_dir):
+            return _load_local_mock(spec, source_type, as_of, seed)
         return _load_warehouse_via_duckdb(
             spec,
             "bigquery",
@@ -315,6 +382,8 @@ def resolve_source(
         )
 
     if source_type in ("s3", "gcs"):
+        if _is_mock_target(data_dir):
+            return _load_local_mock(spec, source_type, as_of, seed)
         if not data_dir:
             raise ValueError(f"--data-dir required for {source_type} (bucket URI)")
         return _load_cloud_storage(source_type, data_dir, spec)  # pragma: no cover
@@ -324,12 +393,16 @@ def resolve_source(
         # extension. Authenticated via DefaultAzureCredential when
         # running on AKS with workload identity; falls back to
         # AZURE_STORAGE_CONNECTION_STRING for local dev.
+        if _is_mock_target(data_dir):
+            return _load_local_mock(spec, source_type, as_of, seed)
         if not data_dir:
             raise ValueError(f"--data-dir required for {source_type} (abfss:// URI)")
         return _load_azure_storage(source_type, data_dir, spec)  # pragma: no cover
 
     if source_type == "synapse":
         # PR-AZ-1: Azure Synapse via pyodbc connection string.
+        if _is_mock_target(data_dir):
+            return _load_local_mock(spec, source_type, as_of, seed)
         return _load_azure_warehouse(  # pragma: no cover
             spec,
             "synapse",
@@ -338,6 +411,8 @@ def resolve_source(
 
     if source_type == "azuresql":
         # PR-AZ-1: Azure SQL DB via pyodbc connection string.
+        if _is_mock_target(data_dir):
+            return _load_local_mock(spec, source_type, as_of, seed)
         return _load_azure_warehouse(  # pragma: no cover
             spec,
             "azuresql",

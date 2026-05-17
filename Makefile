@@ -1,4 +1,4 @@
-.PHONY: install test test-coverage test-all test-e2e lint run dashboard api docker clean help demo pre-push ci-lint ci-unit ci-coverage ci-api ci-e2e ci-deployment ci-security install-hooks
+.PHONY: install test test-coverage test-all test-e2e lint run dashboard api docker clean help demo fixtures pre-push ci-lint ci-unit ci-coverage ci-api ci-e2e ci-deployment ci-security install-hooks
 
 # Resolve a Python that has the dev deps installed. If `.venv/bin/python`
 # exists (the project convention), use it; otherwise fall back to the
@@ -54,6 +54,10 @@ run: ## Run the engine with sample CSV data
 
 run-synthetic: ## Run with synthetic data (no CSV needed)
 	aml run examples/canadian_schedule_i_bank/aml.yaml --seed 42
+
+fixtures: ## Regenerate parquet + duckdb fixtures from seeded synthetic data (gitignored)
+	python -m aml_framework.data.fixtures
+	@echo "Fixtures in data/fixtures/ — feed resolve_source('parquet'|'duckdb')."
 
 validate: ## Validate all example specs
 	aml validate examples/community_bank/aml.yaml
