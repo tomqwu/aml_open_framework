@@ -26,6 +26,13 @@ from typing import Any
 from faker import Faker
 
 _CHANNELS = ["cash", "wire", "ach", "card"]
+# Real-time / digital-asset / stored-value rails carried by the
+# C0028-C0029 plants and the new-rail background volume. Kept OUT of
+# `_CHANNELS` on purpose — adding them there would re-bias the seeded
+# noise loop's `random.choice(_CHANNELS)` draw and re-base the whole
+# reference dataset. These rails are only emitted by the RNG-free
+# blocks appended after the planted positives.
+_NEW_RAILS = ["rtp", "crypto", "prepaid"]
 _COUNTRIES = ["US", "CA", "GB", "DE", "MX"]
 
 # Channels that carry ISO 20022 metadata in real banking flows.
@@ -1079,6 +1086,150 @@ def generate_dataset(
                 )
             )
             tid += 1
+
+    # ---------------------------------------------------------------------
+    # New-rail planted positives (canadian_schedule_i_bank spec)
+    # ---------------------------------------------------------------------
+    # Two free customer slots remain (n_customers=30 → valid indices
+    # 0..29; 0..27 are taken by the blocks above). C0028 carries TWO
+    # typologies (a single high-risk digital-asset entity realistically
+    # exhibits more than one pattern); C0029 carries the RTP burst.
+    # Every txn below uses HARDCODED amounts + day/hour/minute offsets
+    # and ZERO `random.*` — same discipline as the C0001..C0022 plants,
+    # so the seeded RNG sequence is untouched and the reference dataset
+    # does not re-base.
+
+    # --- C0028: crypto VASP rapid pass-through + prepaid-load structuring ---
+    if n_customers >= 30:
+        customers[28] = _customer_row(
+            fake,
+            "C0028",
+            as_of - timedelta(days=180),
+            country="CA",
+            risk_rating="high",
+            full_name="Northgate Digital Holdings",
+            business_activity="digital asset trading",
+        )
+        # Crypto pass-through: cash IN $42,000, then a crypto OUT of
+        # $40,000 ~30h later (inside 48h, both legs ≥ $30k). Distinct
+        # counterparties on each leg — that's what makes it a
+        # pass-through, not a self-transfer.
+        crypto_in = as_of - timedelta(days=4, hours=12)
+        txns.append(
+            _make_txn(
+                tid,
+                "C0028",
+                42000,
+                crypto_in,
+                channel="cash",
+                direction="in",
+                currency="CAD",
+                counterparty_id="CP-VASP-IN-2026-001",
+            )
+        )
+        tid += 1
+        txns.append(
+            _make_txn(
+                tid,
+                "C0028",
+                40000,
+                crypto_in + timedelta(hours=30),
+                channel="crypto",
+                direction="out",
+                currency="CAD",
+                counterparty_country="MT",
+                counterparty_id="CP-VASP-OUT-2026-001",
+            )
+        )
+        tid += 1
+        # Prepaid-load structuring: 6 loads of $2,900 each over 12 days,
+        # every load below the $3,000 reporting threshold; count ≥ 5 and
+        # sum ≥ $14,000 inside a 30-day window.
+        for day_offset in (1, 4, 7, 10, 13, 16):
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0028",
+                    2900,
+                    as_of - timedelta(days=day_offset, hours=14),
+                    channel="prepaid",
+                    direction="in",
+                    currency="CAD",
+                    counterparty_id="CP-PREPAID-2026-001",
+                )
+            )
+            tid += 1
+
+    # --- C0029: RTP instant-payment rapid burst ---
+    if n_customers >= 30:
+        customers[29] = _customer_row(
+            fake,
+            "C0029",
+            as_of - timedelta(days=90),
+            country="CA",
+            risk_rating="medium",
+            full_name="Velocity Retail Inc",
+        )
+        # 8 RTP sends of $950 each inside a ~2-hour span (hardcoded
+        # minute offsets). count ≥ 6 → instant-payment burst. Anchored
+        # 6h before `as_of` so the whole burst sits inside the rule's
+        # `1d` sliding window `[as_of - 24h, as_of)` for any as_of hour
+        # — same window-pinning discipline as the C0012/C0013 RTP
+        # plants (see test_synthetic_round8_positives.py).
+        burst_start = as_of - timedelta(hours=6)
+        for minute_offset in (0, 9, 18, 27, 36, 45, 54, 63):
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0029",
+                    950,
+                    burst_start + timedelta(minutes=minute_offset),
+                    channel="rtp",
+                    direction="out",
+                    currency="CAD",
+                    counterparty_id="CP-RTP-BURST-2026-001",
+                )
+            )
+            tid += 1
+
+    # --- new-rail background volume (deterministic, RNG-free) ---
+    # ~60 single txns spread across the three new rails so the rail
+    # columns aren't sparse for the dashboard. Indexed by `tid % N`
+    # (NOT random.*) for exactly the reason the noise loop documents —
+    # consuming the global RNG here would shift every downstream draw
+    # and re-base the dataset. Amounts are small and each row is a
+    # lone txn spread over customers/time, so they never aggregate
+    # into the new rules' count/sum thresholds (rule-INERT).
+    #
+    # Guarded plant customers (the ones whose noise the cross-spec
+    # contamination guards above strip — C0012-C0027 — plus the new
+    # C0028/C0029 plants) are EXCLUDED from the eligible pool: those
+    # guards assert the plant customers carry ONLY their planted shape
+    # / no baseline-window activity, so leaking even a tiny background
+    # row onto them would false-fail the guard tests and could nudge
+    # other specs' `unusual_volume_spike`.
+    _new_rail_guarded_ids = (
+        _rtp_boi_customer_ids
+        | _uk_app_fraud_customer_ids
+        | _trade_customer_ids
+        | {"C0028", "C0029"}
+    )
+    _new_rail_pool = [cid for cid in customer_ids if cid not in _new_rail_guarded_ids]
+    _NEW_RAIL_AMOUNTS = [75, 140, 260, 520, 910, 1500]
+    for _ in range(60):
+        txns.append(
+            _make_txn(
+                tid,
+                _new_rail_pool[tid % len(_new_rail_pool)],
+                _NEW_RAIL_AMOUNTS[tid % 6],
+                as_of - timedelta(days=(tid % 50), hours=(tid % 24)),
+                channel=_NEW_RAILS[tid % 3],
+                direction="in" if tid % 2 == 0 else "out",
+                currency="CAD",
+                counterparty_id=_NOISE_COUNTERPARTIES[tid % len(_NOISE_COUNTERPARTIES)],
+            )
+        )
+        tid += 1
 
     # ---------------------------------------------------------------------
     # HS-code baseline reference table (trade_based_ml spec)

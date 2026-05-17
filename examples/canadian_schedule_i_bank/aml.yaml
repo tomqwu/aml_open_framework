@@ -30,7 +30,7 @@ data_contracts:
       - { name: customer_id, type: string,    nullable: false, pii: true  }
       - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
       - { name: currency,    type: string,    nullable: false }
-      - { name: channel,     type: string,    enum: [cash, wire, ach, e_transfer, cheque, card] }
+      - { name: channel,     type: string,    enum: [cash, wire, ach, e_transfer, cheque, card, rtp, crypto, prepaid] }
       - { name: direction,   type: string,    enum: [in, out] }
       - { name: booked_at,   type: timestamp, nullable: false }
     quality_checks:
@@ -147,6 +147,140 @@ rules:
       - counterparty_analysis
       - prior_alerts_90d
     tags: [pass_through, layering, e_transfer, td_finding]
+
+  # --- CRYPTO VASP RAPID PASS-THROUGH: cash-in then crypto-out within 48h ---
+  # Digital-asset off-ramp layering — funds enter as cash and leave the
+  # bank as a virtual-asset transfer to a VASP within two days.
+  - id: crypto_vasp_rapid_passthrough
+    name: Crypto VASP rapid pass-through — cash-in followed by crypto-out within 48h
+    severity: critical
+    regulation_refs:
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — pass-through pattern indicative of layering."
+      - citation: "PCMLTFR s.7(1)"
+        description: "Reporting obligations for dealers in virtual currency (VASP)."
+      - citation: "FINTRAC LVCTR (Large Virtual Currency Transaction Report)"
+        description: "Laundering of proceeds through virtual currency and VASPs."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH cash_in AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE direction = 'in'
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        crypto_out AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE channel = 'crypto' AND direction = 'out'
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        paired AS (
+            SELECT
+                ci.customer_id,
+                SUM(co.amount) AS crypto_out_total,
+                SUM(ci.amount) AS cash_in_total,
+                COUNT(DISTINCT ci.txn_id) AS cash_in_count,
+                COUNT(DISTINCT co.txn_id) AS crypto_out_count,
+                MIN(ci.booked_at) AS window_start,
+                MAX(co.booked_at) AS window_end
+            FROM cash_in ci
+            JOIN crypto_out co
+              ON ci.customer_id = co.customer_id
+              AND co.booked_at BETWEEN ci.booked_at AND ci.booked_at + INTERVAL '48' HOUR
+            GROUP BY ci.customer_id
+        )
+        SELECT
+            'crypto_vasp_rapid_passthrough' AS rule_id,
+            customer_id,
+            cash_in_total + crypto_out_total AS sum_amount,
+            cash_in_count + crypto_out_count AS count,
+            window_start,
+            window_end
+        FROM paired
+        WHERE crypto_out_total >= 30000
+        ORDER BY customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - counterparty_analysis
+      - prior_alerts_90d
+    tags: [pass_through, layering, crypto, vasp]
+
+  # --- RTP INSTANT-PAYMENT BURST: rapid same-customer real-time sends ---
+  # Real-time-rail abuse — many small instant payments fired in a tight
+  # window to move value before manual review can intervene.
+  - id: rtp_instant_payment_burst
+    name: RTP instant-payment burst — rapid real-time sends within a short window
+    severity: high
+    regulation_refs:
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — rapid layering inconsistent with client profile."
+      - citation: "PCMLTFR s.123.1"
+        description: "Ongoing monitoring of business relationships."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: rtp
+        direction: out
+      group_by: [customer_id]
+      window: 1d
+      having:
+        count:      { gte: 6 }
+        sum_amount: { gte: 5000 }
+    escalate_to: l1_aml_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - prior_alerts_90d
+    tags: [rtp, velocity, instant_payment]
+    # Sweep grid for `aml tune --rule rtp_instant_payment_burst`. Pairs
+    # of count + sum_amount thresholds an MLRO might consider before
+    # changing production thresholds (count≥6, sum_amount≥5000).
+    tuning_grid:
+      logic.having.count:      [{gte: 4}, {gte: 6}, {gte: 8}, {gte: 10}]
+      logic.having.sum_amount: [{gte: 3000}, {gte: 5000}, {gte: 10000}]
+
+  # --- PREPAID-LOAD STRUCTURING: stored-value loads below reporting floor ---
+  # Stored-value structuring — repeated prepaid loads kept just under the
+  # $3,000 CAD reporting threshold to evade aggregation.
+  - id: prepaid_load_structuring
+    name: Prepaid-load structuring — loads below the $3,000 reporting threshold
+    severity: high
+    regulation_refs:
+      - citation: "PCMLTFA s.11.1"
+        description: "Structuring offence — splitting transactions to avoid reporting."
+      - citation: "PCMLTFR s.7(1)"
+        description: "Reporting obligations for prepaid payment product loads."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: prepaid
+        direction: in
+        amount: { between: [1000, 2999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 5 }
+        sum_amount: { gte: 14000 }
+    escalate_to: l1_aml_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - prior_alerts_90d
+    tags: [structuring, prepaid, stored_value]
+    # Sweep grid for `aml tune --rule prepaid_load_structuring`. Pairs
+    # of count + sum_amount thresholds an MLRO might consider before
+    # changing production thresholds (count≥5, sum_amount≥14000).
+    tuning_grid:
+      logic.having.count:      [{gte: 4}, {gte: 5}, {gte: 6}, {gte: 8}]
+      logic.having.sum_amount: [{gte: 10000}, {gte: 14000}, {gte: 20000}]
 
   # --- SHELL COMPANY INDICATORS ---
   # TD failure: shell companies with no declared business opened accounts.

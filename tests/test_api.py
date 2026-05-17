@@ -1506,7 +1506,10 @@ class TestExpandedAPI:
         assert resp.status_code == 200
         data = resp.json()
         assert data["valid"] is True
-        assert data["rules"] == 10
+        # canadian_schedule_i_bank: 10 base rules + 3 new-rail rules
+        # (crypto VASP pass-through, RTP burst, prepaid structuring)
+        # added in the Data Integration PR-A channel expansion.
+        assert data["rules"] == 13
 
     def test_validate_bad_spec(self):
         token = _token()
@@ -1678,7 +1681,8 @@ def test_validate_invalid_spec_content(tmp_path):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.json()["valid"] is True
-    assert resp.json()["rules"] == 10
+    # canadian_schedule_i_bank: 10 base + 3 new-rail rules (PR-A).
+    assert resp.json()["rules"] == 13
 
 
 # ===========================================================================

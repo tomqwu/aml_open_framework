@@ -540,3 +540,183 @@ def test_planted_positives_are_deterministic() -> None:
         a_txns = sorted((t["amount"], t["booked_at"]) for t in a["txn"] if t["customer_id"] == cid)
         b_txns = sorted((t["amount"], t["booked_at"]) for t in b["txn"] if t["customer_id"] == cid)
         assert a_txns == b_txns, f"determinism break on {cid}"
+
+
+# ---------------------------------------------------------------------------
+# New-rail planted positives (rtp / crypto / prepaid) — C0028, C0029
+# ---------------------------------------------------------------------------
+# These plants are appended AFTER the C0022 block and use only hardcoded
+# amounts + day/hour/minute offsets (zero random.*), so the seeded RNG
+# sequence — and therefore every pre-existing planted/noise row — is
+# untouched. The anchor test below pins an EXISTING shape to prove the
+# dataset did not re-base.
+
+
+def test_new_rails_appear_in_channels() -> None:
+    """rtp / crypto / prepaid must be present in the txn channel set —
+    the plants plus the RNG-free background-volume block emit them."""
+    data = _data()
+    channels = {t["channel"] for t in data["txn"]}
+    for rail in ("rtp", "crypto", "prepaid"):
+        assert rail in channels, f"{rail} missing from generated txn channels"
+
+
+def test_c0028_carries_crypto_passthrough_pair() -> None:
+    """Cash-in $42,000 then crypto-out $40,000 within 48h (both legs
+    ≥ $30k) → crypto_vasp_rapid_passthrough shape."""
+    data = _data()
+    cash_in = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0028" and t["channel"] == "cash" and t["direction"] == "in"
+    ]
+    crypto_out = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0028" and t["channel"] == "crypto" and t["direction"] == "out"
+    ]
+    assert any(t["amount"] == Decimal("42000.00") for t in cash_in), (
+        "C0028 must carry the planted $42,000 cash-in"
+    )
+    assert len(crypto_out) == 1 and crypto_out[0]["amount"] == Decimal("40000.00"), (
+        f"C0028 must carry exactly one $40,000 crypto-out; got {crypto_out}"
+    )
+    ci = next(t for t in cash_in if t["amount"] == Decimal("42000.00"))
+    gap = crypto_out[0]["booked_at"] - ci["booked_at"]
+    assert timedelta(0) < gap <= timedelta(hours=48), (
+        f"crypto-out must follow cash-in within 48h; got {gap}"
+    )
+
+
+def test_c0028_carries_prepaid_structuring_loads() -> None:
+    """6 prepaid loads of $2,900 each, all < $3,000, count ≥ 5 and
+    sum ≥ $14,000 inside 30 days → prepaid_load_structuring shape."""
+    data = _data()
+    loads = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0028" and t["channel"] == "prepaid" and t["direction"] == "in"
+    ]
+    assert len(loads) == 6, f"expected exactly 6 prepaid loads for C0028; got {len(loads)}"
+    assert all(t["amount"] == Decimal("2900.00") for t in loads), (
+        "every prepaid load must be $2,900 (below the $3,000 floor)"
+    )
+    assert all(t["amount"] < Decimal("3000.00") for t in loads)
+    assert sum(t["amount"] for t in loads) == Decimal("17400.00")
+    cutoff = AS_OF - timedelta(days=30)
+    for t in loads:
+        assert t["booked_at"] > cutoff, f"prepaid load must be inside 30d window; got {t}"
+
+
+def test_c0029_carries_rtp_instant_payment_burst() -> None:
+    """8 RTP sends of $950 each inside a tight span, all within the
+    rule's 1d sliding window → rtp_instant_payment_burst shape."""
+    data = _data()
+    sends = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0029" and t["channel"] == "rtp" and t["direction"] == "out"
+    ]
+    assert len(sends) == 8, f"expected exactly 8 RTP sends for C0029; got {len(sends)}"
+    assert all(t["amount"] == Decimal("950.00") for t in sends)
+    assert sum(t["amount"] for t in sends) == Decimal("7600.00")
+    timestamps = sorted(t["booked_at"] for t in sends)
+    assert timestamps[-1] - timestamps[0] <= timedelta(hours=2), "burst must be tight"
+    for t in sends:
+        age = AS_OF - t["booked_at"]
+        assert timedelta(0) < age < timedelta(days=1), (
+            f"every burst send must sit inside the rule's 1d window; got age {age}"
+        )
+
+
+def test_new_rail_background_volume_is_rule_inert() -> None:
+    """The RNG-free background-volume block emits small lone txns
+    (from a fixed ≤ $1,500 amount list) on CAD `CP-NOISE-*`
+    counterparties, spread across non-guarded customers/time so it
+    never aggregates into the new rules' count/sum thresholds.
+
+    Identified precisely by the background block's distinguishing
+    markers (new rail + CAD + CP-NOISE counterparty) so the planted
+    RTP positives (e.g. C0012's $7,500 send) are not misclassified
+    as background volume."""
+    data = _data()
+    bg = [
+        t
+        for t in data["txn"]
+        if t["channel"] in ("rtp", "crypto", "prepaid")
+        and t["currency"] == "CAD"
+        and str(t.get("counterparty_id") or "").startswith("CP-NOISE-")
+    ]
+    assert bg, "expected background-volume new-rail rows"
+    # Fixed amount list is [75, 140, 260, 520, 910, 1500] — all small.
+    assert all(t["amount"] <= Decimal("1500.00") for t in bg), (
+        "background-volume amounts must stay small / rule-inert"
+    )
+    # None of the background rows may land on a guarded plant customer.
+    guarded = {f"C{n:04d}" for n in range(12, 30)}
+    assert not ({t["customer_id"] for t in bg} & guarded), (
+        "background volume leaked onto a guarded plant customer"
+    )
+
+
+def test_c0028_c0029_plants_are_deterministic() -> None:
+    a = generate_dataset(as_of=AS_OF, seed=42)
+    b = generate_dataset(as_of=AS_OF, seed=42)
+    for cid in ("C0028", "C0029"):
+        a_txns = sorted((t["amount"], t["booked_at"]) for t in a["txn"] if t["customer_id"] == cid)
+        b_txns = sorted((t["amount"], t["booked_at"]) for t in b["txn"] if t["customer_id"] == cid)
+        assert a_txns == b_txns, f"determinism break on {cid}"
+
+
+def test_existing_anchor_unchanged_proves_no_rebase() -> None:
+    """The new blocks are appended AFTER C0022 and consume zero
+    `random.*`, so they must NOT shift the seeded RNG. Pin an EXISTING
+    shape — the C0001 structuring plant rows and the global cash-txn
+    count — to fail loudly if a future edit re-bases the dataset."""
+    data = _data()
+    # C0001's planted cash structuring deposits (hardcoded in the
+    # C0001 block) — exact amounts must be unchanged.
+    c0001_cash = sorted(
+        t["amount"]
+        for t in data["txn"]
+        if t["customer_id"] == "C0001" and t["channel"] == "cash" and t["amount"] >= 5000
+    )
+    assert c0001_cash == [
+        Decimal("7500.00"),
+        Decimal("9200.00"),
+        Decimal("9500.00"),
+        Decimal("9800.00"),
+        Decimal("9900.00"),
+    ], f"C0001 structuring plant changed — dataset re-based: {c0001_cash}"
+    # The seeded noise loop + C0001..C0022 plants produce a stable 259
+    # rows on the legacy code path; the new blocks append exactly 76
+    # RNG-free rows (16 C0028/C0029 plant rows + 60 background-volume),
+    # so the total must be exactly 259 + 76. Any other value means an
+    # appended block consumed `random.*` and shifted the noise loop.
+    assert len(data["txn"]) == 259 + 76, (
+        f"txn count drifted to {len(data['txn'])} — expected 335 "
+        "(legacy 259 + 16 plant + 60 background); dataset re-based"
+    )
+    # The seeded noise loop produces a stable 49 cash txns; the new
+    # RNG-free blocks emit exactly ONE additional cash row (C0028's
+    # planted $42k cash-in), so the total is exactly the legacy count + 1.
+    cash_count = sum(1 for t in data["txn"] if t["channel"] == "cash")
+    assert cash_count == 49 + 1, (
+        f"cash-txn count drifted to {cash_count} — noise loop re-based "
+        "(legacy 49 + C0028's single planted cash-in)"
+    )
+    # The C0028 noise-loop rows (e.g. the $4,800 cash-out the noise loop
+    # assigned before our plant block ran) must still be present —
+    # direct proof the seeded RNG sequence was not disturbed.
+    c0028_noise_cash_out = [
+        t
+        for t in data["txn"]
+        if t["customer_id"] == "C0028"
+        and t["channel"] == "cash"
+        and t["direction"] == "out"
+        and t["amount"] == Decimal("4800.00")
+    ]
+    assert len(c0028_noise_cash_out) == 1, (
+        "C0028's pre-existing noise-loop $4,800 cash-out vanished — "
+        "appended block re-based the seeded RNG"
+    )
