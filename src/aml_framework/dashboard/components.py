@@ -1401,7 +1401,7 @@ def kpi_card_with_trend(
             )
     else:
         delta_html = (
-            '<div style="color:var(--dna-ink-faint);font-size:0.78rem;'
+            '<div style="color:var(--dna-ink-dim);font-size:0.78rem;'
             'margin-top:0.4rem;">(no prior runs)</div>'
         )
 
@@ -1891,7 +1891,7 @@ def ai_panel(*, page: str) -> None:
             f'<span style="width:8px; height:8px; border-radius:50%; '
             f'background:{pill_color}; box-shadow:0 0 6px {pill_color};"></span>'
             f'<span style="font-family:JetBrains Mono,monospace; font-size:11px; '
-            f'letter-spacing:0.05em; text-transform:uppercase; color:var(--dna-ink-faint);">'
+            f'letter-spacing:0.05em; text-transform:uppercase; color:var(--dna-ink-dim);">'
             f"AI Assistant · {safe_backend} · {safe_model}</span></div>",
             unsafe_allow_html=True,
         )
@@ -2019,7 +2019,7 @@ def ai_panel_fab(*, page: str) -> None:
                 f'<span style="width:8px; height:8px; border-radius:50%; '
                 f'background:{pill_color}; box-shadow:0 0 6px {pill_color};"></span>'
                 f'<span style="font-family:JetBrains Mono,monospace; font-size:11px; '
-                f'letter-spacing:0.05em; text-transform:uppercase; color:var(--dna-ink-faint);">'
+                f'letter-spacing:0.05em; text-transform:uppercase; color:var(--dna-ink-dim);">'
                 f"AI Assistant · {safe_backend} · {safe_model}</span></div>",
                 unsafe_allow_html=True,
             )
@@ -2184,7 +2184,7 @@ def _render_assistant_reply(reply: Any) -> None:
         f"padding:2px 6px; border-radius:3px; background:#1e293b; "
         f'color:#94a3b8;">{backend_label}</span>'
         f'<span style="font-family:JetBrains Mono,monospace; font-size:10px; '
-        f'color:var(--dna-ink-faint);">{citation_count} citation(s) · '
+        f'color:var(--dna-ink-dim);">{citation_count} citation(s) · '
         f"{metric_count} metric(s) · {case_count} case(s)</span>"
         "</div>",
         unsafe_allow_html=True,
