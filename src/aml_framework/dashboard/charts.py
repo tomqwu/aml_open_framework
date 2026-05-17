@@ -28,9 +28,9 @@ from typing import Any
 
 from aml_framework.dashboard.chart_theme import (
     CATEGORICAL_PALETTE,
-    DNA_ACCENT,
-    DNA_INK_MUTED,
-    DNA_RULE,
+    DNA_CHART_ACCENT,
+    DNA_CHART_LABEL,
+    DNA_CHART_RULE,
     echarts_theme,
     rag_color,
     severity_color,
@@ -343,7 +343,9 @@ def _build_scatter_option(
         points.append(
             {
                 "value": [x_val, y_val, size_val, label_val],
-                "itemStyle": {"color": _series_color(color_val, idx) if color_val else DNA_ACCENT},
+                "itemStyle": {
+                    "color": _series_color(color_val, idx) if color_val else DNA_CHART_ACCENT
+                },
             }
         )
 
@@ -414,8 +416,8 @@ def _build_radar_option(
         "radar": {
             "indicator": [{"name": name, "max": max_val} for name, max_val in indicators],
             "splitArea": {"show": False},
-            "axisName": {"color": DNA_INK_MUTED, "fontSize": 11},
-            "splitLine": {"lineStyle": {"color": DNA_RULE}},
+            "axisName": {"color": DNA_CHART_LABEL, "fontSize": 11},
+            "splitLine": {"lineStyle": {"color": DNA_CHART_RULE}},
         },
         "series": [
             {
@@ -465,7 +467,13 @@ def _build_heatmap_option(
     x_labels: list[str],
     y_labels: list[str],
     title: str | None = None,
-    color_scale: tuple[str, str] = ("#fef3e8", "#a44b30"),  # cream → burnt orange
+    # Slate → burnt-orange ramp. Both endpoints are dual-contrast-safe
+    # CATEGORICAL_PALETTE members (the retired cream→rust default had a
+    # near-cream low end invisible on the cream card and a rust high
+    # end too weak on the dark card — Codex PR-2 re-review). The ramp
+    # reads low→high by hue, not lightness, so it survives both page
+    # themes.
+    color_scale: tuple[str, str] = (CATEGORICAL_PALETTE[6], CATEGORICAL_PALETTE[0]),
 ) -> dict:
     """Build an ECharts heatmap option dict.
 
@@ -498,7 +506,7 @@ def _build_heatmap_option(
             "left": "center",
             "bottom": 0,
             "inRange": {"color": list(color_scale)},
-            "textStyle": {"color": DNA_INK_MUTED},
+            "textStyle": {"color": DNA_CHART_LABEL},
         },
         "series": [
             {
@@ -520,13 +528,17 @@ def heatmap_chart(
     x_labels: list[str],
     y_labels: list[str],
     title: str | None = None,
-    color_scale: tuple[str, str] = ("#fef3e8", "#a44b30"),
+    # None defers to the builder's single source-of-truth dual-safe
+    # default — never re-declare the ramp here (a second default drifts
+    # out of sync and silently ships the old unsafe one — Codex PR-2).
+    color_scale: tuple[str, str] | None = None,
     height: int = DEFAULT_HEIGHT,
     key: str | None = None,
 ) -> None:
     """Render a heatmap."""
+    extra = {} if color_scale is None else {"color_scale": color_scale}
     option = _build_heatmap_option(
-        matrix, x_labels=x_labels, y_labels=y_labels, title=title, color_scale=color_scale
+        matrix, x_labels=x_labels, y_labels=y_labels, title=title, **extra
     )
     _render(option, height=height, key=key)
 
@@ -559,7 +571,7 @@ def _build_sankey_option(
                 ],
                 "links": [{"source": s, "target": t, "value": _to_number(v)} for s, t, v in edges],
                 "lineStyle": {"color": "gradient", "curveness": 0.5, "opacity": 0.5},
-                "label": {"color": DNA_INK_MUTED, "fontSize": 11},
+                "label": {"color": DNA_CHART_LABEL, "fontSize": 11},
                 "emphasis": {"focus": "adjacency"},
             }
         ],
@@ -680,8 +692,8 @@ def _build_gauge_option(
                 "pointer": {"itemStyle": {"color": "auto"}},
                 "axisTick": {"distance": -18, "length": 6, "lineStyle": {"color": "#fff"}},
                 "splitLine": {"distance": -22, "length": 14, "lineStyle": {"color": "#fff"}},
-                "axisLabel": {"distance": 24, "color": DNA_INK_MUTED, "fontSize": 10},
-                "title": {"offsetCenter": [0, "60%"], "fontSize": 12, "color": DNA_INK_MUTED},
+                "axisLabel": {"distance": 24, "color": DNA_CHART_LABEL, "fontSize": 10},
+                "title": {"offsetCenter": [0, "60%"], "fontSize": 12, "color": DNA_CHART_LABEL},
                 "detail": {
                     "valueAnimation": True,
                     "formatter": "{value}",
@@ -906,6 +918,10 @@ def _render(option: dict, *, height: int, key: str | None) -> None:
     """
     from streamlit_echarts import st_echarts  # type: ignore[import-not-found]
 
+    # Theme-neutral: transparent bg + dual-contrast-safe chrome (see
+    # chart_theme.echarts_theme). No server-side dark detection — that
+    # either desyncs from the CSS dark theme or forces a determinism-
+    # breaking engine re-run (Codex PR-2).
     st_echarts(
         options=option,
         theme=echarts_theme(),

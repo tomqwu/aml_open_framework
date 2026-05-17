@@ -191,9 +191,9 @@ if not df_txns.empty:
     heatmap_data = heatmap_data.reindex([r for r in order if r in heatmap_data.index])
 
     # Heatmap matrix: rows = risk_rating, cols = channel. ECharts wants
-    # a 2D list indexed [y][x]. Use the cream → burnt-orange ramp (the
-    # brand-aligned default) which carries the same "low → high" read
-    # as the old YlOrRd gradient.
+    # a 2D list indexed [y][x]. No color_scale → the dual-contrast-safe
+    # slate → burnt-orange default ramp (reads low → high by hue, stays
+    # legible on a light or dark card).
     matrix = heatmap_data.values.tolist()
     heatmap_chart(
         matrix=matrix,

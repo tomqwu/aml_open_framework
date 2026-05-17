@@ -26,7 +26,9 @@ pd = pytest.importorskip("pandas")
 
 from aml_framework.dashboard.chart_theme import (  # noqa: E402
     CATEGORICAL_PALETTE,
-    DNA_INK,
+    DNA_CHART_ACCENT,
+    DNA_CHART_LABEL,
+    DNA_CHART_RULE,
     RAG_PALETTE,
     SEVERITY_PALETTE,
     echarts_theme,
@@ -59,13 +61,175 @@ from aml_framework.dashboard.charts import (  # noqa: E402
 def test_echarts_theme_has_brand_palette():
     theme = echarts_theme()
     assert theme["color"] == list(CATEGORICAL_PALETTE)
-    # Ink colour propagates into text style — keeps charts visually
-    # consistent with the cream/ink dashboard chrome.
-    assert theme["textStyle"]["color"] == DNA_INK
+    # Chart text uses the dual-contrast-safe label token (not the
+    # cream-tuned DNA_INK) so it reads on a light OR dark page card.
+    assert theme["textStyle"]["color"] == DNA_CHART_LABEL
+    # Canvas is transparent so the CSS-themed card shows through —
+    # this is what makes the chart theme-neutral (no dark detection).
+    assert theme["backgroundColor"] == "transparent"
     # Animation must be on but short — chart load shouldn't feel like
     # a marketing site.
     assert theme["animation"] is True
     assert theme["animationDuration"] == 300
+
+
+# WCAG 2.x relative luminance + contrast — same maths as the e2e
+# dark-mode test, so the unit guard and the browser guard agree.
+def _rel_lum(hex_color: str) -> float:
+    h = hex_color.lstrip("#")
+    chans = []
+    for i in (0, 2, 4):
+        c = int(h[i : i + 2], 16) / 255.0
+        chans.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    r, g, b = chans
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _contrast(a: str, b: str) -> float:
+    la, lb = _rel_lum(a), _rel_lum(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+# The two real chart-container surfaces: the cream card in light mode
+# and the raised dark card (#212832) in OS-dark mode (from the
+# `@media (prefers-color-scheme: dark)` block in components.py). A
+# theme-neutral chart must clear WCAG 1.4.11 non-text 3:1 on BOTH.
+_LIGHT_SURFACE = "#f7f4ec"
+_DARK_SURFACE = "#212832"
+
+
+def test_chart_chrome_is_dual_contrast_safe():
+    """The NEUTRAL chrome — every CATEGORICAL_PALETTE series colour, the
+    label/accent tokens, AND the heatmap default ramp endpoints — must
+    clear WCAG 1.4.11 non-text 3:1 against BOTH the light cream card and
+    the dark (#212832) card. That is what lets the charts be
+    theme-neutral (no dark detection, no determinism-breaking reload —
+    Codex PR-2).
+
+    SCOPE: the semantic SEVERITY_PALETTE / RAG_PALETTE are deliberately
+    excluded — they encode a regulator-standard meaning by convention
+    (a breach must read red) and are shared with the DOM badges; their
+    dark legibility is a separate tracked follow-up (see chart_theme.py).
+    """
+    # Heatmap default ramp endpoints are chrome too — the old
+    # cream→rust default was invisible on the cream card.
+    heatmap_default = _build_heatmap_option(
+        [[1, 2], [3, 4]], x_labels=["a", "b"], y_labels=["c", "d"]
+    )["visualMap"]["inRange"]["color"]
+    swatches = (
+        list(CATEGORICAL_PALETTE) + [DNA_CHART_LABEL, DNA_CHART_ACCENT] + list(heatmap_default)
+    )
+    for color in swatches:
+        on_light = _contrast(color, _LIGHT_SURFACE)
+        on_dark = _contrast(color, _DARK_SURFACE)
+        assert on_light >= 3.0, f"{color} only {on_light:.2f}:1 on the light card (<3:1)"
+        assert on_dark >= 3.0, f"{color} only {on_dark:.2f}:1 on the dark card (<3:1)"
+    # The rule token is a translucent grey by design (blends with
+    # whatever surface shows through) — assert it stays translucent,
+    # never an opaque light-only hairline.
+    assert DNA_CHART_RULE.startswith("rgba("), DNA_CHART_RULE
+    assert echarts_theme()["backgroundColor"] == "transparent"
+
+
+def test_tooltip_box_is_self_contained_and_legible():
+    """The tooltip is the one opaque element (ECharts paints its own
+    box). Its text must clear 4.5:1 and its border the 3:1 non-text bar
+    against the box bg, so it reads on either page theme without any
+    dark detection (Codex PR-2 re-review flagged the old #646a73
+    border at 2.5:1)."""
+    tip = echarts_theme()["tooltip"]
+    bg = tip["backgroundColor"]
+    text_ratio = _contrast(tip["textStyle"]["color"], bg)
+    border_ratio = _contrast(tip["borderColor"], bg)
+    assert text_ratio >= 4.5, f"tooltip text only {text_ratio:.2f}:1 on the box (<4.5:1)"
+    assert border_ratio >= 3.0, f"tooltip border only {border_ratio:.2f}:1 on the box (<3:1)"
+
+
+def test_heatmap_wrapper_defers_to_dual_safe_builder_default():
+    """The public `heatmap_chart()` wrapper must NOT re-declare a
+    `color_scale` default — a second default drifts out of sync and
+    silently ships the old unsafe cream→rust ramp on every dashboard
+    call that omits the arg (Codex PR-2 re-review caught exactly this).
+    It must default to None and forward to the builder's single
+    source-of-truth dual-safe default."""
+    import inspect
+
+    from aml_framework.dashboard import charts as charts_mod
+
+    assert inspect.signature(charts_mod.heatmap_chart).parameters["color_scale"].default is None, (
+        "heatmap_chart(color_scale=...) must default to None, not a re-declared ramp"
+    )
+
+    # The retired unsafe ramp must not survive anywhere in the module.
+    mod_src = inspect.getsource(charts_mod)
+    assert "#fef3e8" not in mod_src, "old invisible-on-cream heatmap low end still in charts.py"
+    assert "#a44b30" not in mod_src, "old weak-on-dark heatmap high end still in charts.py"
+
+    # The actual user-facing default (no color_scale passed) must be
+    # the dual-safe ramp — endpoints clear 3:1 on both surfaces.
+    default_ramp = _build_heatmap_option([[1.0]], x_labels=["x"], y_labels=["y"])["visualMap"][
+        "inRange"
+    ]["color"]
+    for color in default_ramp:
+        assert _contrast(color, _LIGHT_SURFACE) >= 3.0, f"{color} <3:1 on light card"
+        assert _contrast(color, _DARK_SURFACE) >= 3.0, f"{color} <3:1 on dark card"
+
+
+def test_render_is_theme_neutral_no_dark_detection():
+    """Source + signature guard: `_render` must call `echarts_theme()`
+    with NO `dark=` argument and must NOT do server-side scheme
+    detection (no scheme bridge import, no `current_color_scheme`, no
+    `st.context`). Detecting dark either desyncs from the CSS theme or
+    forces a page reload that re-runs the AML engine with a new
+    `as_of` — a determinism regression in a compliance tool (Codex
+    PR-2)."""
+    import inspect
+
+    from aml_framework.dashboard import charts as charts_mod
+    from aml_framework.dashboard import chart_theme as theme_mod
+
+    # echarts_theme is parameterless now — a re-added dark flag is the
+    # exact regression Codex blocked.
+    assert list(inspect.signature(theme_mod.echarts_theme).parameters) == [], (
+        "echarts_theme() must take no parameters — no dark flag"
+    )
+
+    src = inspect.getsource(charts_mod._render)
+    assert "echarts_theme()" in src, "_render must call the parameterless echarts_theme()"
+    assert "echarts_theme(dark" not in src, "_render must not pass a dark flag"
+    code_only = "\n".join(line.split("#", 1)[0] for line in src.splitlines())
+    for forbidden in ("current_color_scheme", "scheme import", "st.context"):
+        assert forbidden not in code_only, (
+            f"_render must not do server-side scheme detection (found {forbidden!r})"
+        )
+
+
+def test_option_builders_emit_dual_safe_chrome_not_light_only():
+    """BLOCKER[3] regression: the per-chart builders used to bake the
+    cream-only DNA_INK_MUTED (#5a5e69) / DNA_RULE (#e6e1d3) straight
+    into options, which overrode the theme and were invisible on a
+    dark card. They must now emit the dual-contrast-safe tokens."""
+    import json
+
+    radar = _build_radar_option([("Coverage", 100), ("Quality", 100)], [("Now", [70, 80])])
+    assert radar["radar"]["axisName"]["color"] == DNA_CHART_LABEL
+    assert radar["radar"]["splitLine"]["lineStyle"]["color"] == DNA_CHART_RULE
+
+    heatmap = _build_heatmap_option([[1, 2], [3, 4]], x_labels=["X1", "X2"], y_labels=["Y1", "Y2"])
+    assert heatmap["visualMap"]["textStyle"]["color"] == DNA_CHART_LABEL
+
+    sankey = _build_sankey_option(["a", "b"], [("a", "b", 5)])
+    assert sankey["series"][0]["label"]["color"] == DNA_CHART_LABEL
+
+    gauge = _build_gauge_option(75, max_value=100, label="p95")
+    assert gauge["series"][0]["axisLabel"]["color"] == DNA_CHART_LABEL
+    assert gauge["series"][0]["title"]["color"] == DNA_CHART_LABEL
+
+    # No light-only literal may survive anywhere in any of these.
+    blob = json.dumps([radar, heatmap, sankey, gauge])
+    assert "#5a5e69" not in blob, "cream-only DNA_INK_MUTED leaked into a chart option"
+    assert "#e6e1d3" not in blob, "cream-only DNA_RULE leaked into a chart option"
 
 
 def test_severity_color_falls_back_to_muted():
