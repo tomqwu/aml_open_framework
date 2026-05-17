@@ -98,10 +98,12 @@ def test_echarts_theme_dark_variant_flips_tokens():
     assert dark["backgroundColor"] == "transparent"
 
 
-def test_charts_render_passes_detected_scheme():
+def test_charts_render_follows_css_scheme_signal():
     """Source guard: the single `_render` funnel must pass a detected
-    `dark=` flag to `echarts_theme`, not call it bare (which would
-    leave every chart light-tuned on the dark UI)."""
+    `dark=` flag to `echarts_theme`, and it must derive it from
+    `scheme.current_color_scheme()` (the client `prefers-color-scheme`
+    bridge — the SAME signal the dark CSS uses), NOT `st.context.theme`
+    (Streamlit's own theme, which can desync — Codex PR-2)."""
     import inspect
 
     from aml_framework.dashboard import charts as charts_mod
@@ -110,8 +112,21 @@ def test_charts_render_passes_detected_scheme():
     assert "echarts_theme(dark=" in src, (
         "_render must pass the detected scheme to echarts_theme(dark=...)"
     )
-    assert "st.context" in src and 'get("type")' in src, (
-        "_render must detect the active scheme via st.context.theme"
+    assert "current_color_scheme" in src, (
+        "_render must read scheme.current_color_scheme() (the CSS-aligned "
+        "client bridge), not Streamlit's own theme"
+    )
+    # Strip comment/docstring text before checking for st.context — the
+    # rationale comment legitimately *mentions* st.context.theme to
+    # document why it's avoided; only actual code use is a regression.
+    code_lines = []
+    for raw in src.splitlines():
+        line = raw.split("#", 1)[0]
+        code_lines.append(line)
+    code_only = "\n".join(code_lines)
+    assert "st.context" not in code_only, (
+        "_render must NOT use st.context.theme in code — it can desync "
+        "from the CSS prefers-color-scheme that drives the dark UI"
     )
 
 
