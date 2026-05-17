@@ -9,6 +9,7 @@ Run with: pytest tests/test_e2e_dashboard.py -v
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import time
@@ -581,3 +582,116 @@ class TestExecutiveDashboardDrillDowns:
             "SVP view of Executive Dashboard shows neither the working "
             "link nor the graceful-degradation caption"
         )
+
+
+class TestDarkModeLegibility:
+    """Real rendered-contrast guard: emulate OS dark mode and assert
+    the hero text is light-on-dark (legible), not the reported
+    dark-navy-on-dark. Uses its own dark-scheme context so it doesn't
+    perturb the shared `browser_page` (which stays light)."""
+
+    def test_dark_mode_meets_wcag_contrast(self, browser_page, dashboard_server):
+        """Emulate OS dark mode and assert REAL WCAG contrast on every
+        surface Codex flagged: hero/header/metric text ≥4.5:1, and the
+        KPI card boundary ≥3:1 vs the canvas (WCAG 1.4.11). Derives a
+        dark context from the EXISTING module browser — a second
+        `sync_playwright()` errors ("Sync API inside the asyncio
+        loop") because the module `browser_page` fixture holds one."""
+
+        def _rel_lum(rgb: str) -> float:
+            # Proper WCAG 2.x relative luminance (sRGB linearised),
+            # not a crude channel average.
+            nums = [int(n) for n in re.findall(r"[\d.]+", rgb)[:3]]
+            if len(nums) < 3:
+                return 0.0
+            chans = []
+            for v in nums[:3]:
+                c = v / 255.0
+                chans.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+            r, g, b = chans
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+        def _contrast(fg: str, bg: str) -> float:
+            a, b = _rel_lum(fg), _rel_lum(bg)
+            hi, lo = max(a, b), min(a, b)
+            return (hi + 0.05) / (lo + 0.05)
+
+        browser = browser_page.context.browser
+        ctx = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark")
+        page = ctx.new_page()
+        try:
+            page.goto(dashboard_server, wait_until="domcontentloaded", timeout=60000)
+            _await_shell(page, timeout=60000)
+            page.wait_for_timeout(8000)
+
+            def _css(selector: str, prop: str) -> str | None:
+                loc = page.locator(selector).first
+                if loc.count() == 0:
+                    return None
+                el = loc.element_handle()
+                if el is None:
+                    return None
+                return page.evaluate(
+                    "([e, p]) => getComputedStyle(e).getPropertyValue(p)",
+                    [el, prop],
+                )
+
+            canvas_bg = _css("[data-testid='stAppViewContainer']", "background-color")
+            assert canvas_bg, "could not read app canvas background"
+            # Canvas must actually be dark (the inversion the bug missed).
+            assert _rel_lum(canvas_bg) < 0.05, f"app canvas not dark in OS dark mode: {canvas_bg}"
+
+            # Text surfaces — WCAG AA body text is 4.5:1. h1/h2 are
+            # guaranteed on the landing page; stMetricValue only if a
+            # native st.metric is present (the hero uses custom
+            # .metric-card divs), so it's checked opportunistically —
+            # its colour is also pinned at the source level in
+            # test_dashboard_dark_theme.py.
+            checked_text = 0
+            # Required = guaranteed on the Today landing page (h1 hero,
+            # the KPI value numbers, the topbar tag). h2/h3/native-
+            # metric are NOT on Today (it has no <h2>; the AI header is
+            # h5), so they're opportunistic + also source-pinned.
+            for sel, label, required in (
+                ("h1", "hero", True),
+                # Hero KPI numbers ("12" / "4" / "12") carry
+                # .metric-card .value — always on the landing page.
+                (".metric-card .value", "KPI value", True),
+                # Topbar tag uses --dna-ink-faint (the prior 3.99:1
+                # WCAG 1.4.3 failure surface) — always present.
+                (".dna-topbar-tag", "topbar tag", True),
+                ("h2", "section header", False),
+                (".dna-topbar-release", "topbar release", False),
+                ("[data-testid='stMetricValue']", "native metric value", False),
+            ):
+                fg = _css(sel, "color")
+                if fg is None:
+                    assert not required, f"{label} ({sel}) missing on landing page"
+                    continue
+                ratio = _contrast(fg, canvas_bg)
+                assert ratio >= 4.5, f"{label} text contrast {ratio:.2f}:1 < 4.5:1 in dark mode"
+                checked_text += 1
+            assert checked_text >= 3, (
+                "expected hero + KPI value + topbar-tag text "
+                f"contrast checks; only ran {checked_text}"
+            )
+
+            # Topbar bg must be dark (was a cream slab).
+            topbar_bg = _css(".dna-topbar", "background-color")
+            assert topbar_bg, ".dna-topbar not found on landing page"
+            assert _rel_lum(topbar_bg) < 0.06, (
+                f"topbar still a light slab in dark mode: {topbar_bg}"
+            )
+
+            # KPI card boundary vs canvas — WCAG 1.4.11 non-text 3:1.
+            # The hero KPI tiles on the landing page carry .metric-card.
+            card_border = _css(".metric-card", "border-top-color")
+            assert card_border, ".metric-card not found on landing page"
+            border_ratio = _contrast(card_border, canvas_bg)
+            assert border_ratio >= 3.0, (
+                f"KPI card boundary contrast {border_ratio:.2f}:1 < 3:1 "
+                f"(border {card_border} vs canvas {canvas_bg}) — cards "
+                f"imperceptible on dark"
+            )
+        finally:
+            ctx.close()
