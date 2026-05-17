@@ -9,6 +9,7 @@ Run with: pytest tests/test_e2e_dashboard.py -v
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import time
@@ -581,3 +582,53 @@ class TestExecutiveDashboardDrillDowns:
             "SVP view of Executive Dashboard shows neither the working "
             "link nor the graceful-degradation caption"
         )
+
+
+class TestDarkModeLegibility:
+    """Real rendered-contrast guard: emulate OS dark mode and assert
+    the hero text is light-on-dark (legible), not the reported
+    dark-navy-on-dark. Uses its own dark-scheme context so it doesn't
+    perturb the shared `browser_page` (which stays light)."""
+
+    def test_hero_is_light_on_dark_when_os_dark(self, dashboard_server):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            pytest.skip("playwright not installed")
+
+        def _lum(rgb: str) -> float:
+            # rgb(...) → relative luminance 0..255 (simple avg is enough
+            # to distinguish "light ink" from "dark ink").
+            nums = [int(n) for n in re.findall(r"\d+", rgb)[:3]]
+            return sum(nums) / 3 if nums else 0.0
+
+        with sync_playwright() as p:
+            try:
+                browser = p.chromium.launch(headless=True)
+            except Exception:
+                pytest.skip("Chromium not installed")
+            ctx = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark")
+            page = ctx.new_page()
+            try:
+                page.goto(dashboard_server, wait_until="domcontentloaded", timeout=60000)
+                _await_shell(page, timeout=60000)
+                page.wait_for_timeout(8000)
+
+                h1 = page.locator("h1").first
+                canvas = page.locator("[data-testid='stAppViewContainer']").first
+                ink = page.evaluate("(el) => getComputedStyle(el).color", h1.element_handle())
+                bg = page.evaluate(
+                    "(el) => getComputedStyle(el).backgroundColor",
+                    canvas.element_handle(),
+                )
+                ink_l, bg_l = _lum(ink), _lum(bg)
+                # In OS dark mode the hero ink must be LIGHT and the
+                # canvas DARK — the inversion the bug was missing.
+                assert ink_l > 150, f"hero h1 ink not light in dark mode: color={ink} (lum {ink_l})"
+                assert bg_l < 80, f"app canvas not dark in dark mode: bg={bg} (lum {bg_l})"
+                assert ink_l - bg_l > 100, (
+                    f"insufficient hero contrast in dark mode: ink={ink} bg={bg}"
+                )
+            finally:
+                ctx.close()
+                browser.close()

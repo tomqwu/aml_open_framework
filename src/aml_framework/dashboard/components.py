@@ -80,11 +80,13 @@ CUSTOM_CSS = """
  * the same brand's tech-deck surface, not its landing surface. PR-N
  * corrects this. */
 :root {
-    /* Declare the page as light-scheme so the browser UA doesn't dark-shift
-     * scrollbars, form controls, or autofill backgrounds when the OS is in
-     * dark mode. Pairs with .streamlit/config.toml's [theme] base = "light"
-     * (which stops Streamlit's own auto-dark switch). */
-    color-scheme: light;
+    /* `light dark` lets the browser UA render scrollbars / form
+     * controls / autofill correctly in BOTH schemes — the dark
+     * palette below is supplied via `@media (prefers-color-scheme:
+     * dark)`. (Was hard-locked to `light`; the app now follows the
+     * OS preference. config.toml no longer hard-pins bg/text so the
+     * injected `--dna-*` vars fully own the canvas in both schemes.) */
+    color-scheme: light dark;
     --dna-display: 'Source Serif 4', Georgia, serif;
     --dna-body:    'Inter', -apple-system, system-ui, sans-serif;
     --dna-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -105,6 +107,33 @@ CUSTOM_CSS = """
     --dna-sidebar-bg: #fdfbf5;
     --dna-sidebar-ink: #1c1f26;
     --dna-topbar-h: 64px;
+}
+
+/* ---- Dark theme — mirrors the light DNA palette, role-for-role ----
+ * Every rule in this stylesheet colours via these `--dna-*` vars, so
+ * redefining them here flips the whole app when the OS is in dark
+ * mode. The dark canvas is a near-black blue (#0e1116) with a raised
+ * card surface (#1a1f29); ink is an off-white (#e8eaed). The rust
+ * accent is lightened (#e0795a) so it keeps its punch on dark — the
+ * #a44b30 light-mode rust mud-dies out on near-black. Hairlines flip
+ * to a faint light-on-dark. Hardcoded inline colours that don't read
+ * a var (KPI value/label, metric label) were refactored to vars in
+ * the same change so they flip too. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --dna-bg:      #0e1116;
+        --dna-bg-card: #1a1f29;
+        --dna-ink:     #e8eaed;
+        --dna-ink-2:   #cfd4da;
+        --dna-ink-dim: #9aa3ad;
+        --dna-ink-faint: #6b7480;
+        --dna-accent:  #e0795a;
+        --dna-accent-soft: rgba(224, 121, 90, 0.14);
+        --dna-rule:    rgba(232, 234, 237, 0.12);
+        --dna-rule-strong: rgba(232, 234, 237, 0.22);
+        --dna-sidebar-bg: #14181f;
+        --dna-sidebar-ink: #e8eaed;
+    }
 }
 
 /* ---- Global topbar (PR-P) ----
@@ -181,6 +210,13 @@ CUSTOM_CSS = """
  * unobstructed. */
 [data-testid="stAppViewContainer"] {
     padding-top: var(--dna-topbar-h);
+    /* Own the outermost canvas so neither Streamlit's base nor any
+     * edge gutter shows through now that config.toml no longer pins a
+     * background. Flips with the dark media query via `--dna-bg`. */
+    background: var(--dna-bg);
+}
+body, [data-testid="stApp"] {
+    background: var(--dna-bg);
 }
 section[data-testid="stSidebar"] {
     top: var(--dna-topbar-h) !important;
@@ -226,6 +262,19 @@ body { font-family: var(--dna-body); }
 code, pre, .terminal-block, [data-testid="stCode"] code,
 [data-testid="stMarkdownContainer"] code {
     font-family: var(--dna-mono) !important;
+}
+/* Own the body + caption text COLOUR via the --dna-* vars rather than
+ * inheriting Streamlit's config.toml `textColor` (which can't be
+ * scheme-aware and would leave dark-navy text invisible on the dark
+ * canvas). Body copy uses full ink; captions the dimmer tone — both
+ * flip automatically via the dark media query above. */
+[data-testid="stAppViewContainer"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stAppViewContainer"] [data-testid="stMarkdownContainer"] li {
+    color: var(--dna-ink) !important;
+}
+[data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"],
+[data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] * {
+    color: var(--dna-ink-dim) !important;
 }
 
 /* ---- Hide Streamlit Cloud chrome ----
@@ -419,7 +468,7 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNavViewButton"] {
     font-size: 0.8rem !important;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #64748b !important;
+    color: var(--dna-ink-dim) !important;
 }
 div[data-testid="stMetric"] {
     /* Cream-ivory card on cream canvas — matches the landing site's
@@ -592,11 +641,11 @@ button[data-baseweb="tab"] {
 .metric-card-accent {
     border-left: 4px solid #2563eb;
 }
-.metric-card h4 { margin: 0 0 0.3rem 0; color: #0f172a; }
+.metric-card h4 { margin: 0 0 0.3rem 0; color: var(--dna-ink); }
 .metric-card .value {
     font-size: clamp(1.4rem, 2.4vw, 2rem);
     font-weight: 700;
-    color: #0f172a;
+    color: var(--dna-ink);
     margin: 0.2rem 0;
     white-space: nowrap;
     overflow: hidden;
@@ -606,7 +655,7 @@ button[data-baseweb="tab"] {
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #64748b;
+    color: var(--dna-ink-dim);
 }
 .rag-dot {
     display: inline-block;
@@ -1225,7 +1274,7 @@ def headline_hero(tiles: list[dict[str, Any]]) -> None:
         caption_html = ""
         if tile.get("caption"):
             caption_html = (
-                f'<div style="color:#475569;font-size:0.85rem;margin-top:0.4rem;">'
+                f'<div style="color:var(--dna-ink-dim);font-size:0.85rem;margin-top:0.4rem;">'
                 f"{tile['caption']}</div>"
             )
         href_html = ""
@@ -1240,13 +1289,19 @@ def headline_hero(tiles: list[dict[str, Any]]) -> None:
             # Subtle tint (4% opacity hex via the closing 0a) on hero only —
             # makes the urgent number unmissable without crossing into noise.
             tint_pct = "0a"  # 4% opacity
-            bg_overlay = f"background: linear-gradient(180deg, {accent}{tint_pct} 0%, white 100%);"
+            # End on the themed card surface (NOT hardcoded `white`) so
+            # the tinted hero KPI cards flip with the dark theme instead
+            # of staying light slabs on a dark canvas.
+            bg_overlay = (
+                f"background: linear-gradient(180deg, {accent}{tint_pct} 0%, "
+                f"var(--dna-bg-card) 100%);"
+            )
         with col:
             # See kpi_card() comment on indentation in st.markdown.
             st.markdown(
                 f'<div class="metric-card animate-on-load" style="border-left: {border_w} solid {accent}; {bg_overlay} padding: 1.4rem 1.5rem;">'
-                f'<div class="label" style="font-size:{label_fs};letter-spacing:0.06em;text-transform:uppercase;color:#64748b;font-weight:600;">{tile["label"]}</div>'
-                f'<div class="value" style="font-size:{value_fs};font-weight:700;line-height:1.05;color:#0f172a;margin-top:0.4rem;">{tile["value"]}</div>'
+                f'<div class="label" style="font-size:{label_fs};letter-spacing:0.06em;text-transform:uppercase;color:var(--dna-ink-dim);font-weight:600;">{tile["label"]}</div>'
+                f'<div class="value" style="font-size:{value_fs};font-weight:700;line-height:1.05;color:var(--dna-ink);margin-top:0.4rem;">{tile["value"]}</div>'
                 f"{caption_html}"
                 f"{href_html}"
                 f"</div>",

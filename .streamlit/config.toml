@@ -1,13 +1,14 @@
 [theme]
-# Lock the dashboard to its light palette. The brand DNA in
-# src/aml_framework/dashboard/components.py is hand-tuned around a cream
-# canvas (#f7f4ec) with dark-navy ink (#1c1f26). Without this, browsers
-# in dark mode trigger Streamlit's auto-dark theme — Streamlit flips the
-# app background to dark while our injected CSS keeps painting dark text
-# on it, leaving the Welcome page unreadable.
-base = "light"
-backgroundColor = "#f7f4ec"
-secondaryBackgroundColor = "#fdfbf5"
-textColor = "#1c1f26"
+# The dashboard's full visual identity (light AND dark) is owned by the
+# hand-tuned `--dna-*` CSS variables injected in
+# src/aml_framework/dashboard/components.py, which flip via an
+# `@media (prefers-color-scheme: dark)` block so the app follows the
+# OS preference. We deliberately do NOT hard-pin backgroundColor /
+# textColor here: a static config.toml can't be scheme-aware, and
+# pinning a light canvas left dark-navy ink invisible whenever the OS
+# (or Streamlit's own theme switch) went dark. `base` is left to
+# Streamlit's default; the injected CSS paints the app container with
+# `var(--dna-bg)` and sets text colour from `var(--dna-ink)`, so our
+# theme wins in both schemes regardless of the base Streamlit chooses.
 primaryColor = "#a44b30"
 font = "sans serif"
