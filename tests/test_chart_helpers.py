@@ -100,12 +100,26 @@ _DARK_SURFACE = "#212832"
 
 
 def test_chart_chrome_is_dual_contrast_safe():
-    """Every series colour + the label/accent tokens must clear the
-    WCAG 1.4.11 non-text 3:1 bar against BOTH the light cream card and
-    the dark (#212832) card — that is what lets the charts be
+    """The NEUTRAL chrome — every CATEGORICAL_PALETTE series colour, the
+    label/accent tokens, AND the heatmap default ramp endpoints — must
+    clear WCAG 1.4.11 non-text 3:1 against BOTH the light cream card and
+    the dark (#212832) card. That is what lets the charts be
     theme-neutral (no dark detection, no determinism-breaking reload —
-    Codex PR-2)."""
-    swatches = list(CATEGORICAL_PALETTE) + [DNA_CHART_LABEL, DNA_CHART_ACCENT]
+    Codex PR-2).
+
+    SCOPE: the semantic SEVERITY_PALETTE / RAG_PALETTE are deliberately
+    excluded — they encode a regulator-standard meaning by convention
+    (a breach must read red) and are shared with the DOM badges; their
+    dark legibility is a separate tracked follow-up (see chart_theme.py).
+    """
+    # Heatmap default ramp endpoints are chrome too — the old
+    # cream→rust default was invisible on the cream card.
+    heatmap_default = _build_heatmap_option(
+        [[1, 2], [3, 4]], x_labels=["a", "b"], y_labels=["c", "d"]
+    )["visualMap"]["inRange"]["color"]
+    swatches = (
+        list(CATEGORICAL_PALETTE) + [DNA_CHART_LABEL, DNA_CHART_ACCENT] + list(heatmap_default)
+    )
     for color in swatches:
         on_light = _contrast(color, _LIGHT_SURFACE)
         on_dark = _contrast(color, _DARK_SURFACE)
@@ -116,6 +130,20 @@ def test_chart_chrome_is_dual_contrast_safe():
     # never an opaque light-only hairline.
     assert DNA_CHART_RULE.startswith("rgba("), DNA_CHART_RULE
     assert echarts_theme()["backgroundColor"] == "transparent"
+
+
+def test_tooltip_box_is_self_contained_and_legible():
+    """The tooltip is the one opaque element (ECharts paints its own
+    box). Its text must clear 4.5:1 and its border the 3:1 non-text bar
+    against the box bg, so it reads on either page theme without any
+    dark detection (Codex PR-2 re-review flagged the old #646a73
+    border at 2.5:1)."""
+    tip = echarts_theme()["tooltip"]
+    bg = tip["backgroundColor"]
+    text_ratio = _contrast(tip["textStyle"]["color"], bg)
+    border_ratio = _contrast(tip["borderColor"], bg)
+    assert text_ratio >= 4.5, f"tooltip text only {text_ratio:.2f}:1 on the box (<4.5:1)"
+    assert border_ratio >= 3.0, f"tooltip border only {border_ratio:.2f}:1 on the box (<3:1)"
 
 
 def test_render_is_theme_neutral_no_dark_detection():

@@ -467,7 +467,13 @@ def _build_heatmap_option(
     x_labels: list[str],
     y_labels: list[str],
     title: str | None = None,
-    color_scale: tuple[str, str] = ("#fef3e8", "#a44b30"),  # cream → burnt orange
+    # Slate → burnt-orange ramp. Both endpoints are dual-contrast-safe
+    # CATEGORICAL_PALETTE members (the old cream→rust default had a
+    # #fef3e8 low end that was invisible on the cream card and a rust
+    # high end too weak on the dark card — Codex PR-2 re-review). The
+    # ramp reads low→high by hue, not lightness, so it survives both
+    # page themes.
+    color_scale: tuple[str, str] = (CATEGORICAL_PALETTE[6], CATEGORICAL_PALETTE[0]),
 ) -> dict:
     """Build an ECharts heatmap option dict.
 

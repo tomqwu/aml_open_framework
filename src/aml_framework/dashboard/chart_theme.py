@@ -58,6 +58,17 @@ CATEGORICAL_PALETTE = [
 # Severity / RAG — keep in sync with components.py SEVERITY_COLORS / RAG_COLORS.
 # These are loud on purpose (red = breach, amber = warning, green = ok) and
 # override the categorical palette anywhere a column carries that semantic.
+#
+# DELIBERATELY OUT OF the dual-contrast-safe guarantee: they encode a
+# regulator-standard meaning by convention (a breach MUST read as red,
+# not a mid-tone), and they are shared verbatim with the DOM badges in
+# data_grid.py / components.py which sit on controlled CSS-themed
+# surfaces. Forcing them into the neutral [0.16,0.27] luminance band
+# would destroy that semantic and is a separate, broader change. The
+# dual-safe guarantee + its test cover ONLY the neutral chrome
+# (CATEGORICAL_PALETTE, DNA_CHART_* and the heatmap default ramp).
+# Their dark-mode legibility (notably `breached` #7c2d12) is a tracked
+# follow-up for the dark-theme component sweep, not this change.
 SEVERITY_PALETTE = {
     "critical": "#7c3aed",
     "high": "#dc2626",
@@ -140,8 +151,12 @@ def echarts_theme() -> dict:
             "itemHeight": 8,
         },
         "tooltip": {
+            # Opaque box ECharts paints itself — self-contained, reads
+            # on either page theme. Border lightened to clear WCAG
+            # 1.4.11 3:1 vs the box bg (#9aa3ad = 5.3:1; the old
+            # #646a73 was only 2.5:1 — Codex PR-2 re-review).
             "backgroundColor": "#2b2f36",
-            "borderColor": "#646a73",
+            "borderColor": "#9aa3ad",
             "textStyle": {"color": "#f2f3f5", "fontSize": 12},
             "axisPointer": {"lineStyle": {"color": DNA_CHART_ACCENT, "width": 1}},
         },
