@@ -146,6 +146,36 @@ def test_tooltip_box_is_self_contained_and_legible():
     assert border_ratio >= 3.0, f"tooltip border only {border_ratio:.2f}:1 on the box (<3:1)"
 
 
+def test_heatmap_wrapper_defers_to_dual_safe_builder_default():
+    """The public `heatmap_chart()` wrapper must NOT re-declare a
+    `color_scale` default — a second default drifts out of sync and
+    silently ships the old unsafe cream→rust ramp on every dashboard
+    call that omits the arg (Codex PR-2 re-review caught exactly this).
+    It must default to None and forward to the builder's single
+    source-of-truth dual-safe default."""
+    import inspect
+
+    from aml_framework.dashboard import charts as charts_mod
+
+    assert inspect.signature(charts_mod.heatmap_chart).parameters["color_scale"].default is None, (
+        "heatmap_chart(color_scale=...) must default to None, not a re-declared ramp"
+    )
+
+    # The retired unsafe ramp must not survive anywhere in the module.
+    mod_src = inspect.getsource(charts_mod)
+    assert "#fef3e8" not in mod_src, "old invisible-on-cream heatmap low end still in charts.py"
+    assert "#a44b30" not in mod_src, "old weak-on-dark heatmap high end still in charts.py"
+
+    # The actual user-facing default (no color_scale passed) must be
+    # the dual-safe ramp — endpoints clear 3:1 on both surfaces.
+    default_ramp = _build_heatmap_option([[1.0]], x_labels=["x"], y_labels=["y"])["visualMap"][
+        "inRange"
+    ]["color"]
+    for color in default_ramp:
+        assert _contrast(color, _LIGHT_SURFACE) >= 3.0, f"{color} <3:1 on light card"
+        assert _contrast(color, _DARK_SURFACE) >= 3.0, f"{color} <3:1 on dark card"
+
+
 def test_render_is_theme_neutral_no_dark_detection():
     """Source + signature guard: `_render` must call `echarts_theme()`
     with NO `dark=` argument and must NOT do server-side scheme

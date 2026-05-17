@@ -468,11 +468,11 @@ def _build_heatmap_option(
     y_labels: list[str],
     title: str | None = None,
     # Slate → burnt-orange ramp. Both endpoints are dual-contrast-safe
-    # CATEGORICAL_PALETTE members (the old cream→rust default had a
-    # #fef3e8 low end that was invisible on the cream card and a rust
-    # high end too weak on the dark card — Codex PR-2 re-review). The
-    # ramp reads low→high by hue, not lightness, so it survives both
-    # page themes.
+    # CATEGORICAL_PALETTE members (the retired cream→rust default had a
+    # near-cream low end invisible on the cream card and a rust high
+    # end too weak on the dark card — Codex PR-2 re-review). The ramp
+    # reads low→high by hue, not lightness, so it survives both page
+    # themes.
     color_scale: tuple[str, str] = (CATEGORICAL_PALETTE[6], CATEGORICAL_PALETTE[0]),
 ) -> dict:
     """Build an ECharts heatmap option dict.
@@ -528,13 +528,17 @@ def heatmap_chart(
     x_labels: list[str],
     y_labels: list[str],
     title: str | None = None,
-    color_scale: tuple[str, str] = ("#fef3e8", "#a44b30"),
+    # None defers to the builder's single source-of-truth dual-safe
+    # default — never re-declare the ramp here (a second default drifts
+    # out of sync and silently ships the old unsafe one — Codex PR-2).
+    color_scale: tuple[str, str] | None = None,
     height: int = DEFAULT_HEIGHT,
     key: str | None = None,
 ) -> None:
     """Render a heatmap."""
+    extra = {} if color_scale is None else {"color_scale": color_scale}
     option = _build_heatmap_option(
-        matrix, x_labels=x_labels, y_labels=y_labels, title=title, color_scale=color_scale
+        matrix, x_labels=x_labels, y_labels=y_labels, title=title, **extra
     )
     _render(option, height=height, key=key)
 
