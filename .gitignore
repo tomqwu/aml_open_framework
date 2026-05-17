@@ -40,3 +40,8 @@ uv.lock
 # setuptools-scm writes this at install time from git tags. Committing it
 # would freeze a stale version into the tree.
 src/aml_framework/_version.py
+
+# Regenerated on demand from the seeded synthetic generator
+# (python -m aml_framework.data.fixtures / make fixtures). Parquet +
+# DuckDB are not byte-deterministic, so they are not committed.
+data/fixtures/

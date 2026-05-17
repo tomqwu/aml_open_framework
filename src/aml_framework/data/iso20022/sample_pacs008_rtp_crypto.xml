@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sample pacs.008.001.13 (FIToFICstmrCdtTrf) for the PR-A new-rail
+  typologies: an RTP-rail instant credit transfer feeding a crypto/VASP
+  off-ramp (mirrors the C0028/C0029 synthetic plants). Same element
+  shape as sample_pacs008.xml so the existing Pacs008Parser ingests it
+  unchanged. PII is fictitious.
+-->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.13">
+  <FIToFICstmrCdtTrf>
+    <GrpHdr>
+      <MsgId>SAMPLE-RTP-CRYPTO-2026-05-17-001</MsgId>
+      <CreDtTm>2026-05-17T14:05:00+00:00</CreDtTm>
+      <NbOfTxs>2</NbOfTxs>
+      <CtrlSum>82000.00</CtrlSum>
+      <SttlmInf>
+        <SttlmMtd>INDA</SttlmMtd>
+      </SttlmInf>
+    </GrpHdr>
+
+    <CdtTrfTxInf>
+      <PmtId>
+        <InstrId>INSTR-RTP-2026-05-17-001-1</InstrId>
+        <EndToEndId>E2E-RTP-2026-05-17-2001</EndToEndId>
+        <UETR>9c0ffee0-1111-2222-3333-444455556666</UETR>
+      </PmtId>
+      <IntrBkSttlmAmt Ccy="CAD">42000.00</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2026-05-17</IntrBkSttlmDt>
+      <ChrgBr>SHAR</ChrgBr>
+      <InstgAgt>
+        <FinInstnId><BICFI>ROYCCAT2XXX</BICFI></FinInstnId>
+      </InstgAgt>
+      <InstdAgt>
+        <FinInstnId><BICFI>TDOMCATTXXX</BICFI></FinInstnId>
+      </InstdAgt>
+      <Dbtr>
+        <Nm>NORTHGATE DIGITAL HOLDINGS</Nm>
+        <PstlAdr><Ctry>CA</Ctry></PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id><IBAN>CA00ROYC00012345678901</IBAN></Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId><BICFI>ROYCCAT2XXX</BICFI></FinInstnId>
+      </DbtrAgt>
+      <CdtrAgt>
+        <FinInstnId><BICFI>TDOMCATTXXX</BICFI></FinInstnId>
+      </CdtrAgt>
+      <Cdtr>
+        <Nm>SWIFTCHAIN VASP LTD</Nm>
+        <PstlAdr><Ctry>MT</Ctry></PstlAdr>
+      </Cdtr>
+      <CdtrAcct>
+        <Id><IBAN>MT00TDOM00098765432109</IBAN></Id>
+      </CdtrAcct>
+      <Purp>
+        <Cd>CASH</Cd>
+      </Purp>
+      <RmtInf>
+        <Strd>
+          <AddtlRmtInf>Instant-rail funding leg ahead of VASP off-ramp</AddtlRmtInf>
+        </Strd>
+      </RmtInf>
+    </CdtTrfTxInf>
+
+    <CdtTrfTxInf>
+      <PmtId>
+        <EndToEndId>E2E-RTP-2026-05-17-2002</EndToEndId>
+        <UETR>9c0ffee0-7777-8888-9999-aaaabbbbcccc</UETR>
+      </PmtId>
+      <IntrBkSttlmAmt Ccy="CAD">40000.00</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2026-05-17</IntrBkSttlmDt>
+      <ChrgBr>DEBT</ChrgBr>
+      <Dbtr>
+        <Nm>NORTHGATE DIGITAL HOLDINGS</Nm>
+        <PstlAdr><Ctry>CA</Ctry></PstlAdr>
+      </Dbtr>
+      <DbtrAcct>
+        <Id><IBAN>CA00ROYC00012345678901</IBAN></Id>
+      </DbtrAcct>
+      <DbtrAgt>
+        <FinInstnId><BICFI>ROYCCAT2XXX</BICFI></FinInstnId>
+      </DbtrAgt>
+      <CdtrAgt>
+        <FinInstnId><BICFI>BINAMTMTXXX</BICFI></FinInstnId>
+      </CdtrAgt>
+      <Cdtr>
+        <Nm>OFFRAMP EXCHANGE MT</Nm>
+        <PstlAdr><Ctry>MT</Ctry></PstlAdr>
+      </Cdtr>
+      <CdtrAcct>
+        <Id><IBAN>MT00BINA00011223344556</IBAN></Id>
+      </CdtrAcct>
+      <Purp>
+        <Cd>CASH</Cd>
+      </Purp>
+      <RmtInf>
+        <Strd>
+          <AddtlRmtInf>Crypto/VASP off-ramp leg within 48h of inbound</AddtlRmtInf>
+        </Strd>
+      </RmtInf>
+    </CdtTrfTxInf>
+  </FIToFICstmrCdtTrf>
+</Document>
