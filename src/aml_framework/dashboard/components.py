@@ -107,6 +107,9 @@ CUSTOM_CSS = """
     --dna-sidebar-bg: #fdfbf5;
     --dna-sidebar-ink: #1c1f26;
     --dna-topbar-h: 64px;
+    /* Translucent topbar wash — must flip too or the fixed chrome bar
+     * stays a cream slab with invisible dark text in dark mode. */
+    --dna-topbar-bg: rgba(247, 244, 236, 0.92);
 }
 
 /* ---- Dark theme — mirrors the light DNA palette, role-for-role ----
@@ -122,17 +125,21 @@ CUSTOM_CSS = """
 @media (prefers-color-scheme: dark) {
     :root {
         --dna-bg:      #0e1116;
-        --dna-bg-card: #1a1f29;
+        /* Lifted off the canvas (#0e1116) enough that, combined with
+         * the strengthened hairline below, cards are clearly
+         * delineated (WCAG 1.4.11 — distinct boundary). */
+        --dna-bg-card: #212832;
         --dna-ink:     #e8eaed;
         --dna-ink-2:   #cfd4da;
         --dna-ink-dim: #9aa3ad;
         --dna-ink-faint: #6b7480;
         --dna-accent:  #e0795a;
         --dna-accent-soft: rgba(224, 121, 90, 0.14);
-        --dna-rule:    rgba(232, 234, 237, 0.12);
-        --dna-rule-strong: rgba(232, 234, 237, 0.22);
+        --dna-rule:    rgba(232, 234, 237, 0.18);
+        --dna-rule-strong: rgba(232, 234, 237, 0.30);
         --dna-sidebar-bg: #14181f;
         --dna-sidebar-ink: #e8eaed;
+        --dna-topbar-bg: rgba(14, 17, 22, 0.92);
     }
 }
 
@@ -151,7 +158,7 @@ CUSTOM_CSS = """
     right: 0;
     height: var(--dna-topbar-h);
     z-index: 999991;  /* above stHeader (999990) */
-    background: rgba(247, 244, 236, 0.92);
+    background: var(--dna-topbar-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--dna-rule);
@@ -457,7 +464,7 @@ section[data-testid="stSidebar"] [data-testid="stSidebarNavViewButton"] {
 [data-testid="stMetricValue"] {
     font-size: clamp(1.2rem, 2.2vw, 1.8rem) !important;
     font-weight: 700 !important;
-    color: #1e293b !important;
+    color: var(--dna-ink) !important;
     /* Prevent mid-number wraps like "$843,3<br>88" when the card column
        narrows but the value is still single-line-renderable. */
     white-space: nowrap !important;
@@ -493,13 +500,13 @@ div[data-testid="stMetric"] {
 h2 {
     font-family: var(--dna-display) !important;
     font-weight: 500 !important;
-    color: #1e293b !important;
+    color: var(--dna-ink) !important;
     letter-spacing: -0.005em;
 }
 h3 {
     font-family: var(--dna-body) !important;
     font-weight: 600 !important;
-    color: #334155 !important;
+    color: var(--dna-ink-2) !important;
 }
 
 /* ---- Today entrance hero (PR-P) ----

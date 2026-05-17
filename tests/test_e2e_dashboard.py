@@ -590,45 +590,40 @@ class TestDarkModeLegibility:
     dark-navy-on-dark. Uses its own dark-scheme context so it doesn't
     perturb the shared `browser_page` (which stays light)."""
 
-    def test_hero_is_light_on_dark_when_os_dark(self, dashboard_server):
-        try:
-            from playwright.sync_api import sync_playwright
-        except ImportError:
-            pytest.skip("playwright not installed")
+    def test_hero_is_light_on_dark_when_os_dark(self, browser_page, dashboard_server):
+        """Derive a dark-scheme context from the EXISTING module
+        browser — do NOT open a second `sync_playwright()` (that errors
+        with "Sync API inside the asyncio loop" because the module
+        `browser_page` fixture already holds one open)."""
 
         def _lum(rgb: str) -> float:
-            # rgb(...) → relative luminance 0..255 (simple avg is enough
-            # to distinguish "light ink" from "dark ink").
             nums = [int(n) for n in re.findall(r"\d+", rgb)[:3]]
             return sum(nums) / 3 if nums else 0.0
 
-        with sync_playwright() as p:
-            try:
-                browser = p.chromium.launch(headless=True)
-            except Exception:
-                pytest.skip("Chromium not installed")
-            ctx = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark")
-            page = ctx.new_page()
-            try:
-                page.goto(dashboard_server, wait_until="domcontentloaded", timeout=60000)
-                _await_shell(page, timeout=60000)
-                page.wait_for_timeout(8000)
+        browser = browser_page.context.browser
+        ctx = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark")
+        page = ctx.new_page()
+        try:
+            page.goto(dashboard_server, wait_until="domcontentloaded", timeout=60000)
+            _await_shell(page, timeout=60000)
+            page.wait_for_timeout(8000)
 
-                h1 = page.locator("h1").first
-                canvas = page.locator("[data-testid='stAppViewContainer']").first
-                ink = page.evaluate("(el) => getComputedStyle(el).color", h1.element_handle())
-                bg = page.evaluate(
-                    "(el) => getComputedStyle(el).backgroundColor",
-                    canvas.element_handle(),
+            def _css(selector: str, prop: str) -> str:
+                el = page.locator(selector).first.element_handle()
+                return page.evaluate(
+                    "([e, p]) => getComputedStyle(e).getPropertyValue(p)",
+                    [el, prop],
                 )
-                ink_l, bg_l = _lum(ink), _lum(bg)
-                # In OS dark mode the hero ink must be LIGHT and the
-                # canvas DARK — the inversion the bug was missing.
-                assert ink_l > 150, f"hero h1 ink not light in dark mode: color={ink} (lum {ink_l})"
-                assert bg_l < 80, f"app canvas not dark in dark mode: bg={bg} (lum {bg_l})"
-                assert ink_l - bg_l > 100, (
-                    f"insufficient hero contrast in dark mode: ink={ink} bg={bg}"
-                )
-            finally:
-                ctx.close()
-                browser.close()
+
+            ink_l = _lum(_css("h1", "color"))
+            bg_l = _lum(_css("[data-testid='stAppViewContainer']", "background-color"))
+            # Topbar was the other reported invisible surface (cream
+            # slab + dark text). Its bg must be dark in dark mode too.
+            topbar_l = _lum(_css(".dna-topbar", "background-color"))
+
+            assert ink_l > 150, f"hero ink not light in dark mode (lum {ink_l})"
+            assert bg_l < 80, f"app canvas not dark in dark mode (lum {bg_l})"
+            assert ink_l - bg_l > 100, "insufficient hero contrast in dark mode"
+            assert topbar_l < 90, f"topbar still a light slab in dark mode (lum {topbar_l})"
+        finally:
+            ctx.close()

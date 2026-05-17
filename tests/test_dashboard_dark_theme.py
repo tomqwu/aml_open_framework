@@ -60,8 +60,37 @@ class TestDarkMediaQueryPresent:
             "--dna-accent:",
             "--dna-rule:",
             "--dna-sidebar-bg:",
+            "--dna-topbar-bg:",
         ):
             assert var in block, f"dark block missing {var} redefinition"
+
+
+class TestVisibleChromeUsesVars:
+    """Codex review caught topbar / headers / native metric value
+    still hardcoded light → invisible in dark. Pin them on vars."""
+
+    def test_topbar_background_uses_var(self):
+        body = COMPONENTS_FILE.read_text(encoding="utf-8")
+        m = re.search(r"\.dna-topbar \{(.+?)\}", body, re.DOTALL)
+        assert m, ".dna-topbar rule not found"
+        assert "var(--dna-topbar-bg)" in m.group(1), (
+            "topbar bg hardcoded — stays a cream slab in dark mode"
+        )
+        assert "rgba(247, 244, 236, 0.92)" not in m.group(1)
+
+    def test_headers_and_metric_value_use_vars(self):
+        body = COMPONENTS_FILE.read_text(encoding="utf-8")
+        for sel in ("h2 {", "h3 {"):
+            i = body.index(sel)
+            rule = body[i : body.index("}", i)]
+            assert "var(--dna-ink" in rule, f"{sel} colour hardcoded"
+        i = body.index('[data-testid="stMetricValue"] {')
+        rule = body[i : body.index("}", i)]
+        assert "var(--dna-ink)" in rule, "stMetricValue colour hardcoded"
+        # The specific failing hexes Codex flagged must be gone from
+        # these var-driven rules.
+        assert "color: #1e293b !important" not in body
+        assert "color: #334155 !important" not in body
 
 
 class TestNoReintroducedHardcodedLightColors:
