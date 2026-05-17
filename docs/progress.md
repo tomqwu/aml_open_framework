@@ -1,6 +1,8 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-05-14. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-05-17. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Research site refresh — 2026-05-17:** `research/regulator-pulse.html` in the demo site extended from the Apr-29 window (89 days, 30 events) to the May-8 window (97 days, 32 events), syncing with `docs/research/2026-05-regulator-pulse.md`. Additions: GENIUS Act stablecoin NPRM (FinCEN + OFAC, 2026-04-08), AMLA RTS consultation-close event (2026-05-08), and a Forward Calendar section covering five active deadlines through 2026-07-10. `index.html` card and route metadata updated to match.
 
 > **Round 20 — GenAI advisor reliability + visibility + FAB** (#310–#313) shipped 2026-05-14: silent template fallback removed so real ollama errors are visible (PR #311 / `v0.1.4`); sidebar advisor wired through DSv4 Pro with the resolved model surfaced in the pill + reply chip + Page 29 (PR #312 / `v0.1.5`); floating-action-button bottom-right gives a one-click chat entry independent of the 32-page nav (PR #313 / `v0.1.6`); plus a page-bottom-padding regression fix (PR #310 / `v0.1.3`). Four Azure deploys, three Codex review cycles per PR. Tests grew 2,272 → 2,294.
 
