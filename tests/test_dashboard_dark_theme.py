@@ -178,3 +178,51 @@ class TestConfigTomlNotHardPinningLightCanvas:
         assert "secondaryBackgroundColor" not in keys
         # primaryColor (accent) + font are scheme-neutral and may stay.
         assert 'primaryColor = "#a44b30"' in cfg
+
+
+class TestPr3SecondaryChromeFollowsTheme:
+    """PR-3 component sweep: the secondary chrome that PR-1 missed —
+    deep-link colour, the "(no prior runs)" / AI-assistant /
+    citation-count muted labels — was hardcoded to cream-tuned light
+    hexes (#2563eb / #94a3b8 / #64748b) that don't flip in OS dark
+    mode. They must now route through the dark-aware `--dna-*` tokens
+    (or, for the SVG sparkline stroke where `var()` isn't valid on a
+    presentation attribute, the dual-contrast-safe #6b7280 the
+    theme-neutral charts use). Semantic confidence/RAG colours are a
+    DELIBERATELY separate follow-up (convention vs contrast trade-off)
+    and intentionally NOT asserted here.
+    """
+
+    def test_deep_link_uses_accent_token_not_fixed_blue(self):
+        body = COMPONENTS_FILE.read_text(encoding="utf-8")
+        assert "color:#2563eb" not in body, (
+            "tile deep-link still hardcodes #2563eb — invisible-ish on the dark card"
+        )
+        assert "color:var(--dna-accent);text-decoration:none" in body
+
+    def test_muted_labels_use_ink_faint_token(self):
+        body = COMPONENTS_FILE.read_text(encoding="utf-8")
+        # The three converted muted-label fragments must carry the
+        # dark-aware faint token, not the old fixed #94a3b8 / #64748b.
+        assert "var(--dna-ink-faint);font-size:0.78rem" in body, "(no prior runs) not tokenised"
+        assert ("text-transform:uppercase; color:var(--dna-ink-faint);") in body, (
+            "AI-assistant label not tokenised"
+        )
+        assert 'color:var(--dna-ink-faint);">{citation_count}' in body, (
+            "citation-count label not tokenised"
+        )
+        # The specific light-only hexes must be gone from these
+        # neutral-chrome spots (semantic 'low'=#94a3b8 confidence
+        # fallback is a separate deferred concern and may remain).
+        assert "color:#94a3b8;font-size:0.78rem" not in body
+        assert "text-transform:uppercase; color:#94a3b8;" not in body
+        assert 'color:#64748b;">{citation_count}' not in body
+
+    def test_sparkline_neutral_is_dual_contrast_safe(self):
+        body = COMPONENTS_FILE.read_text(encoding="utf-8")
+        # SVG stroke can't take var() as a presentation attr → must be
+        # the proven dual-safe neutral, never the old #64748b (2.5:1
+        # on the dark card).
+        assert '"neutral": "#6b7280"' in body
+        assert '.get(delta_dir, "#6b7280")' in body
+        assert '"neutral": "#64748b"' not in body
