@@ -1,9 +1,11 @@
 """Data Integration PR-B — deterministic parquet/duckdb fixtures +
 the explicit local-mock path for the cloud/warehouse source types.
 
-duckdb + pyarrow are runtime/dashboard extras, NOT in the lean
-``[dev]`` unit-test install — skip cleanly there (same convention as
-the other source-loader tests).
+duckdb + pyarrow are runtime/dashboard extras absent from the lean
+``[dev]`` unit-test install. The skip-guard is PER-TEST (the
+``duckdb_env`` fixture), not module-level, so the pure-Python mock
+sentinel-safety tests and the stdlib ISO-XML parse test still run on
+lean CI (Codex PR-B review nit 2).
 """
 
 from __future__ import annotations
@@ -13,20 +15,31 @@ from pathlib import Path
 
 import pytest
 
-pytest.importorskip("duckdb")
-pytest.importorskip("pyarrow")
-
-from aml_framework.data.fixtures import materialize_fixtures  # noqa: E402
-from aml_framework.data.sources import (  # noqa: E402
+# NOTE: duckdb/pyarrow are runtime/dashboard extras absent from the
+# lean [dev] unit-test install. The skip-guard is per-test (via the
+# `duckdb_env` fixture), NOT module-level, so the pure-Python sentinel
+# safety tests (`_is_mock_target` — the security-relevant "a real
+# conn string is never mocked" guard) and the stdlib ISO-XML parse
+# test still run on lean CI (Codex PR-B nit 2). These module imports
+# are all lazy-internally, so importing them on [dev] is safe.
+from aml_framework.data.fixtures import materialize_fixtures
+from aml_framework.data.sources import (
     _is_mock_target,
     load_duckdb_source,
     load_parquet_source,
     resolve_source,
 )
-from aml_framework.spec.loader import load_spec  # noqa: E402
+from aml_framework.spec.loader import load_spec
 
 _SPEC = "examples/canadian_schedule_i_bank/aml.yaml"
 _NEW_RAILS = {"rtp", "crypto", "prepaid"}
+
+
+@pytest.fixture
+def duckdb_env():
+    """Skip a test that needs the duckdb+pyarrow runtime extras."""
+    pytest.importorskip("duckdb")
+    pytest.importorskip("pyarrow")
 
 
 @pytest.fixture(scope="module")
@@ -41,7 +54,7 @@ def _channels(rows):
 # --- fixture generator ----------------------------------------------------
 
 
-def test_materialize_writes_parquet_and_duckdb(tmp_path, spec):
+def test_materialize_writes_parquet_and_duckdb(duckdb_env, tmp_path, spec):
     written = materialize_fixtures(tmp_path)
     assert (tmp_path / "parquet" / "txn.parquet").exists()
     assert (tmp_path / "parquet" / "customer.parquet").exists()
@@ -50,7 +63,7 @@ def test_materialize_writes_parquet_and_duckdb(tmp_path, spec):
     assert "parquet:txn" in written and "parquet:customer" in written
 
 
-def test_parquet_and_duckdb_resolve_to_same_logical_data(tmp_path, spec):
+def test_parquet_and_duckdb_resolve_to_same_logical_data(duckdb_env, tmp_path, spec):
     materialize_fixtures(tmp_path)
     pq = load_parquet_source(tmp_path / "parquet", spec)
     db = load_duckdb_source(str(tmp_path / "aml.duckdb"), spec)
@@ -62,7 +75,7 @@ def test_parquet_and_duckdb_resolve_to_same_logical_data(tmp_path, spec):
     assert _NEW_RAILS.issubset(_channels(db["txn"]))
 
 
-def test_fixtures_are_deterministic(tmp_path, spec):
+def test_fixtures_are_deterministic(duckdb_env, tmp_path, spec):
     a, b = tmp_path / "a", tmp_path / "b"
     materialize_fixtures(a)
     materialize_fixtures(b)
@@ -111,7 +124,7 @@ _CLOUD_TYPES = [
 
 
 @pytest.mark.parametrize("source_type", _CLOUD_TYPES)
-def test_cloud_source_mock_serves_synthetic(source_type, spec):
+def test_cloud_source_mock_serves_synthetic(duckdb_env, source_type, spec):
     as_of = datetime(2026, 1, 1)
     out = resolve_source(source_type, spec, as_of, seed=42, data_dir="mock")
     assert len(out["txn"]) > 0
@@ -120,7 +133,7 @@ def test_cloud_source_mock_serves_synthetic(source_type, spec):
     assert _NEW_RAILS.issubset(_channels(out["txn"]))
 
 
-def test_cloud_mock_is_deterministic_and_matches_synthetic(spec):
+def test_cloud_mock_is_deterministic_and_matches_synthetic(duckdb_env, spec):
     as_of = datetime(2026, 1, 1)
     mock = resolve_source("snowflake", spec, as_of, seed=42, data_dir="mock")
     synth = resolve_source("synthetic", spec, as_of, seed=42)
@@ -149,3 +162,13 @@ def test_new_pacs008_rtp_crypto_sample_parses():
     assert len(rows) == 2  # two CdtTrfTxInf legs (funding + off-ramp)
     amounts = sorted(str(r.get("amount")) for r in rows)
     assert amounts == ["40000.00", "42000.00"]
+    # Semantic shape, not just counts (Codex PR-B nit 1): both legs
+    # are the CAD pacs.008 RTP→VASP off-ramp typology, and the
+    # counterparties are the VASP / off-ramp exchange.
+    for r in rows:
+        assert r["currency"] == "CAD"
+        assert r["msg_kind"] == "pacs.008"
+        assert r["msg_id"] == "SAMPLE-RTP-CRYPTO-2026-05-17-001"
+        assert r["counterparty_country"] == "MT"
+    names = sorted(r["counterparty_name"] for r in rows)
+    assert names == ["OFFRAMP EXCHANGE MT", "SWIFTCHAIN VASP LTD"]
