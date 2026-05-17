@@ -166,8 +166,47 @@ def test_ca_spec_validates():
     spec = load_spec(SPEC_CA)
     assert spec.program.jurisdiction == "CA"
     assert spec.program.regulator == "FINTRAC"
-    assert len(spec.rules) == 10
+    # 10 original rules + 3 new-rail rules (crypto VASP pass-through,
+    # RTP instant-payment burst, prepaid-load structuring).
+    assert len(spec.rules) == 13
     assert len(spec.workflow.queues) == 5
+
+
+def test_new_rail_channel_enum_extended():
+    """The txn `channel` enum must carry the three new rails so the
+    new rules' channel filters are valid against the contract."""
+    spec = load_spec(SPEC_CA)
+    txn = next(c for c in spec.data_contracts if c.id == "txn")
+    channel_col = next(col for col in txn.columns if col.name == "channel")
+    for rail in ("rtp", "crypto", "prepaid"):
+        assert rail in channel_col.enum, f"{rail} missing from channel enum"
+
+
+def test_crypto_vasp_rule_fires_for_c0028(tmp_path):
+    """Planted crypto pass-through (C0028: cash-in $42k → crypto-out
+    $40k within 48h) must trip crypto_vasp_rapid_passthrough."""
+    _, result = _run_ca(tmp_path)
+    alerts = result.alerts.get("crypto_vasp_rapid_passthrough", [])
+    assert len(alerts) >= 1, "planted crypto VASP pass-through must be detected"
+    assert any(a.get("customer_id") == "C0028" for a in alerts)
+
+
+def test_prepaid_load_structuring_rule_fires_for_c0028(tmp_path):
+    """Planted prepaid structuring (C0028: 6 loads of $2,900 over 12
+    days, each < $3k) must trip prepaid_load_structuring."""
+    _, result = _run_ca(tmp_path)
+    alerts = result.alerts.get("prepaid_load_structuring", [])
+    assert len(alerts) >= 1, "planted prepaid-load structuring must be detected"
+    assert any(a.get("customer_id") == "C0028" for a in alerts)
+
+
+def test_rtp_instant_payment_burst_rule_fires_for_c0029(tmp_path):
+    """Planted RTP burst (C0029: 8 sends of $950 in a ~1h span) must
+    trip rtp_instant_payment_burst."""
+    _, result = _run_ca(tmp_path)
+    alerts = result.alerts.get("rtp_instant_payment_burst", [])
+    assert len(alerts) >= 1, "planted RTP instant-payment burst must be detected"
+    assert any(a.get("customer_id") == "C0029" for a in alerts)
 
 
 def test_pass_through_rule_fires(tmp_path):
