@@ -648,17 +648,19 @@ class TestDarkModeLegibility:
             # its colour is also pinned at the source level in
             # test_dashboard_dark_theme.py.
             checked_text = 0
+            # Required = guaranteed on the Today landing page (h1 hero,
+            # the KPI value numbers, the topbar tag). h2/h3/native-
+            # metric are NOT on Today (it has no <h2>; the AI header is
+            # h5), so they're opportunistic + also source-pinned.
             for sel, label, required in (
                 ("h1", "hero", True),
-                ("h2", "section header", True),
-                # The hero KPI numbers ("12" / "4" / "12") carry
-                # .metric-card .value and ARE on the landing page —
-                # required (Codex: the optional native-metric check
-                # wasn't enough).
+                # Hero KPI numbers ("12" / "4" / "12") carry
+                # .metric-card .value — always on the landing page.
                 (".metric-card .value", "KPI value", True),
-                # Topbar tag/release text uses --dna-ink-faint, which
-                # was the 3.99:1 WCAG 1.4.3 failure.
+                # Topbar tag uses --dna-ink-faint (the prior 3.99:1
+                # WCAG 1.4.3 failure surface) — always present.
                 (".dna-topbar-tag", "topbar tag", True),
+                ("h2", "section header", False),
                 (".dna-topbar-release", "topbar release", False),
                 ("[data-testid='stMetricValue']", "native metric value", False),
             ):
@@ -669,8 +671,8 @@ class TestDarkModeLegibility:
                 ratio = _contrast(fg, canvas_bg)
                 assert ratio >= 4.5, f"{label} text contrast {ratio:.2f}:1 < 4.5:1 in dark mode"
                 checked_text += 1
-            assert checked_text >= 4, (
-                "expected hero + header + KPI value + topbar-tag text "
+            assert checked_text >= 3, (
+                "expected hero + KPI value + topbar-tag text "
                 f"contrast checks; only ran {checked_text}"
             )
 
