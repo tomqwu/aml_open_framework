@@ -21,6 +21,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 COMPONENTS_FILE = PROJECT_ROOT / "src" / "aml_framework" / "dashboard" / "components.py"
 CONFIG_FILE = PROJECT_ROOT / ".streamlit" / "config.toml"
@@ -148,6 +150,19 @@ class TestConfigTomlNotHardPinningLightCanvas:
     Guard that those pins stay out."""
 
     def test_no_hardpinned_background_or_text_color(self):
+        # This guards the REPO's `.streamlit/config.toml`. The Docker
+        # image deliberately does not copy `.streamlit/` (the deployed
+        # app's theme is the injected CSS, not config.toml), and the
+        # docker-build CI job runs the suite inside that image — so the
+        # file is legitimately absent there. Skip rather than
+        # FileNotFoundError; the guard is meaningful only where the
+        # source-tree config exists.
+        if not CONFIG_FILE.exists():
+            pytest.skip(
+                ".streamlit/config.toml absent (running inside the "
+                "Docker image, which doesn't ship it) — repo-config "
+                "guard not applicable here"
+            )
         cfg = CONFIG_FILE.read_text(encoding="utf-8")
         # Match actual TOML key ASSIGNMENTS, not the words appearing in
         # the explanatory comment.
