@@ -406,6 +406,8 @@ Goal: make the per-section AI non-blocking (page renders first, the explanation 
 
 **Azure redeploys**: five `git tag -a` + `az acr build` + `az containerapp update` (both `ca-aml-api-dev` + `ca-aml-dashboard-dev`) cycles, `v0.1.7` → `v0.1.11`. The `v0.1.10` build first shipped `0.1.0+local` because `az acr build` was invoked without the `--build-arg APP_VERSION=… GIT_SHA=…` the Dockerfile expects (the image carries no `.git`); rebuilt with the args and rolled by image digest (a same-tag push doesn't force a new Container App revision). Both apps verified live at `/api/v1/health` reporting clean `0.1.11` / `543157a`.
 
+**Doc-scope note**: `CHANGELOG.md` `[Unreleased]` is pre-existing drift-stale — its newest entry is Round 16; Rounds 17–21 are unrecorded there. This is **intentionally not backfilled** in this focused progress-doc update (5 rounds of CHANGELOG history is its own dedicated catch-up); `docs/progress.md` remains the canonical state-of-project snapshot in the interim.
+
 **Result**: page-level AI no longer blocks first paint and shows a thinking state; the 99% gate is real and enforced; the dashboard follows OS dark mode with WCAG-conformant contrast on every primary surface and chart, with two scoped follow-ups tracked in-code. Tests grew 2,294 → 2,357 (+63). Memory added: verify external identifiers empirically; drain the worklog without asking permission; **commit before any Codex review** (the local Codex companion runs destructive `git reset`/`checkout` that discards uncommitted work — this cost one re-apply of a Codex-HOLD fix).
 
 ---
