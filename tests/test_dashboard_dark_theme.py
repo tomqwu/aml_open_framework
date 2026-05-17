@@ -61,8 +61,22 @@ class TestDarkMediaQueryPresent:
             "--dna-rule:",
             "--dna-sidebar-bg:",
             "--dna-topbar-bg:",
+            "--dna-card-border:",
         ):
             assert var in block, f"dark block missing {var} redefinition"
+
+    def test_cards_use_dedicated_border_var(self):
+        """KPI/metric cards must border via `--dna-card-border` (a
+        solid dark-mode mid-grey clearing WCAG 1.4.11's 3:1), NOT the
+        translucent general `--dna-rule` hairline which can't reach
+        3:1 on the near-black canvas."""
+        body = COMPONENTS_FILE.read_text(encoding="utf-8")
+        for rule_start in ('div[data-testid="stMetric"] {', ".metric-card {"):
+            i = body.index(rule_start)
+            rule = body[i : body.index("}", i)]
+            assert "var(--dna-card-border)" in rule, (
+                f"{rule_start} must border via --dna-card-border"
+            )
 
 
 class TestVisibleChromeUsesVars:

@@ -590,15 +590,31 @@ class TestDarkModeLegibility:
     dark-navy-on-dark. Uses its own dark-scheme context so it doesn't
     perturb the shared `browser_page` (which stays light)."""
 
-    def test_hero_is_light_on_dark_when_os_dark(self, browser_page, dashboard_server):
-        """Derive a dark-scheme context from the EXISTING module
-        browser — do NOT open a second `sync_playwright()` (that errors
-        with "Sync API inside the asyncio loop" because the module
-        `browser_page` fixture already holds one open)."""
+    def test_dark_mode_meets_wcag_contrast(self, browser_page, dashboard_server):
+        """Emulate OS dark mode and assert REAL WCAG contrast on every
+        surface Codex flagged: hero/header/metric text ≥4.5:1, and the
+        KPI card boundary ≥3:1 vs the canvas (WCAG 1.4.11). Derives a
+        dark context from the EXISTING module browser — a second
+        `sync_playwright()` errors ("Sync API inside the asyncio
+        loop") because the module `browser_page` fixture holds one."""
 
-        def _lum(rgb: str) -> float:
-            nums = [int(n) for n in re.findall(r"\d+", rgb)[:3]]
-            return sum(nums) / 3 if nums else 0.0
+        def _rel_lum(rgb: str) -> float:
+            # Proper WCAG 2.x relative luminance (sRGB linearised),
+            # not a crude channel average.
+            nums = [int(n) for n in re.findall(r"[\d.]+", rgb)[:3]]
+            if len(nums) < 3:
+                return 0.0
+            chans = []
+            for v in nums[:3]:
+                c = v / 255.0
+                chans.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+            r, g, b = chans
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+        def _contrast(fg: str, bg: str) -> float:
+            a, b = _rel_lum(fg), _rel_lum(bg)
+            hi, lo = max(a, b), min(a, b)
+            return (hi + 0.05) / (lo + 0.05)
 
         browser = browser_page.context.browser
         ctx = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark")
@@ -608,22 +624,60 @@ class TestDarkModeLegibility:
             _await_shell(page, timeout=60000)
             page.wait_for_timeout(8000)
 
-            def _css(selector: str, prop: str) -> str:
-                el = page.locator(selector).first.element_handle()
+            def _css(selector: str, prop: str) -> str | None:
+                loc = page.locator(selector).first
+                if loc.count() == 0:
+                    return None
+                el = loc.element_handle()
+                if el is None:
+                    return None
                 return page.evaluate(
                     "([e, p]) => getComputedStyle(e).getPropertyValue(p)",
                     [el, prop],
                 )
 
-            ink_l = _lum(_css("h1", "color"))
-            bg_l = _lum(_css("[data-testid='stAppViewContainer']", "background-color"))
-            # Topbar was the other reported invisible surface (cream
-            # slab + dark text). Its bg must be dark in dark mode too.
-            topbar_l = _lum(_css(".dna-topbar", "background-color"))
+            canvas_bg = _css("[data-testid='stAppViewContainer']", "background-color")
+            assert canvas_bg, "could not read app canvas background"
+            # Canvas must actually be dark (the inversion the bug missed).
+            assert _rel_lum(canvas_bg) < 0.05, f"app canvas not dark in OS dark mode: {canvas_bg}"
 
-            assert ink_l > 150, f"hero ink not light in dark mode (lum {ink_l})"
-            assert bg_l < 80, f"app canvas not dark in dark mode (lum {bg_l})"
-            assert ink_l - bg_l > 100, "insufficient hero contrast in dark mode"
-            assert topbar_l < 90, f"topbar still a light slab in dark mode (lum {topbar_l})"
+            # Text surfaces — WCAG AA body text is 4.5:1. h1/h2 are
+            # guaranteed on the landing page; stMetricValue only if a
+            # native st.metric is present (the hero uses custom
+            # .metric-card divs), so it's checked opportunistically —
+            # its colour is also pinned at the source level in
+            # test_dashboard_dark_theme.py.
+            checked_text = 0
+            for sel, label, required in (
+                ("h1", "hero", True),
+                ("h2", "section header", True),
+                ("[data-testid='stMetricValue']", "metric value", False),
+            ):
+                fg = _css(sel, "color")
+                if fg is None:
+                    assert not required, f"{label} ({sel}) missing on landing page"
+                    continue
+                ratio = _contrast(fg, canvas_bg)
+                assert ratio >= 4.5, f"{label} text contrast {ratio:.2f}:1 < 4.5:1 in dark mode"
+                checked_text += 1
+            assert checked_text >= 2, "expected at least hero + header text checks"
+
+            # Topbar bg must be dark (was a cream slab).
+            topbar_bg = _css(".dna-topbar", "background-color")
+            assert topbar_bg, ".dna-topbar not found on landing page"
+            assert _rel_lum(topbar_bg) < 0.06, (
+                f"topbar still a light slab in dark mode: {topbar_bg}"
+            )
+
+            # KPI card boundary vs canvas — WCAG 1.4.11 non-text 3:1.
+            # The hero KPI tiles on the landing page carry .metric-card.
+            card_border = _css(".metric-card", "border-top-color")
+            assert card_border, ".metric-card not found on landing page"
+            border_ratio = _contrast(card_border, canvas_bg)
+            assert border_ratio >= 3.0, (
+                f"KPI card boundary contrast {border_ratio:.2f}:1 < 3:1 "
+                f"(border {card_border} vs canvas {canvas_bg}) — cards "
+                f"imperceptible on dark"
+            )
         finally:
             ctx.close()

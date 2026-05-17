@@ -110,6 +110,13 @@ CUSTOM_CSS = """
     /* Translucent topbar wash — must flip too or the fixed chrome bar
      * stays a cream slab with invisible dark text in dark mode. */
     --dna-topbar-bg: rgba(247, 244, 236, 0.92);
+    /* Card boundary, distinct from the general hairline `--dna-rule`.
+     * In dark mode a translucent hairline can't reach WCAG 1.4.11's
+     * 3:1 against the near-black canvas, so cards would be
+     * imperceptible. Light keeps the original subtle look; dark uses
+     * a solid mid-grey that clears 3:1 vs the canvas (see the dark
+     * block) so KPI/metric cards are clearly delineated. */
+    --dna-card-border: rgba(28, 31, 38, 0.10);
 }
 
 /* ---- Dark theme — mirrors the light DNA palette, role-for-role ----
@@ -140,6 +147,11 @@ CUSTOM_CSS = """
         --dna-sidebar-bg: #14181f;
         --dna-sidebar-ink: #e8eaed;
         --dna-topbar-bg: rgba(14, 17, 22, 0.92);
+        /* Solid mid-grey, NOT a translucent hairline: relative
+         * luminance L≈0.143 vs the #0e1116 canvas (L≈0.0055) gives
+         * (0.143+0.05)/(0.0055+0.05) ≈ 3.5:1 — clears WCAG 1.4.11's
+         * 3:1 so every card boundary is perceivable on dark. */
+        --dna-card-border: #646a73;
     }
 }
 
@@ -481,7 +493,7 @@ div[data-testid="stMetric"] {
     /* Cream-ivory card on cream canvas — matches the landing site's
      * card panels (--bg-card #fdfbf5 in docs/pitch/landing/index.html). */
     background: var(--dna-bg-card);
-    border: 1px solid var(--dna-rule);
+    border: 1px solid var(--dna-card-border);
     border-radius: 12px;
     padding: 1rem 1.2rem 0.8rem;
     box-shadow: 0 1px 3px rgba(28, 31, 38, 0.04);
@@ -601,7 +613,7 @@ button[data-baseweb="tab"] {
 /* ---- Cards (via HTML) ---- */
 .metric-card {
     background: var(--dna-bg-card);
-    border: 1px solid var(--dna-rule);
+    border: 1px solid var(--dna-card-border);
     border-radius: 12px;
     padding: 1.2rem;
     box-shadow: 0 1px 3px rgba(28, 31, 38, 0.04);
