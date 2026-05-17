@@ -909,16 +909,6 @@ def page_header(title: str, description: str | None = None) -> None:
         render_explainer_poller()
     except Exception:  # noqa: BLE001 — poller must NEVER crash a page render
         pass
-    # Resolve the OS prefers-color-scheme into session_state once per
-    # page so charts (canvas-rendered ECharts — can't read the CSS
-    # media query) follow the SAME signal as the dark CSS, instead of
-    # st.context.theme which can desync (Codex PR-2). Crash-isolated.
-    try:
-        from aml_framework.dashboard.scheme import ensure_color_scheme_detected
-
-        ensure_color_scheme_detected()
-    except Exception:  # noqa: BLE001 — scheme detection must NEVER crash a page
-        pass
 
 
 def research_link(label: str, doc_path: str, anchor: str | None = None) -> str:
