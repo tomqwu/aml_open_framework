@@ -167,7 +167,7 @@ rules:
         WITH cash_in AS (
             SELECT customer_id, txn_id, amount, booked_at
             FROM txn
-            WHERE direction = 'in'
+            WHERE channel = 'cash' AND direction = 'in'
               AND booked_at >= TIMESTAMP '{window_start}'
               AND booked_at <  TIMESTAMP '{as_of}'
         ),
@@ -201,7 +201,7 @@ rules:
             window_start,
             window_end
         FROM paired
-        WHERE crypto_out_total >= 30000
+        WHERE cash_in_total >= 30000 AND crypto_out_total >= 30000
         ORDER BY customer_id
     escalate_to: l2_investigator
     evidence:
