@@ -351,6 +351,68 @@ data_grid(
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
+# Section 2b — Demonstrable test data per source type (DI PR-B)
+# ---------------------------------------------------------------------------
+# The catalogue above shows what's WIRED this run; this shows what can
+# be DEMONSTRATED at all, and how. Every type is reachable locally with
+# zero live credentials — the point of the DI PR-B fixture generator +
+# the explicit cloud/warehouse local-mock path.
+st.markdown("### Demonstrable test data per source type")
+st.caption(
+    "Every connector is demonstrable locally with no live credentials. "
+    "Synthetic is the default; CSV ships sample files; Parquet/DuckDB "
+    "regenerate from the seeded synthetic data via `make fixtures`; the "
+    "cloud/warehouse connectors accept the explicit `mock` sentinel "
+    "(`--data-dir mock`) which serves the seeded dataset via in-memory "
+    "DuckDB — honestly labelled, never a credential fake."
+)
+_di_root = _Path_lin7(__file__).resolve().parents[4]
+_csv_present = (_di_root / "data" / "input" / "txn.csv").exists() and (
+    _di_root / "data" / "input" / "customer.csv"
+).exists()
+_fixtures_present = (_di_root / "data" / "fixtures" / "aml.duckdb").exists()
+_HOW = {
+    "synthetic": ("Yes", "Default — `aml.data.synthetic`, deterministic (seed 42)."),
+    "csv": (
+        "Yes" if _csv_present else "sample files",
+        "Bundled `data/input/{txn,customer}.csv`.",
+    ),
+    "parquet": (
+        "Yes" if _fixtures_present else "`make fixtures`",
+        "`make fixtures` → `data/fixtures/parquet/` (git-ignored, regenerable).",
+    ),
+    "duckdb": (
+        "Yes" if _fixtures_present else "`make fixtures`",
+        "`make fixtures` → `data/fixtures/aml.duckdb` (one table/contract).",
+    ),
+    "snowflake": ("Yes (mock)", "`--data-source snowflake --data-dir mock` — local DuckDB mock."),
+    "bigquery": ("Yes (mock)", "`--data-source bigquery --data-dir mock` — local DuckDB mock."),
+    "s3": ("Yes (mock)", "`--data-source s3 --data-dir mock` — local DuckDB mock."),
+    "gcs": ("Yes (mock)", "`--data-source gcs --data-dir mock` — local DuckDB mock."),
+    "iso20022": (
+        "Yes",
+        "Bundled samples in `src/aml_framework/data/iso20022/` "
+        "(incl. the RTP→crypto/VASP pacs.008).",
+    ),
+}
+demo_rows = [
+    {
+        "Source": s,
+        "Demo data?": _HOW.get(s, ("—", ""))[0],
+        "How": _HOW.get(s, ("—", desc))[1],
+    }
+    for s, desc in SOURCE_CATALOGUE
+]
+data_grid(
+    pd.DataFrame(demo_rows),
+    key="data_integration_demo_data",
+    pinned_left=["Source"],
+    height=min(35 * len(demo_rows) + 60, 400),
+)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
 # Section 3 — Contract roll-up (whitepaper vocabulary)
 # ---------------------------------------------------------------------------
 # Whitepaper style guide (docs/research/2026-05-aml-data-problem.md:154):
@@ -489,6 +551,48 @@ else:
             "XML files. Default demos use the synthetic source (no XML). "
             "Try `aml run examples/canadian_schedule_i_bank/aml.yaml "
             "--data-source iso20022 --data-dir src/aml_framework/data/iso20022/`."
+        ),
+    )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# Section 4b — Volume by payment channel (DI PR-A rails made visible)
+# ---------------------------------------------------------------------------
+# DI PR-A added modern rails (rtp / crypto / prepaid) to the synthetic
+# generator + canonical spec. This surfaces every rail flowing through
+# the wired source this run so the expanded channel set is visible
+# here, not only on Customer 360. Chart is theme-neutral (DI dark
+# PR-2) so it reads on a light or dark card.
+st.markdown("### Volume by payment channel")
+st.caption(
+    "Transaction count per rail for the wired source this run — "
+    "including the rtp / crypto / prepaid rails added in the Data "
+    "Integration channel expansion."
+)
+_df_txns = st.session_state.get("df_txns")
+if _df_txns is not None and not _df_txns.empty and "channel" in _df_txns.columns:
+    _chan = _df_txns.groupby("channel").size().reset_index(name="Transactions")
+    _chan = _chan.rename(columns={"channel": "Channel"}).sort_values(
+        "Transactions", ascending=False
+    )
+    bar_chart(
+        _chan,
+        x="Channel",
+        y="Transactions",
+        title="Transactions by payment channel this run",
+        height=300,
+        key="data_integration_volume_by_channel",
+    )
+else:
+    empty_state(
+        "No transaction channel data for the wired source this run.",
+        icon="📊",
+        detail=(
+            "The wired source produced no `txn` rows with a `channel` "
+            "column. Default demos use the synthetic source, which "
+            "exercises cash / wire / ach / card plus the rtp / crypto / "
+            "prepaid rails added by the Data Integration channel work."
         ),
     )
 
