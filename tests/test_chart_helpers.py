@@ -26,7 +26,9 @@ pd = pytest.importorskip("pandas")
 
 from aml_framework.dashboard.chart_theme import (  # noqa: E402
     CATEGORICAL_PALETTE,
+    CATEGORICAL_PALETTE_DARK,
     DNA_INK,
+    DNA_INK_DARK,
     RAG_PALETTE,
     SEVERITY_PALETTE,
     echarts_theme,
@@ -66,6 +68,51 @@ def test_echarts_theme_has_brand_palette():
     # a marketing site.
     assert theme["animation"] is True
     assert theme["animationDuration"] == 300
+
+
+def test_echarts_theme_dark_variant_flips_tokens():
+    """`echarts_theme(dark=True)` must swap every visible token to the
+    dark-DNA mirror so charts match the OS-dark UI (PR-2) — light
+    text/axes on the transparent near-black canvas, brightened
+    series, raised-surface tooltip. Default stays light (backward
+    compatible — charts.py passes the detected flag)."""
+    light = echarts_theme()
+    dark = echarts_theme(dark=True)
+
+    assert light["textStyle"]["color"] == DNA_INK
+    assert dark["textStyle"]["color"] == DNA_INK_DARK
+    assert dark["color"] == list(CATEGORICAL_PALETTE_DARK)
+    assert dark["color"] != light["color"]
+    # Tooltip flips from the dark-navy-on-cream to a raised dark
+    # surface with light text (otherwise unreadable on dark).
+    assert dark["tooltip"]["backgroundColor"] != light["tooltip"]["backgroundColor"]
+    assert dark["tooltip"]["textStyle"]["color"] == DNA_INK_DARK
+    # Axis labels + split lines must be the dimmed/hairline dark tones,
+    # never the light values.
+    assert dark["valueAxis"]["axisLabel"]["color"] != light["valueAxis"]["axisLabel"]["color"]
+    assert (
+        dark["valueAxis"]["splitLine"]["lineStyle"]["color"]
+        != light["valueAxis"]["splitLine"]["lineStyle"]["color"]
+    )
+    # Canvas stays transparent in BOTH (page CSS shows through).
+    assert dark["backgroundColor"] == "transparent"
+
+
+def test_charts_render_passes_detected_scheme():
+    """Source guard: the single `_render` funnel must pass a detected
+    `dark=` flag to `echarts_theme`, not call it bare (which would
+    leave every chart light-tuned on the dark UI)."""
+    import inspect
+
+    from aml_framework.dashboard import charts as charts_mod
+
+    src = inspect.getsource(charts_mod._render)
+    assert "echarts_theme(dark=" in src, (
+        "_render must pass the detected scheme to echarts_theme(dark=...)"
+    )
+    assert "st.context" in src and 'get("type")' in src, (
+        "_render must detect the active scheme via st.context.theme"
+    )
 
 
 def test_severity_color_falls_back_to_muted():

@@ -904,11 +904,26 @@ def _render(option: dict, *, height: int, key: str | None) -> None:
     the helper body so unit-test CI (which only installs ``[dev]``)
     can import this module without them.
     """
+    import streamlit as st
     from streamlit_echarts import st_echarts  # type: ignore[import-not-found]
+
+    # ECharts renders client-side and can't read prefers-color-scheme,
+    # so detect the active scheme server-side and pass it through. The
+    # CSS @media query themes the rest of the UI; this keeps charts in
+    # lockstep. `st.context.theme` is dict-like; defensive throughout
+    # (older Streamlit / bare context → default to light, never crash
+    # a chart render).
+    is_dark = False
+    try:
+        theme_ctx = getattr(getattr(st, "context", None), "theme", None)
+        if theme_ctx is not None:
+            is_dark = theme_ctx.get("type") == "dark"
+    except Exception:  # noqa: BLE001 — theme detection must never break a chart
+        is_dark = False
 
     st_echarts(
         options=option,
-        theme=echarts_theme(),
+        theme=echarts_theme(dark=is_dark),
         height=f"{height}px",
         key=key,
     )

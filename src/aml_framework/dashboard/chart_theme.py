@@ -35,6 +35,29 @@ CATEGORICAL_PALETTE = [
     "#5a6b6f",  # slate
 ]
 
+# Dark-theme tokens — mirror the `@media (prefers-color-scheme: dark)`
+# block in components.py role-for-role so charts match the rest of the
+# dark UI (canvas #0e1116, ink #e8eaed, dim #9aa3ad, accent #e0795a).
+DNA_CANVAS_DARK = "#0e1116"
+DNA_INK_DARK = "#e8eaed"
+DNA_INK_MUTED_DARK = "#9aa3ad"
+DNA_RULE_DARK = "#3a4048"  # solid hairline visible on near-black
+DNA_ACCENT_DARK = "#e0795a"  # lightened rust (the #a44b30 muddies on dark)
+DNA_TOOLTIP_BG_DARK = "#212832"  # raised card surface
+DNA_TOOLTIP_BORDER_DARK = "#646a73"
+
+# Same earth-tone categorical roles, brightened so each series stays
+# legible on the near-black canvas (the cream-tuned values go muddy).
+CATEGORICAL_PALETTE_DARK = [
+    "#e0795a",  # burnt orange (brand, lightened)
+    "#5fae8e",  # forest green
+    "#c2986a",  # tobacco brown
+    "#7aa0d4",  # ink blue
+    "#c99aa8",  # muted plum
+    "#e0b15f",  # ochre
+    "#9bb0b4",  # slate
+]
+
 # Severity / RAG — keep in sync with components.py SEVERITY_COLORS / RAG_COLORS.
 # These are loud on purpose (red = breach, amber = warning, green = ok) and
 # override the categorical palette anywhere a column carries that semantic.
@@ -54,34 +77,49 @@ RAG_PALETTE = {
 }
 
 
-def echarts_theme() -> dict:
+def echarts_theme(dark: bool = False) -> dict:
     """Return the ECharts theme dict honouring the dashboard brand DNA.
 
-    Pass to ``st_echarts(option, theme=echarts_theme())``. Sets cream
-    canvas, ink-on-cream text, burnt-orange accent line, and the
-    categorical palette above. Animation is on but short (300ms) —
-    chart load shouldn't feel like a marketing site.
+    Pass to ``st_echarts(option, theme=echarts_theme(dark=...))``.
+    Light: cream canvas, ink-on-cream text, burnt-orange accent.
+    ``dark=True``: the dark-DNA mirror — light ink/axes on the
+    transparent (near-black via page CSS) canvas, brightened
+    categorical palette, raised-surface tooltip. ECharts is rendered
+    client-side and can't read `prefers-color-scheme`, so the caller
+    (``charts.py``, which has streamlit) detects the active scheme via
+    ``st.context.theme`` and passes the flag — this module stays
+    pure-data / streamlit-free so the lean ``[dev]`` install can
+    import it.
 
-    The returned dict is JSON-serialisable; nothing here references
-    streamlit or echarts so it's importable without the dashboard
-    extras installed.
+    The returned dict is JSON-serialisable.
     """
+    palette = CATEGORICAL_PALETTE_DARK if dark else CATEGORICAL_PALETTE
+    ink = DNA_INK_DARK if dark else DNA_INK
+    ink_muted = DNA_INK_MUTED_DARK if dark else DNA_INK_MUTED
+    rule = DNA_RULE_DARK if dark else DNA_RULE
+    accent = DNA_ACCENT_DARK if dark else DNA_ACCENT
+    # Pie slices separate against the page canvas behind the
+    # transparent chart bg — use the active scheme's canvas colour.
+    canvas = DNA_CANVAS_DARK if dark else DNA_CANVAS
+    tooltip_bg = DNA_TOOLTIP_BG_DARK if dark else DNA_INK
+    tooltip_border = DNA_TOOLTIP_BORDER_DARK if dark else DNA_INK
+    tooltip_text = DNA_INK_DARK if dark else DNA_CANVAS
     return {
-        "color": list(CATEGORICAL_PALETTE),
+        "color": list(palette),
         "backgroundColor": "transparent",  # let dashboard CSS show through
         "textStyle": {
             "fontFamily": "Inter, system-ui, -apple-system, sans-serif",
-            "color": DNA_INK,
+            "color": ink,
             "fontSize": 12,
         },
         "title": {
             "textStyle": {
                 "fontFamily": "'Source Serif 4', Georgia, serif",
-                "color": DNA_INK,
+                "color": ink,
                 "fontWeight": 600,
                 "fontSize": 14,
             },
-            "subtextStyle": {"color": DNA_INK_MUTED, "fontSize": 11},
+            "subtextStyle": {"color": ink_muted, "fontSize": 11},
         },
         "line": {
             "itemStyle": {"borderWidth": 0},
@@ -91,34 +129,34 @@ def echarts_theme() -> dict:
             "smooth": True,
         },
         "bar": {
-            "itemStyle": {"barBorderWidth": 0, "barBorderColor": DNA_RULE},
+            "itemStyle": {"barBorderWidth": 0, "barBorderColor": rule},
         },
         "pie": {
-            "itemStyle": {"borderWidth": 1, "borderColor": DNA_CANVAS},
+            "itemStyle": {"borderWidth": 1, "borderColor": canvas},
         },
         "categoryAxis": {
-            "axisLine": {"show": True, "lineStyle": {"color": DNA_RULE}},
+            "axisLine": {"show": True, "lineStyle": {"color": rule}},
             "axisTick": {"show": False},
-            "axisLabel": {"color": DNA_INK_MUTED, "fontSize": 11},
+            "axisLabel": {"color": ink_muted, "fontSize": 11},
             "splitLine": {"show": False},
         },
         "valueAxis": {
             "axisLine": {"show": False},
             "axisTick": {"show": False},
-            "axisLabel": {"color": DNA_INK_MUTED, "fontSize": 11},
-            "splitLine": {"show": True, "lineStyle": {"color": DNA_RULE, "type": "dashed"}},
+            "axisLabel": {"color": ink_muted, "fontSize": 11},
+            "splitLine": {"show": True, "lineStyle": {"color": rule, "type": "dashed"}},
         },
         "legend": {
-            "textStyle": {"color": DNA_INK_MUTED, "fontSize": 11},
+            "textStyle": {"color": ink_muted, "fontSize": 11},
             "icon": "roundRect",
             "itemWidth": 12,
             "itemHeight": 8,
         },
         "tooltip": {
-            "backgroundColor": DNA_INK,
-            "borderColor": DNA_INK,
-            "textStyle": {"color": DNA_CANVAS, "fontSize": 12},
-            "axisPointer": {"lineStyle": {"color": DNA_ACCENT, "width": 1}},
+            "backgroundColor": tooltip_bg,
+            "borderColor": tooltip_border,
+            "textStyle": {"color": tooltip_text, "fontSize": 12},
+            "axisPointer": {"lineStyle": {"color": accent, "width": 1}},
         },
         "grid": {
             "left": "3%",
