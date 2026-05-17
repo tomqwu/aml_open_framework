@@ -1303,7 +1303,7 @@ def headline_hero(tiles: list[dict[str, Any]]) -> None:
         if tile.get("href"):
             href_html = (
                 f'<div style="margin-top:0.5rem;"><a href="{tile["href"]}" '
-                f'style="color:#2563eb;text-decoration:none;font-size:0.85rem;'
+                f'style="color:var(--dna-accent);text-decoration:none;font-size:0.85rem;'
                 f'font-weight:600;">{tile.get("href_label", "→ open")}</a></div>'
             )
         bg_overlay = ""
@@ -1380,8 +1380,11 @@ def kpi_card_with_trend(
         spark_color = {
             "higher-better": RAG_COLORS["green"] if (delta_pct or 0) >= 0 else RAG_COLORS["amber"],
             "lower-better": RAG_COLORS["green"] if (delta_pct or 0) <= 0 else RAG_COLORS["amber"],
-            "neutral": "#64748b",
-        }.get(delta_dir, "#64748b")
+            # Dual-contrast-safe neutral stroke (>=3:1 on the cream
+            # AND the dark card — same token the theme-neutral charts
+            # use). SVG presentation attr → a fixed hex, not var().
+            "neutral": "#6b7280",
+        }.get(delta_dir, "#6b7280")
         spark_html = (
             f'<svg viewBox="0 0 100 32" preserveAspectRatio="none" style="width:100%;height:32px;'
             f'margin-top:0.4rem;display:block;">'
@@ -1398,7 +1401,8 @@ def kpi_card_with_trend(
             )
     else:
         delta_html = (
-            '<div style="color:#94a3b8;font-size:0.78rem;margin-top:0.4rem;">(no prior runs)</div>'
+            '<div style="color:var(--dna-ink-dim);font-size:0.78rem;'
+            'margin-top:0.4rem;">(no prior runs)</div>'
         )
 
     # See kpi_card() comment on indentation in st.markdown.
@@ -1887,7 +1891,7 @@ def ai_panel(*, page: str) -> None:
             f'<span style="width:8px; height:8px; border-radius:50%; '
             f'background:{pill_color}; box-shadow:0 0 6px {pill_color};"></span>'
             f'<span style="font-family:JetBrains Mono,monospace; font-size:11px; '
-            f'letter-spacing:0.05em; text-transform:uppercase; color:#94a3b8;">'
+            f'letter-spacing:0.05em; text-transform:uppercase; color:var(--dna-ink-dim);">'
             f"AI Assistant · {safe_backend} · {safe_model}</span></div>",
             unsafe_allow_html=True,
         )
@@ -2015,7 +2019,7 @@ def ai_panel_fab(*, page: str) -> None:
                 f'<span style="width:8px; height:8px; border-radius:50%; '
                 f'background:{pill_color}; box-shadow:0 0 6px {pill_color};"></span>'
                 f'<span style="font-family:JetBrains Mono,monospace; font-size:11px; '
-                f'letter-spacing:0.05em; text-transform:uppercase; color:#94a3b8;">'
+                f'letter-spacing:0.05em; text-transform:uppercase; color:var(--dna-ink-dim);">'
                 f"AI Assistant · {safe_backend} · {safe_model}</span></div>",
                 unsafe_allow_html=True,
             )
@@ -2180,7 +2184,7 @@ def _render_assistant_reply(reply: Any) -> None:
         f"padding:2px 6px; border-radius:3px; background:#1e293b; "
         f'color:#94a3b8;">{backend_label}</span>'
         f'<span style="font-family:JetBrains Mono,monospace; font-size:10px; '
-        f'color:#64748b;">{citation_count} citation(s) · '
+        f'color:var(--dna-ink-dim);">{citation_count} citation(s) · '
         f"{metric_count} metric(s) · {case_count} case(s)</span>"
         "</div>",
         unsafe_allow_html=True,
