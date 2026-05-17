@@ -139,7 +139,10 @@ CUSTOM_CSS = """
         --dna-ink:     #e8eaed;
         --dna-ink-2:   #cfd4da;
         --dna-ink-dim: #9aa3ad;
-        --dna-ink-faint: #6b7480;
+        /* #6b7480 was only 3.99:1 on the #0e1116 canvas — fails WCAG
+         * 1.4.3 (4.5:1) for the topbar tag/release text. #8b94a0 is
+         * ~6:1 yet still visibly a tier below `--dna-ink-dim`. */
+        --dna-ink-faint: #8b94a0;
         --dna-accent:  #e0795a;
         --dna-accent-soft: rgba(224, 121, 90, 0.14);
         --dna-rule:    rgba(232, 234, 237, 0.18);

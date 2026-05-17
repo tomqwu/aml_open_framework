@@ -651,7 +651,16 @@ class TestDarkModeLegibility:
             for sel, label, required in (
                 ("h1", "hero", True),
                 ("h2", "section header", True),
-                ("[data-testid='stMetricValue']", "metric value", False),
+                # The hero KPI numbers ("12" / "4" / "12") carry
+                # .metric-card .value and ARE on the landing page —
+                # required (Codex: the optional native-metric check
+                # wasn't enough).
+                (".metric-card .value", "KPI value", True),
+                # Topbar tag/release text uses --dna-ink-faint, which
+                # was the 3.99:1 WCAG 1.4.3 failure.
+                (".dna-topbar-tag", "topbar tag", True),
+                (".dna-topbar-release", "topbar release", False),
+                ("[data-testid='stMetricValue']", "native metric value", False),
             ):
                 fg = _css(sel, "color")
                 if fg is None:
@@ -660,7 +669,10 @@ class TestDarkModeLegibility:
                 ratio = _contrast(fg, canvas_bg)
                 assert ratio >= 4.5, f"{label} text contrast {ratio:.2f}:1 < 4.5:1 in dark mode"
                 checked_text += 1
-            assert checked_text >= 2, "expected at least hero + header text checks"
+            assert checked_text >= 4, (
+                "expected hero + header + KPI value + topbar-tag text "
+                f"contrast checks; only ran {checked_text}"
+            )
 
             # Topbar bg must be dark (was a cream slab).
             topbar_bg = _css(".dna-topbar", "background-color")
