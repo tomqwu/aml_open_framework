@@ -75,9 +75,9 @@ aml run examples/community_bank/aml.yaml --seed 42
 
 You'll see output like:
 ```
-[engine] 6 rules executed against 438 transactions, 25 customers
-[engine] 14 alerts produced, 14 cases opened
-[audit] decisions ledger: 14 events, hash-chain verified
+[engine] 6 rules executed against 1,905 transactions, 100 customers
+[engine] 56 alerts produced, 56 cases opened
+[audit] decisions ledger: 112 events, hash-chain verified
 [run] artifacts at /tmp/aml_run_<id>/
 ```
 
@@ -117,7 +117,7 @@ mkdir -p data/input
 aml run examples/community_bank/aml.yaml --data-source csv --data-dir data/input/
 ```
 
-Sample CSV files with 438 transactions and 25 customers ship in `data/input/` for immediate testing.
+Sample CSV files with 1,905 transactions and 100 customers ship in `data/input/` for immediate testing.
 
 ### Option B: Other sources
 

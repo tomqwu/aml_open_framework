@@ -668,14 +668,18 @@ def test_c0028_c0029_plants_are_deterministic() -> None:
         assert a_txns == b_txns, f"determinism break on {cid}"
 
 
-def test_existing_anchor_unchanged_proves_no_rebase() -> None:
-    """The new blocks are appended AFTER C0022 and consume zero
-    `random.*`, so they must NOT shift the seeded RNG. Pin an EXISTING
-    shape — the C0001 structuring plant rows and the global cash-txn
-    count — to fail loudly if a future edit re-bases the dataset."""
+def test_rebased_anchor_is_deterministic() -> None:
+    """v0.1.16 RE-BASE anchor.
+
+    The dataset was intentionally re-based (defaults 30→100 customers /
+    400→2000 noise txns + the scale-up positive replica band). This was
+    a deliberate, user-approved decision — it supersedes the Round-22
+    "zero RNG re-base" guard this test used to enforce. The guard's
+    VALUE is kept: it still fails loudly on any *accidental future*
+    drift, just anchored to the new intentional baseline."""
     data = _data()
-    # C0001's planted cash structuring deposits (hardcoded in the
-    # C0001 block) — exact amounts must be unchanged.
+    # C0001's planted cash structuring deposits are hardcoded literals
+    # in the C0001 block — re-basing the noise RNG must NOT change them.
     c0001_cash = sorted(
         t["amount"]
         for t in data["txn"]
@@ -687,36 +691,28 @@ def test_existing_anchor_unchanged_proves_no_rebase() -> None:
         Decimal("9500.00"),
         Decimal("9800.00"),
         Decimal("9900.00"),
-    ], f"C0001 structuring plant changed — dataset re-based: {c0001_cash}"
-    # The seeded noise loop + C0001..C0022 plants produce a stable 259
-    # rows on the legacy code path; the new blocks append exactly 76
-    # RNG-free rows (16 C0028/C0029 plant rows + 60 background-volume),
-    # so the total must be exactly 259 + 76. Any other value means an
-    # appended block consumed `random.*` and shifted the noise loop.
-    assert len(data["txn"]) == 259 + 76, (
-        f"txn count drifted to {len(data['txn'])} — expected 335 "
-        "(legacy 259 + 16 plant + 60 background); dataset re-based"
+    ], f"C0001 structuring plant changed unexpectedly: {c0001_cash}"
+    # New deterministic baseline (100 customers, 2000 noise txns, +30
+    # replica positives). Any drift from these exact figures means an
+    # unintended re-base — investigate before updating.
+    assert len(data["txn"]) == 1905, (
+        f"txn count drifted to {len(data['txn'])} — expected 1905 "
+        "(v0.1.16 100-customer re-baseline); unintended re-base"
     )
-    # The seeded noise loop produces a stable 49 cash txns; the new
-    # RNG-free blocks emit exactly ONE additional cash row (C0028's
-    # planted $42k cash-in), so the total is exactly the legacy count + 1.
     cash_count = sum(1 for t in data["txn"] if t["channel"] == "cash")
-    assert cash_count == 49 + 1, (
-        f"cash-txn count drifted to {cash_count} — noise loop re-based "
-        "(legacy 49 + C0028's single planted cash-in)"
+    assert cash_count == 487, (
+        f"cash-txn count drifted to {cash_count} — expected 487 "
+        "(v0.1.16 re-baseline); unintended re-base"
     )
-    # The C0028 noise-loop rows (e.g. the $4,800 cash-out the noise loop
-    # assigned before our plant block ran) must still be present —
-    # direct proof the seeded RNG sequence was not disturbed.
-    c0028_noise_cash_out = [
-        t
-        for t in data["txn"]
-        if t["customer_id"] == "C0028"
-        and t["channel"] == "cash"
-        and t["direction"] == "out"
-        and t["amount"] == Decimal("4800.00")
-    ]
-    assert len(c0028_noise_cash_out) == 1, (
-        "C0028's pre-existing noise-loop $4,800 cash-out vanished — "
-        "appended block re-based the seeded RNG"
+    assert len(data["customer"]) == 100
+    # The scale-up positive replica band: every slot C0030..C0059 must
+    # carry planted suspicious activity (proves positives scaled with
+    # the larger population, not diluted).
+    replica_ids = {f"C{i:04d}" for i in range(30, 60)}
+    replica_with_txns = {t["customer_id"] for t in data["txn"] if t["customer_id"] in replica_ids}
+    assert replica_with_txns == replica_ids, (
+        "scale-up replica band incomplete — expected planted activity on "
+        f"all 30 of C0030..C0059, got {len(replica_with_txns)}"
     )
+    # Determinism: same seed + same args ⇒ byte-identical txn count.
+    assert len(generate_dataset(as_of=AS_OF, seed=42)["txn"]) == 1905

@@ -69,7 +69,7 @@ def test_parquet_and_duckdb_resolve_to_same_logical_data(duckdb_env, tmp_path, s
     db = load_duckdb_source(str(tmp_path / "aml.duckdb"), spec)
 
     assert len(pq["txn"]) == len(db["txn"]) > 0
-    assert len(pq["customer"]) == len(db["customer"]) == 30
+    assert len(pq["customer"]) == len(db["customer"]) == 100
     # The PR-A rails must survive the parquet/duckdb round-trip.
     assert _NEW_RAILS.issubset(_channels(pq["txn"]))
     assert _NEW_RAILS.issubset(_channels(db["txn"]))
@@ -128,7 +128,7 @@ def test_cloud_source_mock_serves_synthetic(duckdb_env, source_type, spec):
     as_of = datetime(2026, 1, 1)
     out = resolve_source(source_type, spec, as_of, seed=42, data_dir="mock")
     assert len(out["txn"]) > 0
-    assert len(out["customer"]) == 30
+    assert len(out["customer"]) == 100
     # Demonstrable rails incl. the PR-A additions, no live creds used.
     assert _NEW_RAILS.issubset(_channels(out["txn"]))
 

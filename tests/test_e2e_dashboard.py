@@ -426,8 +426,12 @@ class TestNetworkExplorer:
         _navigate(browser_page, "Network Explorer")
         # The agraph component renders inside an iframe or a div with canvas.
         text = browser_page.inner_text("body")
-        # KPI should show 25 nodes (one per customer).
-        assert "25" in text
+        # The graph must render alerted-customer nodes. Anchor on the
+        # always-on C0001 structuring plant (guaranteed to alert and
+        # appear as a node) rather than a raw node count — the latter
+        # is dataset-size-dependent and re-bases with the synthetic
+        # generator (v0.1.16: 100 customers).
+        assert "C0001" in text
 
 
 class TestLiveMonitor:

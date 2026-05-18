@@ -224,8 +224,8 @@ def _customer_row(
 def generate_dataset(
     as_of: datetime,
     seed: int = 42,
-    n_customers: int = 30,
-    n_noise_txns: int = 400,
+    n_customers: int = 100,
+    n_noise_txns: int = 2000,
 ) -> dict[str, list[dict[str, Any]]]:
     """Produce ({customer rows, txn rows}) for the example spec's contracts."""
     random.seed(seed)
@@ -1230,6 +1230,152 @@ def generate_dataset(
             )
         )
         tid += 1
+
+    # ---------------------------------------------------------------------
+    # Scale-up positives (v0.1.16 re-base) — replicate the six always-on
+    # community-bank typologies onto a band of higher-index customers so
+    # the larger population keeps a realistic (still negative-majority)
+    # positive density instead of ~9 plants diluted across 100 accounts.
+    # ---------------------------------------------------------------------
+    # Self-contained + deterministic: uses only FIXED offsets (no
+    # `random.*`) so it does not perturb the seeded RNG order the noise
+    # / spec blocks above depend on, and is appended last so it can't
+    # shift any existing draw. Slots 30..59 are outside every spec
+    # contamination guard (C0012-C0029), so these plants are demo-safe
+    # for all jurisdictions. Guarded so smaller explicit-n_customers
+    # test invocations are byte-identical to before.
+    _REPLICA_START = 30
+    _REPLICA_PER_TYPOLOGY = 5  # 6 typologies × 5 = 30 extra positive customers
+    _REPLICA_END = _REPLICA_START + 6 * _REPLICA_PER_TYPOLOGY  # exclusive (60)
+    if n_customers >= _REPLICA_END:
+        for r in range(_REPLICA_PER_TYPOLOGY):
+            s_idx = _REPLICA_START + r * 6  # structuring
+            m_idx = s_idx + 1  # rapid movement
+            j_idx = s_idx + 2  # high-risk jurisdiction
+            c_idx = s_idx + 3  # CTR large cash
+            v_idx = s_idx + 4  # unusual volume spike
+            d_idx = s_idx + 5  # dormant reactivation
+
+            # High-risk-jurisdiction replica needs the country/risk
+            # override the rule keys on (mirrors C0003).
+            customers[j_idx] = _customer_row(
+                fake,
+                customer_ids[j_idx],
+                as_of - timedelta(days=200),
+                country="RU",
+                risk_rating="high",
+                edd_last_review=as_of - timedelta(days=60),
+            )
+
+            # Structuring — sub-threshold cash-in (mirrors C0001).
+            for day_offset, amt in [(2, 9800), (5, 9500), (9, 9900), (14, 7500), (21, 9200)]:
+                txns.append(
+                    _make_txn(
+                        tid,
+                        customer_ids[s_idx],
+                        amt,
+                        as_of - timedelta(days=day_offset, hours=12),
+                        channel="cash",
+                        direction="in",
+                    )
+                )
+                tid += 1
+            # Rapid movement (mirrors C0002).
+            _rm_base = as_of - timedelta(days=3)
+            for i, (channel, direction, amt) in enumerate(
+                [
+                    ("cash", "in", 20000),
+                    ("cash", "in", 18000),
+                    ("wire", "out", 15000),
+                    ("wire", "out", 17500),
+                ]
+            ):
+                txns.append(
+                    _make_txn(
+                        tid,
+                        customer_ids[m_idx],
+                        amt,
+                        _rm_base + timedelta(hours=i * 6),
+                        channel=channel,
+                        direction=direction,
+                    )
+                )
+                tid += 1
+            # High-risk jurisdiction wires-in (mirrors C0003).
+            for day_offset, amt in [(5, 3500), (12, 4500), (18, 2800)]:
+                txns.append(
+                    _make_txn(
+                        tid,
+                        customer_ids[j_idx],
+                        amt,
+                        as_of - timedelta(days=day_offset, hours=10),
+                        channel="wire",
+                        direction="in",
+                    )
+                )
+                tid += 1
+            # CTR large same-day cash (mirrors C0004).
+            _ctr_day = as_of - timedelta(hours=18)
+            for hour_offset, amt in [(9, 6500), (14, 6000)]:
+                txns.append(
+                    _make_txn(
+                        tid,
+                        customer_ids[c_idx],
+                        amt,
+                        _ctr_day + timedelta(hours=hour_offset),
+                        channel="cash",
+                        direction="in",
+                    )
+                )
+                tid += 1
+            # Unusual volume spike (mirrors C0005).
+            for week in range(4):
+                txns.append(
+                    _make_txn(
+                        tid,
+                        customer_ids[v_idx],
+                        "200.00",
+                        as_of - timedelta(days=35 - week * 7, hours=11),
+                        channel="ach",
+                        direction="out",
+                    )
+                )
+                tid += 1
+            for day_offset, amt in [(1, 5000), (3, 4500), (5, 5500)]:
+                txns.append(
+                    _make_txn(
+                        tid,
+                        customer_ids[v_idx],
+                        amt,
+                        as_of - timedelta(days=day_offset, hours=15),
+                        channel="wire",
+                        direction="out",
+                    )
+                )
+                tid += 1
+            # Dormant reactivation (mirrors C0006).
+            txns.append(
+                _make_txn(
+                    tid,
+                    customer_ids[d_idx],
+                    "500.00",
+                    as_of - timedelta(days=55, hours=10),
+                    channel="ach",
+                    direction="out",
+                )
+            )
+            tid += 1
+            txns.append(
+                _make_txn(
+                    tid,
+                    customer_ids[d_idx],
+                    "15000.00",
+                    as_of - timedelta(days=2, hours=14),
+                    channel="wire",
+                    direction="in",
+                )
+            )
+            tid += 1
 
     # ---------------------------------------------------------------------
     # HS-code baseline reference table (trade_based_ml spec)
