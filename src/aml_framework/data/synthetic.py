@@ -1250,8 +1250,15 @@ def generate_dataset(
     # / spec blocks above depend on, and is appended last so it can't
     # shift any existing draw. Slots 30..59 are outside every spec
     # contamination guard (C0012-C0029), so these plants are demo-safe
-    # for all jurisdictions. Guarded so smaller explicit-n_customers
-    # test invocations are byte-identical to before.
+    # for all jurisdictions. The `>= 60` guard only gates THIS replica
+    # block — it does NOT make small-n calls byte-identical to the
+    # pre-re-base output: the new n_customers/n_noise_txns defaults and
+    # the universal ≥90d onboarding floor are an intentional global
+    # re-base (user-approved). Callers that pin both n_customers and
+    # n_noise_txns keep the same txn COUNT (replica skipped, floor only
+    # shifts onboarding dates) but customer rows still re-base via the
+    # floor; this is fine — determinism tests are self-consistency and
+    # no test pins exact onboarded_at values.
     _REPLICA_START = 30
     _REPLICA_PER_TYPOLOGY = 5  # 6 typologies × 5 = 30 extra positive customers
     _REPLICA_END = _REPLICA_START + 6 * _REPLICA_PER_TYPOLOGY  # exclusive (60)
