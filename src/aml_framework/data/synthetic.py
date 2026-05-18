@@ -1256,6 +1256,16 @@ def generate_dataset(
     _REPLICA_PER_TYPOLOGY = 5  # 6 typologies × 5 = 30 extra positive customers
     _REPLICA_END = _REPLICA_START + 6 * _REPLICA_PER_TYPOLOGY  # exclusive (60)
     if n_customers >= _REPLICA_END:
+        # Strip any prior noise / new-rail background rows that the
+        # seeded loops happened to assign to the replica slots, exactly
+        # as the spec plants do for their guarded IDs (e.g.
+        # `_rtp_boi_customer_ids`). Without this the random baseline on
+        # a replica raises its `unusual_volume_spike` floor and the
+        # planted surge no longer clears the rule — the scaled-positive
+        # ground truth would be inaccurate (only ~1 of 5 volume-spike
+        # clones would alert). Filtering the list consumes no RNG.
+        _replica_ids = {f"C{i:04d}" for i in range(_REPLICA_START, _REPLICA_END)}
+        txns = [t for t in txns if t["customer_id"] not in _replica_ids]
         for r in range(_REPLICA_PER_TYPOLOGY):
             s_idx = _REPLICA_START + r * 6  # structuring
             m_idx = s_idx + 1  # rapid movement

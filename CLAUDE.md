@@ -160,9 +160,9 @@ aml.yaml (spec)
 
 ### Data Flow
 
-- `data/synthetic.py` generates deterministic test data: 100 customers / ~1,905 txns by default (v0.1.16 re-base). Planted positives C0001–C0029 (per-spec typologies) plus a scale-up replica band on C0030–C0059 (the six core community-bank typologies); the rest are negative/legitimate. Smaller explicit `n_customers` invocations are byte-identical to the pre-re-base output (replica band guarded ≥60).
+- `data/synthetic.py` generates deterministic test data: 100 customers / ~1,311 txns by default (v0.1.16 re-base). Planted positives C0001–C0029 (per-spec typologies) plus a scale-up replica band on C0030–C0059 (the six core community-bank typologies; replica slots are stripped of incidental noise so each carries only its planted shape). The rest are negative/legitimate. Smaller explicit `n_customers` invocations are byte-identical to the pre-re-base output (replica band guarded ≥60).
 - `data/sources.py` resolves data sources: synthetic, CSV, Parquet, DuckDB, S3, GCS, Snowflake, BigQuery.
-- `data/input/` has sample CSVs (1,905 txns, 100 customers) for immediate testing.
+- `data/input/` has sample CSVs (1,311 txns, 100 customers) for immediate testing.
 
 ### Dashboard
 

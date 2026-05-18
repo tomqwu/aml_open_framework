@@ -692,16 +692,17 @@ def test_rebased_anchor_is_deterministic() -> None:
         Decimal("9800.00"),
         Decimal("9900.00"),
     ], f"C0001 structuring plant changed unexpectedly: {c0001_cash}"
-    # New deterministic baseline (100 customers, 2000 noise txns, +30
-    # replica positives). Any drift from these exact figures means an
-    # unintended re-base — investigate before updating.
-    assert len(data["txn"]) == 1905, (
-        f"txn count drifted to {len(data['txn'])} — expected 1905 "
+    # New deterministic baseline: 100 customers, 2000 noise txns, +30
+    # replica positives, with the replica slots C0030-C0059 stripped of
+    # incidental prior noise (so each carries ONLY its planted shape).
+    # Any drift from these exact figures means an unintended re-base.
+    assert len(data["txn"]) == 1311, (
+        f"txn count drifted to {len(data['txn'])} — expected 1311 "
         "(v0.1.16 100-customer re-baseline); unintended re-base"
     )
     cash_count = sum(1 for t in data["txn"] if t["channel"] == "cash")
-    assert cash_count == 487, (
-        f"cash-txn count drifted to {cash_count} — expected 487 "
+    assert cash_count == 342, (
+        f"cash-txn count drifted to {cash_count} — expected 342 "
         "(v0.1.16 re-baseline); unintended re-base"
     )
     assert len(data["customer"]) == 100
@@ -715,4 +716,4 @@ def test_rebased_anchor_is_deterministic() -> None:
         f"all 30 of C0030..C0059, got {len(replica_with_txns)}"
     )
     # Determinism: same seed + same args ⇒ byte-identical txn count.
-    assert len(generate_dataset(as_of=AS_OF, seed=42)["txn"]) == 1905
+    assert len(generate_dataset(as_of=AS_OF, seed=42)["txn"]) == 1311
