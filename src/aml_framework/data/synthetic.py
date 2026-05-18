@@ -229,18 +229,22 @@ def generate_dataset(
 ) -> dict[str, list[dict[str, Any]]]:
     """Produce ({customer rows, txn rows}) for the example spec's contracts.
 
-    Ground-truth contract is **seed-pinned to the canonical seed 42** —
-    the seed every test, the dashboard demo, the committed
-    ``data/input`` CSVs, and ``BacktestPeriod`` default all use. At
-    seed 42 the only rule-positive customers are the planted bands
-    (C0001-C0059); the rest are negative/legitimate. On *other* seeds
-    the scaled random noise can coincidentally satisfy a rule for an
-    unplanted customer — that is expected and by design: varying the
-    public ``--seed`` is a robustness/variance surface (e.g. backtest
-    across periods), not a labelled-precision measurement. Callers
-    that need planted labels as ground truth must pin seed 42 (and
-    supply their own ``labels_loader``); the engine never assumes
-    planted-exclusivity across arbitrary seeds.
+    Ground-truth model: the planted bands (C0001-C0059) are the
+    **labelled** positives — deterministic typology shapes a caller
+    can treat as known ground truth (pin the canonical seed 42, which
+    every test, the dashboard demo, the committed ``data/input`` CSVs
+    and ``BacktestPeriod`` default use). The remaining customers are
+    **unlabelled realistic background** — NOT a guarantee of zero
+    alerts. With the v0.1.16 scaled volume, random background activity
+    will occasionally satisfy a tight rule shape (e.g. a coincidental
+    in→out within ``uk_app_fraud``'s 1h pass-through window) even at
+    seed 42. This is by design: real transaction monitoring produces
+    false positives, and surfacing them is exactly what the
+    framework's false-positive analysis / threshold-tuning / backtest
+    surfaces exist for — a synthetic set where only planted customers
+    ever alert would be less realistic, not more. The engine never
+    assumes planted-exclusivity (precision/recall is only scored when
+    the caller supplies its own ``labels_loader``).
     """
     random.seed(seed)
     fake = Faker()
