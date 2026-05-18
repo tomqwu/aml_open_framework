@@ -260,9 +260,14 @@ def data_grid(
         # min-height on the body viewport/clipper, so a 2-row table
         # keeps a blank strip below the last row. Collapse those so the
         # grid is genuinely flush to its content.
+        # AG Grid's auto-height stylesheet stamps `min-height: 150px`
+        # on the center container + viewport (and the clipper/body),
+        # so all four must be cleared or a few-row table keeps the
+        # blank strip below the last row.
         for sel in (
             ".ag-center-cols-clipper",
             ".ag-center-cols-viewport",
+            ".ag-center-cols-container",
             ".ag-body-viewport",
         ):
             custom_css[sel] = {"min-height": "unset !important"}

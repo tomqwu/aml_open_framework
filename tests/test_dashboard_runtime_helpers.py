@@ -236,8 +236,13 @@ class TestDataGridRuntime:
         # Must also collapse AG Grid's default body min-height, else a
         # 2-row table keeps a blank strip below the last row.
         css = fake_aggrid.last_call["kwargs"]["custom_css"]
-        assert css[".ag-center-cols-viewport"] == {"min-height": "unset !important"}
-        assert css[".ag-center-cols-clipper"] == {"min-height": "unset !important"}
+        for sel in (
+            ".ag-center-cols-viewport",
+            ".ag-center-cols-clipper",
+            ".ag-center-cols-container",
+            ".ag-body-viewport",
+        ):
+            assert css[sel] == {"min-height": "unset !important"}, sel
 
     def test_data_grid_default_is_fixed_height_and_paginated(self, monkeypatch):
         fake_aggrid = _install_aggrid(monkeypatch, {"selected_rows": []})
