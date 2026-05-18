@@ -334,11 +334,24 @@ with st.sidebar:
         title = PERSONA_LABELS.get(code, (code.upper(), ""))[0]
         return f"{title}"
 
+    def _apply_persona() -> None:
+        # Runs as the selectbox's on_change callback — i.e. BEFORE the
+        # next rerun's script body. Without this, `selected_audience`
+        # would only be written further down (after `st.navigation()`
+        # already built the sidebar from the *previous* value), so the
+        # nav would lag one rerun behind the dropdown. Setting it here
+        # means the early `st.navigation()` call sees the new persona
+        # on the very rerun the change triggers.
+        choice = st.session_state.get("audience_selectbox", "all")
+        st.session_state["selected_audience"] = None if choice == "all" else choice
+
     audience = st.selectbox(
         "I am a…",
         options=_persona_options,
         index=0,
         format_func=_persona_format,
+        key="audience_selectbox",
+        on_change=_apply_persona,
         help=(
             "Pick your role to filter the sidebar to the pages most relevant "
             "to you. Executive personas (SVP/CTO/CCO/VP/Director) also get a "
@@ -349,6 +362,9 @@ with st.sidebar:
         # One-line description grounds the selection so a leader knows
         # they picked the right persona before the page list updates.
         st.caption(persona_description(audience))
+    # Initial render (no change event yet) still needs the value set so
+    # the first `st.navigation()` is consistent; the callback owns it
+    # on every subsequent change.
     st.session_state["selected_audience"] = audience if audience != "all" else None
 
     # Guided mode — the legacy "Guided demo" toggle was a thin per-page
