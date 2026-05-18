@@ -97,6 +97,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 aml_framework = ["templates/*.sql.j2", "templates/*.md.j2"]
+"aml_framework.api" = ["static/*.html"]
 
 [tool.setuptools_scm]
 # Derive version from git tags. The current commit's version becomes:

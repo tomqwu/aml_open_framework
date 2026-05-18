@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AML Open Framework — spec-driven, audit-ready compliance</title>
+<meta name="description" content="A human-readable AML compliance spec that compiles to an auditable transaction-monitoring engine — evidence, lineage and reproducible runs by design.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c1f26; --ink-deep:#0a0e1a; --cream:#f7f4ec; --cream-soft:#fdfbf5;
+    --rust:#dd5c34; --rust-deep:#a44b30; --line:rgba(247,244,236,.14);
+    --mut:#9aa3ad; --mut-2:#c8cfd6;
+    --serif:'Source Serif 4',Georgia,serif;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --sans:'Inter',-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--cream);font-family:var(--sans);
+    line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100vh;
+    display:flex;flex-direction:column}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 40px;width:100%}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--rust);font-weight:500}
+  a{color:inherit}
+
+  header{border-bottom:1px solid var(--line);padding:22px 0}
+  header .wrap{display:flex;align-items:center;gap:14px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--rust)}
+  .brand{font-family:var(--serif);font-size:18px;font-weight:600}
+  .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--mut)}
+  header nav{margin-left:auto;display:flex;gap:26px;font-size:13.5px}
+  header nav a{color:var(--mut-2);text-decoration:none}
+  header nav a:hover{color:var(--cream)}
+  .ext{font-size:11px;color:var(--mut)}
+
+  main{flex:1;display:flex;align-items:center;
+    background:radial-gradient(120% 75% at 82% 0,rgba(221,92,52,.12),transparent 60%)}
+  .hero{padding:84px 0 96px}
+  .hero .eyebrow{margin-bottom:22px}
+  .hero h1{font-family:var(--serif);font-weight:600;font-size:clamp(34px,5.4vw,58px);
+    line-height:1.1;letter-spacing:-.02em;max-width:16ch}
+  .hero h1 em{font-style:italic;color:var(--rust)}
+  .hero .blurb{margin-top:22px;max-width:56ch;font-size:clamp(15px,2vw,17px);
+    color:var(--mut-2)}
+  .doors{display:flex;gap:16px;margin-top:42px;flex-wrap:wrap}
+  .door{padding:15px 28px;border-radius:10px;font-size:14px;font-weight:600;
+    text-decoration:none;display:inline-flex;gap:10px;align-items:center;transition:.15s}
+  .door.app{background:var(--rust);color:var(--cream-soft)}
+  .door.app:hover{background:var(--rust-deep)}
+  .door.kb{background:transparent;color:var(--cream);border:1px solid var(--line)}
+  .door.kb:hover{border-color:var(--rust);color:var(--rust)}
+  .aud{margin-top:64px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .aud .card{border:1px solid var(--line);border-radius:12px;padding:22px;
+    background:linear-gradient(180deg,rgba(247,244,236,.04),transparent)}
+  .aud .k{font-family:var(--mono);font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--rust)}
+  .aud .h{font-family:var(--serif);font-size:18px;margin:10px 0 6px}
+  .aud .l{font-size:13px;color:var(--mut);line-height:1.7}
+
+  footer{border-top:1px solid var(--line);padding:22px 0;
+    font-family:var(--mono);font-size:11px;color:var(--mut)}
+  footer .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+  footer a{color:var(--mut-2);text-decoration:none}
+  @media(max-width:760px){
+    .wrap{padding:0 22px}
+    header nav{display:none}
+    .hero{padding:54px 0 64px}
+    .aud{grid-template-columns:1fr;margin-top:44px}
+  }
+</style>
+</head>
+<body>
+  <header><div class="wrap">
+    <span class="dot"></span>
+    <span class="brand">AML Open Framework</span>
+    <span class="tag">Spec-driven · Audit-ready</span>
+    <nav>
+      <a href="__KB_URL__">Knowledge</a>
+      <a href="__APP_URL__">Live app</a>
+      <a href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener">Source <span class="ext">↗</span></a>
+    </nav>
+  </div></header>
+
+  <main><div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Spec-driven · Audit-ready · Open source</div>
+      <h1>The AML program you can <em>show</em>, not just describe.</h1>
+      <p class="blurb">A human-readable compliance spec that compiles to an auditable
+      transaction-monitoring engine — evidence, lineage and reproducible runs by design.
+      Built around the real painpoints of a 5-year lookback / legacy-rule modernization.</p>
+      <div class="doors">
+        <a class="door app" href="__APP_URL__">Launch the live app →</a>
+        <a class="door kb" href="__KB_URL__">Explore the knowledge base</a>
+      </div>
+      <div class="aud">
+        <div class="card"><div class="k">Business</div><div class="h">Why it matters</div>
+          <div class="l">Board narrative · the TD-2024 framing case · the ROI of spec-as-code</div></div>
+        <div class="card"><div class="k">Technical</div><div class="h">How it works</div>
+          <div class="l">Architecture walkthrough · lineage walk-back · the data problem</div></div>
+        <div class="card"><div class="k">Research</div><div class="h">The evidence</div>
+          <div class="l">Whitepapers · regulator pulse · competitive positioning</div></div>
+      </div>
+    </section>
+  </div></main>
+
+  <footer><div class="wrap">
+    <span>AML Open Framework</span>
+    <a href="__APP_URL__">Live app</a>
+    <a href="__KB_URL__">Knowledge base</a>
+    <a href="https://github.com/tomqwu/aml_open_framework" target="_blank" rel="noopener">GitHub</a>
+    <span style="margin-left:auto">Apache-2.0 · defensive compliance tooling</span>
+  </div></footer>
+</body>
+</html>

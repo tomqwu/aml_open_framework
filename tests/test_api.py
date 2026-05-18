@@ -65,6 +65,35 @@ class TestHealth:
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
+class TestLandingFrontDoor:
+    """PR-U1: FastAPI owns / and serves the thin static hero so the
+    framework hosts its own landing (GH-Pages demo retired later)."""
+
+    def test_root_serves_hero_html(self):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers["content-type"]
+        body = resp.text
+        assert "AML Open Framework" in body
+        assert "Launch the live app" in body
+        assert "Explore the knowledge base" in body
+        # Placeholders must be substituted, never shipped raw.
+        assert "__APP_URL__" not in body
+        assert "__KB_URL__" not in body
+
+    def test_cta_targets_are_env_overridable(self, monkeypatch):
+        monkeypatch.setenv("AML_APP_URL", "https://app.example.test")
+        monkeypatch.setenv("AML_KB_URL", "https://kb.example.test")
+        body = client.get("/").text
+        assert "https://app.example.test" in body
+        assert "https://kb.example.test" in body
+
+    def test_api_routes_unaffected_by_root_mount(self):
+        # The new "/" route must not shadow the API surface.
+        assert client.get("/api/v1/health").status_code == 200
+
+
+@pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestAuth:
     def test_login_valid_user(self):
         resp = client.post("/api/v1/login", json={"username": "admin", "password": "admin"})

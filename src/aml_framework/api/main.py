@@ -276,6 +276,31 @@ class RunRequest(BaseModel):
 # --- Endpoints ---
 
 
+# --- Public front door (PR-U1: unified product) ---
+# The FastAPI container owns "/" so the framework itself hosts the
+# landing page and the GitHub-Pages demo can eventually be retired.
+# A *thin* static hero — fast first paint, SEO-able, no Streamlit
+# cold-start for the first impression. CTA targets are env-overridable
+# so the same image works across deploys; defaults keep the page
+# useful out of the box (the dashboard container + the still-live
+# knowledge site until later PR-U phases wire them internally).
+_STATIC_DIR = Path(__file__).parent / "static"
+_DEFAULT_APP_URL = (
+    "https://ca-aml-dashboard-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io"
+)
+_DEFAULT_KB_URL = "https://tomqwu.github.io/aml_open_framework_demo/"
+
+
+@app.get("/", include_in_schema=False)
+async def landing():
+    from fastapi.responses import HTMLResponse
+
+    html = (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    html = html.replace("__APP_URL__", os.environ.get("AML_APP_URL", _DEFAULT_APP_URL))
+    html = html.replace("__KB_URL__", os.environ.get("AML_KB_URL", _DEFAULT_KB_URL))
+    return HTMLResponse(html)
+
+
 @app.get("/api/v1/health")
 async def health() -> dict[str, str]:
     from aml_framework.release import get_build_time, get_git_sha, get_version
