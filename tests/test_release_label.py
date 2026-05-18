@@ -22,13 +22,16 @@ import pytest
 def _clear_caches(monkeypatch):
     """Flush `lru_cache` between tests so env changes take effect."""
     monkeypatch.delenv("AML_BUILD_SHA", raising=False)
+    monkeypatch.delenv("AML_BUILD_TIME", raising=False)
     import aml_framework.release as rel
 
     rel.get_version.cache_clear()
     rel.get_git_sha.cache_clear()
+    rel.get_build_time.cache_clear()
     yield
     rel.get_version.cache_clear()
     rel.get_git_sha.cache_clear()
+    rel.get_build_time.cache_clear()
 
 
 def test_env_sha_wins(monkeypatch):
@@ -101,6 +104,53 @@ def test_release_label_marks_dev_when_no_sha(monkeypatch):
 
     rel.get_git_sha.cache_clear()
     assert rel.release_label().endswith("· dev")
+
+
+def test_build_time_from_env(monkeypatch):
+    monkeypatch.setenv("AML_BUILD_TIME", "2026-05-18T16:30Z")
+    import aml_framework.release as rel
+
+    rel.get_build_time.cache_clear()
+    assert rel.get_build_time() == "2026-05-18T16:30Z"
+
+
+def test_build_time_dev_when_env_unset(monkeypatch):
+    """No local-git fallback — build time is an image property, so an
+    undeployed run reports 'dev' (treated as unknown by callers)."""
+    monkeypatch.delenv("AML_BUILD_TIME", raising=False)
+    import aml_framework.release as rel
+
+    rel.get_build_time.cache_clear()
+    assert rel.get_build_time() == "dev"
+
+
+def test_release_label_appends_build_time_when_known(monkeypatch):
+    monkeypatch.setenv("AML_BUILD_SHA", "deadbee")
+    monkeypatch.setenv("AML_BUILD_TIME", "2026-05-18T16:30Z")
+    import aml_framework.release as rel
+
+    rel.get_git_sha.cache_clear()
+    rel.get_version.cache_clear()
+    rel.get_build_time.cache_clear()
+    label = rel.release_label()
+    assert "deadbee" in label
+    assert label.endswith("· 2026-05-18T16:30Z")
+    assert label.count("·") == 2  # version · sha · build_time
+
+
+def test_release_label_omits_build_time_when_unknown(monkeypatch):
+    """Backward-compat: undeployed runs keep the historical
+    `v… · sha` shape (no trailing ` · dev` build-time noise)."""
+    monkeypatch.setenv("AML_BUILD_SHA", "deadbee")
+    monkeypatch.delenv("AML_BUILD_TIME", raising=False)
+    import aml_framework.release as rel
+
+    rel.get_git_sha.cache_clear()
+    rel.get_version.cache_clear()
+    rel.get_build_time.cache_clear()
+    label = rel.release_label()
+    assert label.endswith("· deadbee")
+    assert label.count("·") == 1
 
 
 def test_module_reimport_picks_up_env_change(monkeypatch):

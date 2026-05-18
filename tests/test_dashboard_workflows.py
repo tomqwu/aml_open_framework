@@ -340,3 +340,38 @@ class TestSampleDataWiring:
             "These pages don't read session state (no sample-data wiring):\n  "
             + "\n  ".join(non_compliant)
         )
+
+
+class TestNavigationRegisteredBeforeSlowInit:
+    """Regression guard for the cold-deploy "app" sidebar bug.
+
+    Streamlit shows its automatic `pages/`-directory nav (a literal
+    "app" entry + flat filename labels, incl. the orphaned Welcome
+    page) for any render that hasn't yet reached `st.navigation()`.
+    `initialize_session()` runs the full AML engine and on a freshly
+    deployed (cold) container that first run takes tens of seconds —
+    so if `st.navigation()` is called *after* it, every operator
+    hitting the box right after a new tag deploys sees the broken
+    auto-nav until init finishes. `st.navigation()` must therefore be
+    registered BEFORE `initialize_session()` so the correct grouped
+    nav paints from the very first script run. `pg.run()` still comes
+    last (it executes the selected page, which needs session state).
+    """
+
+    def test_st_navigation_called_before_initialize_session(self):
+        body = APP_FILE.read_text(encoding="utf-8")
+        nav_idx = body.find("st.navigation(")
+        init_idx = body.find("initialize_session()")
+        run_idx = body.rfind("pg.run()")
+        assert nav_idx != -1, "app.py must build the sidebar via st.navigation()"
+        assert init_idx != -1, "app.py must call initialize_session()"
+        assert run_idx != -1, "app.py must end by running the selected page"
+        assert nav_idx < init_idx, (
+            "st.navigation() must be called BEFORE initialize_session() — "
+            "otherwise the slow cold-start engine run lets Streamlit's "
+            "auto 'app' pages-nav show on a freshly deployed container"
+        )
+        assert init_idx < run_idx, (
+            "pg.run() must come after initialize_session() — the selected "
+            "page reads session state populated by init"
+        )

@@ -59,6 +59,9 @@ class TestHealth:
         # build is live from the same probe endpoint deploy smoke tests hit.
         assert "version" in body
         assert "git_sha" in body
+        # build_time lets the deploy smoke test confirm *when* the live
+        # image was built, not just which SHA.
+        assert "build_time" in body
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")

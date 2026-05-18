@@ -37,6 +37,13 @@ RUN pip install --no-cache-dir -e ".[dev,dashboard,api,azure]"
 ARG GIT_SHA=dev
 ENV AML_BUILD_SHA=$GIT_SHA
 
+# Capture WHEN the image was built so the running container can show
+# its deploy time in /api/v1/health + the dashboard topbar. The Azure
+# deploy passes `--build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%MZ)`.
+# Defaults to "dev" (treated as "unknown") for local `docker build`.
+ARG BUILD_TIME=dev
+ENV AML_BUILD_TIME=$BUILD_TIME
+
 EXPOSE 8000 8501
 
 CMD ["python", "-m", "uvicorn", "aml_framework.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
