@@ -227,7 +227,21 @@ def generate_dataset(
     n_customers: int = 100,
     n_noise_txns: int = 2000,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Produce ({customer rows, txn rows}) for the example spec's contracts."""
+    """Produce ({customer rows, txn rows}) for the example spec's contracts.
+
+    Ground-truth contract is **seed-pinned to the canonical seed 42** —
+    the seed every test, the dashboard demo, the committed
+    ``data/input`` CSVs, and ``BacktestPeriod`` default all use. At
+    seed 42 the only rule-positive customers are the planted bands
+    (C0001-C0059); the rest are negative/legitimate. On *other* seeds
+    the scaled random noise can coincidentally satisfy a rule for an
+    unplanted customer — that is expected and by design: varying the
+    public ``--seed`` is a robustness/variance surface (e.g. backtest
+    across periods), not a labelled-precision measurement. Callers
+    that need planted labels as ground truth must pin seed 42 (and
+    supply their own ``labels_loader``); the engine never assumes
+    planted-exclusivity across arbitrary seeds.
+    """
     random.seed(seed)
     fake = Faker()
     Faker.seed(seed)
