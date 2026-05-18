@@ -231,6 +231,42 @@ def data_grid(
         # last row(s) for small tables.
         grid_options["domLayout"] = "autoHeight"
 
+    custom_css = {
+        ".ag-header": {
+            "background-color": "#f7f4ec !important",
+            "border-bottom": "1px solid #e6e1d3 !important",
+        },
+        ".ag-header-cell-text": {
+            "color": DNA_INK + " !important",
+            "font-family": "Inter, system-ui, sans-serif !important",
+            "font-weight": "600 !important",
+            "font-size": "12px !important",
+            "letter-spacing": "0.02em !important",
+        },
+        ".ag-row": {
+            "border-color": "#e6e1d3 !important",
+        },
+        ".ag-row-hover": {
+            "background-color": "#fef3e8 !important",
+        },
+        ".ag-cell": {
+            "font-family": "Inter, system-ui, sans-serif !important",
+            "font-size": "12px !important",
+            "color": DNA_INK + " !important",
+        },
+    }
+    if auto_height:
+        # `domLayout='autoHeight'` alone still leaves AG Grid's default
+        # min-height on the body viewport/clipper, so a 2-row table
+        # keeps a blank strip below the last row. Collapse those so the
+        # grid is genuinely flush to its content.
+        for sel in (
+            ".ag-center-cols-clipper",
+            ".ag-center-cols-viewport",
+            ".ag-body-viewport",
+        ):
+            custom_css[sel] = {"min-height": "unset !important"}
+
     response = AgGrid(
         df,
         gridOptions=grid_options,
@@ -239,30 +275,7 @@ def data_grid(
         allow_unsafe_jscode=True,  # required for cellStyle JsCode
         theme="balham",
         key=key,
-        custom_css={
-            ".ag-header": {
-                "background-color": "#f7f4ec !important",
-                "border-bottom": "1px solid #e6e1d3 !important",
-            },
-            ".ag-header-cell-text": {
-                "color": DNA_INK + " !important",
-                "font-family": "Inter, system-ui, sans-serif !important",
-                "font-weight": "600 !important",
-                "font-size": "12px !important",
-                "letter-spacing": "0.02em !important",
-            },
-            ".ag-row": {
-                "border-color": "#e6e1d3 !important",
-            },
-            ".ag-row-hover": {
-                "background-color": "#fef3e8 !important",
-            },
-            ".ag-cell": {
-                "font-family": "Inter, system-ui, sans-serif !important",
-                "font-size": "12px !important",
-                "color": DNA_INK + " !important",
-            },
-        },
+        custom_css=custom_css,
     )
 
     # Drill-through wiring: mirrors selectable_dataframe()'s contract.

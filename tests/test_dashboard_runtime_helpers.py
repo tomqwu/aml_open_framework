@@ -233,6 +233,11 @@ class TestDataGridRuntime:
         # of what the px estimate clipped on small tables.
         kinds = [call[0] for call in FakeGridOptionsBuilder.last.calls]
         assert "pagination" not in kinds
+        # Must also collapse AG Grid's default body min-height, else a
+        # 2-row table keeps a blank strip below the last row.
+        css = fake_aggrid.last_call["kwargs"]["custom_css"]
+        assert css[".ag-center-cols-viewport"] == {"min-height": "unset !important"}
+        assert css[".ag-center-cols-clipper"] == {"min-height": "unset !important"}
 
     def test_data_grid_default_is_fixed_height_and_paginated(self, monkeypatch):
         fake_aggrid = _install_aggrid(monkeypatch, {"selected_rows": []})
@@ -245,3 +250,5 @@ class TestDataGridRuntime:
         assert "domLayout" not in grid_options
         kinds = [call[0] for call in FakeGridOptionsBuilder.last.calls]
         assert "pagination" in kinds
+        css = fake_aggrid.last_call["kwargs"]["custom_css"]
+        assert ".ag-center-cols-viewport" not in css
