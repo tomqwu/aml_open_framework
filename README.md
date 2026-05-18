@@ -100,7 +100,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 32 pages with screenshots (partial coverage; 22 of 32) + audience filtering — incl. GenAI assistant on every page |
 | 🤔 [10 Daily Pain Points](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) | The real reasons AML leaders feel stuck — primary-source quotes only |
 | 📁 [Data is the AML Problem](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) | The layer underneath the pain — 11 faces of the data problem, BCBS 239 + 2024-26 enforcement |
-| 📡 [Regulator Pulse — Feb–May 2026](docs/research/2026-05-regulator-pulse.md) | 97-day rolling log of AML/sanctions regulator actions — 31 events, primary-source only |
+| 📡 [Regulator Pulse — Feb–May 2026](docs/research/2026-05-regulator-pulse.md) | 97-day rolling log of AML/sanctions regulator actions — 32 events, primary-source only |
 
 ### How it works
 
