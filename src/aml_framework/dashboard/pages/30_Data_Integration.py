@@ -345,7 +345,7 @@ data_grid(
     key="data_integration_source_catalogue",
     palette_cols={"Status": SOURCE_STATUS_PALETTE},
     pinned_left=["Source"],
-    height=min(35 * len(catalogue_rows) + 60, 400),
+    auto_height=True,
 )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -407,7 +407,7 @@ data_grid(
     pd.DataFrame(demo_rows),
     key="data_integration_demo_data",
     pinned_left=["Source"],
-    height=min(35 * len(demo_rows) + 60, 400),
+    auto_height=True,
 )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -452,7 +452,7 @@ data_grid(
     gradient_low=80.0,
     gradient_high=99.0,
     pinned_left=["Contract"],
-    height=min(35 * len(overview) + 60, 320),
+    auto_height=True,
 )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -496,7 +496,7 @@ if _input_manifest_path.exists():
             pd.DataFrame(_mapping_rows),
             key="data_integration_source_mapping",
             pinned_left=["Source", "Contract"],
-            height=min(35 * len(_mapping_rows) + 60, 320),
+            auto_height=True,
         )
     else:
         empty_state(
@@ -611,7 +611,7 @@ data_grid(
     pd.DataFrame(DATA_N_MAP),
     key="data_integration_data_n_map",
     pinned_left=["DATA-N"],
-    height=min(35 * len(DATA_N_MAP) + 60, 460),
+    auto_height=True,
 )
 
 # ---------------------------------------------------------------------------

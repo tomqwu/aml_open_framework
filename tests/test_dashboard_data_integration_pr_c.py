@@ -68,3 +68,25 @@ class TestVolumeByChannelSection:
         # Must fail soft when the wired source has no channel column.
         b = _body()
         assert "No transaction channel data" in b
+
+
+class TestTablesAutoSize:
+    """Every table on the page must size to its row count, not a px
+    estimate. The old `height=min(35*len+60, cap)` math under-shot AG
+    Grid's real chrome (header + rows + pagination footer), clipping
+    the last rows and leaving an empty whitespace box on small tables.
+    """
+
+    def test_no_brittle_height_estimate_remains(self):
+        b = _body()
+        assert "35 * len(" not in b, (
+            "px-estimate table height regressed — use data_grid(auto_height=True)"
+        )
+
+    def test_every_data_grid_uses_auto_height(self):
+        b = _body()
+        # All five tables (catalogue / demo / rollup / source-mapping /
+        # data-N map) must opt into AG Grid autoHeight.
+        assert b.count("data_grid(") == b.count("auto_height=True"), (
+            "every data_grid() on the Data Integration page must pass auto_height=True"
+        )

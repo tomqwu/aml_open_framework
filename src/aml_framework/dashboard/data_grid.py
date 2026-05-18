@@ -114,6 +114,7 @@ def data_grid(
     drill_param: str | None = None,
     drill_column: str | None = None,
     height: int = 400,
+    auto_height: bool = False,
     fit_columns: bool = True,
     pagination: bool = True,
     page_size: int = 25,
@@ -148,7 +149,17 @@ def data_grid(
             (e.g. ``"pages/17_Customer_360.py"``).
         drill_param: query-param name (e.g. ``"customer_id"``).
         drill_column: column holding the drill value.
-        height: grid height in pixels.
+        height: grid height in pixels. Ignored when ``auto_height`` is
+            set (AG Grid sizes itself to its content instead).
+        auto_height: let AG Grid size its own height to the rendered
+            content (``domLayout='autoHeight'``) so the table grows or
+            shrinks to exactly the row count — no clipped last row, no
+            empty whitespace box from a px estimate that under/over-
+            shoots the real header + row + footer chrome. Implies
+            pagination off (these are small bounded tables; a pager
+            footer is needless chrome). Use for tables with a small,
+            bounded row count; leave off for large/unbounded tables
+            that should stay a fixed scroll viewport.
         fit_columns: auto-size columns to fit the grid width.
         pagination: enable pagination.
         page_size: rows per page when pagination is on.
@@ -200,7 +211,7 @@ def data_grid(
         if col in df.columns:
             builder.configure_column(col, pinned="right")
 
-    if pagination:
+    if pagination and not auto_height:
         builder.configure_pagination(paginationAutoPageSize=False, paginationPageSize=page_size)
 
     if drill_target and drill_param and drill_column:
@@ -213,6 +224,12 @@ def data_grid(
     # palette.
     grid_options["headerHeight"] = 36
     grid_options["rowHeight"] = 32
+    if auto_height:
+        # AG Grid measures its own content (header + every row) and
+        # st_aggrid resizes the component to match. This replaces a
+        # px estimate that under-shot the real chrome and clipped the
+        # last row(s) for small tables.
+        grid_options["domLayout"] = "autoHeight"
 
     response = AgGrid(
         df,
