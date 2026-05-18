@@ -234,10 +234,18 @@ def generate_dataset(
 
     customers: list[dict[str, Any]] = []
     customer_ids: list[str] = []
+    # Floor onboarding age at 90 days so NO customer is opened after
+    # their oldest possible txn (noise reaches as_of-59d, the dormant
+    # plant as_of-55d) — transactions predating account opening would
+    # fail any data-quality / audit check. Applied as a deterministic
+    # `max()` on the already-drawn value: it consumes no extra RNG, so
+    # txn counts + every hash stay on the v0.1.16 baseline.
+    _MIN_ONBOARD_AGE_DAYS = 90
     for i in range(n_customers):
         cid = f"C{i:04d}"
         customer_ids.append(cid)
-        customers.append(_customer_row(fake, cid, as_of - timedelta(days=random.randint(30, 1500))))
+        _onboard_age = max(random.randint(30, 1500), _MIN_ONBOARD_AGE_DAYS)
+        customers.append(_customer_row(fake, cid, as_of - timedelta(days=_onboard_age)))
 
     # Add edd_last_review dates to high-risk customers.
     for c in customers:
