@@ -19,6 +19,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 from aml_framework.dashboard.audience import AUDIENCE_PAGES, KNOWLEDGE_PAGES, MAX_PAGES_PER_PERSONA
 from aml_framework.dashboard.data import research
 
@@ -165,6 +167,10 @@ class TestKnowledgeTourCoverage:
             assert f"### {derived}\n" in body, f"tour missing '### {derived}'"
 
 
+@pytest.mark.skipif(
+    not EXTRACTOR.exists(),
+    reason="scripts/ not shipped in the slim runtime Docker image (docker-build job)",
+)
 class TestExtractorIdempotent:
     def test_extractor_is_lazy_and_stdlib_only(self):
         src = EXTRACTOR.read_text(encoding="utf-8")
