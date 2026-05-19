@@ -214,7 +214,9 @@ class WhitepaperParser(HTMLParser):
         # decorative <span>/<div> kerning wrappers inside a heading must
         # NOT prematurely terminate it (the "## 1." truncation bug).
         self._block_depth: int | None = None
-        self._label_open = False
+        # The open tag-name of the active `.label`/`.lead` bold kicker
+        # (so the matching end tag — span OR div — closes it), else None.
+        self._label_open: str | None = None
         self._skip_depth = 0
         self._tag_stack: list[str] = []
         # list handling — parallel stacks of kind ("ul"/"ol") and the
@@ -270,6 +272,13 @@ class WhitepaperParser(HTMLParser):
         elif mode == "label":
             # r-event-date / card-tag / archetype — a small bold kicker.
             self.blocks.append(f"**{text}**")
+        elif mode == "badges":
+            # The two `.badge` spans glue with no separator in source
+            # (CSS gap). Restore a readable separator before the
+            # IMPACT/EFFORT badge — same glue-repair idiom as the
+            # arch-diagram bullet below. Rendered bold as a kicker line.
+            text = re.sub(r"(?<=\S)(IMPACT/EFFORT:)", r" · \1", text)
+            self.blocks.append(f"**{text}**")
         elif mode == "rowkey":
             self._pending_key = text
         elif mode == "rowval":
@@ -313,13 +322,16 @@ class WhitepaperParser(HTMLParser):
             self._skip_depth = 1
             return
 
-        # A callout/event/source `.label` span is a bold kicker. Emit
-        # bold markers around it so "Reading note Foo" reads as
-        # "**Reading note** Foo" rather than running together.
-        if "label" in cls.split() and self._inline is not None:
+        # A callout/event/source `.label` span — or an r-spa `.lead`
+        # div — is a bold kicker leading its body prose. Emit bold
+        # markers around it so "Reading note Foo" reads as
+        # "**Reading note** Foo" (and the r-spa kicker stays attached to
+        # its assumption text in the SAME paragraph) rather than the
+        # text running together or the body being dropped.
+        if {"label", "lead"} & set(cls.split()) and self._inline is not None:
             self._inline.text(" ")
             self._inline.open("strong", {})
-            self._label_open = True
+            self._label_open = tag
             return
 
         # Active inline run — nested formatting tag.
@@ -367,12 +379,35 @@ class WhitepaperParser(HTMLParser):
             self._start("lede")
         elif tag == "h2" or {"r-h2", "r-block-h"} & set(cls.split()):
             self._start("h2")
-        elif tag == "h3" or "card-title" in cls.split():
+        elif tag == "h3" or {"card-title", "ttl"} & set(cls.split()):
+            # r-feat `.ttl` — the feature NAME line. Treated as a
+            # subheading so the Competitive Landscape "next features"
+            # cards render their name above the body (the cards were
+            # otherwise 5 unlabelled paragraphs — content lost).
             self._start("h3")
         elif tag == "h4":
             self._start("h4")
-        elif {"r-event-date", "card-tag", "archetype"} & set(cls.split()):
+        elif {"r-event-date", "card-tag", "archetype", "rank"} & set(cls.split()):
+            # Small bold kickers: r-event-date / card-tag / archetype,
+            # plus r-feat `.rank` (#1..#5) — same transparent-wrapper-
+            # drop class as the round-1 h4 gap.
             self._start("label")
+        elif "badges" in cls.split():
+            # r-feat `.badges` — two adjacent `.badge` spans (effort,
+            # then impact) with NO whitespace between them in source
+            # (CSS gap). Captured as a paragraph; a separator is
+            # restored on flush so "3 days" and "IMPACT/EFFORT: HIGH"
+            # don't glue (same glue class as the arch-diagram bullet).
+            self._start("badges")
+        elif {"risk", "r-spa"} & set(cls.split()):
+            # r-feat `.risk` caveat, and r-spa body prose (direct text
+            # of the wrapper, no inner <p>; its `.lead` is an inline
+            # bold kicker handled below) — captured as following
+            # paragraphs so the card's substance survives. Chrome stays
+            # excluded: all site chrome is r-frame / r-meta / r-foot
+            # (SKIP_BLOCKS) and decorative chart labels (qcorner /
+            # qdot-label) are NOT whitelisted, so they remain dropped.
+            self._start("paragraph")
         elif "name" in cls.split() and "head" not in cls.split():
             # arch-layer .head .name — the layer's title line.
             self._start("h3")
@@ -422,10 +457,10 @@ class WhitepaperParser(HTMLParser):
             self._skip_depth -= 1
             return
 
-        if tag == "span" and self._label_open and self._inline is not None:
+        if self._label_open == tag and self._inline is not None:
             self._inline.close("strong")
             self._inline.text(" ")
-            self._label_open = False
+            self._label_open = None
             return
         if self._cell_inline is not None and tag in _INLINE_KEEP | {"br"}:
             self._cell_inline.close(tag)
