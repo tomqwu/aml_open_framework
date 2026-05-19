@@ -22,6 +22,10 @@ data_contracts:
       - { name: channel,     type: string,    enum: [cash, wire, ach, card] }
       - { name: direction,   type: string,    enum: [in, out] }
       - { name: booked_at,   type: timestamp, nullable: false }
+      # ISO-20022 purpose code (wire/SEPA/e-transfer rails). Nullable —
+      # cash/card legs leave it empty. Powers the INVS investment-scam
+      # (pig-butchering) typology; additive, no engine/generator change.
+      - { name: purpose_code, type: string,   nullable: true }
     quality_checks:
       - { not_null: [txn_id, customer_id, amount, booked_at] }
       - { unique:   [txn_id] }
@@ -229,6 +233,33 @@ rules:
       - account_activity_history
     tags: [dormant_account, behavioral]
 
+  - id: investment_scam_invs_velocity
+    name: Investment-scam (pig-butchering) — INVS payout velocity
+    severity: high
+    regulation_refs:
+      - citation: "FinCEN FIN-2023-Alert005"
+        description: "Pig-butchering / investment-scam payout indicators (INVS misuse)."
+    # aggregation_window (not custom_sql) so the runner stamps
+    # `matched_row_ids` — the lineage/audit pages + STR bundle can show
+    # the exact INVS payouts behind the alert. Same detection: ≥3
+    # outbound INVS wires summing ≥ $5k within a 14-day window.
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        purpose_code: INVS
+        direction: out
+      group_by: [customer_id]
+      window: 14d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 5000 }
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [investment_scam, cyber_enabled_fraud]
+
 workflow:
   queues:
     - id: l1_analyst
@@ -293,7 +324,19 @@ metrics:
       numerator:
         type: count
         source: alerts
-        filter: { rule_id: { in: [structuring_cash_deposits] } }
+        # All severity:high rule ids (alert rows carry rule_id, not
+        # severity, so we enumerate). Fixes the pre-existing undercount
+        # (only structuring was counted; high_risk_jurisdiction +
+        # dormant_account_activity were missed) and includes the new
+        # high-severity rules. TODO: migrate to severity-derived once
+        # the metric model supports it (rules/metrics epic M-series).
+        filter:
+          rule_id:
+            in:
+              - structuring_cash_deposits
+              - high_risk_jurisdiction
+              - dormant_account_activity
+              - investment_scam_invs_velocity
       denominator:
         type: count
         source: alerts
