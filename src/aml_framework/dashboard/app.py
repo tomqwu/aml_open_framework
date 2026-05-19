@@ -6,6 +6,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import (
     AUDIENCE_PAGES,
+    KNOWLEDGE_PAGES,
     PERSONA_LABELS,
     persona_description,
 )
@@ -207,6 +208,57 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             icon=":material/rocket_launch:",
         ),
     ],
+    "Knowledge": [
+        # PR-U2 of the unified-product epic. The GitHub-Pages
+        # marketing/knowledge site is being merged into the product so
+        # the GH page can be retired ("one product, two doors, three
+        # skins"). These 8 native pages are the ported Research
+        # whitepapers — the prose lives in the generated
+        # `dashboard/data/research.py` substrate. Placed AFTER the
+        # operational categories: it's the reference shelf, not a
+        # day-to-day surface. Every persona can see it (audience.py
+        # maps all personas to these titles).
+        st.Page(
+            "pages/33_Knowledge_Architecture.py",
+            title="Architecture",
+            icon=":material/account_tree:",
+        ),
+        st.Page(
+            "pages/34_Knowledge_Competitive_Landscape.py",
+            title="Competitive Landscape",
+            icon=":material/insights:",
+        ),
+        st.Page(
+            "pages/35_Knowledge_Data_Is_The_Problem.py",
+            title="Data Is The Problem",
+            icon=":material/database:",
+        ),
+        st.Page(
+            "pages/36_Knowledge_FinTech_AML_Reality.py",
+            title="FinTech AML Reality",
+            icon=":material/rocket_launch:",
+        ),
+        st.Page(
+            "pages/37_Knowledge_Lineage_Deep_Dive.py",
+            title="Lineage Deep-Dive",
+            icon=":material/timeline:",
+        ),
+        st.Page(
+            "pages/38_Knowledge_AML_Process_Pain.py",
+            title="AML Process Pain",
+            icon=":material/healing:",
+        ),
+        st.Page(
+            "pages/39_Knowledge_Regulator_Pulse_Brief.py",
+            title="Regulator Pulse Brief",
+            icon=":material/podcasts:",
+        ),
+        st.Page(
+            "pages/40_Knowledge_TD_2024_Case_Study.py",
+            title="TD 2024 Case Study",
+            icon=":material/gavel:",
+        ),
+    ],
 }
 
 # Filter pages by audience if one is selected. PR-NAV-1 made
@@ -223,6 +275,10 @@ if selected_audience:
     # the strategic-view fallback when no persona is selected).
     relevant_titles.add("Today")
     relevant_titles.add("Executive Dashboard")
+    # PR-U2: the Knowledge reference shelf is universal too — every
+    # persona keeps access to the merged knowledge site regardless of
+    # the operational filter.
+    relevant_titles.update(KNOWLEDGE_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()

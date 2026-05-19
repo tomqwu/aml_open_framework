@@ -326,6 +326,19 @@ class TestSampleDataWiring:
         # No session-state coupling needed; the timeline doesn't depend
         # on a run.
         "27_Regulator_Pulse.py",
+        # PR-U2: the 8 Knowledge pages are the ported GitHub-Pages
+        # research whitepapers — pure prose rendered from the generated
+        # dashboard/data/research.py substrate. They are reference
+        # pages, not run views, so they have no session-state coupling
+        # (same documented exemption as Regulator Pulse above).
+        "33_Knowledge_Architecture.py",
+        "34_Knowledge_Competitive_Landscape.py",
+        "35_Knowledge_Data_Is_The_Problem.py",
+        "36_Knowledge_FinTech_AML_Reality.py",
+        "37_Knowledge_Lineage_Deep_Dive.py",
+        "38_Knowledge_AML_Process_Pain.py",
+        "39_Knowledge_Regulator_Pulse_Brief.py",
+        "40_Knowledge_TD_2024_Case_Study.py",
     }
 
     def test_every_page_reads_session_state_or_is_static(self):

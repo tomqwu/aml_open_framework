@@ -1,6 +1,8 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **32 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **40 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+
+The final eight pages form the **Knowledge** reference shelf — the merged GitHub-Pages knowledge site, ported native (PR-U2 of the unified-product epic). They carry no engine coupling; every persona keeps access to them regardless of the audience filter.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -231,6 +233,44 @@ _Screenshot: pending — see follow-up._
 
 ---
 
+## Knowledge Pages
+
+The merged GitHub-Pages research/knowledge site, ported into native Streamlit pages (PR-U2 of the unified-product epic — "one product, two doors, three skins"). The prose is extracted at build time into the `dashboard/data/research.py` substrate (same discipline as `regulator_pulse.py` — no runtime HTML parsing, no new markdown-parser dependency) and rendered verbatim as Markdown. These are pure reference pages: no engine or session-state coupling, visible to every persona. The U2 scope inherits the normal dashboard theme; a per-page dark showcase skin is deferred to a later phase.
+
+### Knowledge Architecture
+
+The Compliance Manifest design rationale: one manifest, four layers (Policy / Generation / Runtime / Evidence), the determinism + reproducibility hash model, why spec-over-code for regulated change, the two extensibility escape hatches, and what the framework explicitly is not. Ported from `docs/pitch/landing/research/architecture.html`.
+
+### Knowledge Competitive Landscape
+
+Where the framework wins versus the 2026 vendor field: six buyer archetypes on the vision × execution axes, per-archetype strengths and cautions, where the framework lands by buyer, and the five highest-leverage next features. Ported from `competitive-positioning.html`.
+
+### Knowledge Data Is The Problem
+
+The whitepaper arguing the data layer is the binding constraint on AML audit-defensibility: the 11 faces of the data problem, cross-cutting themes, a copy style guide, and the DATA-N → framework-artifact map. Ported from `data-problem.html`.
+
+### Knowledge FinTech AML Reality
+
+The 8 AML realities a fintech MLRO lives with — sponsor-bank cure notices, growth-as-risk, the Annex 1 questionnaire, VASP enforcement, the Travel Rule, the AMLR clock — each anchored to a primary source. Ported from `fintech.html`.
+
+### Knowledge Lineage Deep Dive
+
+The narrative behind the operational Lineage Explorer (page 32): the question regulators actually ask, the 12-field per-decision payload, the 7-link walk-back chain, reproducibility proof, and a worked example. Ported from `lineage.html`.
+
+### Knowledge AML Process Pain
+
+The 10 daily pain points an AML leader feels, the pain quadrant, cross-cutting themes, and a copy style guide of phrases to use and avoid — the language layer the product's persona voice is built on. Ported from `process-pain.html`.
+
+### Knowledge Regulator Pulse Brief
+
+The narrative 90-day regulator brief — themes plus the per-regulator event detail (Federal Reserve / OCC / FDIC / FinCEN / EU AMLA / FATF / UK FCA). The operational Regulator Pulse (page 27) is the filterable event log built on the same research; this is the prose companion. Ported from `regulator-pulse.html`.
+
+### Knowledge TD 2024 Case Study
+
+The largest BSA enforcement action of 2024 ($3.09B): penalty breakdown, five findings, finding-to-spec-clause traceability, the reports that would have flagged it, and the spec's regulatory citations. Ported from `td-2024.html`.
+
+---
+
 ## Export Surface
 
 ### Board PDF Export
@@ -241,7 +281,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The same 32 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused workflow (no persona sees more than 8 pages):
+The 40 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 8 Knowledge reference pages stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|

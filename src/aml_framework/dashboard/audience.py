@@ -341,6 +341,28 @@ AUDIENCE_PAGES = {
 }
 
 
+# PR-U2 of the unified-product epic. The 8 ported Research whitepapers
+# form a "Knowledge" reference shelf. Every persona can see Knowledge —
+# it's the merged GitHub-Pages knowledge site, not a role-specific
+# workflow. Rather than add 8 titles to every persona's AUDIENCE_PAGES
+# entry (which would blow MAX_PAGES_PER_PERSONA and bury the operational
+# arc), Knowledge is routed UNIVERSALLY: app.py adds these titles to the
+# visible set for every persona, exactly the same idiom already used for
+# "Today" and "Executive Dashboard". Keeping the list here (not inlined
+# in app.py) makes the routing intent explicit and unit-testable
+# (tests/test_dashboard_knowledge.py) without a streamlit import.
+KNOWLEDGE_PAGES = [
+    "Architecture",
+    "Competitive Landscape",
+    "Data Is The Problem",
+    "FinTech AML Reality",
+    "Lineage Deep-Dive",
+    "AML Process Pain",
+    "Regulator Pulse Brief",
+    "TD 2024 Case Study",
+]
+
+
 def show_audience_context(page_title: str) -> None:
     """Show a subtle context line if an audience is selected."""
     import streamlit as st

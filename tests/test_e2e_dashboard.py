@@ -59,6 +59,15 @@ PAGES = [
     "AI Assistant",
     "Information Sharing",
     "Lineage Explorer",
+    # PR-U2: the 8 ported Knowledge whitepapers (merged GH-Pages site).
+    "Architecture",
+    "Competitive Landscape",
+    "Data Is The Problem",
+    "FinTech AML Reality",
+    "Lineage Deep-Dive",
+    "AML Process Pain",
+    "Regulator Pulse Brief",
+    "TD 2024 Case Study",
 ]
 
 
@@ -198,6 +207,16 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Run History": "Audit & Reference",
     "AI Assistant": "Audit & Reference",
     "FinTech Cockpit": "FinTech",
+    # PR-U2: the Knowledge reference shelf (universal — visible to
+    # every persona regardless of the audience filter).
+    "Architecture": "Knowledge",
+    "Competitive Landscape": "Knowledge",
+    "Data Is The Problem": "Knowledge",
+    "FinTech AML Reality": "Knowledge",
+    "Lineage Deep-Dive": "Knowledge",
+    "AML Process Pain": "Knowledge",
+    "Regulator Pulse Brief": "Knowledge",
+    "TD 2024 Case Study": "Knowledge",
 }
 
 
