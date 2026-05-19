@@ -362,6 +362,53 @@ class TestExplainability:
         result = _inspect_context(con, [], datetime(2026, 4, 23, 12, 0, 0))
         assert result == []
 
+    def test_aggregation_window_matched_rowids_replay_filter_and_include_boundary(self, tmp_path):
+        """#21: matched_row_ids for a FILTERED aggregation_window rule
+        must contain ONLY the rows the rule's filter actually matched
+        (not every customer row in the window) AND must include the
+        row at window_end (MAX(booked_at)) — STR/lineage evidence is
+        otherwise misleading. community_bank's
+        `investment_scam_invs_velocity` filters purpose_code='INVS' &
+        direction='out'; C0010 also has non-INVS background activity in
+        the same window, so pre-#21 stamping over-attributed it."""
+        import duckdb as _ddb
+
+        from aml_framework.engine.runner import _build_warehouse, _harden_duckdb
+
+        spec = load_spec(SPEC_US)
+        as_of = datetime(2026, 1, 1)
+        data = generate_dataset(as_of=as_of, seed=42)
+        result = run_spec(
+            spec=spec, spec_path=SPEC_US, data=data, as_of=as_of, artifacts_root=tmp_path
+        )
+        invs = result.alerts.get("investment_scam_invs_velocity", [])
+        assert invs, "investment_scam_invs_velocity should fire (planted C0010)"
+        alert = next(a for a in invs if a.get("customer_id") == "C0010")
+        rowids = alert["matched_row_ids"]
+        assert rowids, "filtered aggregation_window rule must stamp matched_row_ids"
+
+        con = _ddb.connect(":memory:")
+        _harden_duckdb(con)
+        _build_warehouse(con, spec, data)
+        placeholders = ", ".join("?" for _ in rowids)
+        matched = con.execute(
+            f"SELECT purpose_code, direction, booked_at FROM txn "
+            f"WHERE rowid IN ({placeholders}) ORDER BY booked_at",
+            rowids,
+        ).fetchall()
+        con.close()
+
+        # Filter replayed: every attributed row is INVS + outbound,
+        # never the customer's background non-INVS noise.
+        for purpose_code, direction, _ in matched:
+            assert purpose_code == "INVS", f"non-INVS row leaked into evidence: {purpose_code!r}"
+            assert direction == "out", f"non-outbound row leaked into evidence: {direction!r}"
+        # Boundary inclusive: the latest matched txn equals window_end
+        # (a strict `<` dropped the alert's own most-recent payout).
+        assert str(matched[-1][2]) == str(alert["window_end"]), (
+            "window_end row excluded — matched_row_ids must be inclusive of MAX(booked_at)"
+        )
+
     def test_explainability_flows_into_str_narrative(self):
         """STR narrative renders feature_attribution + explanation when present."""
         from aml_framework.generators.narrative import generate_str_narrative

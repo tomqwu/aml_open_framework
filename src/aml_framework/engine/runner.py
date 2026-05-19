@@ -17,7 +17,7 @@ from aml_framework.engine.audit import AuditLedger, rule_version_hash
 from aml_framework.engine.constants import Event, Queue
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
-from aml_framework.generators.sql import compile_rule_sql
+from aml_framework.generators.sql import _compile_filter, compile_rule_sql
 from aml_framework.metrics.engine import MetricResult, evaluate_metrics
 from aml_framework.metrics.reports import render_all_reports
 from aml_framework.spec.loader import spec_content_hash
@@ -976,12 +976,30 @@ def run_spec(
         alerts = [dict(zip(cols, r)) for r in rows]
         # PR-LIN-4: for each alert produced by an aggregation_window /
         # custom_sql rule, look up the source rowids that contributed
-        # to it (customer + window). One follow-up SELECT per alert; the
-        # alert sample is bounded so this is fine for FI-scale runs.
-        # Fails silently per-alert (matched_row_ids stays []) when the
-        # source table doesn't expose the expected customer_id /
-        # booked_at shape — better than crashing the whole run.
+        # to it. One follow-up SELECT per alert; the alert sample is
+        # bounded so this is fine for FI-scale runs. Fails silently
+        # per-alert (matched_row_ids stays []) when the source table
+        # doesn't expose the expected customer_id / booked_at shape —
+        # better than crashing the whole run.
+        #
+        # #21: the lookup must reproduce what the rule actually matched,
+        # else STR/lineage evidence is misleading:
+        #  - aggregation_window rules: replay `rule.logic.filter` (reuse
+        #    the same `_compile_filter` the rule SQL is built from), so
+        #    only the filtered rows (e.g. channel='cash', purpose_code=
+        #    'INVS') are attributed — not every customer row in the
+        #    window. custom_sql keeps the customer+window best-effort
+        #    heuristic (its WHERE is hand-written; not generically
+        #    reconstructable).
+        #  - `booked_at <= window_end`: window_end is MAX(booked_at) of
+        #    the contributing rows, so a strict `<` dropped the latest
+        #    qualifying transaction from the evidence. Inclusive is
+        #    correct for both rule types.
         if source_table:
+            filter_preds: list[str] = []
+            if rule.logic.type == "aggregation_window":
+                filter_preds = _compile_filter(getattr(rule.logic, "filter", None))
+            extra_where = (" AND " + " AND ".join(filter_preds)) if filter_preds else ""
             for alert in alerts:
                 cid = alert.get("customer_id")
                 w_start = alert.get("window_start")
@@ -991,7 +1009,8 @@ def run_spec(
                     try:
                         rid_rows = con.execute(
                             f"SELECT rowid FROM {source_table} "
-                            f"WHERE customer_id = ? AND booked_at >= ? AND booked_at < ?",
+                            f"WHERE customer_id = ? AND booked_at >= ? "
+                            f"AND booked_at <= ?{extra_where}",
                             [cid, w_start, w_end],
                         ).fetchall()
                         alert["matched_row_ids"] = [int(r[0]) for r in rid_rows]

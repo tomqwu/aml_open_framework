@@ -37,16 +37,16 @@ def warehouse_csvs(tmp_path: Path) -> Path:
     the alias path, which is the whole point of the wizard."""
     txn = tmp_path / "txn.csv"
     txn.write_text(
-        "trx_id,cif,amt,ccy,product,dr_cr,booking_date\n"
-        "T1,C001,100.50,USD,wire,in,2026-01-15\n"
-        "T2,C002,5000.00,USD,wire,out,2026-01-16\n",
+        "trx_id,cif,amt,ccy,product,dr_cr,booking_date,iso_purpose\n"
+        "T1,C001,100.50,USD,wire,in,2026-01-15,SALA\n"
+        "T2,C002,5000.00,USD,wire,out,2026-01-16,INVS\n",
         encoding="utf-8",
     )
     customer = tmp_path / "customer.csv"
     customer.write_text(
-        "cif,client_name,country_code,risk_tier,onboarding_date\n"
-        "C001,Alice,US,low,2024-01-01\n"
-        "C002,Bob,DE,medium,2024-03-15\n",
+        "cif,client_name,country_code,risk_tier,onboarding_date,industry\n"
+        "C001,Alice,US,low,2024-01-01,retail\n"
+        "C002,Bob,DE,medium,2024-03-15,\n",
         encoding="utf-8",
     )
     return tmp_path
