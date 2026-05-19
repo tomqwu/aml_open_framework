@@ -257,20 +257,38 @@ def _nav_to(page, title: str) -> None:
 
 
 @pytest.fixture(scope="module")
-def iphone_se_page(dashboard_server):
-    """One chromium context at 375x667 reused across the full net so
-    we pay a single cold-start, not one per page (runtime budget)."""
+def _playwright():
+    """The SINGLE sync Playwright instance for this module.
+
+    Playwright's sync API allows only one active `sync_playwright()`
+    per thread: opening a second while one is live raises
+    "It looks like you are using Playwright Sync API inside the
+    asyncio loop". The module-scoped `iphone_se_page` fixture holds
+    its instance open for the whole module, so the standalone tests
+    that used to open their *own* `sync_playwright()` collided with it
+    and failed deterministically on `main`. Every fixture/test here
+    now draws its browser from this one instance via
+    `_open_mobile_page` — many browsers/contexts from one Playwright
+    is fully supported and is the canonical sync pattern.
+    """
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         pytest.skip("playwright not installed")
 
     with sync_playwright() as p:
-        browser, page = _open_mobile_page(p, dashboard_server, {"width": 375, "height": 667})
-        try:
-            yield page
-        finally:
-            browser.close()
+        yield p
+
+
+@pytest.fixture(scope="module")
+def iphone_se_page(_playwright, dashboard_server):
+    """One chromium context at 375x667 reused across the full net so
+    we pay a single cold-start, not one per page (runtime budget)."""
+    browser, page = _open_mobile_page(_playwright, dashboard_server, {"width": 375, "height": 667})
+    try:
+        yield page
+    finally:
+        browser.close()
 
 
 def _assert_full_net(page, title: str, token: str, viewport: dict[str, int]) -> None:
@@ -449,43 +467,37 @@ def test_responsive_quality_iphone_se(iphone_se_page, title, token):
     "title,token",
     [pytest.param(t, tok, id=t.replace(" ", "_")) for (t, tok) in SMOKE_PAGES],
 )
-def test_smoke_larger_viewports(dashboard_server, viewport, title, token):
+def test_smoke_larger_viewports(_playwright, dashboard_server, viewport, title, token):
     """Tier 2: Today + Executive Dashboard must have no horizontal
     scroll and no error banner at the two larger viewport tiers. These
     two pages pass today (Executive Dashboard's heavy chart row clears
     at >=414px where the column stack has room), so they are NOT
     xfail'd here."""
+    browser, page = _open_mobile_page(_playwright, dashboard_server, viewport)
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        pytest.skip("playwright not installed")
-
-    with sync_playwright() as p:
-        browser, page = _open_mobile_page(p, dashboard_server, viewport)
-        try:
-            _nav_to(page, title)
-            # Same guard as the strict tier (scoped to stMain, not body
-            # — the sidebar nav lists every page title): a silent
-            # bounce-to-main must not pass the smoke checks vacuously.
-            assert token in page.inner_text("[data-testid='stMain']"), (
-                f"[{title}] content token {token!r} missing at {viewport} — wrong page rendered"
-            )
-            scroll_width = page.evaluate("document.documentElement.scrollWidth")
-            client_width = page.evaluate("document.documentElement.clientWidth")
-            assert scroll_width <= client_width + 2, (
-                f"[{title}] horizontal scroll at {viewport}: "
-                f"scrollWidth={scroll_width} > clientWidth={client_width}"
-            )
-            error_alerts = page.locator("[data-testid='stAlert'][kind='error']")
-            assert error_alerts.count() == 0, (
-                f"[{title}] {error_alerts.count()} error stAlert(s) at {viewport}"
-            )
-            exceptions = page.locator("[data-testid='stException']")
-            assert exceptions.count() == 0, (
-                f"[{title}] {exceptions.count()} stException element(s) at {viewport}"
-            )
-        finally:
-            browser.close()
+        _nav_to(page, title)
+        # Same guard as the strict tier (scoped to stMain, not body
+        # — the sidebar nav lists every page title): a silent
+        # bounce-to-main must not pass the smoke checks vacuously.
+        assert token in page.inner_text("[data-testid='stMain']"), (
+            f"[{title}] content token {token!r} missing at {viewport} — wrong page rendered"
+        )
+        scroll_width = page.evaluate("document.documentElement.scrollWidth")
+        client_width = page.evaluate("document.documentElement.clientWidth")
+        assert scroll_width <= client_width + 2, (
+            f"[{title}] horizontal scroll at {viewport}: "
+            f"scrollWidth={scroll_width} > clientWidth={client_width}"
+        )
+        error_alerts = page.locator("[data-testid='stAlert'][kind='error']")
+        assert error_alerts.count() == 0, (
+            f"[{title}] {error_alerts.count()} error stAlert(s) at {viewport}"
+        )
+        exceptions = page.locator("[data-testid='stException']")
+        assert exceptions.count() == 0, (
+            f"[{title}] {exceptions.count()} stException element(s) at {viewport}"
+        )
+    finally:
+        browser.close()
 
 
 # ---------------------------------------------------------------------------
@@ -495,26 +507,20 @@ def test_smoke_larger_viewports(dashboard_server, viewport, title, token):
 
 
 @pytest.mark.parametrize("viewport", MOBILE_VIEWPORTS)
-def test_no_horizontal_scroll_on_landing(dashboard_server, viewport):
+def test_no_horizontal_scroll_on_landing(_playwright, dashboard_server, viewport):
     """Per issue #66: at every mobile viewport, the landing page body
     must fit within the viewport width — no horizontal scroll bar."""
+    browser, page = _open_mobile_page(_playwright, dashboard_server, viewport)
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        pytest.skip("playwright not installed")
-
-    with sync_playwright() as p:
-        browser, page = _open_mobile_page(p, dashboard_server, viewport)
-        try:
-            scroll_width = page.evaluate("document.documentElement.scrollWidth")
-            client_width = page.evaluate("document.documentElement.clientWidth")
-            # Allow 2px slop for sub-pixel rendering / scrollbar gutters.
-            assert scroll_width <= client_width + 2, (
-                f"Horizontal scroll detected at {viewport}: "
-                f"scrollWidth={scroll_width} > clientWidth={client_width}"
-            )
-        finally:
-            browser.close()
+        scroll_width = page.evaluate("document.documentElement.scrollWidth")
+        client_width = page.evaluate("document.documentElement.clientWidth")
+        # Allow 2px slop for sub-pixel rendering / scrollbar gutters.
+        assert scroll_width <= client_width + 2, (
+            f"Horizontal scroll detected at {viewport}: "
+            f"scrollWidth={scroll_width} > clientWidth={client_width}"
+        )
+    finally:
+        browser.close()
 
 
 # ---------------------------------------------------------------------------
@@ -522,36 +528,30 @@ def test_no_horizontal_scroll_on_landing(dashboard_server, viewport):
 # ---------------------------------------------------------------------------
 
 
-def test_sidebar_collapsed_on_phone_viewport(dashboard_server):
+def test_sidebar_collapsed_on_phone_viewport(_playwright, dashboard_server):
     """Streamlit's `initial_sidebar_state="auto"` should leave the
     sidebar collapsed on viewports < 768px wide. We verify by
     measuring the rendered sidebar width — collapsed sidebars
     render at near-zero width with just a hamburger toggle."""
+    # 375px width = iPhone SE.
+    browser, page = _open_mobile_page(_playwright, dashboard_server, {"width": 375, "height": 667})
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        pytest.skip("playwright not installed")
-
-    with sync_playwright() as p:
-        # 375px width = iPhone SE.
-        browser, page = _open_mobile_page(p, dashboard_server, {"width": 375, "height": 667})
-        try:
-            sidebar = page.locator("[data-testid='stSidebar']")
-            if sidebar.count() == 0:
-                # Sidebar might not be in DOM at all when fully collapsed —
-                # that's acceptable too.
-                return
-            box = sidebar.bounding_box()
-            # Collapsed sidebar in Streamlit is either offscreen
-            # (negative x) or has near-zero rendered width.
-            collapsed = (
-                box is None
-                or box["width"] < 50  # collapsed handle only
-                or box["x"] < 0  # offscreen
-            )
-            assert collapsed, f"Sidebar not collapsed at 375px viewport: bounding box={box}"
-        finally:
-            browser.close()
+        sidebar = page.locator("[data-testid='stSidebar']")
+        if sidebar.count() == 0:
+            # Sidebar might not be in DOM at all when fully collapsed —
+            # that's acceptable too.
+            return
+        box = sidebar.bounding_box()
+        # Collapsed sidebar in Streamlit is either offscreen
+        # (negative x) or has near-zero rendered width.
+        collapsed = (
+            box is None
+            or box["width"] < 50  # collapsed handle only
+            or box["x"] < 0  # offscreen
+        )
+        assert collapsed, f"Sidebar not collapsed at 375px viewport: bounding box={box}"
+    finally:
+        browser.close()
 
 
 # ---------------------------------------------------------------------------
@@ -559,29 +559,23 @@ def test_sidebar_collapsed_on_phone_viewport(dashboard_server):
 # ---------------------------------------------------------------------------
 
 
-def test_mobile_css_present_in_dom(dashboard_server):
+def test_mobile_css_present_in_dom(_playwright, dashboard_server):
     """Verify the responsive CSS overlay is in the page — defends
     against a refactor accidentally dropping the mobile media query
     (would silently return us to desktop-only behavior)."""
+    browser, page = _open_mobile_page(_playwright, dashboard_server, {"width": 375, "height": 667})
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        pytest.skip("playwright not installed")
-
-    with sync_playwright() as p:
-        browser, page = _open_mobile_page(p, dashboard_server, {"width": 375, "height": 667})
-        try:
-            # The mobile breakpoint string is a stable marker for the
-            # overlay rule injected by `apply_theme()`.
-            html = page.content()
-            assert "@media (max-width: 768px)" in html, (
-                "Mobile responsive CSS overlay missing from injected theme"
-            )
-            assert "@media (max-width: 480px)" in html, (
-                "Phone-specific CSS overlay missing from injected theme"
-            )
-        finally:
-            browser.close()
+        # The mobile breakpoint string is a stable marker for the
+        # overlay rule injected by `apply_theme()`.
+        html = page.content()
+        assert "@media (max-width: 768px)" in html, (
+            "Mobile responsive CSS overlay missing from injected theme"
+        )
+        assert "@media (max-width: 480px)" in html, (
+            "Phone-specific CSS overlay missing from injected theme"
+        )
+    finally:
+        browser.close()
 
 
 # ---------------------------------------------------------------------------
@@ -590,22 +584,16 @@ def test_mobile_css_present_in_dom(dashboard_server):
 
 
 @pytest.mark.parametrize("viewport", MOBILE_VIEWPORTS)
-def test_landing_page_renders_without_error(dashboard_server, viewport):
+def test_landing_page_renders_without_error(_playwright, dashboard_server, viewport):
     """The default landing page renders without Streamlit's red error
     banner at every mobile viewport. Regression guard for any layout
     that crashes when columns stack."""
+    browser, page = _open_mobile_page(_playwright, dashboard_server, viewport)
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        pytest.skip("playwright not installed")
-
-    with sync_playwright() as p:
-        browser, page = _open_mobile_page(p, dashboard_server, viewport)
-        try:
-            error_alerts = page.locator("[data-testid='stAlert'][kind='error']")
-            assert error_alerts.count() == 0, (
-                f"Streamlit error banner present at viewport {viewport}: "
-                f"{error_alerts.count()} alert(s)"
-            )
-        finally:
-            browser.close()
+        error_alerts = page.locator("[data-testid='stAlert'][kind='error']")
+        assert error_alerts.count() == 0, (
+            f"Streamlit error banner present at viewport {viewport}: "
+            f"{error_alerts.count()} alert(s)"
+        )
+    finally:
+        browser.close()
