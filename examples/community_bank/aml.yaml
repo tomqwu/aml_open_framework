@@ -22,6 +22,10 @@ data_contracts:
       - { name: channel,     type: string,    enum: [cash, wire, ach, card] }
       - { name: direction,   type: string,    enum: [in, out] }
       - { name: booked_at,   type: timestamp, nullable: false }
+      # ISO-20022 purpose code (wire/SEPA/e-transfer rails). Nullable —
+      # cash/card legs leave it empty. Powers the INVS investment-scam
+      # (pig-butchering) typology; additive, no engine/generator change.
+      - { name: purpose_code, type: string,   nullable: true }
     quality_checks:
       - { not_null: [txn_id, customer_id, amount, booked_at] }
       - { unique:   [txn_id] }
@@ -35,6 +39,9 @@ data_contracts:
       - { name: country,     type: string,    nullable: false }
       - { name: risk_rating, type: string,    enum: [low, medium, high] }
       - { name: onboarded_at, type: timestamp, nullable: false }
+      # Declared line of business. Empty string = no declared activity,
+      # a shell-company indicator (FATF R.24). Nullable; additive.
+      - { name: business_activity, type: string, nullable: true }
 
 rules:
   - id: structuring_cash_deposits
@@ -228,6 +235,116 @@ rules:
       - customer_kyc_profile
       - account_activity_history
     tags: [dormant_account, behavioral]
+
+  - id: pass_through_cash_to_payout
+    name: Rapid pass-through — cash-in then payout within 48h
+    severity: high
+    regulation_refs:
+      - citation: "FinCEN Advisory FIN-2014-A005"
+        description: "Funnel accounts / rapid movement of funds to obscure source."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH cash_in AS (
+            SELECT customer_id,
+                   SUM(amount) AS cash_in_amt,
+                   MIN(booked_at) AS first_in
+            FROM txn
+            WHERE channel = 'cash' AND direction = 'in'
+              AND booked_at >= TIMESTAMP '{as_of}' - INTERVAL '7' DAY
+              AND booked_at <  TIMESTAMP '{as_of}'
+            GROUP BY customer_id
+            HAVING SUM(amount) >= 15000
+        ),
+        rapid_out AS (
+            SELECT t.customer_id,
+                   SUM(t.amount) AS sum_amount,
+                   COUNT(*) AS count,
+                   MIN(t.booked_at) AS window_start,
+                   MAX(t.booked_at) AS window_end
+            FROM txn t
+            JOIN cash_in ci ON t.customer_id = ci.customer_id
+            WHERE t.direction = 'out'
+              AND t.booked_at >= ci.first_in
+              AND t.booked_at <= ci.first_in + INTERVAL '48' HOUR
+            GROUP BY t.customer_id
+            HAVING SUM(t.amount) >= 15000
+        )
+        SELECT
+            'pass_through_cash_to_payout' AS rule_id,
+            r.customer_id,
+            r.sum_amount,
+            r.count,
+            r.window_start,
+            r.window_end
+        FROM rapid_out r
+        ORDER BY r.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [pass_through, layering]
+
+  - id: shell_company_inbound_wire_churn
+    name: Shell company — no declared activity, inbound wire churn
+    severity: high
+    regulation_refs:
+      - citation: "FATF Recommendation 24"
+        description: "Transparency and beneficial ownership of legal persons (shell risk)."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'shell_company_inbound_wire_churn' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN customer c ON t.customer_id = c.customer_id
+        WHERE c.business_activity = ''
+          AND t.channel = 'wire' AND t.direction = 'in'
+          AND t.booked_at >= TIMESTAMP '{as_of}' - INTERVAL '30' DAY
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING COUNT(*) >= 8
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - beneficial_ownership_record
+    tags: [shell_company, beneficial_ownership]
+
+  - id: investment_scam_invs_velocity
+    name: Investment-scam (pig-butchering) — INVS payout velocity
+    severity: high
+    regulation_refs:
+      - citation: "FinCEN FIN-2023-Alert005"
+        description: "Pig-butchering / investment-scam payout indicators (INVS misuse)."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'investment_scam_invs_velocity' AS rule_id,
+            customer_id,
+            COUNT(*) AS count,
+            SUM(amount) AS sum_amount,
+            MIN(booked_at) AS window_start,
+            MAX(booked_at) AS window_end
+        FROM txn
+        WHERE purpose_code = 'INVS' AND direction = 'out'
+          AND booked_at >= TIMESTAMP '{as_of}' - INTERVAL '14' DAY
+          AND booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY customer_id
+        HAVING COUNT(*) >= 3 AND SUM(amount) >= 5000
+        ORDER BY customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [investment_scam, cyber_enabled_fraud]
 
 workflow:
   queues:
