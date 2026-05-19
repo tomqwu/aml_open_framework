@@ -274,3 +274,83 @@ reporting:
         - regulation_refs
       trigger:
         queue: str_filing
+
+# Core metrics — pasted from src/aml_framework/spec/library/core_metrics.yaml
+# and tuned for this spec (high_severity_alert_ratio numerator lists this
+# spec's high/critical-severity rule ids).
+metrics:
+  - id: alert_volume_total
+    name: Total alerts produced
+    description: Every alert raised across every RTP/FedNow push-fraud rule.
+    category: operational
+    audience: [director, manager, analyst, developer]
+    formula:
+      type: count
+      source: alerts
+    thresholds:
+      green: { lte: 50 }
+      amber: { between: [51, 200] }
+      red:   { gt: 200 }
+
+  - id: high_severity_alert_ratio
+    name: High-severity alert share
+    description: Alerts from high/critical-severity rules / all alerts.
+    category: risk
+    audience: [svp, vp, director]
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: alerts
+        filter:
+          rule_id:
+            in:
+              - first_use_payee_large_amount_rtp
+              - velocity_spike_on_receive_rtp
+              - ramp_up_then_drain_rtp
+              - mule_receiver_fan_out_rtp
+      denominator:
+        type: count
+        source: alerts
+    target: { lte: 0.85 }
+    thresholds:
+      green: { lte: 0.85 }
+      amber: { lte: 0.95 }
+      red:   { gt:  0.95 }
+
+  - id: typology_coverage
+    name: Typology coverage — rules that fired / all tagged rules
+    description: Fraction of tagged push-fraud typologies with at least one alert.
+    category: effectiveness
+    audience: [vp, director, manager]
+    unit: "%"
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+    target: { gte: 0.5 }
+    thresholds:
+      green: { gte: 0.5 }
+      amber: { gte: 0.25 }
+      red:   { lt:  0.25 }
+
+  - id: cases_opened
+    name: Cases opened this run
+    description: Every case the workflow opened from this run's alerts.
+    category: operational
+    audience: [manager, analyst, developer]
+    formula:
+      type: count
+      source: cases
+
+reports:
+  - id: rtp_fraud_brief
+    title: RTP/FedNow push-fraud program brief
+    audience: director
+    cadence: weekly
+    sections:
+      - title: Detection effectiveness
+        metrics: [typology_coverage, high_severity_alert_ratio]
+      - title: Operational scale
+        metrics: [alert_volume_total, cases_opened]

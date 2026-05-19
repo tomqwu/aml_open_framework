@@ -18,6 +18,15 @@ Files shipped:
 - `iso20022_return_reasons.yaml` — Round-5 #5 pacs.004 return-reason
   mining (mule-probing burst, corridor return-rate spike, MD07
   deceased-payee scraping). Reads from `txn_return` data contract.
+- `core_metrics.yaml` — PR-M1-metrics curated "core metrics" snippet.
+  A minimal exec-defensible measurement set (alert volume, high-
+  severity alert share, typology coverage, cases opened) every program
+  should be able to produce. Same copy-paste contract as the rule
+  snippets: it is NOT auto-included; authors paste the metrics they
+  want into their own `metrics:`/`reports:` block and tune the
+  high-severity `rule_id` filter, RAG thresholds, and `audience` to
+  their spec. Uses only the existing Metric formula union (count / sum
+  / ratio / coverage / sql) — no model changes.
 
 Future rounds will add more (TBML in Round-7, RTP push fraud in
 Round-8).

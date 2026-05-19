@@ -301,3 +301,59 @@ retention_policy:
   case_decisions: 5y
   raw_transactions: 5y
   hs_code_baselines: 7y  # longer because they're reference data
+
+# Core metrics — pasted from src/aml_framework/spec/library/core_metrics.yaml
+# and tuned for this spec. Every TBML rule here is high/critical
+# severity, so a high-severity alert *share* is a constant 100%
+# (structurally always-green, no risk signal) — core_metrics.yaml's
+# high_severity_alert_ratio is intentionally omitted for this
+# all-high-severity spec.
+metrics:
+  - id: alert_volume_total
+    name: Total alerts produced
+    description: Every alert raised across every trade-based ML rule.
+    category: operational
+    audience: [director, manager, analyst, developer]
+    formula:
+      type: count
+      source: alerts
+    thresholds:
+      green: { lte: 50 }
+      amber: { between: [51, 200] }
+      red:   { gt: 200 }
+
+  - id: typology_coverage
+    name: Typology coverage — rules that fired / all tagged rules
+    description: Fraction of tagged TBML typologies with at least one alert.
+    category: effectiveness
+    audience: [vp, director, manager]
+    unit: "%"
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+    target: { gte: 0.5 }
+    thresholds:
+      green: { gte: 0.5 }
+      amber: { gte: 0.25 }
+      red:   { lt:  0.25 }
+
+  - id: cases_opened
+    name: Cases opened this run
+    description: Every case the workflow opened from this run's alerts.
+    category: operational
+    audience: [manager, analyst, developer]
+    formula:
+      type: count
+      source: cases
+
+reports:
+  - id: tbml_brief
+    title: Trade-based ML program brief
+    audience: director
+    cadence: monthly
+    sections:
+      - title: Detection effectiveness
+        metrics: [typology_coverage]
+      - title: Operational scale
+        metrics: [alert_volume_total, cases_opened]
