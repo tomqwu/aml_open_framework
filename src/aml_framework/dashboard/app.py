@@ -316,9 +316,15 @@ from aml_framework.release import release_label  # noqa: E402
 st.markdown(
     '<div class="dna-topbar">'
     '<div class="dna-topbar-brand">'
+    # Brand cluster is a home link (full-reload to the root "Today"
+    # route). `target="_top"` breaks out of Streamlit's iframe; a plain
+    # `st.page_link` can't live inside this injected fixed overlay.
+    '<a class="dna-topbar-home" href="/Today" target="_top" '
+    'title="AML Open Framework — home" aria-label="AML Open Framework — home">'
     '<span class="dna-topbar-dot"></span>'
     '<span class="dna-topbar-name">AML Open Framework</span>'
     '<span class="dna-topbar-tag">Spec-driven · Audit-ready</span>'
+    "</a>"
     f'<span class="dna-topbar-release">{release_label()}</span>'
     "</div>"
     "</div>",

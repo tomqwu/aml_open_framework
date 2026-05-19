@@ -188,6 +188,17 @@ CUSTOM_CSS = """
     gap: 14px;
     pointer-events: auto;
 }
+/* The brand cluster is a home link; strip default anchor chrome and
+ * keep the exact dot+name+tag flex layout it had as a bare div. */
+.dna-topbar-home {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+.dna-topbar-home:hover { opacity: 0.82; }
 .dna-topbar-dot {
     width: 8px; height: 8px; border-radius: 50%;
     background: var(--dna-accent);

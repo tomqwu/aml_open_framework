@@ -53,6 +53,21 @@ class TestGlobalTopbar:
         assert "dna-topbar-dot" in body
         assert "dna-topbar-name" in body
 
+    def test_topbar_brand_is_home_link(self):
+        app = APP_FILE.read_text(encoding="utf-8")
+        css = COMPONENTS_FILE.read_text(encoding="utf-8")
+        # The brand cluster is a full-reload home link to the root
+        # "Today" route (st.page_link can't live in the injected fixed
+        # overlay; target=_top breaks out of Streamlit's iframe).
+        assert 'class="dna-topbar-home"' in app
+        assert 'href="/Today"' in app
+        assert 'target="_top"' in app
+        # Anchor chrome stripped so it still reads as the wordmark.
+        assert ".dna-topbar-home" in css
+        block = css[css.index(".dna-topbar-home") : css.index(".dna-topbar-home") + 260]
+        assert "text-decoration: none" in block
+        assert "color: inherit" in block
+
     def test_app_view_padded_below_topbar(self):
         body = COMPONENTS_FILE.read_text(encoding="utf-8")
         # Without this rule the topbar overlaps the first row of content.
