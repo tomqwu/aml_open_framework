@@ -10,9 +10,12 @@ behind `@media (max-width: 768px)`). PR-M1 lands the regression net
 *first* so the real responsive work in PR-M2..M6 is measured against
 an objective bar. Several archetype pages FAIL the per-page net under
 today's overlay — that is the point. Those pages are marked
-`@pytest.mark.xfail(strict=False)` so this PR is green now and a later
-CSS PR flips each xfail to a hard pass by *fixing the page*, not by
-editing the test.
+`@pytest.mark.xfail(strict=True)` so this PR is green now (they XFAIL)
+while making the net an enforceable per-page gate: once PR-M2..M6
+*fixes* a page it XPASSes, and under `strict=True` an unexpected pass
+is a hard FAILURE — forcing that PR to delete the mark in the same
+change. A later regression then fails loudly instead of silently
+re-XFAILing. The xfail can never be relaxed away to keep CI green.
 
 Tier structure (highest mobile-risk page archetypes):
 
@@ -40,9 +43,10 @@ Tier structure (highest mobile-risk page archetypes):
         scrollbar — the floor tier cannot see this)
       * EVERY visible stMain control >= 44px (not just the first;
         probed controls render as small as 22px)
-    Every case is `xfail(strict=False)` — the real "bar PR-M2..M6
-    must hit". PR-M2..M6 flips each to a hard pass by FIXING the page
-    CSS, never by relaxing the assertion.
+    Every case is `xfail(strict=True)` — the real "bar PR-M2..M6
+    must hit". The strict mark makes a fixed page XPASS into a hard
+    failure, so PR-M2..M6 must delete the mark when it fixes the page;
+    it can never be relaxed away to keep CI green.
 
   - 414x896 + 768x1024  — SMOKE, 2 pages (Today + Executive
     Dashboard): no-horizontal-scroll + no-error only.
@@ -118,9 +122,10 @@ MOBILE_VIEWPORTS = [
 #   spills past the viewport edge, (ii) EVERY visible stMain
 #   button/select >= 44px. These FAIL today on the 7 chart/grid pages
 #   — that is the real "bar PR-M2..M6 must hit", so each is
-#   `xfail(strict=False)`. PR-M2..M6 flip them green by FIXING the
-#   page CSS (responsive code block / chart / stack widths + uniform
-#   44px controls), never by relaxing the assertion. Today is a pure
+#   `xfail(strict=True)`. Strict makes a fixed page's XPASS a hard
+#   failure, so PR-M2..M6 must FIX the page CSS (responsive code block
+#   / chart / stack widths + uniform 44px controls) and delete the
+#   mark in the same PR — it can never be relaxed away. Today is a pure
 #   hero/text page (zero stMain controls, no inner overflow) so it is
 #   NOT in the strict tier — it would vacuously pass and add noise.
 # ---------------------------------------------------------------------------
@@ -401,7 +406,7 @@ def _assert_responsive_quality(page, title: str, viewport: dict[str, int]) -> No
             t,
             tok,
             id=t.replace(" ", "_").replace("&", "and").replace("__", "_"),
-            marks=pytest.mark.xfail(reason=XFAIL_REASON, strict=False),
+            marks=pytest.mark.xfail(reason=XFAIL_REASON, strict=True),
         )
         for (t, tok) in STRICT_PAGES
     ],
@@ -455,6 +460,11 @@ def test_smoke_larger_viewports(dashboard_server, viewport, title, token):
         browser, page = _open_mobile_page(p, dashboard_server, viewport)
         try:
             _nav_to(page, title)
+            # Same guard as the strict tier: a silent bounce-to-main
+            # must not let the smoke checks pass on the wrong page.
+            assert token in page.inner_text("body"), (
+                f"[{title}] content token {token!r} missing at {viewport} — wrong page rendered"
+            )
             scroll_width = page.evaluate("document.documentElement.scrollWidth")
             client_width = page.evaluate("document.documentElement.clientWidth")
             assert scroll_width <= client_width + 2, (
