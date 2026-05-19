@@ -90,13 +90,16 @@ GH_SOURCE = {
 # at sibling `<slug>.html` files (e.g. fintech → process-pain.html,
 # process-pain → td-2024.html). Inside the dashboard those resolve to
 # non-existent `.html` paths, so remap each to its Streamlit page route.
-# NAV is the single source of truth: the on-disk page filename is
-# `<page_no>_Knowledge_<nav_title with spaces/'-' → '_'>.py`, and the
-# Streamlit route is that stem with a leading `./` (same idiom the
-# generated render_body footer uses). Source HTML stem == slug.
+# NAV is the single source of truth. The Streamlit route is NOT the
+# numbered file stem — app.py registers these pages with an explicit
+# `url_path` equal to the app-wide title→slug convention
+# (`nav_title.replace(" & ", "_").replace(" ", "_")`; hyphens preserved,
+# see tests/test_e2e_dashboard.py:257 and app.py's Knowledge block). The
+# generated render_body footer below uses the identical transform.
+# Source HTML stem == slug.
 INTERNAL_LINK_MAP = {
-    f"{slug}.html": f"./{page_no}_Knowledge_" + nav_title.replace(" ", "_").replace("-", "_")
-    for slug, (page_no, nav_title, _icon) in NAV.items()
+    f"{slug}.html": "./" + nav_title.replace(" & ", "_").replace(" ", "_")
+    for slug, (_page_no, nav_title, _icon) in NAV.items()
 }
 
 _INLINE_KEEP = {"strong", "b", "em", "i", "code", "a"}
@@ -724,7 +727,7 @@ def main() -> None:
             '            f"[Open the source doc on GitHub \\u2197]"',
             "            f\"({GH_BASE}{wp['gh_source']})\",",
             '            "[Knowledge index \\u2014 Architecture brief]"',
-            '            "(./33_Knowledge_Architecture)",',
+            '            "(./Architecture)",',
             "        ]",
             "    )",
             "    st.markdown(",

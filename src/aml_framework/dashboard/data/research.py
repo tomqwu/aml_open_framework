@@ -577,7 +577,7 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
         "icon": ":material/rocket_launch:",
         "display_title": "8 AML realities a fintech MLRO lives with.",
         "eyebrow": "FinTech reality · 2026 edition",
-        "lede": "The companion to the [10-pain Tier-1 style guide](./38_Knowledge_AML_Process_Pain), written for the audience the Tier-1 framing misses — the **FinTech / EMI / MSB / VASP MLRO**. Eight realities, each anchored in a 2024-26 regulator-issued enforcement action, named consent order, or court filing. No vendor blogs as a load-bearing source.",
+        "lede": "The companion to the [10-pain Tier-1 style guide](./AML_Process_Pain), written for the audience the Tier-1 framing misses — the **FinTech / EMI / MSB / VASP MLRO**. Eight realities, each anchored in a 2024-26 regulator-issued enforcement action, named consent order, or court filing. No vendor blogs as a load-bearing source.",
         "gh_source": "docs/research/2026-04-fintech-aml-reality.md",
         "body_md": (
             "## *How* to use this doc\n"
@@ -910,7 +910,7 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "**Plain English** — Alerts pile up faster than analysts can clear them. The dashboards show it. The board approves the program anyway. Then a regulator notices, and what was a slide becomes a consent order.\n"
             "\n"
-            '**Primary source** — TD Bank consent order (FinCEN, October 2024 — the framing case for every 2025–26 enforcement narrative): TD allowed *"trillions of dollars in transactions annually to go unmonitored"*; the AIU detection queue was in **"red status"** in board reporting for years, attributable to chronic understaffing. — [FinCEN release](https://www.fincen.gov/news/news-releases/fincen-assesses-record-13-billion-penalty-against-td-bank). Also see [TD case study](./40_Knowledge_TD_2024_Case_Study) in this repo.\n'
+            '**Primary source** — TD Bank consent order (FinCEN, October 2024 — the framing case for every 2025–26 enforcement narrative): TD allowed *"trillions of dollars in transactions annually to go unmonitored"*; the AIU detection queue was in **"red status"** in board reporting for years, attributable to chronic understaffing. — [FinCEN release](https://www.fincen.gov/news/news-releases/fincen-assesses-record-13-billion-penalty-against-td-bank). Also see [TD case study](./TD_2024_Case_Study) in this repo.\n'
             "\n"
             "**Roles affected** — CCO · MLRO · 1LoD analyst · CRO\n"
             "\n"
@@ -1483,7 +1483,7 @@ def render_body(slug: str) -> None:
     see_also_footer(
         [
             f"[Open the source doc on GitHub \u2197]({GH_BASE}{wp['gh_source']})",
-            "[Knowledge index \u2014 Architecture brief](./33_Knowledge_Architecture)",
+            "[Knowledge index \u2014 Architecture brief](./Architecture)",
         ]
     )
     st.markdown(
