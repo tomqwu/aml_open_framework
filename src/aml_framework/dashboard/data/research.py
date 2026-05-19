@@ -208,6 +208,8 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "### Tier-1 RFP defaults — Leaders by inertia\n"
             "\n"
+            "NICE Actimize SAM · Oracle FCCM · SymphonyAI Sensa-NetReveal · FIS / SAS AML\n"
+            "\n"
             "#### ✓ Strengths\n"
             "\n"
             "- **Enterprise scale.** Real-time scoring at billions-of-txns/month proven in production.\n"
@@ -223,6 +225,8 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "**AI-native challengers**\n"
             "\n"
             "### Cloud-native, FP-reduction marketing — Visionary but ML-taxed\n"
+            "\n"
+            "ComplyAdvantage · Hawk:AI · Featurespace (Visa) · Feedzai · Lucinity\n"
             "\n"
             "#### ✓ Strengths\n"
             "\n"
@@ -240,6 +244,8 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "### Contextual decision intelligence — Leaders for layering\n"
             "\n"
+            "Quantexa · Ripjar · Sayari\n"
+            "\n"
             "#### ✓ Strengths\n"
             "\n"
             "- **Entity-resolution at scale.** Quantexa's graph is the marketed differentiator for complex layering.\n"
@@ -253,6 +259,8 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "**Open source / neighbour OSS**\n"
             "\n"
             "### Marble · Jube · FINOS OpenAML — Niche players\n"
+            "\n"
+            "Three real competitors today; one closely-related.\n"
             "\n"
             "#### ✓ Strengths\n"
             "\n"
@@ -269,6 +277,8 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             '**Internal "build it yourself"**\n'
             "\n"
             "### Lakehouse pattern — Visionary but expensive\n"
+            "\n"
+            "Databricks / Snowflake + bespoke SQL rules + commercial alert manager bolted on top\n"
             "\n"
             "#### ✓ Strengths\n"
             "\n"
@@ -1411,7 +1421,7 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "---\n"
             "\n"
-            "*Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*\n"
+            "*Previous edition: [2026-04-regulator-pulse.md](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*\n"
         ),
     },
     "td-2024": {
@@ -1507,11 +1517,16 @@ def render_body(slug: str) -> None:
     """Render one whitepaper body beneath the page hero.
 
     The Knowledge page script owns the ``page_header(...)`` call
-    with a LITERAL title (the title-mining contract in
+    with a LITERAL nav title (the title-mining contract in
     tests/test_dashboard_workflows.py needs the literal so the
-    AUDIENCE_PAGES key resolves). This helper renders only the
-    lede + extracted Markdown body + see-also footer, so all 8
-    pages stay 4-line scripts with zero copy-pasted prose.
+    AUDIENCE_PAGES key resolves). Beneath that deck-DNA chrome
+    this helper renders the whitepaper's REAL hero — exactly the
+    static site's hierarchy: eyebrow kicker -> display_title
+    headline -> lede standfirst -> extracted Markdown body ->
+    see-also footer. Without the headline/eyebrow each brief
+    silently lost its true title (e.g. Architecture's
+    "One Manifest. Four layers. No drift."). All 8 pages stay
+    4-line scripts with zero copy-pasted prose.
 
     Pure prose: no engine / session-state coupling — these are
     reference pages, not run views (documented in the
@@ -1525,6 +1540,10 @@ def render_body(slug: str) -> None:
     )
 
     wp = WHITEPAPERS[slug]
+    if wp["eyebrow"]:
+        st.caption(wp["eyebrow"])
+    if wp["display_title"]:
+        st.markdown(f"## {wp['display_title']}")
     if wp["lede"]:
         st.markdown(f"#### {wp['lede']}")
     st.markdown(wp["body_md"])

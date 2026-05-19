@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from html.parser import HTMLParser
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "docs" / "pitch" / "landing" / "research"
@@ -399,10 +399,13 @@ class WhitepaperParser(HTMLParser):
             # restored on flush so "3 days" and "IMPACT/EFFORT: HIGH"
             # don't glue (same glue class as the arch-diagram bullet).
             self._start("badges")
-        elif {"risk", "r-spa"} & set(cls.split()):
-            # r-feat `.risk` caveat, and r-spa body prose (direct text
-            # of the wrapper, no inner <p>; its `.lead` is an inline
-            # bold kicker handled below) — captured as following
+        elif {"risk", "r-spa", "vendors"} & set(cls.split()):
+            # r-feat `.risk` caveat; r-spa body prose (direct text of
+            # the wrapper, no inner <p>; its `.lead` is an inline bold
+            # kicker handled below); and r-vendor `.vendors` — the
+            # concrete vendor list naming each competitive archetype
+            # ("NICE Actimize SAM · Oracle FCCM · ...") which was
+            # dropped, leaving each archetype unattributed. Captured as
             # paragraphs so the card's substance survives. Chrome stays
             # excluded: all site chrome is r-frame / r-meta / r-foot
             # (SKIP_BLOCKS) and decorative chart labels (qcorner /
@@ -589,18 +592,42 @@ MARKDOWN_SOURCE = {
 }
 
 
-def _remap_md_links(md: str) -> str:
-    """Remap Knowledge-page internal links in a Markdown body.
+GH_BASE = "https://github.com/tomqwu/aml_open_framework/blob/main/"
 
-    Mirrors the HTML path's INTERNAL_LINK_MAP step so a `.md`-sourced
-    page renders cross-links consistently. Only rewrites targets that
-    correspond to one of the 8 Knowledge pages; every other link
-    (external URLs, sibling archive .md) is left exactly as authored.
+
+def _remap_md_links(md: str, source_doc: str) -> str:
+    """Remap links in a Markdown body sourced from a repo doc.
+
+    Two rewrites, mirroring the HTML path's link discipline so a
+    `.md`-sourced page never emits a dead in-app route:
+
+    1. Knowledge-page internal links (``process-pain.html`` etc.) ->
+       the native Streamlit route (``INTERNAL_LINK_MAP``).
+    2. Relative ``.md`` links carried from the source doc (e.g. the
+       "Previous edition" sibling pointer ``2026-04-regulator-pulse.md``)
+       -> the absolute GitHub blob URL, resolved against the source
+       doc's own directory. Without this they resolve against Streamlit
+       (``/2026-04-regulator-pulse.md`` — a dead route).
+
+    Absolute URLs (``http(s)://``), in-page anchors (``#...``), and the
+    already-correct internal Knowledge remaps are left untouched.
     """
+    src_dir = PurePosixPath(source_doc).parent
 
     def _sub(m: re.Match[str]) -> str:
         text, target = m.group(1), m.group(2)
-        return f"[{text}]({INTERNAL_LINK_MAP.get(target, target)})"
+        if target in INTERNAL_LINK_MAP:
+            return f"[{text}]({INTERNAL_LINK_MAP[target]})"
+        # Relative .md pointer (no scheme, not an anchor, not already a
+        # Streamlit route): resolve against the source doc dir, absolutise.
+        if (
+            target.endswith(".md")
+            and "://" not in target
+            and not target.startswith(("#", "/", "./"))
+        ):
+            resolved = (src_dir / target).as_posix()
+            return f"[{text}]({GH_BASE}{resolved})"
+        return f"[{text}]({target})"
 
     return re.sub(r"\[([^\]]*)\]\(([^)]+)\)", _sub, md)
 
@@ -638,7 +665,7 @@ def _extract_from_markdown(slug: str) -> dict[str, object]:
         "display_title": title or nav_title,
         "eyebrow": eyebrow,
         "lede": lede,
-        "body_md": _remap_md_links(body).strip(),
+        "body_md": _remap_md_links(body, MARKDOWN_SOURCE[slug]).strip(),
         "gh_source": GH_SOURCE[slug],
     }
 
@@ -694,7 +721,7 @@ def main() -> None:
         "",
         "from __future__ import annotations",
         "",
-        'GH_BASE = "https://github.com/tomqwu/aml_open_framework/blob/main/"',
+        f"GH_BASE = {GH_BASE!r}",
         "",
         "# slug -> whitepaper record. Insertion order IS the Knowledge nav",
         "# order. Each record:",
@@ -736,11 +763,16 @@ def main() -> None:
             '    """Render one whitepaper body beneath the page hero.',
             "",
             "    The Knowledge page script owns the ``page_header(...)`` call",
-            "    with a LITERAL title (the title-mining contract in",
+            "    with a LITERAL nav title (the title-mining contract in",
             "    tests/test_dashboard_workflows.py needs the literal so the",
-            "    AUDIENCE_PAGES key resolves). This helper renders only the",
-            "    lede + extracted Markdown body + see-also footer, so all 8",
-            "    pages stay 4-line scripts with zero copy-pasted prose.",
+            "    AUDIENCE_PAGES key resolves). Beneath that deck-DNA chrome",
+            "    this helper renders the whitepaper's REAL hero — exactly the",
+            "    static site's hierarchy: eyebrow kicker -> display_title",
+            "    headline -> lede standfirst -> extracted Markdown body ->",
+            "    see-also footer. Without the headline/eyebrow each brief",
+            "    silently lost its true title (e.g. Architecture's",
+            '    "One Manifest. Four layers. No drift."). All 8 pages stay',
+            "    4-line scripts with zero copy-pasted prose.",
             "",
             "    Pure prose: no engine / session-state coupling — these are",
             "    reference pages, not run views (documented in the",
@@ -754,6 +786,10 @@ def main() -> None:
             "    )",
             "",
             "    wp = WHITEPAPERS[slug]",
+            '    if wp["eyebrow"]:',
+            "        st.caption(wp['eyebrow'])",
+            '    if wp["display_title"]:',
+            "        st.markdown(f\"## {wp['display_title']}\")",
             '    if wp["lede"]:',
             "        st.markdown(f\"#### {wp['lede']}\")",
             '    st.markdown(wp["body_md"])',
