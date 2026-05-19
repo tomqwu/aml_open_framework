@@ -56,17 +56,28 @@ class TestGlobalTopbar:
     def test_topbar_brand_is_home_link(self):
         app = APP_FILE.read_text(encoding="utf-8")
         css = COMPONENTS_FILE.read_text(encoding="utf-8")
-        # The brand cluster is a full-reload home link to the root
-        # "Today" route (st.page_link can't live in the injected fixed
-        # overlay; target=_top breaks out of Streamlit's iframe).
+        # The brand cluster is a full-reload home link to the ROOT `/`
+        # (Streamlit's default page lives at /, not at a title-slug like
+        # `/Today` — using the slug triggers a "Page not found" toast
+        # before Streamlit falls back). `target="_top"` breaks out of
+        # Streamlit's iframe; st.page_link can't live in the overlay.
         assert 'class="dna-topbar-home"' in app
-        assert 'href="/Today"' in app
+        assert 'href="/"' in app
+        assert 'href="/Today"' not in app, (
+            "Home link must point at the root, not a title-slug — see "
+            "the 'Page not found' regression caught in v0.1.23 production"
+        )
         assert 'target="_top"' in app
-        # Anchor chrome stripped so it still reads as the wordmark.
+        # Anchor chrome stripped so it still reads as the wordmark,
+        # with !important so Streamlit's themed `a` rule can't repaint
+        # the brand as a blue underlined default link (the v0.1.23 bug).
         assert ".dna-topbar-home" in css
-        block = css[css.index(".dna-topbar-home") : css.index(".dna-topbar-home") + 260]
-        assert "text-decoration: none" in block
-        assert "color: inherit" in block
+        block = css[css.index(".dna-topbar-home") : css.index(".dna-topbar-home") + 900]
+        assert "text-decoration: none !important" in block
+        assert "color: inherit !important" in block
+        # Span colors must be re-pinned with anchor-scoped specificity.
+        assert ".dna-topbar-home .dna-topbar-name" in css
+        assert ".dna-topbar-home .dna-topbar-tag" in css
 
     def test_app_view_padded_below_topbar(self):
         body = COMPONENTS_FILE.read_text(encoding="utf-8")

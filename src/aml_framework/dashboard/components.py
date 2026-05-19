@@ -189,16 +189,40 @@ CUSTOM_CSS = """
     pointer-events: auto;
 }
 /* The brand cluster is a home link; strip default anchor chrome and
- * keep the exact dot+name+tag flex layout it had as a bare div. */
+ * keep the exact dot+name+tag flex layout it had as a bare div.
+ * `!important` + higher-specificity selectors are required because
+ * Streamlit's theme injects an `a { color: ...; text-decoration:
+ * underline; }` rule (and propagates it to descendants) at higher
+ * specificity than a plain class — without these the brand renders
+ * as a blue underlined default link in production. */
 .dna-topbar-home {
     display: flex;
     align-items: center;
     gap: 14px;
-    text-decoration: none;
-    color: inherit;
     cursor: pointer;
+    color: inherit !important;
+    text-decoration: none !important;
+}
+.dna-topbar-home:hover,
+.dna-topbar-home:focus,
+.dna-topbar-home:visited,
+.dna-topbar-home:active {
+    color: inherit !important;
+    text-decoration: none !important;
 }
 .dna-topbar-home:hover { opacity: 0.82; }
+/* Re-pin the spans' own colors with anchor-scoped specificity so the
+ * Streamlit link rule doesn't repaint them blue inside the <a>. */
+.dna-topbar-home .dna-topbar-dot {
+    background: var(--dna-accent) !important;
+}
+.dna-topbar-home .dna-topbar-name { color: var(--dna-ink) !important; }
+.dna-topbar-home .dna-topbar-tag  { color: var(--dna-ink-faint) !important; }
+.dna-topbar-home .dna-topbar-dot,
+.dna-topbar-home .dna-topbar-name,
+.dna-topbar-home .dna-topbar-tag {
+    text-decoration: none !important;
+}
 .dna-topbar-dot {
     width: 8px; height: 8px; border-radius: 50%;
     background: var(--dna-accent);
