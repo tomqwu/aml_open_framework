@@ -303,13 +303,19 @@ async def landing():
 
 @app.get("/api/v1/health")
 async def health() -> dict[str, str]:
-    from aml_framework.release import get_build_time, get_git_sha, get_version
+    from aml_framework.release import (
+        get_build_time,
+        get_git_sha,
+        get_tag_summary,
+        get_version,
+    )
 
     return {
         "status": "ok",
         "version": get_version(),
         "git_sha": get_git_sha(),
         "build_time": get_build_time(),
+        "tag_summary": get_tag_summary(),
     }
 
 

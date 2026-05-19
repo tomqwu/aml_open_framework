@@ -62,6 +62,11 @@ class TestHealth:
         # build_time lets the deploy smoke test confirm *when* the live
         # image was built, not just which SHA.
         assert "build_time" in body
+        # tag_summary surfaces the current tag's annotation subject so
+        # operators can see "what's in this build" from the same probe;
+        # empty string when undeployed/local (UI treats absence as
+        # "render nothing").
+        assert "tag_summary" in body
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")

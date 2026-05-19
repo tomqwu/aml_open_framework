@@ -91,3 +91,19 @@ def release_label() -> str:
     if build_time != "dev":
         return f"{base} · {build_time}"
     return base
+
+
+@lru_cache(maxsize=1)
+def get_tag_summary() -> str:
+    """Short human-readable summary of the running tag for UI display.
+
+    Sourced from ``AML_TAG_SUMMARY`` env, set by the Docker build-arg
+    the Azure deploy extracts from the tag annotation
+    (``git tag -l --format='%(contents:subject)' v<X.Y.Z>`` with the
+    leading ``vX.Y.Z — `` stripped). Empty string when undeployed/local
+    so the UI can render it conditionally (no chrome when unknown).
+    Unlike ``get_build_time``'s ``"dev"`` sentinel, this returns the
+    empty string because the UI treats absence as "render nothing"
+    rather than a separate visible state.
+    """
+    return os.environ.get("AML_TAG_SUMMARY", "").strip()

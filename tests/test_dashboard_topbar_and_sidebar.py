@@ -79,6 +79,31 @@ class TestGlobalTopbar:
         assert ".dna-topbar-home .dna-topbar-name" in css
         assert ".dna-topbar-home .dna-topbar-tag" in css
 
+    def test_topbar_tag_summary_wired(self):
+        """The topbar emits a visible quick summary of the current tag
+        beside the version badge — sourced from AML_TAG_SUMMARY (build
+        injected); conditional so undeployed/local runs stay chrome-clean.
+        Truncates to one line with `title=` tooltip carrying full text;
+        hidden on phone widths."""
+        app = APP_FILE.read_text(encoding="utf-8")
+        css = COMPONENTS_FILE.read_text(encoding="utf-8")
+        # Reads the env-driven helper from release.py.
+        assert "get_tag_summary" in app
+        # Conditional emission of the span: no chrome when env is empty.
+        assert "dna-topbar-summary" in app
+        assert "_summary_html" in app  # the gate that keeps it conditional
+        # HTML-escape the injected text — tag annotations may contain
+        # quotes / specials that would otherwise break the attribute.
+        assert "html.escape" in app or "_html.escape" in app
+        # CSS contract: ellipsis truncation, mobile-hide, separator dot.
+        assert ".dna-topbar-summary" in css
+        assert "text-overflow: ellipsis" in css
+        assert "max-width: 360px" in css
+        # Hidden on phone widths so it doesn't compete with the brand.
+        block = css[css.index(".dna-topbar-summary") :]
+        assert "@media (max-width: 768px)" in block
+        assert ".dna-topbar-summary { display: none; }" in block
+
     def test_app_view_padded_below_topbar(self):
         body = COMPONENTS_FILE.read_text(encoding="utf-8")
         # Without this rule the topbar overlaps the first row of content.

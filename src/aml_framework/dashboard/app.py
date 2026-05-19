@@ -311,7 +311,23 @@ initialize_session()
 # the landing site's sticky navbar. Renders once at app start; the CSS
 # (in components.py) pushes the main view + sidebar below it. PR-P.
 # ---------------------------------------------------------------------------
-from aml_framework.release import release_label  # noqa: E402
+import html as _html  # noqa: E402
+
+from aml_framework.release import get_tag_summary, release_label  # noqa: E402
+
+# Summary span renders ONLY when the deploy injected one — undeployed
+# / local runs keep the historical compact topbar with no empty chrome.
+# HTML-escape: tag annotations may contain quotes / special chars that
+# would otherwise break the attribute or the surrounding markup.
+_summary = get_tag_summary()
+if _summary:
+    _summary_attr = _html.escape(_summary, quote=True)
+    _summary_text = _html.escape(_summary)
+    _summary_html = (
+        f'<span class="dna-topbar-summary" title="{_summary_attr}">{_summary_text}</span>'
+    )
+else:
+    _summary_html = ""
 
 st.markdown(
     '<div class="dna-topbar">'
@@ -329,6 +345,7 @@ st.markdown(
     '<span class="dna-topbar-tag">Spec-driven · Audit-ready</span>'
     "</a>"
     f'<span class="dna-topbar-release">{release_label()}</span>'
+    f"{_summary_html}"
     "</div>"
     "</div>",
     unsafe_allow_html=True,

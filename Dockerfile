@@ -44,6 +44,17 @@ ENV AML_BUILD_SHA=$GIT_SHA
 ARG BUILD_TIME=dev
 ENV AML_BUILD_TIME=$BUILD_TIME
 
+# Short human-readable summary of the current tag, shown in the
+# dashboard topbar next to the version badge + in /api/v1/health.
+# Extracted from the git tag annotation by the Azure deploy:
+#   SUMMARY=$(git tag -l --format='%(contents:subject)' vX.Y.Z \
+#            | sed 's/^vX.Y.Z — //')
+#   az acr build ... --build-arg AML_TAG_SUMMARY="$SUMMARY"
+# Empty default so local `docker build` (and any non-deployed run)
+# emits no chrome.
+ARG AML_TAG_SUMMARY=""
+ENV AML_TAG_SUMMARY=$AML_TAG_SUMMARY
+
 EXPOSE 8000 8501
 
 CMD ["python", "-m", "uvicorn", "aml_framework.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -261,6 +261,35 @@ CUSTOM_CSS = """
     margin-left: auto;
 }
 
+/* Quick one-line summary of the current tag, shown alongside the
+ * version badge so any user can see "what's in this build" without
+ * leaving the dashboard. Sourced from the AML_TAG_SUMMARY env (Docker
+ * ARG; the Azure deploy extracts it from the tag annotation). A
+ * `title=` attribute carries the full text so long summaries stay
+ * readable on hover after the visible text ellipses. Hidden on phone
+ * widths so it doesn't compete with the brand for the narrow top row. */
+.dna-topbar-summary {
+    font-family: var(--dna-display);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--dna-ink-faint);
+    max-width: 360px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-left: 10px;
+    line-height: 1;
+}
+.dna-topbar-summary::before {
+    content: "·";
+    margin-right: 10px;
+    color: var(--dna-ink-faint);
+    opacity: 0.6;
+}
+@media (max-width: 768px) {
+    .dna-topbar-summary { display: none; }
+}
+
 /* Push Streamlit's main view + sidebar below the topbar. Streamlit's
  * own stHeader chrome is hidden (deploy/menu rules above), but the
  * sidebar still starts at top:0 — bump it down so the topbar can sit

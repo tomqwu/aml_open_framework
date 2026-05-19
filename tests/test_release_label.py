@@ -23,15 +23,18 @@ def _clear_caches(monkeypatch):
     """Flush `lru_cache` between tests so env changes take effect."""
     monkeypatch.delenv("AML_BUILD_SHA", raising=False)
     monkeypatch.delenv("AML_BUILD_TIME", raising=False)
+    monkeypatch.delenv("AML_TAG_SUMMARY", raising=False)
     import aml_framework.release as rel
 
     rel.get_version.cache_clear()
     rel.get_git_sha.cache_clear()
     rel.get_build_time.cache_clear()
+    rel.get_tag_summary.cache_clear()
     yield
     rel.get_version.cache_clear()
     rel.get_git_sha.cache_clear()
     rel.get_build_time.cache_clear()
+    rel.get_tag_summary.cache_clear()
 
 
 def test_env_sha_wins(monkeypatch):
@@ -161,3 +164,31 @@ def test_module_reimport_picks_up_env_change(monkeypatch):
 
     importlib.reload(rel)
     assert rel.get_git_sha() == "fac3fee"
+
+
+def test_tag_summary_from_env(monkeypatch):
+    monkeypatch.setenv("AML_TAG_SUMMARY", "topbar tag summary live")
+    import aml_framework.release as rel
+
+    rel.get_tag_summary.cache_clear()
+    assert rel.get_tag_summary() == "topbar tag summary live"
+
+
+def test_tag_summary_empty_when_env_unset(monkeypatch):
+    """Empty string (not 'dev') when undeployed/local — the UI treats
+    absence as 'render nothing', not a separate visible state."""
+    monkeypatch.delenv("AML_TAG_SUMMARY", raising=False)
+    import aml_framework.release as rel
+
+    rel.get_tag_summary.cache_clear()
+    assert rel.get_tag_summary() == ""
+
+
+def test_tag_summary_is_stripped(monkeypatch):
+    """Trailing whitespace from shell extraction must not bleed into
+    the rendered topbar text."""
+    monkeypatch.setenv("AML_TAG_SUMMARY", "  topbar tag summary live  \n")
+    import aml_framework.release as rel
+
+    rel.get_tag_summary.cache_clear()
+    assert rel.get_tag_summary() == "topbar tag summary live"
