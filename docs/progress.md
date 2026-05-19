@@ -434,6 +434,27 @@ Goal: act on "dig into more features on the Data Integration tab — enable more
 
 ---
 
+### Round 23 — gate-drain cluster + main-red recovery + workflow self-heal (6 PRs, 2026-05-19)
+
+Goal: drain a stack of parallel-authored draft PRs through the local-Codex gate and per-PR Azure deploys, after the user flagged that a prior deploy had silently stalled (R1 `v0.1.19` finished CI green but never deployed). The fix was structural, not a promise — see the workflow self-heal below.
+
+| PR | Workstream |
+|---|---|
+| #341 | **engine: `aggregation_window` `matched_row_ids` (`v0.1.20`).** Replay the rule `filter` + use an inclusive `booked_at <= window_end` boundary when stamping matched row ids so the audit evidence matches the alert's own SQL. Codex-clean first pass. |
+| #338 | **metrics-M1 backfill (`v0.1.21`).** Curated core-metrics into 4 zero-metric specs. Codex P2: `high_severity_alert_ratio` was structurally always-green in the 3 all-high-severity specs (numerator == denominator → constant 1.0, `green:{lte:1.0}` evaluated before unreachable `gt:1.0` amber/red) — a false-assurance risk metric in a director/SVP report. Dropped it from cyber_enabled_fraud/uk_app_fraud/trade_based_ml (kept for us_rtp_fednow, which excludes its one `medium` rule so the share is a real fraction with reachable bands); added an "OMIT for all-high-severity specs" guard note to `core_metrics.yaml`; pinned the contract both ways in the backfill test. |
+| #339 | **responsive PR-M1 e2e net (test-only, no deploy).** Codex P2 ×2: non-strict xfails let a future XPASS silently count as pass (made the STRICT tier `strict=True` so a fixed page forces mark removal); and the bounce-to-main token guard searched whole `body` (sidebar nav lists every page title) — scoped all three tiers' token checks to `[data-testid='stMain']`. |
+| #337 | **docs — live-demo link (no deploy).** README + GH-Pages landing point at the running Azure dashboard. Codex-clean. |
+| #340 | **PR-U2 native Knowledge section (`v0.1.22`).** 8 GitHub-Pages research whitepapers ported to native Streamlit pages (33–40) via a build-time HTML→Markdown substrate. Six Codex rounds, each a real defect: docker-build skip-guard (slim image lacks `scripts/`), dropped `<h4>` headings, 404 footer source links, internal cross-links not remapped to Streamlit routes, the universal Regulator Pulse brief sourced from the stale static-site HTML (re-pointed at the canonical README-advertised `docs/research/2026-05-regulator-pulse.md`, verbatim — zero regulatory-data fabrication), dropped `r-feat`/`r-spa`/vendor card content, numbered-stem cross-links vs the registered title `url_path`, and the real whitepaper headline (`display_title`/`eyebrow`) never rendered + relative archive `.md` links unresolved. |
+| #342 | **MAIN-RED RECOVERY — single `sync_playwright` per mobile module (folded into `v0.1.22`).** #339's net added a module-scoped `iphone_se_page` fixture that `yield`s inside `with sync_playwright()`, holding instance #1 open for the whole module; the 5 pre-existing standalone mobile tests each opened their own second `sync_playwright()` while it was alive — illegal in one thread → 12 deterministic "Sync API inside the asyncio loop" failures. It reached `main` because `e2e-dashboard` is not a required merge check, so the cluster auto-merged it unverified. Fix: one shared module-scoped `_playwright` fixture all tests draw browsers from (canonical sync pattern). |
+
+**Azure redeploys**: four cycles — `v0.1.19` (the originally-stalled R1 deploy, shipped on detection), `v0.1.20` (#341), `v0.1.21` (#338), `v0.1.22` (#340 + #342). #339 (test-only) and #337 (docs) carried no runtime delta — no deploy, by the same precedent as prior docs/test PRs. Each functional deploy: semver `git tag` → `az acr build` (with `APP_VERSION`/`GIT_SHA`/`BUILD_TIME`) → both `ca-aml-api-dev` + `ca-aml-dashboard-dev` rolled → smoked at `/api/v1/health`; `v0.1.22` additionally smoke-verified `GET /Architecture` → 200 (a new Knowledge route — confirms the explicit `url_path` resolves live, not a bounce-to-main).
+
+**Workflow self-heal (the real fix to the user's complaint)**: the silent stall was a pipeline that depended on a single background notification to trigger the next serial action. `memory/feedback_active_pr_monitor.md` was strengthened so a self-healing reconcile heartbeat re-derives live truth every wake and treats **"green main with no deploy"** AND **"red main post-merge"** as self-detected, self-corrected conditions — never trusting one notification, always reconciling PRs + main-CI + the live `/api/v1/health` version. This round exercised it end-to-end: it caught the overdue `v0.1.19`, drove six PRs through the serial Codex gate, and auto-recovered a deterministic post-merge `e2e-dashboard` break (#342) without a silent stall.
+
+**Result**: 6 PRs merged, 4 functional Azure deploys verified live (final `v0.1.22` / `d8e9493`), one compliance-correctness defect (always-green risk metric) caught pre-merge, one deterministic main-red regression root-caused and fix-forwarded. Follow-up tracked separately: making the dashboard topbar wordmark a clickable home link (the landing brand already is; the `/` hero span is the home page itself).
+
+---
+
 ## What the Framework Does Today
 
 ### For the policy author (CCO / MLRO)
