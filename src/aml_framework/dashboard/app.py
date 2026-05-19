@@ -218,44 +218,58 @@ ALL_PAGES: dict[str, list[st.Page]] = {
         # operational categories: it's the reference shelf, not a
         # day-to-day surface. Every persona can see it (audience.py
         # maps all personas to these titles).
+        # Knowledge filenames are `33_Knowledge_*`, so Streamlit's
+        # filename-derived slug would be `Knowledge_Architecture`, not
+        # the title-derived `Architecture` slug the rest of the app and
+        # the e2e helper use (`title.replace(" & ", "_").replace(" ",
+        # "_")`, see tests/test_e2e_dashboard.py). Pin `url_path`
+        # explicitly so title-based deep links resolve to these pages.
         st.Page(
             "pages/33_Knowledge_Architecture.py",
             title="Architecture",
+            url_path="Architecture",
             icon=":material/account_tree:",
         ),
         st.Page(
             "pages/34_Knowledge_Competitive_Landscape.py",
             title="Competitive Landscape",
+            url_path="Competitive_Landscape",
             icon=":material/insights:",
         ),
         st.Page(
             "pages/35_Knowledge_Data_Is_The_Problem.py",
             title="Data Is The Problem",
+            url_path="Data_Is_The_Problem",
             icon=":material/database:",
         ),
         st.Page(
             "pages/36_Knowledge_FinTech_AML_Reality.py",
             title="FinTech AML Reality",
+            url_path="FinTech_AML_Reality",
             icon=":material/rocket_launch:",
         ),
         st.Page(
             "pages/37_Knowledge_Lineage_Deep_Dive.py",
             title="Lineage Deep-Dive",
+            url_path="Lineage_Deep-Dive",
             icon=":material/timeline:",
         ),
         st.Page(
             "pages/38_Knowledge_AML_Process_Pain.py",
             title="AML Process Pain",
+            url_path="AML_Process_Pain",
             icon=":material/healing:",
         ),
         st.Page(
             "pages/39_Knowledge_Regulator_Pulse_Brief.py",
             title="Regulator Pulse Brief",
+            url_path="Regulator_Pulse_Brief",
             icon=":material/podcasts:",
         ),
         st.Page(
             "pages/40_Knowledge_TD_2024_Case_Study.py",
             title="TD 2024 Case Study",
+            url_path="TD_2024_Case_Study",
             icon=":material/gavel:",
         ),
     ],
