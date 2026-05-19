@@ -108,6 +108,7 @@ CITATION_URL_MAP: dict[str, str] = {
     "FATF R.16 nested service guidance": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Travel-rule.html",
     "FATF Recommendation 16 — wire transfer information": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
     "FATF Recommendation 19": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
+    "FATF Recommendation 24": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
     "FATF Cyber-Enabled Fraud (Feb 2026)": "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Cyber-enabled-fraud.html",
     "FATF Trade-Based Money Laundering (Sep 2025 update)": "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Trade-based-money-laundering.html",
     "FATF High-Risk Jurisdictions Subject to Call for Action": "https://www.fatf-gafi.org/en/publications/High-risk-and-other-monitored-jurisdictions/Call-for-action-june-2025.html",
