@@ -54,6 +54,14 @@
 # list is a PLACEHOLDER — replace it with the ids of YOUR spec's
 # high- and critical-severity rules. A wrong/absent rule id silently
 # computes 0 (metric->rule is not cross-validated), so get it right.
+#
+# OMIT THIS METRIC ENTIRELY if EVERY rule in your spec is high/critical
+# severity. The share is then a constant 100% (numerator == denominator):
+# the metric can never leave green and reports a permanently-clean risk
+# posture regardless of the queue — a structurally always-green risk
+# metric is worse than no metric in front of a regulator. Only ship it
+# when the rule set mixes severities, so the share is a real fraction
+# with reachable amber/red bands.
 - id: high_severity_alert_ratio
   name: High-severity alert share
   description: Alerts from high/critical-severity rules / all alerts.
