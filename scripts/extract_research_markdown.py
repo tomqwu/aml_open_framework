@@ -79,7 +79,10 @@ GH_SOURCE = {
     "fintech": "docs/research/2026-04-fintech-aml-reality.md",
     "lineage": "docs/audit-evidence.md",
     "process-pain": "docs/research/2026-04-aml-process-pain.md",
-    "regulator-pulse": "docs/research/2026-04-regulator-pulse.md",
+    # Canonical, continuously-maintained edition (sourced from the .md
+    # verbatim, not the stale static-site HTML snapshot — see
+    # MARKDOWN_SOURCE). 2026-02-01 → 2026-05-08, 32 events.
+    "regulator-pulse": "docs/research/2026-05-regulator-pulse.md",
     "td-2024": "docs/case-studies/td-2024.md",
 }
 
@@ -534,7 +537,77 @@ def _join_blocks(blocks: list[str]) -> str:
     return "\n".join(out).strip()
 
 
+# A handful of whitepapers have a canonical, continuously-maintained
+# Markdown edition under docs/research/ that supersedes the (now stale)
+# static-site HTML snapshot. Those are sourced from the .md VERBATIM —
+# this is regulatory event data, so it is copied byte-for-byte (only the
+# H1/lede are split off the front and the Knowledge-page internal links
+# remapped); nothing is transcribed, summarised, or invented. The .md is
+# already Markdown so the HTML→md machinery is bypassed entirely.
+#
+#   slug -> canonical markdown path (must equal GH_SOURCE[slug])
+MARKDOWN_SOURCE = {
+    "regulator-pulse": "docs/research/2026-05-regulator-pulse.md",
+}
+
+
+def _remap_md_links(md: str) -> str:
+    """Remap Knowledge-page internal links in a Markdown body.
+
+    Mirrors the HTML path's INTERNAL_LINK_MAP step so a `.md`-sourced
+    page renders cross-links consistently. Only rewrites targets that
+    correspond to one of the 8 Knowledge pages; every other link
+    (external URLs, sibling archive .md) is left exactly as authored.
+    """
+
+    def _sub(m: re.Match[str]) -> str:
+        text, target = m.group(1), m.group(2)
+        return f"[{text}]({INTERNAL_LINK_MAP.get(target, target)})"
+
+    return re.sub(r"\[([^\]]*)\]\(([^)]+)\)", _sub, md)
+
+
+def _extract_from_markdown(slug: str) -> dict[str, object]:
+    """Build the substrate record from the canonical Markdown verbatim.
+
+    Splits the leading `# H1` (-> display_title) and the first prose
+    paragraph after it (-> lede); everything from the second paragraph
+    on is the body, copied unchanged. The eyebrow is a verbatim
+    substring of the .md's own H1 (the title text before its first
+    comma) — no number, window, or event count is ever fabricated; the
+    .md's own header/lede carry the authoritative window + event count.
+    """
+    page_no, nav_title, icon = NAV[slug]
+    raw = (ROOT / MARKDOWN_SOURCE[slug]).read_text(encoding="utf-8")
+    lines = raw.split("\n")
+    # Line 0 is the H1 title (the canonical .md starts with `# ...`).
+    h1 = lines[0]
+    title = h1[1:].strip() if h1.startswith("# ") else h1.strip()
+    # First non-empty paragraph after the H1 is the lede; the body is
+    # everything from the next paragraph onward, verbatim.
+    rest = "\n".join(lines[1:]).lstrip("\n")
+    parts = rest.split("\n\n", 1)
+    lede = parts[0].strip()
+    body = parts[1] if len(parts) > 1 else ""
+    # Eyebrow: the .md title text before its first comma — a verbatim
+    # slice of the source, so zero fabrication.
+    eyebrow = title.split(",", 1)[0].strip()
+    return {
+        "slug": slug,
+        "page_no": page_no,
+        "nav_title": nav_title,
+        "icon": icon,
+        "display_title": title or nav_title,
+        "eyebrow": eyebrow,
+        "lede": lede,
+        "body_md": _remap_md_links(body).strip(),
+        "gh_source": GH_SOURCE[slug],
+    }
+
+
 def extract(slug: str) -> dict[str, object]:
+    if slug in MARKDOWN_SOURCE:
+        return _extract_from_markdown(slug)
     html = (SRC / f"{slug}.html").read_text(encoding="utf-8")
     p = WhitepaperParser()
     p.feed(html)
