@@ -162,7 +162,7 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
         "display_title": "Where this framework actually wins.",
         "eyebrow": "Competitive positioning · April 2026",
         "lede": "Deep-research output across vendor sites, regulator notices, OSS repos, and industry analyst blogs. Four buyer archetypes, three OSS competitors, two real defensible moats — and five features ranked by impact ÷ effort against the AMLA July 2026 deadline and the FinCEN NPRM comment-period close.",
-        "gh_source": "docs/competitive-landscape.md",
+        "gh_source": "docs/research/2026-04-competitive-positioning.md",
         "body_md": (
             "## Where the *2026 field* sits.\n"
             "\n"
@@ -204,9 +204,14 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "### Tier-1 RFP defaults — Leaders by inertia\n"
             "\n"
+            "#### ✓ Strengths\n"
+            "\n"
             "- **Enterprise scale.** Real-time scoring at billions-of-txns/month proven in production.\n"
             "- **Audit comfort + brand.** Decades of typology libraries; regulator-familiar.\n"
             "- **Procurement template.** Tier-1 vendor-risk-management process accepts these names without friction.\n"
+            "\n"
+            "#### ! Cautions\n"
+            "\n"
             "- **Deploy time + cost.** ~18–24 months, $50M+ TCO ([Tookitaki 2025](https://www.tookitaki.com/compliance-hub/best-aml-solution-for-banks-2025)).\n"
             "- **Black-box typologies.** Vendor scenarios you can't see inside; tuning takes a quarter.\n"
             "- **SR 26-2 model-validation tax.** ML scoring layers now folded into model risk inventory — every typology carries an MRM cost.\n"
@@ -215,9 +220,14 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "### Cloud-native, FP-reduction marketing — Visionary but ML-taxed\n"
             "\n"
+            "#### ✓ Strengths\n"
+            "\n"
             "- **Modern architecture.** Cloud-native, API-first, weeks-to-months deploys.\n"
             "- **Funded.** Hawk:AI Series C $56M (Apr 2025) + $10M (Jan 2026) for AML-as-a-service ([SiliconANGLE](https://siliconangle.com/2025/04/08/hawk-secures-56-million-expand-financial-crime-detection-platform/)).\n"
             "- **Claimed FP reduction.** ComplyAdvantage cites 65–85% ([vendor data](https://complyadvantage.com/vendor/best-transaction-monitoring-software/)).\n"
+            "\n"
+            "#### ! Cautions\n"
+            "\n"
             "- **ML-first = SR 26-2 surface.** Adaptive scoring inherits the full model-validation tax.\n"
             "- **Vendor-lock data residency.** Cloud SaaS may not satisfy in-perimeter compliance requirements.\n"
             "- **FP-reduction claims.** Vendor-reported, not independently audited.\n"
@@ -226,8 +236,13 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "### Contextual decision intelligence — Leaders for layering\n"
             "\n"
+            "#### ✓ Strengths\n"
+            "\n"
             "- **Entity-resolution at scale.** Quantexa's graph is the marketed differentiator for complex layering.\n"
             "- **Investigative depth.** Multi-hop network analysis surfaces relationships rules-only platforms miss.\n"
+            "\n"
+            "#### ! Cautions\n"
+            "\n"
             "- **Multi-quarter integration.** Heavy data-engineering required to wire customer + transaction graph.\n"
             "- **Narrow purchase rationale.** Hard to justify outside large complex-trade-finance / sanctions-evasion mandates.\n"
             "\n"
@@ -235,9 +250,14 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "### Marble · Jube · FINOS OpenAML — Niche players\n"
             "\n"
+            "#### ✓ Strengths\n"
+            "\n"
             "- **Marble** ([checkmarble/marble](https://github.com/checkmarble/marble)) — modern Go/TS stack, no-code UX, commercial backing.\n"
             "- **Jube** ([jube-home](https://github.com/jube-home/aml-fraud-transaction-monitoring)) — built-in adaptive ML scoring.\n"
             "- **FINOS OpenAML** ([labs](https://github.com/finos-labs/dtcch-2025-OpenAML)) — DTCC pedigree; on-chain AML focus.\n"
+            "\n"
+            "#### ! Cautions\n"
+            "\n"
             "- **Marble.** No Compliance Manifest as source-of-truth; no MRM bundle; no jurisdiction-specific reports; no deterministic-rerun guarantee.\n"
             "- **Jube.** ML-first design is exactly what FinCEN NPRM + SR 26-2 push back against.\n"
             "- **FINOS OpenAML.** Narrow scope (crypto wallets), labs-stage, not a TM platform.\n"
@@ -246,8 +266,13 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "### Lakehouse pattern — Visionary but expensive\n"
             "\n"
+            "#### ✓ Strengths\n"
+            "\n"
             "- **Full control.** No vendor lock-in; rule library is the bank's IP.\n"
             "- **Lakehouse-native.** Already where transaction data lives.\n"
+            "\n"
+            "#### ! Cautions\n"
+            "\n"
             "- **Build-cost.** >$50M / 5y, only viable above ~5B txns/month.\n"
             "- **Underinvested layers.** Banks consistently underbuild rule-authoring, audit-trail, and reporting on top of the lakehouse — which is exactly where this framework slots in.\n"
             "\n"
@@ -326,7 +351,7 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
         "display_title": "Data is the AML problem.",
         "eyebrow": "Whitepaper · 2026 edition",
         "lede": "The pain doc argues that audit-defensibility is the dominant 2026 pain. This doc argues the layer underneath: the binding constraint *under* audit-defensibility is data. Detection presumes data the bank often does not have. Vendor AI presumes a quality of input that public enforcement orders show does not exist. Eleven faces, each anchored in a primary regulator source.",
-        "gh_source": "docs/research/2026-04-data-is-the-problem.md",
+        "gh_source": "docs/research/2026-05-aml-data-problem.md",
         "body_md": (
             "## *How* to read this doc.\n"
             "\n"
@@ -502,12 +527,17 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "Regulator-sourced phrases are defensible to a buyer the moment they're cited. Engineering shorthand on a leader-facing page reads as condescension. The terms in the right column remain correct on developer-facing surfaces — the goal is to **hide them from leaders, not delete them.**\n"
             "\n"
+            "#### ✓ Use these · regulator-sourced\n"
+            "\n"
             '- "Capture and aggregate all material risk data" (BCBS 239 P4)\n'
             '- "Accurate and reliable risk data" (BCBS 239 P3)\n'
             '- "An audit trail of debate and challenge" (FCA Annex 1 2024)\n'
             '- "Your data leaves our perimeter" (OSFI / Fed / FCA framing)\n'
             '- "Lineage we can walk back" (audit-evidence layer)\n'
             '- "Data contract" (schema-as-policy artifact)\n'
+            "\n"
+            "#### ✕ Avoid these on leader surfaces\n"
+            "\n"
             '- "data quality" alone — too vague. Use *completeness / accuracy / staleness / reconciliation / lineage*\n'
             '- "ETL," "data pipeline," "warehouse" → "the data the controls run on"\n'
             '- "data lake," "lakehouse," "Delta," "Iceberg" → "the underlying data store"\n'
@@ -547,7 +577,7 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
         "icon": ":material/rocket_launch:",
         "display_title": "8 AML realities a fintech MLRO lives with.",
         "eyebrow": "FinTech reality · 2026 edition",
-        "lede": "The companion to the [10-pain Tier-1 style guide](process-pain.html), written for the audience the Tier-1 framing misses — the **FinTech / EMI / MSB / VASP MLRO**. Eight realities, each anchored in a 2024-26 regulator-issued enforcement action, named consent order, or court filing. No vendor blogs as a load-bearing source.",
+        "lede": "The companion to the [10-pain Tier-1 style guide](./38_Knowledge_AML_Process_Pain), written for the audience the Tier-1 framing misses — the **FinTech / EMI / MSB / VASP MLRO**. Eight realities, each anchored in a 2024-26 regulator-issued enforcement action, named consent order, or court filing. No vendor blogs as a load-bearing source.",
         "gh_source": "docs/research/2026-04-fintech-aml-reality.md",
         "body_md": (
             "## *How* to use this doc\n"
@@ -702,7 +732,7 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
         "display_title": "Trace every alert. Down to the row.",
         "eyebrow": "Walk-back · 2026 edition",
         "lede": 'When an examiner asks "show me why alert N fired", most AML platforms can answer at the level of "this customer, this rule, this severity." The framework answers at the level of *this file path, this column, this row index, this rendered SQL, this rule version, this case_id, this STR* — every link hash-stamped, every chain reproducible. This doc walks the chain link by link.',
-        "gh_source": "docs/lineage.md",
+        "gh_source": "docs/audit-evidence.md",
         "body_md": (
             "## The *question* regulators actually ask.\n"
             "\n"
@@ -880,7 +910,7 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "**Plain English** — Alerts pile up faster than analysts can clear them. The dashboards show it. The board approves the program anyway. Then a regulator notices, and what was a slide becomes a consent order.\n"
             "\n"
-            '**Primary source** — TD Bank consent order (FinCEN, October 2024 — the framing case for every 2025–26 enforcement narrative): TD allowed *"trillions of dollars in transactions annually to go unmonitored"*; the AIU detection queue was in **"red status"** in board reporting for years, attributable to chronic understaffing. — [FinCEN release](https://www.fincen.gov/news/news-releases/fincen-assesses-record-13-billion-penalty-against-td-bank). Also see [TD case study](td-2024.html) in this repo.\n'
+            '**Primary source** — TD Bank consent order (FinCEN, October 2024 — the framing case for every 2025–26 enforcement narrative): TD allowed *"trillions of dollars in transactions annually to go unmonitored"*; the AIU detection queue was in **"red status"** in board reporting for years, attributable to chronic understaffing. — [FinCEN release](https://www.fincen.gov/news/news-releases/fincen-assesses-record-13-billion-penalty-against-td-bank). Also see [TD case study](./40_Knowledge_TD_2024_Case_Study) in this repo.\n'
             "\n"
             "**Roles affected** — CCO · MLRO · 1LoD analyst · CRO\n"
             "\n"
@@ -1008,6 +1038,8 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             "\n"
             "Real CCO sentences from public sources are defensible to a buyer the moment they're cited. Engineering shorthand on a leader-facing page reads as condescension. The terms in the right column are still correct on developer-facing surfaces — the goal is to **hide them from leaders, not delete them.**\n"
             "\n"
+            "#### ✓ Use these · real CCO sentences\n"
+            "\n"
             '- "What you\'d hand a regulator if they walked in tomorrow"\n'
             '- "What changed overnight, what needs attention"\n'
             '- "We can show our model still works" (instead of MRM)\n'
@@ -1015,6 +1047,9 @@ WHITEPAPERS: dict[str, dict[str, str]] = {
             '- "Decisions you can prove later"\n'
             '- "Active investigations across teams, ranked by SLA urgency"\n'
             '- "Who\'s behind every entity customer — and which ones need a refresh" (BOI)\n'
+            "\n"
+            "#### ✕ Avoid these on leader surfaces\n"
+            "\n"
             '- "spec," "YAML," "schema," "Pydantic," "DuckDB," "FastAPI"\n'
             '- "deterministic," "hash chain," "audit ledger" → use "audit trail you can replay"\n'
             '- "MRM" → use "model validation" / "show the model still works"\n'

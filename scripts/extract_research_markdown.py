@@ -66,16 +66,34 @@ NAV = {
 
 # The whitepapers "view source on github" footer points at the canonical
 # markdown. Captured so the Knowledge page can offer an "Open the source
-# doc" link (parity with the static site's footer affordance).
+# doc" link (parity with the static site's footer affordance). Every
+# path here MUST resolve to a real file under docs/ — these mirror the
+# `blob/main/...` hrefs the source HTML's own footer emits. The
+# `lineage` whitepaper carries no source-doc footer link of its own; we
+# point it at the repo doc whose subject it summarises (lineage.html
+# itself directs the reader to "Audit & Evidence → Lineage walk-back").
 GH_SOURCE = {
     "architecture": "docs/architecture.md",
-    "competitive-positioning": "docs/competitive-landscape.md",
-    "data-problem": "docs/research/2026-04-data-is-the-problem.md",
+    "competitive-positioning": "docs/research/2026-04-competitive-positioning.md",
+    "data-problem": "docs/research/2026-05-aml-data-problem.md",
     "fintech": "docs/research/2026-04-fintech-aml-reality.md",
-    "lineage": "docs/lineage.md",
+    "lineage": "docs/audit-evidence.md",
     "process-pain": "docs/research/2026-04-aml-process-pain.md",
     "regulator-pulse": "docs/research/2026-04-regulator-pulse.md",
     "td-2024": "docs/case-studies/td-2024.md",
+}
+
+# Internal cross-links carried over from the static research site point
+# at sibling `<slug>.html` files (e.g. fintech → process-pain.html,
+# process-pain → td-2024.html). Inside the dashboard those resolve to
+# non-existent `.html` paths, so remap each to its Streamlit page route.
+# NAV is the single source of truth: the on-disk page filename is
+# `<page_no>_Knowledge_<nav_title with spaces/'-' → '_'>.py`, and the
+# Streamlit route is that stem with a leading `./` (same idiom the
+# generated render_body footer uses). Source HTML stem == slug.
+INTERNAL_LINK_MAP = {
+    f"{slug}.html": f"./{page_no}_Knowledge_" + nav_title.replace(" ", "_").replace("-", "_")
+    for slug, (page_no, nav_title, _icon) in NAV.items()
 }
 
 _INLINE_KEEP = {"strong", "b", "em", "i", "code", "a"}
@@ -147,6 +165,9 @@ class _Inline:
             return inner if inner else ""
         if node.mark == "":  # link
             href = node.href or ""
+            # Remap internal static-site cross-links to the native
+            # Streamlit page route (external URLs pass through).
+            href = INTERNAL_LINK_MAP.get(href, href)
             return f"[{inner}]({href})" if href else inner
         # Markdown emphasis can't wrap leading/trailing whitespace.
         lead = inner[: len(inner) - len(inner.lstrip())]
@@ -234,6 +255,12 @@ class WhitepaperParser(HTMLParser):
             self.blocks.append(f"## {text}")
         elif mode == "h3":
             self.blocks.append(f"### {text}")
+        elif mode == "h4":
+            # Load-bearing labels above their list (Competitive
+            # Landscape "Strengths"/"Cautions"; the data-problem /
+            # process-pain "Use these"/"Avoid these" style headers).
+            # Dropping these merged opposite lists under no heading.
+            self.blocks.append(f"#### {text}")
         elif mode == "label":
             # r-event-date / card-tag / archetype — a small bold kicker.
             self.blocks.append(f"**{text}**")
@@ -336,6 +363,8 @@ class WhitepaperParser(HTMLParser):
             self._start("h2")
         elif tag == "h3" or "card-title" in cls.split():
             self._start("h3")
+        elif tag == "h4":
+            self._start("h4")
         elif {"r-event-date", "card-tag", "archetype"} & set(cls.split()):
             self._start("label")
         elif "name" in cls.split() and "head" not in cls.split():
