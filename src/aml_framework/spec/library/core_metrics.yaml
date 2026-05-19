@@ -1,0 +1,141 @@
+# Core metrics library — PR-M1-metrics (backfill slice).
+#
+# Every example spec ships rules; not every one shipped a `metrics:`
+# block. A program with detection but no measurement can't answer the
+# regulator's first question — "how do you know your controls work?".
+# This file is the curated, copy-pasteable answer: a minimal set of
+# exec-defensible metrics that every program should be able to produce.
+#
+# This is a **library of copy-pasteable metric snippets**, NOT a spec
+# the engine loads and NOT an auto-include. The framework's whole
+# defensibility story is "every line of the spec was written by a human
+# who can defend it in front of a regulator." Drop the snippets you want
+# into your own aml.yaml's `metrics:` (and `reports:`) block, then TUNE
+# them for your spec:
+#
+#   - `high_severity_alert_ratio`'s numerator filter MUST list YOUR
+#     spec's actual high/critical-severity rule ids (read your own
+#     `rules:` block — a wrong rule id silently computes 0, it is NOT
+#     a validation error).
+#   - RAG `thresholds` are placeholders sized for the reference
+#     dataset; set bands that match your risk appetite and volume.
+#   - `audience` must be drawn from the model's persona enum:
+#     svp, vp, director, manager, pm, developer, business, auditor,
+#     analyst.
+#   - `reports[].sections[].metrics` MUST reference metric ids that
+#     exist in your spec — that cross-reference IS validated by the
+#     loader (`AMLSpec._check_cross_references`).
+#
+# Only formulas expressible with the existing Metric model are used
+# here: count / sum / ratio / coverage / sql. No new formula types.
+#
+# ---------------------------------------------------------------------------
+# Metric 1: alert_volume_total — total alerts produced this run
+# ---------------------------------------------------------------------------
+# The denominator of every other operational number. `count` over the
+# `alerts` source counts every alert across every rule.
+- id: alert_volume_total
+  name: Total alerts produced
+  description: Every alert raised across every rule in this run.
+  category: operational
+  audience: [director, manager, analyst, developer]
+  formula:
+    type: count
+    source: alerts
+  thresholds:
+    green: { lte: 50 }
+    amber: { between: [51, 200] }
+    red:   { gt: 200 }
+
+# ---------------------------------------------------------------------------
+# Metric 2: high_severity_alert_ratio — share of alerts from high/critical rules
+# ---------------------------------------------------------------------------
+# A risk-weighted view of the queue. The numerator's `rule_id in [...]`
+# list is a PLACEHOLDER — replace it with the ids of YOUR spec's
+# high- and critical-severity rules. A wrong/absent rule id silently
+# computes 0 (metric->rule is not cross-validated), so get it right.
+#
+# OMIT THIS METRIC ENTIRELY if EVERY rule in your spec is high/critical
+# severity. The share is then a constant 100% (numerator == denominator):
+# the metric can never leave green and reports a permanently-clean risk
+# posture regardless of the queue — a structurally always-green risk
+# metric is worse than no metric in front of a regulator. Only ship it
+# when the rule set mixes severities, so the share is a real fraction
+# with reachable amber/red bands.
+- id: high_severity_alert_ratio
+  name: High-severity alert share
+  description: Alerts from high/critical-severity rules / all alerts.
+  category: risk
+  audience: [svp, vp, director]
+  unit: "%"
+  formula:
+    type: ratio
+    numerator:
+      type: count
+      source: alerts
+      filter: { rule_id: { in: [REPLACE_WITH_HIGH_SEVERITY_RULE_IDS] } }
+    denominator:
+      type: count
+      source: alerts
+  target: { lte: 0.6 }
+  thresholds:
+    green: { lte: 0.6 }
+    amber: { lte: 0.85 }
+    red:   { gt:  0.85 }
+
+# ---------------------------------------------------------------------------
+# Metric 3: typology_coverage — rules that fired / all tagged rules
+# ---------------------------------------------------------------------------
+# The effectiveness headline: of every typology your rules tag, what
+# fraction actually produced an alert this run. `covered_by: rule_tags`
+# is computed by the engine from each rule's `tags` — no tuning needed,
+# though you should size the thresholds to your dataset.
+- id: typology_coverage
+  name: Typology coverage — rules that fired / all tagged rules
+  description: Fraction of tagged typologies with at least one alert.
+  category: effectiveness
+  audience: [vp, director, manager]
+  unit: "%"
+  formula:
+    type: coverage
+    universe: typologies
+    covered_by: rule_tags
+  target: { gte: 0.5 }
+  thresholds:
+    green: { gte: 0.5 }
+    amber: { gte: 0.25 }
+    red:   { lt:  0.25 }
+
+# ---------------------------------------------------------------------------
+# Metric 4: cases_opened — cases opened this run
+# ---------------------------------------------------------------------------
+# Workload headline. `count` over the `cases` source counts every case
+# file written by the workflow this run. Queue-level splits live on the
+# `decisions` source (see Metric 5), because the case record itself
+# carries no `queue` field.
+- id: cases_opened
+  name: Cases opened this run
+  description: Every case the workflow opened from this run's alerts.
+  category: operational
+  audience: [manager, analyst, developer]
+  formula:
+    type: count
+    source: cases
+
+# ---------------------------------------------------------------------------
+# Metric 5: cases_opened_events — case-open decisions in the audit trail
+# ---------------------------------------------------------------------------
+# Cross-checks Metric 4 against the immutable decision ledger: one
+# `case_opened` event is logged per case. Filtering the `decisions`
+# source by `queue` (the decision row DOES carry it) gives a
+# queue-routed split — set the queue id to one of your workflow's
+# queues if you want that breakdown.
+- id: cases_opened_events
+  name: Case-open events recorded
+  description: case_opened events in the decision audit trail.
+  category: operational
+  audience: [manager, auditor]
+  formula:
+    type: count
+    source: decisions
+    filter: { event: case_opened }
