@@ -918,6 +918,28 @@ def _render(option: dict, *, height: int, key: str | None) -> None:
     """
     from streamlit_echarts import st_echarts  # type: ignore[import-not-found]
 
+    # Defensive: force OFF ECharts' progressive/incremental render
+    # pipeline on every series. The streamlit-echarts 0.6.0 bundle
+    # crashes inside that scheduler ("BidiComponent Error: n is not a
+    # function" — stack entirely in _doProgress / perform /
+    # _executeOneToOne) once a series crosses the default progressive
+    # threshold (~3k points), which the v0.1.16 data scale-up made
+    # common across many chart pages. We cannot patch the vendored
+    # bundle, so we shape the option so that code path never runs:
+    # `progressive: 0` disables incremental render; a very high
+    # `progressiveThreshold` is a belt-and-suspenders guard for series
+    # types that ignore the former. Our datasets are hundreds-to-low-
+    # thousands of points, so synchronous render carries no real perf
+    # cost. Single chokepoint → hardens all ~20 chart helpers at once.
+    _series = option.get("series")
+    if isinstance(_series, dict):
+        _series = [_series]
+    if isinstance(_series, list):
+        for _s in _series:
+            if isinstance(_s, dict):
+                _s.setdefault("progressive", 0)
+                _s.setdefault("progressiveThreshold", 10_000_000)
+
     # Theme-neutral: transparent bg + dual-contrast-safe chrome (see
     # chart_theme.echarts_theme). No server-side dark detection — that
     # either desyncs from the CSS dark theme or forces a determinism-

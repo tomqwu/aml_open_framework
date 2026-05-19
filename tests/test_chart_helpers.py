@@ -205,6 +205,57 @@ def test_render_is_theme_neutral_no_dark_detection():
         )
 
 
+def _capture_render_options(monkeypatch, option):
+    """Call charts._render with a fake streamlit_echarts and return the
+    options dict it forwarded — lets us assert option-shaping without
+    a real Streamlit/streamlit-echarts install."""
+    import sys
+    from types import ModuleType
+
+    captured: dict = {}
+    fake = ModuleType("streamlit_echarts")
+    fake.st_echarts = lambda **kw: captured.update(kw)  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "streamlit_echarts", fake)
+
+    from aml_framework.dashboard import charts as charts_mod
+
+    charts_mod._render(option, height=320, key="k")
+    return captured["options"]
+
+
+def test_render_disables_echarts_progressive_pipeline_list_series(monkeypatch):
+    """The streamlit-echarts 0.6.0 bundle crashes inside ECharts'
+    progressive scheduler ("n is not a function") once a series crosses
+    the ~3k-point threshold. `_render` must neutralise that path on
+    every series so no chart page can trip it."""
+    opt = {"series": [{"type": "bar", "data": [1, 2]}, {"type": "line", "data": [3]}]}
+    out = _capture_render_options(monkeypatch, opt)
+    for s in out["series"]:
+        assert s["progressive"] == 0, "progressive must be force-disabled"
+        assert s["progressiveThreshold"] >= 10_000_000, "threshold guard missing"
+
+
+def test_render_disables_progressive_for_dict_series(monkeypatch):
+    opt = {"series": {"type": "scatter", "data": [[1, 2]]}}
+    out = _capture_render_options(monkeypatch, opt)
+    assert out["series"]["progressive"] == 0
+    assert out["series"]["progressiveThreshold"] >= 10_000_000
+
+
+def test_render_does_not_override_explicit_progressive(monkeypatch):
+    """`setdefault` semantics — a builder that intentionally tuned
+    progressive keeps its value; we only fill the unset default."""
+    opt = {"series": [{"type": "bar", "progressive": 500}]}
+    out = _capture_render_options(monkeypatch, opt)
+    assert out["series"][0]["progressive"] == 500
+
+
+def test_render_tolerates_missing_or_odd_series(monkeypatch):
+    # No series key, and a non-dict series entry — must not raise.
+    _capture_render_options(monkeypatch, {"title": {"text": "x"}})
+    _capture_render_options(monkeypatch, {"series": ["weird", 3]})
+
+
 def test_option_builders_emit_dual_safe_chrome_not_light_only():
     """BLOCKER[3] regression: the per-chart builders used to bake the
     cream-only DNA_INK_MUTED (#5a5e69) / DNA_RULE (#e6e1d3) straight
