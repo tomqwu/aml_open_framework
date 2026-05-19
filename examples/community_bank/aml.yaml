@@ -245,40 +245,47 @@ rules:
     logic:
       type: custom_sql
       sql: |
-        WITH cash_in AS (
-            SELECT customer_id,
-                   SUM(amount) AS cash_in_amt,
-                   MIN(booked_at) AS first_in
+        -- Funnel window is anchored on the FIRST cash-in. Both the
+        -- cash-in and the payout legs are measured inside that single
+        -- [first_in, first_in+48h) window AND bounded by {as_of}, so
+        -- (a) deposits after the window can't inflate the funding
+        -- threshold, (b) a payout can't precede the deposit that
+        -- funded it (out is at/after first_in), (c) no future-txn
+        -- leakage under a historical as_of / backtest.
+        WITH first_cash_in AS (
+            SELECT customer_id, MIN(booked_at) AS first_in
             FROM txn
             WHERE channel = 'cash' AND direction = 'in'
               AND booked_at >= TIMESTAMP '{as_of}' - INTERVAL '7' DAY
               AND booked_at <  TIMESTAMP '{as_of}'
             GROUP BY customer_id
-            HAVING SUM(amount) >= 15000
         ),
-        rapid_out AS (
-            SELECT t.customer_id,
-                   SUM(t.amount) AS sum_amount,
-                   COUNT(*) AS count,
+        funnel AS (
+            SELECT ci.customer_id,
+                   SUM(CASE WHEN t.channel = 'cash' AND t.direction = 'in'
+                            THEN t.amount ELSE 0 END) AS cash_in_amt,
+                   SUM(CASE WHEN t.direction = 'out'
+                            THEN t.amount ELSE 0 END) AS sum_amount,
+                   COUNT(*) FILTER (WHERE t.direction = 'out') AS count,
                    MIN(t.booked_at) AS window_start,
                    MAX(t.booked_at) AS window_end
-            FROM txn t
-            JOIN cash_in ci ON t.customer_id = ci.customer_id
-            WHERE t.direction = 'out'
-              AND t.booked_at >= ci.first_in
+            FROM first_cash_in ci
+            JOIN txn t ON t.customer_id = ci.customer_id
+            WHERE t.booked_at >= ci.first_in
               AND t.booked_at <= ci.first_in + INTERVAL '48' HOUR
-            GROUP BY t.customer_id
-            HAVING SUM(t.amount) >= 15000
+              AND t.booked_at <  TIMESTAMP '{as_of}'
+            GROUP BY ci.customer_id
         )
         SELECT
             'pass_through_cash_to_payout' AS rule_id,
-            r.customer_id,
-            r.sum_amount,
-            r.count,
-            r.window_start,
-            r.window_end
-        FROM rapid_out r
-        ORDER BY r.customer_id
+            customer_id,
+            sum_amount,
+            count,
+            window_start,
+            window_end
+        FROM funnel
+        WHERE cash_in_amt >= 15000 AND sum_amount >= 15000
+        ORDER BY customer_id
     escalate_to: l2_investigator
     evidence:
       - all_matching_transactions
@@ -303,7 +310,7 @@ rules:
             MAX(t.booked_at) AS window_end
         FROM txn t
         JOIN customer c ON t.customer_id = c.customer_id
-        WHERE c.business_activity = ''
+        WHERE (c.business_activity IS NULL OR c.business_activity = '')
           AND t.channel = 'wire' AND t.direction = 'in'
           AND t.booked_at >= TIMESTAMP '{as_of}' - INTERVAL '30' DAY
           AND t.booked_at <  TIMESTAMP '{as_of}'
