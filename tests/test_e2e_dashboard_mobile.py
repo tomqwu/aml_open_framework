@@ -296,9 +296,12 @@ def _assert_full_net(page, title: str, token: str, viewport: dict[str, int]) -> 
     )
 
     # (d) Page-specific content token present — proves a real render,
-    #     not a blank shell / bounced-to-main route.
-    body_text = page.inner_text("body")
-    assert token in body_text, (
+    #     not a blank shell / bounced-to-main route. Scope to `stMain`,
+    #     NOT the whole body: the sidebar nav lists every page title, so
+    #     a body-wide search would pass on nav chrome even on the wrong
+    #     page / when main content failed to render.
+    main_text = page.inner_text("[data-testid='stMain']")
+    assert token in main_text, (
         f"[{title}] content token {token!r} missing — page did not render its content"
     )
 
@@ -420,9 +423,10 @@ def test_responsive_quality_iphone_se(iphone_se_page, title, token):
     controls), NOT by relaxing this assertion. Today is excluded — it
     is a pure hero page with no controls / inner overflow to grade."""
     _nav_to(iphone_se_page, title)
-    # Re-assert the token so a silent bounce-to-main can't make the
+    # Re-assert the token (scoped to stMain, not body — the sidebar nav
+    # lists every page title) so a silent bounce-to-main can't make the
     # strict checks vacuously "pass" on the wrong page.
-    assert token in iphone_se_page.inner_text("body"), (
+    assert token in iphone_se_page.inner_text("[data-testid='stMain']"), (
         f"[{title}] content token {token!r} missing — wrong page rendered"
     )
     _assert_responsive_quality(iphone_se_page, title, {"width": 375, "height": 667})
@@ -460,9 +464,10 @@ def test_smoke_larger_viewports(dashboard_server, viewport, title, token):
         browser, page = _open_mobile_page(p, dashboard_server, viewport)
         try:
             _nav_to(page, title)
-            # Same guard as the strict tier: a silent bounce-to-main
-            # must not let the smoke checks pass on the wrong page.
-            assert token in page.inner_text("body"), (
+            # Same guard as the strict tier (scoped to stMain, not body
+            # — the sidebar nav lists every page title): a silent
+            # bounce-to-main must not pass the smoke checks vacuously.
+            assert token in page.inner_text("[data-testid='stMain']"), (
                 f"[{title}] content token {token!r} missing at {viewport} — wrong page rendered"
             )
             scroll_width = page.evaluate("document.documentElement.scrollWidth")
