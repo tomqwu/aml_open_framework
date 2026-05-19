@@ -245,46 +245,52 @@ rules:
     logic:
       type: custom_sql
       sql: |
-        -- Funnel window is anchored on the FIRST cash-in. Both the
-        -- cash-in and the payout legs are measured inside that single
-        -- [first_in, first_in+48h) window AND bounded by {as_of}, so
-        -- (a) deposits after the window can't inflate the funding
-        -- threshold, (b) a payout can't precede the deposit that
-        -- funded it (out is at/after first_in), (c) no future-txn
-        -- leakage under a historical as_of / backtest.
-        WITH first_cash_in AS (
-            SELECT customer_id, MIN(booked_at) AS first_in
+        -- Evaluate a 48h funnel window anchored at EACH cash-in
+        -- deposit (not just the first), so an earlier benign deposit
+        -- can't pin/hide a later suspicious cash-in→payout sequence.
+        -- Per window: cash-in and payout legs are both measured inside
+        -- [deposit, deposit+48h) AND bounded by {as_of} — deposits
+        -- after the window can't inflate the funding threshold, a
+        -- payout can't precede the deposit that funded it, and there
+        -- is no future-txn leakage under a historical as_of/backtest.
+        -- A customer alerts if ANY of its cash-in windows qualifies.
+        WITH cash_in AS (
+            SELECT customer_id, booked_at AS deposit_at
             FROM txn
             WHERE channel = 'cash' AND direction = 'in'
               AND booked_at >= TIMESTAMP '{as_of}' - INTERVAL '7' DAY
               AND booked_at <  TIMESTAMP '{as_of}'
-            GROUP BY customer_id
         ),
-        funnel AS (
+        windowed AS (
             SELECT ci.customer_id,
+                   ci.deposit_at,
                    SUM(CASE WHEN t.channel = 'cash' AND t.direction = 'in'
                             THEN t.amount ELSE 0 END) AS cash_in_amt,
                    SUM(CASE WHEN t.direction = 'out'
-                            THEN t.amount ELSE 0 END) AS sum_amount,
-                   COUNT(*) FILTER (WHERE t.direction = 'out') AS count,
-                   MIN(t.booked_at) AS window_start,
-                   MAX(t.booked_at) AS window_end
-            FROM first_cash_in ci
+                            THEN t.amount ELSE 0 END) AS out_amt,
+                   COUNT(*) FILTER (WHERE t.direction = 'out') AS out_count,
+                   MIN(t.booked_at) AS w_start,
+                   MAX(t.booked_at) AS w_end
+            FROM cash_in ci
             JOIN txn t ON t.customer_id = ci.customer_id
-            WHERE t.booked_at >= ci.first_in
-              AND t.booked_at <= ci.first_in + INTERVAL '48' HOUR
+              AND t.booked_at >= ci.deposit_at
+              AND t.booked_at <= ci.deposit_at + INTERVAL '48' HOUR
               AND t.booked_at <  TIMESTAMP '{as_of}'
-            GROUP BY ci.customer_id
+            GROUP BY ci.customer_id, ci.deposit_at
+        ),
+        qualifying AS (
+            SELECT * FROM windowed
+            WHERE cash_in_amt >= 15000 AND out_amt >= 15000
         )
         SELECT
             'pass_through_cash_to_payout' AS rule_id,
             customer_id,
-            sum_amount,
-            count,
-            window_start,
-            window_end
-        FROM funnel
-        WHERE cash_in_amt >= 15000 AND sum_amount >= 15000
+            SUM(out_amt) AS sum_amount,
+            SUM(out_count) AS count,
+            MIN(w_start) AS window_start,
+            MAX(w_end) AS window_end
+        FROM qualifying
+        GROUP BY customer_id
         ORDER BY customer_id
     escalate_to: l2_investigator
     evidence:
@@ -310,7 +316,12 @@ rules:
             MAX(t.booked_at) AS window_end
         FROM txn t
         JOIN customer c ON t.customer_id = c.customer_id
-        WHERE (c.business_activity IS NULL OR c.business_activity = '')
+        -- Require an AFFIRMATIVE empty declaration (= ''). NULL means
+        -- the source did not supply business_activity (it is an
+        -- optional additive column) — treat that as UNKNOWN, not as
+        -- "no declared activity", so sources omitting the column don't
+        -- false-flag every customer with inbound-wire volume.
+        WHERE c.business_activity = ''
           AND t.channel = 'wire' AND t.direction = 'in'
           AND t.booked_at >= TIMESTAMP '{as_of}' - INTERVAL '30' DAY
           AND t.booked_at <  TIMESTAMP '{as_of}'
@@ -417,7 +428,21 @@ metrics:
       numerator:
         type: count
         source: alerts
-        filter: { rule_id: { in: [structuring_cash_deposits] } }
+        # All severity:high rule ids (alert rows carry rule_id, not
+        # severity, so we enumerate). Fixes the pre-existing undercount
+        # (only structuring was counted; high_risk_jurisdiction +
+        # dormant_account_activity were missed) and includes the new
+        # high-severity rules. TODO: migrate to severity-derived once
+        # the metric model supports it (rules/metrics epic M-series).
+        filter:
+          rule_id:
+            in:
+              - structuring_cash_deposits
+              - high_risk_jurisdiction
+              - dormant_account_activity
+              - pass_through_cash_to_payout
+              - shell_company_inbound_wire_churn
+              - investment_scam_invs_velocity
       denominator:
         type: count
         source: alerts
