@@ -244,59 +244,65 @@ rules:
       sql: |
         -- Funnel = funds deposited, THEN drained. The window is the
         -- 48h anchored at the customer's FIRST cash-in. Funding =
-        -- cash-in inside that window; the drain leg counts ONLY
-        -- payouts strictly AFTER the LAST funding deposit and within
-        -- the window and < {as_of}. That enforces funding order (a
-        -- payout can never precede the deposits credited as funding),
-        -- emits exactly one row per customer (no overlapping-window
-        -- double counting), and leaks no post-as_of activity.
+        -- EVERY cash-in deposit is a candidate 48h funnel anchor (so a
+        -- benign earlier deposit can't mask a later qualifying
+        -- sequence). Per anchor: funding = cash-in in [anchor,
+        -- anchor+48h); drain = payouts strictly AFTER the last funding
+        -- deposit, within the window, < {as_of} (enforces funding
+        -- order + no post-as_of leak). A customer emits exactly ONE
+        -- row — the EARLIEST qualifying window — so there is no
+        -- overlapping-window double counting, and window_start is the
+        -- first funding deposit (the full funnel, incl. every funding
+        -- leg, is inside [window_start, window_end] for STR evidence).
         WITH cash_in AS (
-            SELECT customer_id, booked_at AS deposit_at, amount
+            SELECT customer_id, booked_at AS d, amount
             FROM txn
             WHERE channel = 'cash' AND direction = 'in'
               AND booked_at >= TIMESTAMP '{as_of}' - INTERVAL '7' DAY
               AND booked_at <  TIMESTAMP '{as_of}'
         ),
-        anchor AS (
-            SELECT customer_id, MIN(deposit_at) AS first_in
-            FROM cash_in
-            GROUP BY customer_id
-        ),
-        funding AS (
+        windows AS (
             SELECT a.customer_id,
-                   a.first_in,
-                   SUM(ci.amount)      AS cash_in_amt,
-                   MAX(ci.deposit_at)  AS last_in
-            FROM anchor a
-            JOIN cash_in ci ON ci.customer_id = a.customer_id
-              AND ci.deposit_at >= a.first_in
-              AND ci.deposit_at <= a.first_in + INTERVAL '48' HOUR
-            GROUP BY a.customer_id, a.first_in
+                   a.d                 AS anchor,
+                   SUM(f.amount)       AS cash_in_amt,
+                   MAX(f.d)            AS last_fund
+            FROM cash_in a
+            JOIN cash_in f ON f.customer_id = a.customer_id
+              AND f.d >= a.d
+              AND f.d <= a.d + INTERVAL '48' HOUR
+            GROUP BY a.customer_id, a.d
         ),
-        drain AS (
-            SELECT fn.customer_id,
-                   SUM(t.amount)      AS out_amt,
-                   COUNT(*)           AS out_count,
-                   MAX(t.booked_at)   AS w_end
-            FROM funding fn
-            JOIN txn t ON t.customer_id = fn.customer_id
+        drained AS (
+            SELECT w.customer_id,
+                   w.anchor,
+                   w.cash_in_amt,
+                   SUM(t.amount)     AS out_amt,
+                   COUNT(*)          AS out_count,
+                   MAX(t.booked_at)  AS w_end
+            FROM windows w
+            JOIN txn t ON t.customer_id = w.customer_id
               AND t.direction = 'out'
-              AND t.booked_at >  fn.last_in
-              AND t.booked_at <= fn.first_in + INTERVAL '48' HOUR
+              AND t.booked_at >  w.last_fund
+              AND t.booked_at <= w.anchor + INTERVAL '48' HOUR
               AND t.booked_at <  TIMESTAMP '{as_of}'
-            GROUP BY fn.customer_id
+            GROUP BY w.customer_id, w.anchor, w.cash_in_amt
+        ),
+        qualifying AS (
+            SELECT * FROM drained
+            WHERE cash_in_amt >= 15000 AND out_amt >= 15000
         )
         SELECT
             'pass_through_cash_to_payout' AS rule_id,
-            fn.customer_id,
-            d.out_amt   AS sum_amount,
-            d.out_count AS count,
-            fn.last_in  AS window_start,
-            d.w_end     AS window_end
-        FROM funding fn
-        JOIN drain d ON d.customer_id = fn.customer_id
-        WHERE fn.cash_in_amt >= 15000 AND d.out_amt >= 15000
-        ORDER BY fn.customer_id
+            customer_id,
+            out_amt   AS sum_amount,
+            out_count AS count,
+            anchor    AS window_start,
+            w_end     AS window_end
+        FROM qualifying
+        QUALIFY ROW_NUMBER() OVER (
+            PARTITION BY customer_id ORDER BY anchor
+        ) = 1
+        ORDER BY customer_id
     escalate_to: l2_investigator
     evidence:
       - all_matching_transactions
