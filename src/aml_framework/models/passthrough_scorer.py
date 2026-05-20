@@ -83,14 +83,18 @@ _LOOKBACK_DAYS = 30
 # boundary alerts).
 _DEFAULT_THRESHOLD = Decimal("30000")
 
-# Known channel allowlist — the union of channel enum values across
-# all example specs. The scorer treats anything OUTSIDE this set
-# (typos like `wiree`, deprecated rails, or stale BYOD data) as
-# "unknown" for cross-channel-proof purposes. The scorer cannot
-# import the loaded spec at runtime (the python_ref contract is
-# `(con, as_of)`), so a closed-set allowlist is the conservative
-# substitute. Add new rails here when a new example spec's
-# `txn.channel` enum introduces them (Codex P2 round 8).
+# Known channel allowlist — matches the `canadian_schedule_i_bank`
+# `txn.channel` enum exactly (the one example spec that wires this
+# scorer in today). Codex P2 round 9: a broader union-of-all-specs
+# allowlist would still allow out-of-contract channels through
+# when a different spec is loaded — e.g. `faster_payments`
+# (uk_app_fraud only) on a Canadian run would falsely count as
+# cross-channel evidence. Until the python_ref contract grows
+# spec-awareness (deferred follow-up — would require passing the
+# loaded `AMLSpec` into `(con, as_of)` callables), this allowlist
+# stays scoped to the wired spec. When a new spec wires the scorer
+# in, either (a) plant in-contract synthetic data + extend this
+# set in lockstep, or (b) make the scorer spec-aware first.
 _KNOWN_CHANNELS: frozenset[str] = frozenset(
     {
         "cash",
@@ -102,7 +106,6 @@ _KNOWN_CHANNELS: frozenset[str] = frozenset(
         "rtp",
         "crypto",
         "prepaid",
-        "faster_payments",
     }
 )
 
