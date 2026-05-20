@@ -171,9 +171,11 @@ for ts in "${months[@]}"; do
 done
 ```
 
-Each `/evidence/runs/YYYY-MM/.artifacts/<run_id>/` is self-contained:
-spec, manifest, alerts, cases, decisions, hash chain. A defect fix
-means re-running only the affected months.
+Each `/evidence/runs/YYYY-MM/run-<timestamp>/` is self-contained:
+manifest, alerts, cases, decisions, hash chain. (The `run-<timestamp>/`
+subdirectory naming is the engine's, not yours — `--artifacts <dir>`
+creates `<dir>/run-<ISO-timestamp>/`.) A defect fix means re-running
+only the affected months.
 
 ### Pattern 2 — Idempotent writes via deterministic keys
 
@@ -314,7 +316,11 @@ your legacy alert export in a 20-line SQL/Spark/pandas step:
 ```python
 # Pseudocode — pandas-style diff once each side is one row per alert
 import pandas as pd
-new = pd.read_json("evidence/runs/2021-09/.artifacts/<run_id>/alerts/structuring_cash_deposits.jsonl", lines=True)
+new = pd.read_json(
+    "evidence/runs/2021-09/run-2026-05-20T01-16-00Z/"
+    "alerts/structuring_cash_deposits.jsonl",
+    lines=True,
+)
 old = pd.read_csv("legacy/tm/2021-09/alerts.csv")
 diff = new.merge(old, on=["customer_id", "window_start"], how="outer", indicator=True)
 # diff["_merge"] ∈ {"left_only", "right_only", "both"} → classify by hand
@@ -336,9 +342,9 @@ today (Codex caught false-assurance phrasing in an earlier draft):
 | Failure mode | Where today |
 |---|---|
 | Type / null / encoding errors per row | `aml validate-data` (CSV only — see §6+§10 note) runs `validate_csv` per contract column: type coercion + non-null check + row-num-anchored error messages. |
-| Missing customer/account link (referential integrity) | **Not enforced by `validate-data`** today. The `data_contract.quality_checks` block declares the constraints (`unique:`, `non_null:`, `foreign_key:`-style) but `validate_csv` does not evaluate them; they surface on `pages/14_Data_Quality.py` and `pages/30_Data_Integration.py` in the dashboard. Your platform layer (Lakeflow expectations / dbt tests on the Gold table) should fail the build pre-engine; the dashboard is the *visibility* layer, not the *gate*. |
-| Duplicate transaction | Same as above — declare `quality_checks.unique: [transaction_id]` in your contract; surfaces on the DQ page; enforce upstream in your Gold pipeline. |
-| Late-arriving record | The `as_of` bound: any row with `booked_at > as_of` is excluded by `custom_sql`/`aggregation_window` predicates. `engine/freshness.py` surfaces "rows landed after as_of" on `pages/14_Data_Quality.py`. |
+| Missing customer/account link (referential integrity) | **Not enforced anywhere in the framework today.** The `data_contract.quality_checks` block accepts arbitrary keys, but only `not_null` and `unique` are actually evaluated (by `pages/14_Data_Quality.py`, not by `validate-data`). FK-style integrity is *your platform's job* — gate it in Lakeflow expectations / dbt tests / Spark before the engine runs. |
+| Duplicate transaction | Declare `quality_checks: [{unique: [transaction_id]}]` in your contract; the DQ dashboard page **does** evaluate `unique` and shows pass/fail. But `aml validate-data` does NOT — same Lakeflow/dbt enforcement note as above. |
+| Late-arriving record | `aggregation_window` rules automatically constrain `booked_at >= window_start AND booked_at < as_of` (compiled by `generators/sql.py`). `custom_sql` rules do NOT — the author must include the `t.booked_at <= TIMESTAMP '{as_of}'` predicate themselves. `engine/freshness.py` surfaces "rows arriving late" on `pages/14_Data_Quality.py`. |
 | Current reference data used for old transaction | Author-encoded effective-date join in your `custom_sql` rule (Pattern 4). No auto-PIT machinery. |
 | Wrong currency conversion date | Same pattern — declare an FX rate contract with `effective_start_date`/`effective_end_date` and join on `t.booked_at` in `custom_sql`. |
 | Many-to-many ownership ignored | Explicit join shape in `custom_sql`. The framework deliberately doesn't auto-resolve M:M — silent M:M is the bug, not the feature. |
@@ -361,10 +367,16 @@ The framework's compute model is **DuckDB in-memory per run, scoped by
 1. **Run per-month in parallel.** Each `run_dir` is independent; the
    audit chain is per-run. A 60-month backfill is 60 independent
    jobs — wrap with Lakeflow / ADF parallel branches.
-2. **Pre-filter at the source.** Snowflake / BigQuery / Spark do the
-   heavy partition pruning; the framework's placeholder system
-   (`{as_of}`, `{window_start}`) pushes down. The DuckDB layer only
-   sees the month's rule-ready slice.
+2. **Pre-filter at the source — outside the framework.** The
+   framework's loaders today read the contract file/table whole (CSV /
+   Parquet load, `SELECT *`-equivalent for DuckDB); `{as_of}` /
+   `{window_start}` are substituted in the rule SQL *after* the load,
+   in-process in DuckDB, so they do NOT push down to Snowflake /
+   BigQuery / Spark via the framework. Your Lakeflow / ADF / Spark
+   pipeline must materialize *only the month's rule-ready slice* to
+   the Parquet mount the engine reads. Sizing a 5-year backfill on
+   the assumption of source-side pushdown by the framework will
+   process far more data than necessary.
 3. **Cache the spec compilation.** `setuptools-scm` + git SHA mean
    "same spec" is hash-comparable across months; if you didn't change
    the rules, you don't recompile them.
@@ -389,7 +401,7 @@ checklist to where the framework already emits each artefact:
 | Reference-doc artefact | Where the framework emits it |
 |---|---|
 | `run_manifest` (batch_id, source periods/tables, rule versions, parameter versions, code commit hash, status) | `run_dir/manifest.json` — every field above is already a manifest column |
-| `reconciliation_report` (source row count, target row count, totals, exceptions, alert count) | `run_dir/reports/*.md` per spec-declared `report:` + `engine/equivalence.py` divergence report when `legacy_reference` is set |
+| `reconciliation_report` (source row count, target row count, totals, exceptions, alert count) | `run_dir/reports/*.md` per spec-declared `report:` carry alert/case totals + counts. **🛠 The legacy-vs-new divergence report is planned · TM Gap 1** — until `engine/equivalence.py` lands you produce that side externally (see Pattern 5 pandas scaffold). |
 | `rule_output_report` (alert count by month / customer segment / geography / reason code) | `run_dir/alerts/*.jsonl` (raw) + the **Rule Performance** + **Comparative Analytics** dashboard pages (`pages/5_Rule_Performance.py`, `pages/19_Comparative_Analytics.py`) |
 | `dq_report` (completeness, duplicates, validity, referential integrity, PIT coverage) | `data_contract.quality_checks` results + `engine/freshness.py` outputs + the **Data Quality** dashboard page (`pages/14_Data_Quality.py`) |
 | `defect_log` (defect_id, severity, root cause, owner, fix version, retest evidence) | The audit ledger's failure-audit rows (every `_FAILED` future writes a `ai_section_explanation_failed`-shape event with `error_type`, `error_message`, `run_dir`, `backend`, `model` — same shape applies to any rule-execution defect). Custom defect_logs land as wall-clock sidecars per `cases/filing.py`'s `append_to_run_dir` pattern. |
