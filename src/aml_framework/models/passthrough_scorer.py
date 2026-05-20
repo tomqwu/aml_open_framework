@@ -226,57 +226,53 @@ def _find_first_qualifying_window(
                 break
             if evt["direction"] == "out":
                 drain.append(evt)
-        funding_total = sum((e["amount"] for e in funding), Decimal("0"))
-        drain_total = sum((e["amount"] for e in drain), Decimal("0"))
+        # Filter funding + drain legs to recognized-channel events
+        # BEFORE computing totals. Unknown/NULL/typo-channel rows are
+        # excluded from the threshold too — Codex P2 round 10
+        # caught: cash IN $1 + wiree OUT $29,999 + wire OUT $1 used
+        # to clear the $30k floor on $2 of legitimate cross-channel
+        # movement. Recognized totals only is the tighter contract.
+        funding_known = [e for e in funding if e["channel"] and e["channel"] in _KNOWN_CHANNELS]
+        drain_known = [e for e in drain if e["channel"] and e["channel"] in _KNOWN_CHANNELS]
+        funding_total = sum((e["amount"] for e in funding_known), Decimal("0"))
+        drain_total = sum((e["amount"] for e in drain_known), Decimal("0"))
         # Cross-channel discipline: a true *pass-through* moves funds
-        # OUT through a channel that wasn't part of the funding leg
-        # (cash IN → e_transfer/wire OUT — the TD pattern). A same-
-        # channel pattern (cash IN → cash OUT, or faster_payments IN
-        # → faster_payments OUT) is either ordinary churn or a mule
-        # signal — that's PR-ML-2's mule-network scorer's typology,
-        # not this scorer's. Codex P2 round 2 catch — original
-        # channel-agnostic version raised critical alerts for benign
-        # same-rail churn above the threshold.
-        #
-        # Unknown/NULL channels don't count as "different channel"
-        # evidence — BYOD/CSV inputs may leave `channel` blank if the
-        # source system doesn't classify it (the txn contract allows
-        # NULL for channel; `_build_warehouse` inserts None). Also
-        # drop values outside `_KNOWN_CHANNELS` so a typo like
-        # `wiree` can't masquerade as a different rail and trigger a
-        # critical pass-through alert (Codex P2 round 8). If either
-        # leg has no recognized channels at all, the rule CANNOT
-        # prove cross-channel and stays silent — refusing to raise
-        # a critical alert without proof (Codex P2 round 4).
-        funding_channels = {
-            e["channel"] for e in funding if e["channel"] and e["channel"] in _KNOWN_CHANNELS
-        }
-        drain_channels = {
-            e["channel"] for e in drain if e["channel"] and e["channel"] in _KNOWN_CHANNELS
-        }
+        # between distinct channels (cash IN → e_transfer/wire OUT —
+        # the TD pattern). Use set-INEQUALITY (`!=`) not strict
+        # subset difference so a mixed-rail funding leg with a
+        # benign top-up in the same rail as the drain still
+        # qualifies: $40k cash IN + $1 wire IN → $40k wire OUT has
+        # `{cash, wire} != {wire}` → cross-channel ✓ (Codex P2
+        # round 10). Pure same-channel patterns ({cash} == {cash})
+        # still don't qualify (mule territory — PR-ML-2's typology).
+        funding_channels = {e["channel"] for e in funding_known}
+        drain_channels = {e["channel"] for e in drain_known}
         cross_channel = (
-            bool(funding_channels)
-            and bool(drain_channels)
-            and bool(drain_channels - funding_channels)
+            bool(funding_channels) and bool(drain_channels) and funding_channels != drain_channels
         )
         # Qualifying condition: BOTH legs present (a real funnel has
         # both phases — pure deposits or pure outflows never qualify)
-        # AND combined volume ≥ threshold AND at least one drain
-        # channel is outside the funding channel set. Matches the
-        # existing `rapid_pass_through` custom_sql rule's `WHERE
-        # cash_in_total + etransfer_out_total >= 30000` semantic
-        # (cross-channel implicit in cash → e_transfer).
+        # AND combined volume ≥ threshold AND funding/drain channel
+        # sets differ. Matches the existing `rapid_pass_through`
+        # custom_sql rule's `WHERE cash_in_total + etransfer_out_total
+        # >= 30000` semantic (cross-channel implicit in cash →
+        # e_transfer).
         if (
             funding_total > 0
             and drain_total > 0
             and funding_total + drain_total >= threshold
             and cross_channel
         ):
+            # Stash only the RECOGNIZED-channel events as the
+            # alert's evidence — matched_row_ids walking back to
+            # unknown-channel rows would mislead reviewers since
+            # those rows didn't contribute to the qualifying
+            # decision.
             return {
                 "anchor": anchor,
                 "window_end": window_end,
-                "funding": funding,
-                "drain": drain,
+                "funding": funding_known,
+                "drain": drain_known,
                 "funding_total": funding_total,
                 "drain_total": drain_total,
             }

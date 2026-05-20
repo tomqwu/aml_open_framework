@@ -339,6 +339,35 @@ class TestFindFirstQualifyingWindow:
         ]
         assert _find_first_qualifying_window(events) is None
 
+    def test_unknown_channel_amounts_excluded_from_threshold(self):
+        # Codex P2 round 10 — the prior implementation summed every
+        # leg toward the threshold even if the channel was unknown,
+        # so cash IN $1 + wiree OUT $29999 + wire OUT $1 cleared
+        # $30k on $2 of legitimate movement. The recognized-only
+        # totals stay at $1 + $1 = $2 ⇒ no alert.
+        events = [
+            _event(1, "in", 1, 9, channel="cash"),
+            _event(2, "out", 29_999, 28, channel="wiree"),  # unrecognized
+            _event(3, "out", 1, 36, channel="wire"),
+        ]
+        assert _find_first_qualifying_window(events) is None
+
+    def test_mixed_funding_rails_with_benign_topup_still_fires(self):
+        # Codex P2 round 10 — `$40k cash IN + $1 wire IN → $40k wire
+        # OUT` is a clear cross-rail funnel; the $1 wire IN is a
+        # benign top-up that shouldn't disqualify the alert just
+        # because `wire` happens to appear on both sides. The new
+        # set-inequality check qualifies on `{cash, wire} != {wire}`.
+        events = [
+            _event(1, "in", 40_000, 9, channel="cash"),
+            _event(2, "in", 1, 14, channel="wire"),  # benign mixed-rail funding
+            _event(3, "out", 40_000, 28, channel="wire"),
+        ]
+        window = _find_first_qualifying_window(events)
+        assert window is not None
+        assert window["funding_total"] == 40_001
+        assert window["drain_total"] == 40_000
+
     def test_drain_leg_exactly_at_48h_boundary_fires(self):
         # Codex P2 round 5 — the SQL rule uses BETWEEN which is
         # inclusive on both ends. A cross-channel drain leg landing
