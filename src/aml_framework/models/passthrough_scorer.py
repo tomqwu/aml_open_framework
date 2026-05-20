@@ -1,10 +1,14 @@
 """Pass-through funnel scorer — procedural python_ref.
 
-Detects the in-channel → out-channel pass-through typology that the TD
-Bank $470M-undetected case made canonical: funds arrive, sit briefly,
-then exit through a different channel. Channel-agnostic — works for
-cash → e_transfer (Canadian Schedule I), cash → wire (community bank),
-and the equivalent shapes in other example specs.
+Detects the cross-channel pass-through typology that the TD Bank
+$470M-undetected case made canonical: funds arrive through one
+channel, sit briefly, then exit through a different channel.
+Channel-set-agnostic — works for cash → e_transfer (Canadian
+Schedule I), cash → wire (community bank), and equivalent
+cross-channel shapes in other example specs. Same-channel patterns
+(cash IN → cash OUT, faster_payments IN → faster_payments OUT) are
+either ordinary churn or mule signals — PR-ML-2's mule-network
+scorer is the right detector for those.
 
 This module exists because R1's `custom_sql` pass-through rule went
 through five rounds of Codex review with each round catching another
@@ -58,11 +62,15 @@ logger = logging.getLogger(__name__)
 # threshold-fired alerts line up against the SQL rule's evidence.
 _FUNNEL_WINDOW_HOURS = 48
 
-# 7d lookback for candidate anchors. Same length as the SQL rule's
-# {window_start}..{as_of} default. Long enough that a customer's
-# planted typology lands inside the window even when `as_of` is a few
-# days past the planted event.
-_LOOKBACK_DAYS = 7
+# 30d lookback for candidate anchors — covers the typical monthly
+# detection cadence the rest of the python_ref scorers in this
+# package use (heuristic + xgboost both window 30d in
+# `models/scoring.py` and `models/xgboost_scorer.py`). Long enough
+# that the canonical `rapid_pass_through` SQL rule's any-channel
+# variant doesn't silently miss funnels 8-30 days old (Codex P2
+# round 2 catch — original 7d window left most of the monthly
+# detection horizon uncovered).
+_LOOKBACK_DAYS = 30
 
 # $30k combined funding+drain threshold — matches the existing
 # canonical `rapid_pass_through` rule's `WHERE cash_in_total +
@@ -169,14 +177,31 @@ def _find_first_qualifying_window(
         ]
         funding_total = sum(e["amount"] for e in funding)
         drain_total = sum(e["amount"] for e in drain)
+        # Cross-channel discipline: a true *pass-through* moves funds
+        # OUT through a channel that wasn't part of the funding leg
+        # (cash IN → e_transfer/wire OUT — the TD pattern). A same-
+        # channel pattern (cash IN → cash OUT, or faster_payments IN
+        # → faster_payments OUT) is either ordinary churn or a mule
+        # signal — that's PR-ML-2's mule-network scorer's typology,
+        # not this scorer's. Codex P2 round 2 catch — original
+        # channel-agnostic version raised critical alerts for benign
+        # same-rail churn above the threshold.
+        funding_channels = {e["channel"] for e in funding}
+        drain_channels = {e["channel"] for e in drain}
+        cross_channel = bool(drain_channels - funding_channels)
         # Qualifying condition: BOTH legs present (a real funnel has
         # both phases — pure deposits or pure outflows never qualify)
-        # AND combined volume ≥ threshold. Matches the existing
-        # `rapid_pass_through` custom_sql rule's `WHERE cash_in_total
-        # + etransfer_out_total >= 30000` semantic so the procedural
-        # scorer's headline alert volume aligns with operators'
-        # existing baseline.
-        if funding_total > 0 and drain_total > 0 and funding_total + drain_total >= threshold:
+        # AND combined volume ≥ threshold AND at least one drain
+        # channel is outside the funding channel set. Matches the
+        # existing `rapid_pass_through` custom_sql rule's `WHERE
+        # cash_in_total + etransfer_out_total >= 30000` semantic
+        # (cross-channel implicit in cash → e_transfer).
+        if (
+            funding_total > 0
+            and drain_total > 0
+            and funding_total + drain_total >= threshold
+            and cross_channel
+        ):
             return {
                 "anchor": anchor,
                 "window_end": window_end,

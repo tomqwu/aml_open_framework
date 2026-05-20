@@ -131,7 +131,7 @@ rules:
   # algorithm only checks direction, not channel: cash→wire,
   # cash→ach, even card→wire all count.
   - id: passthrough_funnel_scorer
-    name: Pass-through funnel (procedural, channel-agnostic)
+    name: Pass-through funnel (procedural, cross-channel)
     severity: critical
     regulation_refs:
       - citation: "31 CFR 1020.320"

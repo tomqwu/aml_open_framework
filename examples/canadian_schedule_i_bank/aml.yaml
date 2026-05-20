@@ -161,7 +161,7 @@ rules:
   # phase boundary" formulation in straight Python where each edge
   # case is a unit test.
   - id: passthrough_funnel_scorer
-    name: Pass-through funnel (procedural, channel-agnostic)
+    name: Pass-through funnel (procedural, cross-channel)
     severity: critical
     regulation_refs:
       - citation: "PCMLTFA s.7"

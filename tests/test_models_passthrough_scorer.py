@@ -32,7 +32,7 @@ def _event(
     amount: float,
     hours_from_base: float,
     *,
-    channel: str = "cash",
+    channel: str | None = None,
     base: datetime | None = None,
 ) -> dict:
     """Test fixture helper — build one event dict at `base + Nh`.
@@ -42,8 +42,15 @@ def _event(
     the Lineage Explorer's `df_txns.iloc[rowid]` walk-back resolves.
     `txn_id` stays as a human-readable label (it's not the lineage
     key — the Codex P2 round 1 catch on PR-ML-1).
+
+    `channel` defaults to **cash for IN, wire for OUT** so the
+    fixture matches the cross-channel pass-through shape the scorer
+    qualifies on by default. Callers wanting to exercise the same-
+    channel-rejection contract pass `channel=` explicitly.
     """
     base = base or datetime(2026, 5, 15, 0, 0, 0, tzinfo=timezone.utc)
+    if channel is None:
+        channel = "cash" if direction == "in" else "wire"
     return {
         "row_id": txn_id,
         "txn_id": f"T{txn_id:05d}",
@@ -197,11 +204,12 @@ class TestFindFirstQualifyingWindow:
         ]
         assert _find_first_qualifying_window(events) is None
 
-    def test_channel_agnostic_cash_to_wire_fires(self):
+    def test_cross_channel_cash_to_wire_fires(self):
         # The community_bank spec has `[cash, wire, ach, card]` and
-        # no `e_transfer`. The scorer must catch cash→wire too — the
-        # algorithm is channel-agnostic by design (only direction
-        # matters, not channel).
+        # no `e_transfer`. The scorer must catch cash→wire — any
+        # cross-channel pass-through pattern (cash→ach, cash→card,
+        # ...) qualifies. Only the channel-CROSS matters; the
+        # algorithm is channel-set-agnostic, not channel-agnostic.
         events = [
             _event(1, "in", 12_000, 9, channel="cash"),
             _event(2, "in", 10_000, 14, channel="cash"),
@@ -212,6 +220,40 @@ class TestFindFirstQualifyingWindow:
         window = _find_first_qualifying_window(events)
         assert window is not None
         assert window["funding_total"] == 22_000
+
+    def test_same_channel_pattern_does_not_fire(self):
+        # Cash IN followed by cash OUT (or wire IN → wire OUT, or
+        # faster_payments IN → faster_payments OUT — the C0019 mule
+        # signal) is NOT a pass-through funnel — it's either
+        # ordinary same-rail churn or a mule pattern that belongs to
+        # PR-ML-2's mule-network scorer. Codex P2 round 2 catch on
+        # PR-ML-1: original channel-agnostic version raised critical
+        # alerts for benign cash-in-cash-out activity above $30k.
+        events = [
+            _event(1, "in", 20_000, 9, channel="cash"),
+            _event(2, "in", 15_000, 14, channel="cash"),
+            _event(3, "out", 18_000, 28, channel="cash"),
+            _event(4, "out", 12_000, 36, channel="cash"),
+        ]
+        assert _find_first_qualifying_window(events) is None
+
+    def test_partial_cross_channel_drain_fires(self):
+        # If even ONE drain leg uses a channel outside the funding
+        # channel set, the cross-channel predicate qualifies. Mixed
+        # drain rails (cash + wire OUT) are still a real funnel as
+        # long as the wire leg pushes funds out a different rail
+        # than the funding came in on.
+        events = [
+            _event(1, "in", 20_000, 9, channel="cash"),
+            _event(2, "in", 15_000, 14, channel="cash"),
+            _event(3, "out", 18_000, 28, channel="cash"),  # same-rail
+            _event(4, "out", 12_000, 36, channel="wire"),  # cross-rail
+        ]
+        window = _find_first_qualifying_window(events)
+        assert window is not None
+        # Both drain legs count toward drain_total — cross-channel is
+        # a qualifier, not a per-event filter.
+        assert window["drain_total"] == 30_000
 
     def test_threshold_override_via_kwarg(self):
         # Pin the kwarg surface — callers (tests, future spec
