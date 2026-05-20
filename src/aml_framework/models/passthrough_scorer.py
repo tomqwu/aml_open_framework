@@ -83,6 +83,29 @@ _LOOKBACK_DAYS = 30
 # boundary alerts).
 _DEFAULT_THRESHOLD = Decimal("30000")
 
+# Known channel allowlist — the union of channel enum values across
+# all example specs. The scorer treats anything OUTSIDE this set
+# (typos like `wiree`, deprecated rails, or stale BYOD data) as
+# "unknown" for cross-channel-proof purposes. The scorer cannot
+# import the loaded spec at runtime (the python_ref contract is
+# `(con, as_of)`), so a closed-set allowlist is the conservative
+# substitute. Add new rails here when a new example spec's
+# `txn.channel` enum introduces them (Codex P2 round 8).
+_KNOWN_CHANNELS: frozenset[str] = frozenset(
+    {
+        "cash",
+        "wire",
+        "ach",
+        "card",
+        "cheque",
+        "e_transfer",
+        "rtp",
+        "crypto",
+        "prepaid",
+        "faster_payments",
+    }
+)
+
 
 def _fetch_customer_events(
     con: duckdb.DuckDBPyConnection,
@@ -188,13 +211,18 @@ def _find_first_qualifying_window(
             if evt["direction"] == "in" and evt["booked_at"] <= window_end
         ]
         # Drain = OUT-events in [first_out, window_end] (boundary
-        # inclusive, per the SQL rule's BETWEEN semantics).
-        drain = [
-            sorted_events[i]
-            for i in range(first_out_idx, len(sorted_events))
-            if sorted_events[i]["direction"] == "out"
-            and sorted_events[i]["booked_at"] <= window_end
-        ]
+        # inclusive, per the SQL rule's BETWEEN semantics). Early
+        # break when `booked_at > window_end` — events are sorted by
+        # booked_at so the rest of the tail can't qualify. Avoids
+        # the quadratic-on-busy-account scan Codex P3 round 8
+        # flagged.
+        drain: list[dict[str, Any]] = []
+        for i in range(first_out_idx, len(sorted_events)):
+            evt = sorted_events[i]
+            if evt["booked_at"] > window_end:
+                break
+            if evt["direction"] == "out":
+                drain.append(evt)
         funding_total = sum((e["amount"] for e in funding), Decimal("0"))
         drain_total = sum((e["amount"] for e in drain), Decimal("0"))
         # Cross-channel discipline: a true *pass-through* moves funds
@@ -210,12 +238,19 @@ def _find_first_qualifying_window(
         # Unknown/NULL channels don't count as "different channel"
         # evidence — BYOD/CSV inputs may leave `channel` blank if the
         # source system doesn't classify it (the txn contract allows
-        # NULL for channel; `_build_warehouse` inserts None). If
-        # either leg has no observed channels at all, the rule
-        # CANNOT prove cross-channel and stays silent — refusing to
-        # raise a critical alert without proof (Codex P2 round 4).
-        funding_channels = {e["channel"] for e in funding if e["channel"]}
-        drain_channels = {e["channel"] for e in drain if e["channel"]}
+        # NULL for channel; `_build_warehouse` inserts None). Also
+        # drop values outside `_KNOWN_CHANNELS` so a typo like
+        # `wiree` can't masquerade as a different rail and trigger a
+        # critical pass-through alert (Codex P2 round 8). If either
+        # leg has no recognized channels at all, the rule CANNOT
+        # prove cross-channel and stays silent — refusing to raise
+        # a critical alert without proof (Codex P2 round 4).
+        funding_channels = {
+            e["channel"] for e in funding if e["channel"] and e["channel"] in _KNOWN_CHANNELS
+        }
+        drain_channels = {
+            e["channel"] for e in drain if e["channel"] and e["channel"] in _KNOWN_CHANNELS
+        }
         cross_channel = (
             bool(funding_channels)
             and bool(drain_channels)

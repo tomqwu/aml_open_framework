@@ -325,6 +325,20 @@ class TestFindFirstQualifyingWindow:
         ]
         assert _find_first_qualifying_window(events) is None
 
+    def test_unknown_enum_value_does_not_fire(self):
+        # Codex P2 round 8 — a typo like `wiree` on an outbound leg
+        # must NOT count as cross-channel proof. The scorer drops
+        # channels outside `_KNOWN_CHANNELS` from the cross-channel
+        # set; without this, `{wiree} - {cash}` is non-empty and the
+        # rule would raise a critical alert on a typo.
+        events = [
+            _event(1, "in", 20_000, 9, channel="cash"),
+            _event(2, "in", 15_000, 14, channel="cash"),
+            _event(3, "out", 18_000, 28, channel="wiree"),  # typo
+            _event(4, "out", 12_000, 36, channel="wiree"),
+        ]
+        assert _find_first_qualifying_window(events) is None
+
     def test_drain_leg_exactly_at_48h_boundary_fires(self):
         # Codex P2 round 5 — the SQL rule uses BETWEEN which is
         # inclusive on both ends. A cross-channel drain leg landing
