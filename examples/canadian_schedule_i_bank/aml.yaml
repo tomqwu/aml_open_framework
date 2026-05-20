@@ -148,6 +148,41 @@ rules:
       - prior_alerts_90d
     tags: [pass_through, layering, e_transfer, td_finding]
 
+  # --- PASS-THROUGH FUNNEL (procedural python_ref, PR-ML-1) ------------
+  # Channel-agnostic IN→OUT funnel detector. Sits alongside the
+  # channel-specific `rapid_pass_through` rule above so the cash→
+  # e_transfer-shaped TD finding stays a first-class signal AND broader
+  # any-channel pass-through patterns get caught too (cash→wire,
+  # wire→ach, etc. — anywhere drain channel differs from funding
+  # channel). Closes R1b: the `custom_sql` route hit five Codex
+  # windowing edge cases (benign top-up after drain, multi-anchor
+  # double-count, phase-boundary attribution mis-assignment); the
+  # procedural python_ref expresses the "first out-event marks the
+  # phase boundary" formulation in straight Python where each edge
+  # case is a unit test.
+  - id: passthrough_funnel_scorer
+    name: Pass-through funnel (procedural, channel-agnostic)
+    severity: critical
+    regulation_refs:
+      - citation: "PCMLTFA s.7"
+        description: "STR obligation — pass-through pattern indicative of layering."
+      - citation: "FINTRAC Operational Alert 2016-01"
+        description: "Rapid movement of funds through Canadian financial system."
+    logic:
+      type: python_ref
+      callable: aml_framework.models.passthrough_scorer:passthrough_funnel_scorer
+      model_id: passthrough_funnel_v1
+      model_version: 2026-05-20
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - counterparty_analysis
+      - prior_alerts_90d
+    tags: [pass_through, layering, funnel, ml_governed]
+    model_tier: medium
+    validation_cadence_months: 18
+
   # --- CRYPTO VASP RAPID PASS-THROUGH: cash-in then crypto-out within 48h ---
   # Digital-asset off-ramp layering — funds enter as cash and leave the
   # bank as a virtual-asset transfer to a VASP within two days.

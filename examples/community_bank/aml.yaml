@@ -123,6 +123,36 @@ rules:
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, geographic_risk]
 
+  # --- PASS-THROUGH FUNNEL (procedural python_ref, PR-ML-1) ------------
+  # Channel-agnostic IN→OUT funnel detector. community_bank had NO
+  # pass-through coverage today — this is the closer for the R1b
+  # "dead ground truth" gap (planted C0007 fired no rule in this spec).
+  # Works across `[cash, wire, ach, card]` channels because the
+  # algorithm only checks direction, not channel: cash→wire,
+  # cash→ach, even card→wire all count.
+  - id: passthrough_funnel_scorer
+    name: Pass-through funnel (procedural, channel-agnostic)
+    severity: critical
+    regulation_refs:
+      - citation: "31 CFR 1020.320"
+        description: "SAR obligation — suspicious activity reporting."
+      - citation: "FFIEC BSA/AML Manual — Funnel Accounts"
+        description: "Funnel-account typology covered in the FFIEC examination manual."
+    logic:
+      type: python_ref
+      callable: aml_framework.models.passthrough_scorer:passthrough_funnel_scorer
+      model_id: passthrough_funnel_v1
+      model_version: 2026-05-20
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - counterparty_analysis
+      - prior_alerts_90d
+    tags: [pass_through, layering, funnel, ml_governed]
+    model_tier: medium
+    validation_cadence_months: 18
+
   - id: large_cash_ctr
     name: Cash activity exceeding CTR threshold ($10,000/day)
     severity: medium

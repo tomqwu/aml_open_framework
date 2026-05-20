@@ -167,8 +167,10 @@ def test_ca_spec_validates():
     assert spec.program.jurisdiction == "CA"
     assert spec.program.regulator == "FINTRAC"
     # 10 original rules + 3 new-rail rules (crypto VASP pass-through,
-    # RTP instant-payment burst, prepaid-load structuring).
-    assert len(spec.rules) == 13
+    # RTP instant-payment burst, prepaid-load structuring) + 1 PR-ML-1
+    # python_ref passthrough_funnel_scorer alongside the channel-
+    # specific custom_sql rapid_pass_through.
+    assert len(spec.rules) == 14
     assert len(spec.workflow.queues) == 5
 
 

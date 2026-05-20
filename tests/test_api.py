@@ -1545,8 +1545,9 @@ class TestExpandedAPI:
         assert data["valid"] is True
         # canadian_schedule_i_bank: 10 base rules + 3 new-rail rules
         # (crypto VASP pass-through, RTP burst, prepaid structuring)
-        # added in the Data Integration PR-A channel expansion.
-        assert data["rules"] == 13
+        # + 1 PR-ML-1 python_ref passthrough_funnel_scorer alongside
+        # the channel-specific custom_sql rapid_pass_through.
+        assert data["rules"] == 14
 
     def test_validate_bad_spec(self):
         token = _token()
@@ -1718,8 +1719,8 @@ def test_validate_invalid_spec_content(tmp_path):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.json()["valid"] is True
-    # canadian_schedule_i_bank: 10 base + 3 new-rail rules (PR-A).
-    assert resp.json()["rules"] == 13
+    # canadian_schedule_i_bank: 10 base + 3 new-rail (PR-A) + 1 PR-ML-1.
+    assert resp.json()["rules"] == 14
 
 
 # ===========================================================================

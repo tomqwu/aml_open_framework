@@ -726,11 +726,16 @@ class TestPythonRefErrorBoundary:
             artifacts_root=tmp_path / "x",
             strict_python_ref=False,
         )
-        # Find the python_ref rule that failed and assert its alert list is empty.
-        py_ref_rules = [r for r in spec.rules if r.logic.type == "python_ref"]
-        assert py_ref_rules, "spec must have a python_ref rule for this test to be meaningful"
-        for rule in py_ref_rules:
-            assert result.alerts.get(rule.id, []) == []
+        # The mutator hijacked only the FIRST python_ref rule in the
+        # spec — assert THAT rule's alerts are empty. Other python_ref
+        # rules in the spec (PR-ML-1 added passthrough_funnel_scorer)
+        # ran normally and produced their normal alert sets.
+        hijacked = next(
+            r
+            for r in spec.rules
+            if r.logic.type == "python_ref" and "nope" in r.logic.callable
+        )
+        assert result.alerts.get(hijacked.id, []) == []
 
     def test_failure_emits_rule_failed_event_in_decisions(self, tmp_path):
         spec_path = self._spec_with_failing_scorer(tmp_path, "aml_framework.models.nope:score")
