@@ -797,7 +797,12 @@ metrics:
     formula:
       type: count
       source: rules
-      filter: { severity: high, status: active }
+      # `high` + `critical` together — the metric name already
+      # promises both. Pre-PR-ML-1 the filter was `severity: high`
+      # which contradicted the name; PR-ML-1's
+      # passthrough_funnel_scorer (severity:critical) made the
+      # undercount user-visible (Codex P2 round 6 catch).
+      filter: { severity: { in: [high, critical] }, status: active }
     thresholds:
       green: { gte: 3 }
       amber: { gte: 2 }

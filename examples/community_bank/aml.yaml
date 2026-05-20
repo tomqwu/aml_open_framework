@@ -444,7 +444,12 @@ metrics:
     formula:
       type: count
       source: rules
-      filter: { severity: high, status: active }
+      # `high` + `critical` together — both severity tiers are
+      # operationally "high severity" for catalogue-health
+      # reporting. Without `critical` here, PR-ML-1's
+      # passthrough_funnel_scorer (severity:critical) silently
+      # drops out of the count (Codex P2 round 6).
+      filter: { severity: { in: [high, critical] }, status: active }
     thresholds:
       green: { gte: 2 }
       amber: { eq: 1 }
