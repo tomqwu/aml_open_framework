@@ -37,7 +37,7 @@ mechanism the framework already ships:
 | **Point-in-time correct** | Engine threads `as_of` through every rule. `custom_sql` rules get `{as_of}`, `{window_start}`, `{recent_start}`, `{baseline_start}`, `{dormant_cutoff}` substituted at compile time so the SQL operates on the business date. PIT-correctness of *reference data* (e.g. risk rating valid on the transaction date) is *the author's job*: declare an effective-dated contract and encode the `effective_start_date`/`effective_end_date` join in your `custom_sql`. The framework provides the `as_of` placeholder; it does not auto-apply effective-date filters. |
 | **Repeatable** | The deterministic-replay contract: same spec + same data + same `as_of` + same seed ⇒ byte-identical alert/case/decision hashes. Pinned by `tests/test_engine.py::test_run_is_reproducible`. |
 | **Performant** | DuckDB in-memory for the engine; cloud sources (Snowflake/BigQuery/S3/GCS/Parquet) loaded by `data/sources.py`. The loaders pull whole files/tables — there is no source-side predicate pushdown of `{as_of}`/`{window_start}` to the warehouse. Performance for 5-year scale comes from *you* materializing one-month slices upstream (per §4 Pattern 1) and feeding each slice as the run's input. |
-| **Auditable** | `engine/audit.py` writes a SHA-256-hash-chained `decisions.jsonl`. `AuditLedger.verify_decisions()` proves no tampering at any horizon. |
+| **Auditable** | `engine/audit.py` writes a SHA-256-hash-chained `decisions.jsonl`. `AuditLedger.verify_decisions()` is regulator-grade *only when called with `--expected-hash`* — the chain head must be stored out-of-band (WORM bucket, signed log) at run time and passed back at verify time (see §10 step 7). Without it, the verifier falls back to comparing against the same directory's `manifest.json`, which an attacker who rewrote `decisions.jsonl` can usually rewrite too. The chain itself is real; the trust anchor is your responsibility. |
 | **Explainable** | `aggregation_window` rules auto-stamp `matched_row_ids` referencing the exact source rows (#341 fix replays the rule filter so audit evidence matches the alert's own SQL). `custom_sql` only carries row IDs if the SQL `SELECT`s them explicitly; `python_ref` only if the scorer implements the optional inspection hook. `walk_lineage` reconstructs alert → rule → data when row IDs are present. |
 | **Reconciled** | **🛠 planned · TM Gap 1.** An `engine/equivalence.py` module is sequenced in [`docs/progress.md`](progress.md) — joins legacy ↔ new outputs and classifies each divergence (`data` / `rule` / `mapping` / `intentional`). Until it lands, reconciliation today is "diff your legacy export against `run_dir/alerts/*.jsonl` in your own SQL/Spark step." |
 | **Signed off** | Cases carry a disposition + reviewer; `cases/filing.py` enforces a wall-clock sidecar that's *out* of the deterministic-replay contract so signoff timing is preserved without breaking reproducibility. |
@@ -121,7 +121,7 @@ contributes:
 | Azure component | What the framework adds |
 |---|---|
 | **ADLS Gen2 / OneLake** | The production shape: ADF / Lakeflow materializes per-month Gold Parquet to a mount; `aml run --data-source parquet --data-dir /mnt/gold/<month>/` reads it. The `data/sources.py` module also has S3 / GCS / Snowflake / BigQuery resolvers (programmatic), but `aml run`'s `--data-source` only exposes synthetic / csv / parquet / duckdb today; broader exposure is a follow-up. |
-| **Azure Data Factory / Fabric Data Factory** | The framework's CLI (`aml run`, `aml validate`, `aml export`) is wrap-friendly. A typical ADF pipeline: *Extract → land Parquet → `aml validate-data` activity → `aml run` activity → publish run_dir back to Gold → publish ZIP to evidence container*. |
+| **Azure Data Factory / Fabric Data Factory** | The framework's CLI (`aml run`, `aml validate`, `aml export`) is wrap-friendly. A typical ADF pipeline: *Extract → land Parquet → DQ in Lakeflow/dbt/Spark → `aml run` activity → publish run_dir back to Gold → publish ZIP to evidence container*. Note: `aml validate-data` is CSV-only (it reads `<contract_id>.csv` and runs `validate_csv`) — for Parquet-native flows, run your `not_null`/`unique`/RI/PIT checks upstream and pass clean data to `aml run`. Native parquet `validate-data` is a planned loader extension. |
 | **Databricks / Spark / Lakeflow** | Your Lakeflow pipelines produce the rule-ready Gold tables; the framework reads them. For Spark-native rule execution you don't need this framework, but you give up the spec contract + the deterministic audit chain. The framework's value-add is the **defensible spec + evidence**, not raw compute. |
 | **Delta Lake** | The framework's `--data-source parquet` loader (`data/sources.py:load_parquet_source`) reads a single file per contract — `<data-dir>/<contract_id>.parquet`. It does **not** read Delta directories, Delta versions, or partitioned Parquet directories directly. Pin Delta's version on your side, then `SELECT * FROM delta.\`...\`` and export to flat per-contract `.parquet` files for the framework to consume. Native Delta support is a planned loader extension. |
 | **Microsoft Fabric Lakehouse / Warehouse** | Same as Databricks — Fabric produces the curated layer, framework consumes. The Streamlit dashboard can be embedded in Fabric or run standalone (current Azure deploy is Container Apps). |
@@ -269,9 +269,14 @@ the building blocks; you wire the effective-date join yourself:
 - **The bigger discipline**: the *spec* is point-in-time too. Tag
   your `aml.yaml` per period (`my_program/aml.yaml@2021-09-30`) so
   you can rerun the *rules as they were on 2021-09-30* against the
-  *data as it was on 2021-09-30*. `setuptools-scm` + git tags ensure
-  every run carries the spec's git commit SHA in
-  `manifest.spec_content_hash`.
+  *data as it was on 2021-09-30*. `manifest.spec_content_hash` is
+  the raw SHA-256 of the YAML bytes — it pins the *exact content* of
+  the spec used (a single character change breaks the hash), but it
+  is **not** the git commit SHA. To prove which git revision produced
+  that content, also record the commit SHA out-of-band at run time
+  (e.g. `jq` the manifest with `git rev-parse HEAD` into your evidence
+  log), or add a wrapper that writes `git_commit_sha` next to the
+  manifest as a sidecar.
 
 Non-`custom_sql` rules (`aggregation_window`, `list_match`,
 `python_ref`) don't have a PIT-join knob today — they read whatever
@@ -428,7 +433,7 @@ checklist to where the framework already emits each artefact:
 | `run_manifest` (batch_id, source periods/tables, rule versions, parameter versions, code commit hash, status) | `run_dir/manifest.json` — every field above is already a manifest column |
 | `reconciliation_report` (source row count, target row count, totals, exceptions, alert count) | `run_dir/reports/*.md` per spec-declared `report:` carry alert/case totals + counts. **🛠 The legacy-vs-new divergence report is planned · TM Gap 1** — until `engine/equivalence.py` lands you produce that side externally (see Pattern 5 pandas scaffold). |
 | `rule_output_report` (alert count by month / customer segment / geography / reason code) | `run_dir/alerts/*.jsonl` (raw) + the **Rule Performance** + **Comparative Analytics** dashboard pages (`pages/5_Rule_Performance.py`, `pages/19_Comparative_Analytics.py`) |
-| `dq_report` (completeness, duplicates, validity, referential integrity, PIT coverage) | `data_contract.quality_checks` results + `engine/freshness.py` outputs + the **Data Quality** dashboard page (`pages/14_Data_Quality.py`) |
+| `dq_report` (completeness, duplicates, validity, referential integrity, PIT coverage) | **Partial.** The framework emits `not_null` + `unique` results via the **Data Quality** dashboard (`pages/14_Data_Quality.py`) and staleness via `engine/freshness.py`. **Referential integrity, PIT-coverage, FX-rate-date, and many-to-many ownership are NOT evaluated by the framework today** (see §5 stitching table) — produce that part of `dq_report` in your upstream Lakeflow/dbt/Spark step and stitch it into evidence alongside `run_dir/`. |
 | `defect_log` (defect_id, severity, root cause, owner, fix version, retest evidence) | The audit ledger's failure-audit rows (every `_FAILED` future writes a `ai_section_explanation_failed`-shape event with `error_type`, `error_message`, `run_dir`, `backend`, `model` — same shape applies to any rule-execution defect). Custom defect_logs land as wall-clock sidecars per `cases/filing.py`'s `append_to_run_dir` pattern. |
 
 The reference doc says: *"can you prove what data was run, which
