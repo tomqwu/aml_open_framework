@@ -115,6 +115,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 🔌 [REST API](docs/api-reference.md) | FastAPI endpoint catalogue with JWT auth + multi-tenant isolation |
 | 📈 [Metrics Framework](docs/metrics-framework.md) | Metric types, RAG thresholds, audience routing, report rendering |
 | 🔍 [Audit & Evidence](docs/audit-evidence.md) | Evidence-bundle specification + SHA-256 hash-chain verification |
+| 🕰 [5-Year Lookback](docs/five-year-lookback.md) | Operator's runbook for the regulatory historical-replay playbook — framework mapped to the Azure modernization stack, 5 replay patterns, end-to-end in 7 commands |
 | ⚖️ [Regulator Mapping](docs/regulator-mapping.md) | FinCEN / FINTRAC / OFAC / AMLD6 coverage matrix |
 
 ### Operations
