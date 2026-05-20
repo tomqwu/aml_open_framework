@@ -68,6 +68,9 @@ PAGES = [
     "AML Process Pain",
     "Regulator Pulse Brief",
     "TD 2024 Case Study",
+    # PR-U3: the 2 deck pages (board-pack business + technical CLI).
+    "Business Deck",
+    "Technical Deck",
 ]
 
 
