@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 import duckdb
@@ -76,7 +77,11 @@ _LOOKBACK_DAYS = 30
 # canonical `rapid_pass_through` rule's `WHERE cash_in_total +
 # etransfer_out_total >= 30000` clause so an operator switching from
 # the SQL rule to this scorer sees the same headline alert volume.
-_DEFAULT_THRESHOLD = 30_000
+# Decimal not float so that a row total like 25223.53 + 2879.19 +
+# 1897.28 doesn't compare as 29999.999999999996 < 30000 (Codex P2
+# round 4 — float drift at the exact threshold silently dropped
+# boundary alerts).
+_DEFAULT_THRESHOLD = Decimal("30000")
 
 
 def _fetch_customer_events(
@@ -117,7 +122,9 @@ def _fetch_customer_events(
             {
                 "row_id": int(row_id),
                 "txn_id": txn_id,
-                "amount": float(amount),
+                # Decimal not float — preserves exact cents through
+                # the threshold comparison (Codex P2 round 4).
+                "amount": Decimal(str(amount)),
                 "direction": direction,
                 "channel": channel,
                 "booked_at": booked_at,
@@ -129,7 +136,7 @@ def _fetch_customer_events(
 def _find_first_qualifying_window(
     sorted_events: list[dict[str, Any]],
     *,
-    threshold: float = _DEFAULT_THRESHOLD,
+    threshold: Decimal | int = _DEFAULT_THRESHOLD,
     window_hours: int = _FUNNEL_WINDOW_HOURS,
 ) -> dict[str, Any] | None:
     """Pure function — return the earliest qualifying funnel window
@@ -175,8 +182,8 @@ def _find_first_qualifying_window(
             for i in range(first_out_idx, len(sorted_events))
             if sorted_events[i]["direction"] == "out" and sorted_events[i]["booked_at"] < window_end
         ]
-        funding_total = sum(e["amount"] for e in funding)
-        drain_total = sum(e["amount"] for e in drain)
+        funding_total = sum((e["amount"] for e in funding), Decimal("0"))
+        drain_total = sum((e["amount"] for e in drain), Decimal("0"))
         # Cross-channel discipline: a true *pass-through* moves funds
         # OUT through a channel that wasn't part of the funding leg
         # (cash IN → e_transfer/wire OUT — the TD pattern). A same-
@@ -186,9 +193,21 @@ def _find_first_qualifying_window(
         # not this scorer's. Codex P2 round 2 catch — original
         # channel-agnostic version raised critical alerts for benign
         # same-rail churn above the threshold.
-        funding_channels = {e["channel"] for e in funding}
-        drain_channels = {e["channel"] for e in drain}
-        cross_channel = bool(drain_channels - funding_channels)
+        #
+        # Unknown/NULL channels don't count as "different channel"
+        # evidence — BYOD/CSV inputs may leave `channel` blank if the
+        # source system doesn't classify it (the txn contract allows
+        # NULL for channel; `_build_warehouse` inserts None). If
+        # either leg has no observed channels at all, the rule
+        # CANNOT prove cross-channel and stays silent — refusing to
+        # raise a critical alert without proof (Codex P2 round 4).
+        funding_channels = {e["channel"] for e in funding if e["channel"]}
+        drain_channels = {e["channel"] for e in drain if e["channel"]}
+        cross_channel = (
+            bool(funding_channels)
+            and bool(drain_channels)
+            and bool(drain_channels - funding_channels)
+        )
         # Qualifying condition: BOTH legs present (a real funnel has
         # both phases — pure deposits or pure outflows never qualify)
         # AND combined volume ≥ threshold AND at least one drain
@@ -231,16 +250,20 @@ def _alert_from_window(customer_id: str, window: dict[str, Any]) -> dict[str, An
     funding = window["funding"]
     drain = window["drain"]
     total = window["funding_total"] + window["drain_total"]
+    # Coerce monetary fields to float for the dashboard/JSON layer
+    # AFTER the threshold comparison has happened in Decimal — the
+    # canonical_json serializer + Streamlit grid prefer floats, but
+    # the *qualifying decision* was made on Decimal-exact arithmetic.
     return {
         "rule_id": "passthrough_funnel_scorer",
         "customer_id": customer_id,
-        "sum_amount": total,
+        "sum_amount": float(total),
         "count": len(funding) + len(drain),
-        "funding_total": window["funding_total"],
-        "drain_total": window["drain_total"],
+        "funding_total": float(window["funding_total"]),
+        "drain_total": float(window["drain_total"]),
         "window_start": window["anchor"]["booked_at"],
         "window_end": max(e["booked_at"] for e in drain),
-        "risk_score": round(min(1.0, total / 100_000), 4),
+        "risk_score": round(min(1.0, float(total) / 100_000), 4),
         # DuckDB rowids (integers) — the Lineage Explorer's
         # `df_txns.iloc[rowid]` walk-back expects this shape. txn_id
         # strings would TypeError there (Codex P2 round 1, PR-ML-1).

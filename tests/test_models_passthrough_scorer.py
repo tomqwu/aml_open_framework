@@ -14,6 +14,8 @@ Plus a single integration test against the planted C0007 typology
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+from typing import Any
 
 import duckdb
 import pytest
@@ -26,13 +28,19 @@ from aml_framework.models.passthrough_scorer import (
 )
 
 
+# Sentinel for "channel arg not passed at all" — distinguishes from
+# `channel=None` which the unknown-channel tests pass explicitly to
+# exercise the NULL-channel BYOD-CSV scenario (Codex P2 round 4).
+_UNSET: Any = object()
+
+
 def _event(
     txn_id: int,
     direction: str,
     amount: float,
     hours_from_base: float,
     *,
-    channel: str | None = None,
+    channel: Any = _UNSET,
     base: datetime | None = None,
 ) -> dict:
     """Test fixture helper — build one event dict at `base + Nh`.
@@ -46,15 +54,19 @@ def _event(
     `channel` defaults to **cash for IN, wire for OUT** so the
     fixture matches the cross-channel pass-through shape the scorer
     qualifies on by default. Callers wanting to exercise the same-
-    channel-rejection contract pass `channel=` explicitly.
+    channel-rejection contract pass `channel="cash"` etc. explicitly,
+    or `channel=None` to construct the unknown-channel scenario.
     """
     base = base or datetime(2026, 5, 15, 0, 0, 0, tzinfo=timezone.utc)
-    if channel is None:
+    if channel is _UNSET:
         channel = "cash" if direction == "in" else "wire"
     return {
         "row_id": txn_id,
         "txn_id": f"T{txn_id:05d}",
-        "amount": float(amount),
+        # Decimal — pinned by the threshold-correctness contract;
+        # `_find_first_qualifying_window` sums Decimals and compares
+        # to a Decimal threshold (Codex P2 round 4 fix).
+        "amount": Decimal(str(amount)),
         "direction": direction,
         "channel": channel,
         "booked_at": base + timedelta(hours=hours_from_base),
@@ -268,6 +280,50 @@ class TestFindFirstQualifyingWindow:
         window = _find_first_qualifying_window(events, threshold=1_000)
         assert window is not None
         assert window["funding_total"] == 11_000
+
+    def test_exact_threshold_with_fractional_cents_fires(self):
+        # Codex P2 round 4 — the cent-precision case the float path
+        # silently dropped. 25223.53 + 2879.19 + 1897.28 = exactly
+        # 30000.00 in Decimal, but as floats sums to
+        # 29999.999999999996 < 30000. The scorer MUST fire.
+        events = [
+            _event(1, "in", "25223.53", 9),
+            _event(2, "in", "2879.19", 14),
+            _event(3, "out", "1897.28", 28),
+            # Pad the drain side to clear the >0 floor with another
+            # cross-channel event — Decimal-correct funding sum
+            # 25223.53 + 2879.19 = 28102.72, drain 1897.28 → combined
+            # exactly 30000.00.
+        ]
+        window = _find_first_qualifying_window(events)
+        assert window is not None
+        assert window["funding_total"] + window["drain_total"] == Decimal("30000")
+
+    def test_unknown_channel_on_drain_does_not_fire(self):
+        # BYOD/CSV inputs may omit `channel` if the source system
+        # doesn't classify it. The contract column allows NULL;
+        # `_build_warehouse` inserts None. The scorer MUST refuse to
+        # treat None as "different channel" evidence and stay silent —
+        # raising a critical alert without proof of cross-channel
+        # movement would be a regulatory false positive.
+        events = [
+            _event(1, "in", 20_000, 9, channel="cash"),
+            _event(2, "in", 15_000, 14, channel="cash"),
+            _event(3, "out", 18_000, 28, channel=None),
+            _event(4, "out", 12_000, 36, channel=None),
+        ]
+        assert _find_first_qualifying_window(events) is None
+
+    def test_unknown_channel_on_funding_does_not_fire(self):
+        # Mirror — funding side has unknown channels. Same rule:
+        # cannot prove cross-channel without evidence on BOTH legs.
+        events = [
+            _event(1, "in", 20_000, 9, channel=None),
+            _event(2, "in", 15_000, 14, channel=None),
+            _event(3, "out", 18_000, 28, channel="wire"),
+            _event(4, "out", 12_000, 36, channel="wire"),
+        ]
+        assert _find_first_qualifying_window(events) is None
 
 
 # ---------------------------------------------------------------------------
