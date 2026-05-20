@@ -367,6 +367,10 @@ metrics:
               - high_risk_jurisdiction
               - dormant_account_activity
               - investment_scam_invs_velocity
+              # PR-ML-1 added a severity:critical python_ref rule —
+              # its alerts count in the denominator and must count in
+              # the numerator too, else the severity share understates.
+              - passthrough_funnel_scorer
       denominator:
         type: count
         source: alerts

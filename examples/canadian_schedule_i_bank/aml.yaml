@@ -709,7 +709,7 @@ metrics:
       numerator:
         type: count
         source: alerts
-        filter: { rule_id: { in: [structuring_cash_deposits, rapid_pass_through, shell_company_indicators, high_risk_jurisdiction, dormant_account_activity] } }
+        filter: { rule_id: { in: [structuring_cash_deposits, rapid_pass_through, passthrough_funnel_scorer, shell_company_indicators, high_risk_jurisdiction, dormant_account_activity] } }
       denominator:
         type: count
         source: alerts
