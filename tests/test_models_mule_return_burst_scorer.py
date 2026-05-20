@@ -264,7 +264,10 @@ class TestAlertShape:
 
 class TestResolveCustomerId:
     """`_resolve_customer_id` joins originator_name → customer_id
-    so downstream KYC / Customer 360 joins resolve (Codex P2 round 1)."""
+    so downstream KYC / Customer 360 joins resolve (Codex P2 round 1)
+    AND the fallback is path-safe so BYOD originators with `/` in
+    the name don't crash `cases/aggregator.py:_build_case()`
+    (Codex P2 round 2)."""
 
     def test_resolves_known_originator(self, duck_con):
         duck_con.execute("CREATE TABLE customer (customer_id VARCHAR, full_name VARCHAR)")
@@ -275,13 +278,35 @@ class TestResolveCustomerId:
         duck_con.execute("CREATE TABLE customer (customer_id VARCHAR, full_name VARCHAR)")
         duck_con.execute("INSERT INTO customer VALUES ('C0001', 'Acme Inc')")
         # ROAMR LTD isn't in the customer table — fall back to the
-        # originator name rather than producing a None customer_id.
+        # originator name (path-safe form).
         assert _resolve_customer_id(duck_con, "ROAMR LTD") == "ROAMR LTD"
 
     def test_falls_back_when_customer_table_missing(self, duck_con):
         # No `customer` table at all (extreme BYOD case) — graceful
         # fallback, no exception.
         assert _resolve_customer_id(duck_con, "ROAMR LTD") == "ROAMR LTD"
+
+    def test_fallback_sanitizes_path_separator(self, duck_con):
+        # A BYOD originator name like "ACME/UK LTD" would otherwise
+        # become `cases/.../ACME/UK LTD.json` and crash the case
+        # writer — replace `/` with `_` in the fallback.
+        assert _resolve_customer_id(duck_con, "ACME/UK LTD") == "ACME_UK LTD"
+
+    def test_fallback_sanitizes_backslash_and_nul(self, duck_con):
+        assert _resolve_customer_id(duck_con, "ACME\\WIN LTD") == "ACME_WIN LTD"
+        assert _resolve_customer_id(duck_con, "ACME\x00LTD") == "ACME_LTD"
+
+    def test_fallback_blocks_parent_traversal(self, duck_con):
+        # `..` would otherwise let a case file escape the
+        # cases/ directory — replace with `__`.
+        assert _resolve_customer_id(duck_con, "../../etc/passwd") == "______etc_passwd"
+
+    def test_fallback_empty_name_is_unknown(self, duck_con):
+        # The pacs.004 contract requires originator_name non-null,
+        # but defense-in-depth: an empty string falls back to a
+        # constant `unknown` rather than producing an empty
+        # customer_id.
+        assert _resolve_customer_id(duck_con, "") == "unknown"
 
 
 # ---------------------------------------------------------------------------

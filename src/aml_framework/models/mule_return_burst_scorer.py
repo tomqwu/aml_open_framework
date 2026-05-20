@@ -254,17 +254,42 @@ def _qualifies(returns: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
+def _path_safe(value: str) -> str:
+    """Replace filesystem-unsafe characters in a fallback id.
+
+    `cases/aggregator.py:_build_case()` embeds `alert.customer_id`
+    in the case filename; it only strips spaces/colons. A raw
+    originator name containing `/` (e.g. "ACME/UK LTD" — common in
+    BYOD/CSV pacs.004 feeds) would make `record_case()` try to
+    write `cases/mule_return_burst_scorer__ACME/UK LTD.json` —
+    `ACME/` is treated as a sub-directory that doesn't exist and
+    the run aborts (Codex P2 round 2). Replace `/`, `\\`, NUL,
+    `..` with `_`. Keep the original name visible via the alert's
+    separate `originator_name` field.
+    """
+    if not value:
+        return "unknown"
+    out = value
+    for ch in ("/", "\\", "\x00"):
+        out = out.replace(ch, "_")
+    out = out.replace("..", "__")
+    return out
+
+
 def _resolve_customer_id(con: duckdb.DuckDBPyConnection, originator_name: str) -> str:
     """Look up the customer's internal `customer_id` by joining
     `originator_name` against `customer.full_name`. Falls back to
-    the originator name if no match — graceful for BYOD scenarios
-    where the customer table doesn't carry every counterparty.
+    a PATH-SAFE form of the originator name when no match —
+    graceful for BYOD scenarios where the customer table doesn't
+    carry every counterparty AND safe for the case-file writer
+    downstream (Codex P2 round 2).
 
-    Why this matters: downstream pages (Customer 360, case profile,
-    Audit Evidence) join on `alert.customer_id == customer.customer_id`.
-    If we stamp `customer_id = "ROAMR LTD"` but the customer table
-    has `customer_id = "C0011"`, the KYC lookup says "not found"
-    even though the case requests `originator_kyc_profile` as
+    Why customer_id resolution matters in the first place:
+    downstream pages (Customer 360, case profile, Audit Evidence)
+    join on `alert.customer_id == customer.customer_id`. If we
+    stamp `customer_id = "ROAMR LTD"` but the customer table has
+    `customer_id = "C0011"`, the KYC lookup says "not found" even
+    though the case requests `originator_kyc_profile` as
     evidence (Codex P2 round 1).
     """
     try:
@@ -278,11 +303,11 @@ def _resolve_customer_id(con: duckdb.DuckDBPyConnection, originator_name: str) -
         ).fetchone()
     except duckdb.Error:
         # customer table may not exist in tests or in non-canonical
-        # BYOD shapes — fall back gracefully.
-        return originator_name
+        # BYOD shapes — fall back to a path-safe form of the name.
+        return _path_safe(originator_name)
     if row and row[0]:
         return str(row[0])
-    return originator_name
+    return _path_safe(originator_name)
 
 
 def _alert_from_qualification(
