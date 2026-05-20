@@ -124,16 +124,18 @@ def _scalar_amount(v):
 
 
 # --- Per-model analysis ---
+_NORMALIZE_KEYS = ("sum_amount", "count")
+
+
 for rule in ml_rules:
     # Normalize potentially-nested numeric fields ONCE, then both the
     # KPI math and the grid render see the same scalar (don't mutate
-    # `result.alerts` — build a shallow-copied normalized list).
+    # `result.alerts` — build a shallow-copied normalized list). Only
+    # touch keys that were PRESENT in the source alert: rules like
+    # `travel_rule_completeness` emit different shapes (no sum_amount)
+    # and fabricating zero columns would mislead reviewers (Codex P2).
     alerts = [
-        {
-            **a,
-            "sum_amount": _scalar_amount(a.get("sum_amount", 0)),
-            "count": _scalar_amount(a.get("count", 0)),
-        }
+        {**a, **{k: _scalar_amount(a[k]) for k in _NORMALIZE_KEYS if k in a}}
         for a in result.alerts.get(rule.id, [])
     ]
     st.markdown(f"### {rule.id} — {rule.logic.model_id} v{rule.logic.model_version}")
