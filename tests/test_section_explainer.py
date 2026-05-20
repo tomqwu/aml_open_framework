@@ -1182,3 +1182,54 @@ def test_promote_resolved_skips_not_done_future(stub_st):
     assert mod._promote_resolved() is False
     assert key in mod._FUTURES  # untouched — still pending
     pending.cancel()
+
+
+def test_promote_resolved_cancels_stale_future_as_timeout(stub_st):
+    """A pending future older than `_TIMEOUT_SECONDS` is cancelled and
+    promoted into `_FAILED` as a `TimeoutError` so the next render
+    surfaces the empty-state banner instead of the perpetual
+    `Generating explanation` placeholder (user-reported
+    2026-05-19). One failure-audit row, no cache write."""
+    import concurrent.futures
+    import time as _time
+
+    from aml_framework.dashboard import section_explainer as mod
+
+    pending: concurrent.futures.Future = concurrent.futures.Future()  # never resolved
+    key = ("P", "s", "", mod._data_hash({"v": 1}))
+    mod._FUTURES[key] = pending
+    # submitted_at is stale (older than the timeout window) — the
+    # drain must sweep this future, not leave it spinning forever.
+    mod._FUTURE_META[key] = {
+        "section_title": "t",
+        "run_dir": "/runs/x",
+        "backend_name": "ollama",
+        "model": "deepseek-v4-pro",
+        "submitted_at": _time.time() - (mod._TIMEOUT_SECONDS + 5),
+    }
+
+    failure_audit = mock.MagicMock()
+    success_audit = mock.MagicMock()
+    with (
+        mock.patch.object(mod, "_log_failure_to_audit", side_effect=failure_audit),
+        mock.patch.object(mod, "_log_to_audit", side_effect=success_audit),
+    ):
+        assert mod._promote_resolved() is True
+
+    assert key not in mod._FUTURES  # cleared so the poller stops re-checking
+    assert key not in mod._FUTURE_META
+    assert key in mod._FAILED
+    assert isinstance(mod._FAILED[key], TimeoutError)
+    assert "did not respond" in str(mod._FAILED[key])
+    # Compliance: failure audit fires exactly once with the dispatch
+    # snapshot's backend/model — operators can prove the AI was asked
+    # and timed out (distinct from "never asked" and "answered").
+    assert failure_audit.call_count == 1
+    _, kw = failure_audit.call_args
+    assert kw["section_id"] == "s"
+    assert kw["backend"] == "ollama"
+    assert kw["model"] == "deepseek-v4-pro"
+    assert success_audit.call_count == 0
+    pending.cancel()
+    # Clean up for downstream tests.
+    mod._FAILED.pop(key, None)

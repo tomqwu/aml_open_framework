@@ -49,6 +49,7 @@ import json
 import logging
 import os
 import threading
+import time
 from collections.abc import Mapping
 from typing import Any, Literal
 
@@ -119,6 +120,15 @@ _FUTURE_META: dict[tuple[str, str, str, str], dict[str, str]] = {}
 # errors are visible, never masked by a canned template reply) and
 # clears the entry so a later navigation can retry.
 _FAILED: dict[tuple[str, str, str, str], BaseException] = {}
+
+# Max wall-clock seconds a future may be pending before the drain
+# cancels it and promotes a `TimeoutError` into `_FAILED`. Without
+# this the placeholder `⟳ Generating explanation…` would persist
+# indefinitely when the backend hangs / is unreachable
+# (user-reported 2026-05-19). 30s is comfortably above a healthy
+# deepseek-v4-flash response (~2-3s) but well short of "user thinks
+# the page is broken." Overridable via `AML_AI_TIMEOUT_SECONDS`.
+_TIMEOUT_SECONDS: float = float(os.environ.get("AML_AI_TIMEOUT_SECONDS", "30"))
 
 # Serializes the poller drain. Multiple Streamlit sessions/tabs on one
 # replica each mount their own poller fragment over these shared
@@ -554,6 +564,11 @@ def section_explainer(
                         "model": model or "",
                         "run_dir": ctx_run_dir,
                         "audit_mode": ctx_audit_mode,
+                        # Wall-clock at dispatch — the drain uses this to
+                        # cancel futures whose backend never returns so
+                        # the "Generating…" placeholder doesn't persist
+                        # indefinitely (user-reported 2026-05-19).
+                        "submitted_at": time.time(),
                     }
                     _FUTURES[key] = _get_executor().submit(
                         _do_llm_call,
@@ -619,14 +634,32 @@ def _promote_resolved() -> bool:
     (the asking session's run_dir), not the draining session's state.
     No `st.*` calls — unit-testable without a fragment/run context."""
     claimed: list[tuple[tuple[str, str, str, str], Any, dict]] = []
+    timed_out: list[tuple[tuple[str, str, str, str], dict]] = []
+    now = time.time()
     with _DRAIN_LOCK:
         for key in list(_FUTURES.keys()):
             fut = _FUTURES.get(key)
-            if fut is None or not fut.done():
+            if fut is None:
                 continue
-            meta = _FUTURE_META.pop(key, {})
-            _FUTURES.pop(key, None)
-            claimed.append((key, fut, meta))
+            if fut.done():
+                meta = _FUTURE_META.pop(key, {})
+                _FUTURES.pop(key, None)
+                claimed.append((key, fut, meta))
+                continue
+            # Timeout sweep: a backend that never returns must NOT
+            # leave the "Generating…" placeholder up forever
+            # (user-reported 2026-05-19). After
+            # `_TIMEOUT_SECONDS`, cancel the future and surface a
+            # `TimeoutError` via the existing _FAILED → st.error
+            # banner path. Audit row distinguishes timeout from
+            # other failures via the exception type.
+            meta_peek = _FUTURE_META.get(key) or {}
+            submitted_at = meta_peek.get("submitted_at", now)
+            if now - submitted_at > _TIMEOUT_SECONDS:
+                fut.cancel()
+                meta = _FUTURE_META.pop(key, {})
+                _FUTURES.pop(key, None)
+                timed_out.append((key, meta))
 
     for key, fut, meta in claimed:
         run_dir = meta.get("run_dir")
@@ -652,7 +685,27 @@ def _promote_resolved() -> bool:
             run_dir=run_dir,
             audit_mode=meta.get("audit_mode"),
         )
-    return bool(claimed)
+
+    for key, meta in timed_out:
+        backend = meta.get("backend_name", "?")
+        model_name = meta.get("model", "?")
+        exc = TimeoutError(
+            f"AI backend `{backend}` (model `{model_name}`) did not respond "
+            f"within {_TIMEOUT_SECONDS}s — request cancelled. Check that the "
+            f"backend is reachable and `AML_AI_BACKEND` / `AML_OLLAMA_HOST` "
+            f"are configured for this Container App."
+        )
+        _FAILED[key] = exc
+        _log_failure_to_audit(
+            exc,
+            section_id=key[1],
+            section_title=meta.get("section_title", key[1]),
+            run_dir=meta.get("run_dir"),
+            backend=backend,
+            model=meta.get("model", ""),
+        )
+
+    return bool(claimed) or bool(timed_out)
 
 
 @st.fragment(run_every="1.2s")
