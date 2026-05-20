@@ -14,6 +14,14 @@ layer** that sits on top: it consumes your curated tables, produces
 deterministic alerts/cases/decisions, and emits the regulator-facing
 evidence chain. Everything Azure-side stays Azure-side.
 
+> **Implemented today vs. TM-roadmap planned.** This doc names the
+> commands and spec fields that exist on `main` *and* the items that
+> the TM roadmap in [`docs/progress.md`](progress.md) explicitly
+> sequences for later. The line is marked inline (look for **🛠
+> planned · TM Gap N**). The "lookback in N commands" runbook at §10
+> uses only commands that exist today; the equivalence/parallel-run
+> path is gated behind Gap 1 and §10 says so.
+
 ---
 
 ## 1. The 8 properties of a lookback — where the framework delivers each
@@ -31,7 +39,7 @@ mechanism the framework already ships:
 | **Performant** | DuckDB in-memory for the engine; cloud sources (Snowflake/BigQuery/S3/GCS/Parquet) loaded by `data/sources.py` with predicate pushdown via the placeholder system. |
 | **Auditable** | `engine/audit.py` writes a SHA-256-hash-chained `decisions.jsonl`. `AuditLedger.verify_decisions()` proves no tampering at any horizon. |
 | **Explainable** | Every alert carries `matched_row_ids` referencing the exact source rows (#341 fix replays the rule filter so audit evidence matches the alert's own SQL). `walk_lineage` reconstructs alert → rule → data. |
-| **Reconciled** | `engine/equivalence.py` joins legacy ↔ new outputs and classifies each divergence (`data` / `rule` / `mapping` / `intentional`). Every classification is a `LEGACY_EQUIV_CHECK` audit event. |
+| **Reconciled** | **🛠 planned · TM Gap 1.** An `engine/equivalence.py` module is sequenced in [`docs/progress.md`](progress.md) — joins legacy ↔ new outputs and classifies each divergence (`data` / `rule` / `mapping` / `intentional`). Until it lands, reconciliation today is "diff your legacy export against `run_dir/alerts/*.jsonl` in your own SQL/Spark step." |
 | **Signed off** | Cases carry a disposition + reviewer; `cases/filing.py` enforces a wall-clock sidecar that's *out* of the deterministic-replay contract so signoff timing is preserved without breaking reproducibility. |
 
 ---
@@ -50,13 +58,22 @@ Azure Data Factory / Fabric          (unchanged — orchestration)
 ADLS Bronze / Silver                 (unchanged — raw / cleaned)
         ↓
 ADLS Gold (rule-ready Delta tables)  ←─── framework reads here via
-        ↓                                  data/sources.py:
-        ↓                                    type: parquet            (Delta is Parquet-compatible)
-        ↓                                    type: snowflake          (push-down via placeholders)
-        ↓                                    type: bigquery
-        ↓                                    type: s3   / gcs
-        ↓                                    type: duckdb
-        ↓                                    type: csv  (POC / dev)
+        ↓                                  `aml run --data-source <X> --data-dir <Y>`:
+        ↓                                    --data-source parquet   (Delta is Parquet-compatible —
+        ↓                                                             point at a Parquet view of Delta)
+        ↓                                    --data-source duckdb
+        ↓                                    --data-source csv        (POC / dev)
+        ↓                                    --data-source synthetic  (default — generated fixtures)
+        ↓
+        ↓                                  Cloud connectors (Snowflake / BigQuery /
+        ↓                                  S3 / GCS) live in `data/sources.py` but
+        ↓                                  are PROGRAMMATIC today, not exposed as
+        ↓                                  `aml run --data-source` flags. The
+        ↓                                  production shape is: ADF / Lakeflow
+        ↓                                  materializes the per-month Gold slice to
+        ↓                                  Parquet on a mounted volume, then
+        ↓                                  `aml run --data-source parquet --data-dir
+        ↓                                  /mnt/gold/2021-09/`.
         ↓
 ┌──────── FRAMEWORK ────────────────────────────────────────────────┐
 │                                                                   │
@@ -103,7 +120,7 @@ contributes:
 
 | Azure component | What the framework adds |
 |---|---|
-| **ADLS Gen2 / OneLake** | `data/sources.py` reads ADLS-hosted Parquet/Delta/CSV directly. The spec's `data_contracts[].source` declares where each table lives. The framework does not move your data — it reads in place. |
+| **ADLS Gen2 / OneLake** | The production shape: ADF / Lakeflow materializes per-month Gold Parquet to a mount; `aml run --data-source parquet --data-dir /mnt/gold/<month>/` reads it. The `data/sources.py` module also has S3 / GCS / Snowflake / BigQuery resolvers (programmatic), but `aml run`'s `--data-source` only exposes synthetic / csv / parquet / duckdb today; broader exposure is a follow-up. |
 | **Azure Data Factory / Fabric Data Factory** | The framework's CLI (`aml run`, `aml validate`, `aml export`) is wrap-friendly. A typical ADF pipeline: *Extract → land Parquet → `aml validate-data` activity → `aml run` activity → publish run_dir back to Gold → publish ZIP to evidence container*. |
 | **Databricks / Spark / Lakeflow** | Your Lakeflow pipelines produce the rule-ready Gold tables; the framework reads them. For Spark-native rule execution you don't need this framework, but you give up the spec contract + the deterministic audit chain. The framework's value-add is the **defensible spec + evidence**, not raw compute. |
 | **Delta Lake** | The framework treats Delta tables as Parquet (Delta's read API is Parquet-compatible). Delta's time-travel + the framework's `as_of` together give you full point-in-time replay: pin Delta's version + the framework's `as_of` to the same business date. |
@@ -120,33 +137,43 @@ patterns has a specific framework expression.
 
 ### Pattern 1 — Partition by business time
 
-The framework's run model is **one `run_dir` per (`spec`, `as_of`, `seed`)**.
+The framework's run model is **one `run_dir` under `--artifacts` per
+(`spec`, `as_of`, `seed`)**.
 
 ```bash
-# Rerun September 2021 only — partition by business month is implicit
-# in the as_of + window choice. The framework doesn't read October.
+# Rerun September 2021 only. ADF / Lakeflow materializes the per-month
+# Gold slice to a Parquet mount; `aml run` reads it deterministically.
 aml run examples/your_program/aml.yaml \
-    --as-of 2021-09-30 \
-    --data-dir adls://gold/transactions/year=2021/month=09/ \
+    --as-of 2021-09-30T23:59:59 \
+    --data-source parquet \
+    --data-dir /mnt/gold/2021-09/ \
     --seed 42 \
-    --output-dir /runs/2021-09/
+    --artifacts /evidence/runs/2021-09/
 ```
 
-Backfill is just a loop over months:
+Backfill is just a loop over months (ISO timestamps; no `--output-dir`
+flag — use `--artifacts` to scope the run dir):
 
 ```bash
-for m in 2021-{01..12} 2022-{01..12} 2023-{01..12} 2024-{01..12} 2025-{01..12}; do
+months=(
+  "2021-01-31T23:59:59" "2021-02-28T23:59:59" "2021-03-31T23:59:59"
+  # ... 60 month-end timestamps ...
+  "2025-12-31T23:59:59"
+)
+for ts in "${months[@]}"; do
+    ym=${ts:0:7}                                    # e.g. 2021-09
     aml run examples/your_program/aml.yaml \
-        --as-of "${m}-last-day" \
-        --data-dir "adls://gold/transactions/year=${m%-*}/month=${m#*-}/" \
+        --as-of "$ts" \
+        --data-source parquet \
+        --data-dir   "/mnt/gold/${ym}/" \
         --seed 42 \
-        --output-dir "/runs/${m}/"
+        --artifacts  "/evidence/runs/${ym}/"
 done
 ```
 
-Each `/runs/YYYY-MM/` is self-contained: spec, manifest, alerts, cases,
-decisions, hash chain. A defect fix means re-running only the affected
-months.
+Each `/evidence/runs/YYYY-MM/.artifacts/<run_id>/` is self-contained:
+spec, manifest, alerts, cases, decisions, hash chain. A defect fix
+means re-running only the affected months.
 
 ### Pattern 2 — Idempotent writes via deterministic keys
 
@@ -212,38 +239,42 @@ The framework supports point-in-time reference data via:
 ```yaml
 # Example: rule that uses risk_rating *as of the transaction date*,
 # not today's risk_rating.
+#
+# Two things to know about custom_sql placeholders:
+#   1. `compile_rule_sql` (`generators/sql.py`) only substitutes time
+#      keys: {as_of}, {window_start}, {recent_start}, {baseline_start},
+#      {dormant_cutoff}. Use real contract table names (txn,
+#      customer_risk_ratings_pit, etc.) — there is NO {transactions}
+#      placeholder.
+#   2. The substituted timestamps need explicit `TIMESTAMP '...'`
+#      quoting for DuckDB / standard SQL.
 rules:
   - id: high_risk_jurisdiction_with_pit_rating
     logic:
       type: custom_sql
+      source: txn
       sql: |
         SELECT t.customer_id, SUM(t.amount) AS sum_amount
-        FROM {transactions} t
-        JOIN {customer_risk_ratings_pit} r
+        FROM txn t
+        JOIN customer_risk_ratings_pit r
           ON r.customer_id = t.customer_id
          AND t.booked_at BETWEEN r.effective_start_date
-                             AND COALESCE(r.effective_end_date, '9999-12-31')
-        WHERE t.booked_at BETWEEN {window_start} AND {as_of}
+                             AND COALESCE(r.effective_end_date, TIMESTAMP '9999-12-31')
+        WHERE t.booked_at BETWEEN TIMESTAMP '{window_start}' AND TIMESTAMP '{as_of}'
           AND r.risk_rating = 'high'
         GROUP BY t.customer_id
         HAVING SUM(t.amount) >= 100000
 ```
 
-### Pattern 5 — Parallel validation (legacy ↔ new)
+The point-in-time `customer_risk_ratings_pit` table is just another
+declared `data_contract` in `aml.yaml` with `effective_start_date` /
+`effective_end_date` columns; load it the same way as `txn`.
 
-This is exactly the framework's TM-roadmap Track A Gap 1
-([`docs/progress.md` — Round 23 + TM roadmap](progress.md)). Activated
-via `legacy_reference` on the program:
+### Pattern 5 — Parallel validation (legacy ↔ new) · **🛠 planned · TM Gap 1**
 
-```yaml
-program:
-  legacy_reference:
-    path: adls://legacy_exports/tm/2021-09/alerts.csv
-    key_columns: [customer_id, alert_date, rule_code]
-```
-
-`engine/equivalence.py` joins legacy ↔ new alerts and classifies each
-divergence into one of:
+The framework's TM-roadmap Track A Gap 1 in [`docs/progress.md`](progress.md)
+sequences a `Program.legacy_reference` field + an `engine/equivalence.py`
+module that joins legacy ↔ new alerts and classifies each divergence as:
 
 ```text
 expected difference
@@ -255,11 +286,29 @@ timing/window defect
 legacy defect exposed by migration
 ```
 
-Each classification is written as a `LEGACY_EQUIV_CHECK` audit event
-in the deterministic ledger (`as_of`-stamped, hash-chained, IN the
-replay contract). The legacy file itself is content-hashed into the
+Once merged, classifications will be written as `LEGACY_EQUIV_CHECK`
+audit events in the deterministic ledger (`as_of`-stamped, hash-chained,
+IN the replay contract). The legacy file will be content-hashed into the
 `input_manifest` so future reruns can prove they compared against the
 same legacy snapshot.
+
+**Today, before Gap 1 lands:** the framework's deterministic
+`alerts/*.jsonl` per month is your right-side input — diff it against
+your legacy alert export in a 20-line SQL/Spark/pandas step:
+
+```python
+# Pseudocode — pandas-style diff once each side is one row per alert
+import pandas as pd
+new = pd.read_json("evidence/runs/2021-09/.artifacts/<run_id>/alerts/structuring_cash_deposits.jsonl", lines=True)
+old = pd.read_csv("legacy/tm/2021-09/alerts.csv")
+diff = new.merge(old, on=["customer_id", "window_start"], how="outer", indicator=True)
+# diff["_merge"] ∈ {"left_only", "right_only", "both"} → classify by hand
+# until Gap 1 lands the classifier inline.
+```
+
+Spec field `Program.legacy_reference` is **not yet a real field**
+(`Program` is `extra="forbid"`); don't add it to your YAML until the
+schema lands.
 
 ---
 
@@ -359,9 +408,10 @@ specific mechanisms:
 
 ---
 
-## 10. A 5-year lookback in 7 commands
+## 10. A 5-year lookback in commands you can actually run today
 
-End-to-end, against your real data:
+Every command below is a real `aml` subcommand on `main`. The one
+step that's roadmap-gated (parallel-run vs legacy) is called out.
 
 ```bash
 # 1. Clone and install.
@@ -369,50 +419,81 @@ git clone https://github.com/tomqwu/aml_open_framework
 cd aml_open_framework
 pip install -e ".[dev,dashboard,api]"
 
-# 2. Author your spec (one-time; iteratively refined). Start from an
-#    example close to your program; tailor data_contracts to your
-#    column names and add your rules.
+# 2. Author your spec (one-time; iteratively refined). Two paths:
+#    a) Scaffold via the wizard:
+aml init ./my_program            # 5 questions → starter aml.yaml
+#    b) Or copy an example close to your program and tailor it:
 cp -r examples/community_bank examples/my_program
 $EDITOR examples/my_program/aml.yaml
 
 # 3. Validate the spec.
 aml validate examples/my_program/aml.yaml
 
-# 4. Validate one month of historical data against the spec's
+# 4. Map your warehouse to the spec's contracts.
+aml byod examples/my_program/aml.yaml /mnt/gold/2021-09/
+$EDITOR data_mapping.yaml
+
+# 5. Validate one month of historical data against the spec's
 #    contracts. Catches stitching failures before any rule runs.
-aml validate-data examples/my_program/aml.yaml \
-    adls://gold/transactions/year=2021/month=09/
+aml validate-data examples/my_program/aml.yaml /mnt/gold/2021-09/
 
-# 5. Backfill — one independent run per business month. Wrap this
-#    loop with ADF / Lakeflow parallel branches for production scale.
-for m in 2021-{01..12} 2022-{01..12} 2023-{01..12} 2024-{01..12} 2025-{01..12}; do
+# 6. Backfill — one independent run per business month. In
+#    production, ADF / Lakeflow materializes the per-month Gold slice
+#    to a Parquet mount and wraps the loop in parallel branches.
+months=(
+  "2021-01-31T23:59:59" "2021-02-28T23:59:59" "2021-03-31T23:59:59"
+  # ... 60 month-end timestamps ...
+  "2025-12-31T23:59:59"
+)
+for ts in "${months[@]}"; do
+    ym=${ts:0:7}
     aml run examples/my_program/aml.yaml \
-        --as-of "${m}-eom" \
-        --data-dir "adls://gold/transactions/year=${m%-*}/month=${m#*-}/" \
-        --seed 42 \
-        --output-dir "adls://evidence/runs/${m}/"
+        --as-of      "$ts" \
+        --data-source parquet \
+        --data-dir   "/mnt/gold/${ym}/" \
+        --seed       42 \
+        --artifacts  "/evidence/runs/${ym}/"
 done
 
-# 6. Reconcile against the legacy system per month (TM Track A).
-#    Each month emits a divergence report classifying defects.
-for m in ...; do
-    aml equivalence examples/my_program/aml.yaml \
-        --run-dir "adls://evidence/runs/${m}/" \
-        --legacy   "adls://legacy/tm/${m}/alerts.csv"
+# 7. Verify the hash chain per month. Wrap this in a script that
+#    walks every /evidence/runs/<month>/ — `verify-decisions` takes
+#    one --run-dir at a time.
+for ym in /evidence/runs/*/; do
+    aml verify-decisions \
+        --run-dir   "${ym}.artifacts/" \
+        --artifacts "${ym}.artifacts/"
 done
 
-# 7. Verify the audit chain end-to-end and produce the regulator
-#    bundle. This is the deliverable.
-aml audit verify --run-dirs "adls://evidence/runs/*/"
-aml export examples/my_program/aml.yaml \
-    --run-dirs "adls://evidence/runs/*/" \
-    --regulator-bundle /evidence/2021-2025-lookback-bundle.zip
+# 8. Build the regulator-ready bundles. `aml audit-pack` produces the
+#    pre-examination bundle per run; `aml export` zips a run dir as
+#    a deterministic evidence bundle. Both take ONE --run-dir today;
+#    wrap in a loop. Concatenate the per-month ZIPs into your
+#    deliverable.
+for ym in /evidence/runs/*/; do
+    aml audit-pack examples/my_program/aml.yaml \
+        --run-dir "${ym}.artifacts/" \
+        --out     "${ym}audit-pack.zip"
+    aml export examples/my_program/aml.yaml \
+        --run-dir "${ym}.artifacts/" \
+        --out     "${ym}evidence.zip"
+done
+
+# 9. (🛠 Planned · TM Gap 1.) Reconcile against the legacy system per
+#    month — `engine/equivalence.py` is roadmap, not on main today.
+#    Until it lands, run your own SQL/Spark/pandas diff over each
+#    month's alerts/*.jsonl ↔ legacy alert export and classify each
+#    divergence by hand. See Pattern 5 above.
+
+# 10. Build per-rule MRM dossiers when ML scorers are in play.
+aml mrm-bundle examples/my_program/aml.yaml \
+    --run-dir /evidence/runs/2025-12/.artifacts/
 ```
 
-The bundle contains: the spec at every git-tagged version that ran,
-every run's manifest + alerts + cases + hash-chained decisions, every
-month's reconciliation report, every defect log, every signoff. That
-ZIP is what you hand to the examiner.
+Each per-month bundle contains the spec it ran against, the run
+manifest, all alerts/cases JSONLs, the hash-chained `decisions.jsonl`,
+the metric report markdowns, and (when applicable) the sanctions
+evidence + jurisdiction-specific section maps. Concatenated, those
+60 bundles are the 5-year evidence package you hand to the examiner.
 
 ---
 
