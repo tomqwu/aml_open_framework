@@ -105,6 +105,12 @@ def _fetch_customer_events(
     # `engine/runner.py`'s execution path. Pull it alongside the
     # business columns so each event carries the rowid the engine
     # later stamps onto the alert.
+    # Tie-policy: on equal `booked_at`, IN events sort BEFORE OUT
+    # events. That makes the funding/drain attribution
+    # ID-independent — without this, a tied IN/OUT pair fires when
+    # the IN's txn_id sorts first and misses when the OUT does
+    # (Codex P2 round 5). The `direction = 'in'` evaluates to TRUE
+    # for IN rows; DESC puts TRUE (=1) before FALSE (=0).
     rows = con.execute(
         """
         SELECT rowid AS __row_id, customer_id, txn_id, amount,
@@ -112,7 +118,10 @@ def _fetch_customer_events(
         FROM txn
         WHERE booked_at >= ?
           AND booked_at <  ?
-        ORDER BY customer_id, booked_at, txn_id
+        ORDER BY customer_id,
+                 booked_at,
+                 (direction = 'in') DESC,
+                 txn_id
         """,
         [window_start, as_of],
     ).fetchall()
@@ -153,14 +162,16 @@ def _find_first_qualifying_window(
         if anchor["direction"] != "in":
             continue
         window_end = anchor["booked_at"] + window_delta
-        # Find the first OUT-event inside [anchor, window_end). That
-        # boundary defines funding (events before it) vs drain (events
-        # at or after it). If there's no OUT-event in the window,
-        # nothing to drain — skip.
+        # Find the first OUT-event inside [anchor, window_end]. The
+        # 48h boundary is INCLUSIVE — matches the existing
+        # `rapid_pass_through` SQL rule's `BETWEEN ci.booked_at AND
+        # ci.booked_at + INTERVAL '48' HOUR`. A cross-channel funnel
+        # whose drain leg lands exactly at anchor+48h must fire
+        # (Codex P2 round 5 — the prior `>=` break missed it).
         first_out_idx: int | None = None
         for i in range(anchor_idx, len(sorted_events)):
             evt = sorted_events[i]
-            if evt["booked_at"] >= window_end:
+            if evt["booked_at"] > window_end:
                 break
             if evt["direction"] == "out":
                 first_out_idx = i
@@ -174,13 +185,15 @@ def _find_first_qualifying_window(
         funding = [
             evt
             for evt in sorted_events[anchor_idx:first_out_idx]
-            if evt["direction"] == "in" and evt["booked_at"] < window_end
+            if evt["direction"] == "in" and evt["booked_at"] <= window_end
         ]
-        # Drain = OUT-events in [first_out, window_end).
+        # Drain = OUT-events in [first_out, window_end] (boundary
+        # inclusive, per the SQL rule's BETWEEN semantics).
         drain = [
             sorted_events[i]
             for i in range(first_out_idx, len(sorted_events))
-            if sorted_events[i]["direction"] == "out" and sorted_events[i]["booked_at"] < window_end
+            if sorted_events[i]["direction"] == "out"
+            and sorted_events[i]["booked_at"] <= window_end
         ]
         funding_total = sum((e["amount"] for e in funding), Decimal("0"))
         drain_total = sum((e["amount"] for e in drain), Decimal("0"))

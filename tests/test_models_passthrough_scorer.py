@@ -325,6 +325,21 @@ class TestFindFirstQualifyingWindow:
         ]
         assert _find_first_qualifying_window(events) is None
 
+    def test_drain_leg_exactly_at_48h_boundary_fires(self):
+        # Codex P2 round 5 — the SQL rule uses BETWEEN which is
+        # inclusive on both ends. A cross-channel drain leg landing
+        # exactly at anchor+48h must qualify here too — otherwise the
+        # python_ref scorer's alert volume drifts under the SQL
+        # rule's on hour-boundary cases.
+        events = [
+            _event(1, "in", 20_000, 0),  # anchor at h=0
+            _event(2, "in", 15_000, 1),
+            _event(3, "out", 35_000, 48),  # exactly at anchor+48h
+        ]
+        window = _find_first_qualifying_window(events)
+        assert window is not None
+        assert window["drain_total"] == 35_000
+
 
 # ---------------------------------------------------------------------------
 # Alert shaping — `_alert_from_window`
@@ -491,3 +506,26 @@ class TestFetchCustomerEvents:
         events = _fetch_customer_events(duck_con, as_of)
         ts = [e["booked_at"] for e in events["C0001"]]
         assert ts == sorted(ts)
+
+    def test_tied_timestamps_sort_in_before_out(self, duck_con):
+        # Codex P2 round 5 — when source systems provide only
+        # coarse timestamps, a tied IN/OUT pair must always classify
+        # IN as funding and OUT as drain regardless of which txn_id
+        # sorts first. Without an explicit tie policy, the same pair
+        # could fire one run and miss the next (Z-OUT vs A-IN
+        # alphabetical ordering). The fetch helper's ORDER BY pins
+        # IN-before-OUT on tied booked_at.
+        as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)
+        tied_at = as_of - timedelta(hours=24)
+        rows = [
+            # OUT inserted with id sorting LEXICALLY BEFORE the IN's
+            # id — without a tie policy this would sort OUT first.
+            ("C0001", "AAA-OUT", 35_000.0, "out", "wire", tied_at),
+            ("C0001", "ZZZ-IN", 35_000.0, "in", "cash", tied_at),
+        ]
+        duck_con.executemany("INSERT INTO txn VALUES (?, ?, ?, ?, ?, ?)", rows)
+        events = _fetch_customer_events(duck_con, as_of)
+        directions = [e["direction"] for e in events["C0001"]]
+        assert directions == ["in", "out"], (
+            "tie policy: on equal booked_at, IN must sort before OUT regardless of txn_id"
+        )
