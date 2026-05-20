@@ -94,9 +94,48 @@ data_grid(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+
+def _scalar_amount(v):
+    """Extract a scalar number from an alert field that may be dict-shaped.
+
+    A python_ref ML scorer can emit `sum_amount` as
+    `{"value": X, "unit": "USD"}` style — pd.DataFrame keeps it as an
+    object cell which streamlit-aggrid JSON-ships verbatim to JS, where
+    `String({...})` becomes the user-reported `[object Object]`. And
+    the upstream KPI `float({...})` raises TypeError. Pull the nested
+    numeric (`value` / `amount` / `total`), else float-coerce a plain
+    scalar, else 0 — preserving the real magnitude (Codex P2 caught
+    the prior naive `to_numeric(...).fillna(0)` silently dropping
+    dict values to 0).
+    """
+    if isinstance(v, dict):
+        for k in ("value", "amount", "total"):
+            if k in v:
+                inner = v[k]
+                try:
+                    return float(inner) if inner not in (None, "") else 0
+                except (TypeError, ValueError):
+                    return 0
+        return 0
+    try:
+        return float(v) if v not in (None, "") else 0
+    except (TypeError, ValueError):
+        return 0
+
+
 # --- Per-model analysis ---
 for rule in ml_rules:
-    alerts = result.alerts.get(rule.id, [])
+    # Normalize potentially-nested numeric fields ONCE, then both the
+    # KPI math and the grid render see the same scalar (don't mutate
+    # `result.alerts` — build a shallow-copied normalized list).
+    alerts = [
+        {
+            **a,
+            "sum_amount": _scalar_amount(a.get("sum_amount", 0)),
+            "count": _scalar_amount(a.get("count", 0)),
+        }
+        for a in result.alerts.get(rule.id, [])
+    ]
     st.markdown(f"### {rule.id} — {rule.logic.model_id} v{rule.logic.model_version}")
 
     # KPIs for this model.
@@ -169,22 +208,13 @@ for rule in ml_rules:
 
     with col_right:
         # Feature breakdown (from alert data if available).
+        # `sum_amount` and `count` are already scalar-normalized by
+        # `_scalar_amount` at the top of the per-rule loop, so the grid
+        # sees plain numbers (no [object Object] from dict cells).
         st.markdown("#### Alert Details")
         alert_df = pd.DataFrame(alerts)
         show_cols = ["customer_id", "risk_score", "sum_amount", "count"]
         available = [c for c in show_cols if c in alert_df.columns]
-        # Defensive coerce: a python_ref ML scorer may emit
-        # `sum_amount` as a dict (e.g. {"value": X, "unit": "USD"});
-        # AG Grid then renders the cell as `[object Object]`
-        # (user-reported 2026-05-19). pd.to_numeric with
-        # errors="coerce" turns dicts into NaN → 0 — harmless for
-        # already-scalar values, eliminates the JS-stringified-dict
-        # surface. Same defensive coerce for `count`.
-        for _num_col in ("sum_amount", "count"):
-            if _num_col in available:
-                alert_df[_num_col] = pd.to_numeric(
-                    alert_df[_num_col], errors="coerce"
-                ).fillna(0)
         # risk_score gradient is inverted: high score = bad (red).
         # 0.65 = action threshold (model card), 0.85 = high-confidence
         # band. gradient_invert=True flips data_grid's default
