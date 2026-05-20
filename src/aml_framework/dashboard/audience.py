@@ -360,6 +360,11 @@ KNOWLEDGE_PAGES = [
     "AML Process Pain",
     "Regulator Pulse Brief",
     "TD 2024 Case Study",
+    # PR-U3 of the unified-product epic — board-pack + technical decks
+    # + their walkthrough videos, surfaced inside the product so the
+    # GH Pages deck hosting can be retired by PR-U4.
+    "Business Deck",
+    "Technical Deck",
 ]
 
 

@@ -66,6 +66,12 @@ _EXPECTED_PAGE_LEVEL = {
     "38_Knowledge_AML_Process_Pain.py",
     "39_Knowledge_Regulator_Pulse_Brief.py",
     "40_Knowledge_TD_2024_Case_Study.py",
+    # PR-U3: deck pages (board-pack + technical) carry the same
+    # page-level explainer contract as the whitepaper pages — keeps
+    # the "GenAI on every page" promise across the full Knowledge
+    # category.
+    "41_Knowledge_Business_Deck.py",
+    "42_Knowledge_Technical_Deck.py",
     "4_Case_Investigation.py",
     "5_Rule_Performance.py",
     "6_Risk_Assessment.py",

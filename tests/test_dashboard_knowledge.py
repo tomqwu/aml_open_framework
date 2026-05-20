@@ -49,6 +49,16 @@ EXPECTED = {
     "td-2024": (40, "40_Knowledge_TD_2024_Case_Study.py", "TD 2024 Case Study"),
 }
 
+# PR-U3 deck pages — image+video oriented (not prose-extracted), so
+# they don't live in `research.WHITEPAPERS`. Separate map keeps the
+# whitepaper guards above untouched while pinning the new pages
+# against their nav title, page number, and on-disk filename.
+# (page_no, filename, nav_title, source_subdir_under_deck_v2)
+EXPECTED_DECKS = [
+    (41, "41_Knowledge_Business_Deck.py", "Business Deck", "business-slides/slides"),
+    (42, "42_Knowledge_Technical_Deck.py", "Technical Deck", "slides"),
+]
+
 
 class TestResearchSubstrate:
     def test_eight_whitepapers_present(self):
@@ -141,9 +151,14 @@ class TestKnowledgeNavWiring:
         assert "relevant_titles.update(KNOWLEDGE_PAGES)" in body
 
     def test_knowledge_pages_constant_matches_nav_titles(self):
-        assert KNOWLEDGE_PAGES == [
-            research.WHITEPAPERS[s]["nav_title"] for s in research.WHITEPAPERS
+        # PR-U2's 8 whitepaper nav titles + PR-U3's 2 deck nav titles,
+        # in that order. KNOWLEDGE_PAGES is the universal-routing
+        # title set; both PRs' pages must appear so every persona sees
+        # them in the sidebar regardless of audience filter.
+        expected_titles = [research.WHITEPAPERS[s]["nav_title"] for s in research.WHITEPAPERS] + [
+            nav_title for _no, _fname, nav_title, _src in EXPECTED_DECKS
         ]
+        assert KNOWLEDGE_PAGES == expected_titles
 
     def test_knowledge_not_in_audience_pages(self):
         # Keeping Knowledge OUT of AUDIENCE_PAGES is what preserves the
@@ -177,3 +192,92 @@ class TestExtractorIdempotent:
         # No new runtime markdown-parser dependency; stdlib html.parser.
         assert "from html.parser import HTMLParser" in src
         assert "import mistune" not in src and "markdown_it" not in src
+
+
+class TestDeckKnowledgePages:
+    """PR-U3 deck pages — board-pack + technical decks with videos."""
+
+    DECK_V2 = ROOT / "docs" / "pitch" / "deck-v2"
+
+    def test_both_deck_pages_exist(self):
+        for _no, fname, _nav, _src in EXPECTED_DECKS:
+            assert (PAGES_DIR / fname).is_file(), f"missing deck page {fname}"
+
+    def test_each_deck_page_is_direct_url_robust_and_explained(self):
+        # Same init + section_explainer contract as the whitepaper
+        # pages so a direct URL hit / pod restart never lands on a
+        # crash-page (the bug class ensure_initialized() prevents).
+        for _no, fname, _nav, _src in EXPECTED_DECKS:
+            body = (PAGES_DIR / fname).read_text(encoding="utf-8")
+            assert "ensure_initialized()" in body, f"{fname} missing init guard"
+            assert "section_explainer(" in body, f"{fname} missing explainer"
+            assert 'section_id="knowledge_' in body, f"{fname} section_id drift"
+
+    def test_each_deck_page_has_literal_page_header(self):
+        for _no, fname, nav_title, _src in EXPECTED_DECKS:
+            body = (PAGES_DIR / fname).read_text(encoding="utf-8")
+            assert f'page_header("{nav_title}"' in body, f"{fname} title drift"
+
+    def test_each_deck_page_uses_parents_4_anchor(self):
+        # The deck assets live under `docs/pitch/deck-v2/` in the
+        # repo, copied to /app/docs/ by the Dockerfile. The pages
+        # must walk UP from pages/<N>_*.py to the repo root via
+        # parents[4] — any other count points outside the project.
+        for _no, fname, _nav, _src in EXPECTED_DECKS:
+            body = (PAGES_DIR / fname).read_text(encoding="utf-8")
+            assert "parents[4]" in body, (
+                f"{fname} must anchor on Path(__file__).parents[4] to "
+                f"find docs/pitch/deck-v2/ in the container"
+            )
+
+    def test_each_deck_page_handles_missing_assets_gracefully(self):
+        # The PNGs/MP4s/PDF are large; if a future slim wheel drops
+        # them the page should caption (not crash). Verified by file
+        # text since we can't run streamlit in unit-test CI.
+        for _no, fname, _nav, _src in EXPECTED_DECKS:
+            body = (PAGES_DIR / fname).read_text(encoding="utf-8")
+            assert "if _PDF_PATH.exists()" in body, f"{fname} missing PDF fallback"
+            assert "missing_slides" in body, f"{fname} missing slide-fallback"
+
+    def test_deck_assets_present_in_source_tree(self):
+        # The committed assets must exist at the paths the pages
+        # reference. A stale asset path would silently render an
+        # empty page — this catches that pre-deploy.
+        assert (self.DECK_V2 / "business-slides" / "slides").is_dir()
+        assert (self.DECK_V2 / "slides").is_dir()
+        assert (self.DECK_V2 / "business-slides" / "aml-open-framework-business.pdf").is_file()
+        assert (self.DECK_V2 / "aml-open-framework-v2.pdf").is_file()
+        assert (self.DECK_V2 / "board-video" / "board-video.mp4").is_file()
+        assert (self.DECK_V2 / "video" / "walkthrough.mp4").is_file()
+
+    def test_each_deck_page_renders_with_a_real_slide(self):
+        # Every slide stem listed in the page must have a committed
+        # PNG in the matching source subdir. Drift here = a slide
+        # claimed by the page but never captured = an empty render.
+        import re
+
+        for _no, fname, _nav, src_subdir in EXPECTED_DECKS:
+            body = (PAGES_DIR / fname).read_text(encoding="utf-8")
+            stems = re.findall(r'\("(\d{2}-[a-z0-9-]+)", "[^"]+"\)', body)
+            assert stems, f"{fname} declares no slide stems"
+            slides_dir = self.DECK_V2 / src_subdir
+            for stem in stems:
+                png = slides_dir / f"{stem}.png"
+                assert png.is_file(), (
+                    f"{fname} references slide {stem}.png but "
+                    f"{slides_dir}/{stem}.png does not exist"
+                )
+
+    def test_app_registers_both_deck_pages(self):
+        body = APP.read_text(encoding="utf-8")
+        for _no, fname, nav_title, _src in EXPECTED_DECKS:
+            assert fname in body, f"{fname} not registered in app.py"
+            assert f'title="{nav_title}"' in body, f"{nav_title} title drift in app.py"
+
+    def test_tour_has_both_deck_headings(self):
+        body = TOUR.read_text(encoding="utf-8")
+        # Same derivation rule as the whitepaper pages — the
+        # tour-coverage test mines headings from the filename suffix.
+        for _no, fname, _nav, _src in EXPECTED_DECKS:
+            derived = fname.removesuffix(".py").partition("_")[2].replace("_", " ")
+            assert f"### {derived}\n" in body, f"tour missing '### {derived}'"

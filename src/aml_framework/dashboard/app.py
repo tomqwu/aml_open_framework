@@ -272,6 +272,24 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             url_path="TD_2024_Case_Study",
             icon=":material/gavel:",
         ),
+        # PR-U3 — board-pack business deck (12 slides + 64s board
+        # video) and the engineer/MLRO technical deck (18 slides + 92s
+        # walkthrough video). Image+video oriented (no prose extract
+        # step), assets resolved via `Path(__file__).parents[4] /
+        # docs/pitch/deck-v2/`. Universal-routed alongside the other
+        # Knowledge pages.
+        st.Page(
+            "pages/41_Knowledge_Business_Deck.py",
+            title="Business Deck",
+            url_path="Business_Deck",
+            icon=":material/slideshow:",
+        ),
+        st.Page(
+            "pages/42_Knowledge_Technical_Deck.py",
+            title="Technical Deck",
+            url_path="Technical_Deck",
+            icon=":material/code:",
+        ),
     ],
 }
 

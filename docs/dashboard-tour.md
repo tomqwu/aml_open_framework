@@ -1,8 +1,8 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **40 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **42 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
-The final eight pages form the **Knowledge** reference shelf — the merged GitHub-Pages knowledge site, ported native (PR-U2 of the unified-product epic). They carry no engine coupling; every persona keeps access to them regardless of the audience filter.
+The final ten pages form the **Knowledge** reference shelf — the merged GitHub-Pages knowledge site, ported native (PR-U2 ported 8 Research whitepapers; PR-U3 added the Business + Technical decks with their walkthrough videos — both PRs of the unified-product epic). They carry no engine coupling; every persona keeps access to them regardless of the audience filter.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -235,7 +235,7 @@ _Screenshot: pending — see follow-up._
 
 ## Knowledge Pages
 
-The merged GitHub-Pages research/knowledge site, ported into native Streamlit pages (PR-U2 of the unified-product epic — "one product, two doors, three skins"). The prose is extracted at build time into the `dashboard/data/research.py` substrate (same discipline as `regulator_pulse.py` — no runtime HTML parsing, no new markdown-parser dependency) and rendered verbatim as Markdown. These are pure reference pages: no engine or session-state coupling, visible to every persona. The U2 scope inherits the normal dashboard theme; a per-page dark showcase skin is deferred to a later phase.
+The merged GitHub-Pages research/knowledge site, ported into native Streamlit pages (PR-U2 + PR-U3 of the unified-product epic — "one product, two doors, three skins"). PR-U2 ported 8 Research whitepapers (prose extracted at build time into `dashboard/data/research.py`, rendered verbatim as Markdown — same discipline as `regulator_pulse.py`, no runtime HTML parsing, no new markdown-parser dependency). PR-U3 added 2 deck pages — board-pack **Business Deck** + engineer **Technical Deck** — each pairing a walkthrough video with a native slide gallery and PDF download; deck assets live under `docs/pitch/deck-v2/` and ship inside the deployed container. All 10 pages are pure reference: no engine or session-state coupling, visible to every persona. The Knowledge scope inherits the normal dashboard theme; a per-page dark showcase skin is deferred to a later phase.
 
 ### Knowledge Architecture
 
@@ -269,6 +269,14 @@ The narrative 90-day regulator brief — themes plus the per-regulator event det
 
 The largest BSA enforcement action of 2024 ($3.09B): penalty breakdown, five findings, finding-to-spec-clause traceability, the reports that would have flagged it, and the spec's regulatory citations. Ported from `td-2024.html`.
 
+### Knowledge Business Deck
+
+The 12-slide board-pack for CCO / MLRO / Audit Committee audiences — pain → capability map, the 2:1 rule, the meetings that stop happening, by-the-numbers — paired with a 64-second McKinsey-style **board video**. PDF download + native slide gallery. Source assets: `docs/pitch/deck-v2/business-slides/` + `docs/pitch/deck-v2/board-video/`. PR-U3 of the unified-product epic.
+
+### Knowledge Technical Deck
+
+The 18-slide engineer/MLRO companion deck — spec validation, the audit hash-chain proof, lineage walk-back, init/BYOD, multi-jurisdiction, by-the-numbers — paired with a 92-second auto-advance **walkthrough video** of the live deck. PDF download + native slide gallery. Source assets: `docs/pitch/deck-v2/slides/` + `docs/pitch/deck-v2/video/`. PR-U3 of the unified-product epic.
+
 ---
 
 ## Export Surface
@@ -281,7 +289,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The 40 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 8 Knowledge reference pages stay visible to every persona regardless of the filter:
+The 42 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|
