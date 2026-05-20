@@ -185,10 +185,14 @@ for rule in ml_rules:
             gradient_high=0.85,
             gradient_invert=True,
             pinned_left=["customer_id"] if "customer_id" in available else None,
-            # Per-model alert details are a small bounded slice (alerts
-            # for one ML rule); auto_height avoids the clipped last row
-            # the fixed-height estimate caused (user-reported 2026-05-19).
-            auto_height=True,
+            # Row-count gated: small N (≤10) gets auto_height so the
+            # last row isn't clipped by the px estimate's under-shoot
+            # of AG Grid's header+row+footer chrome (user-reported
+            # 2026-05-19). Larger N falls back to a fixed viewport so
+            # a python_ref rule emitting hundreds of alerts doesn't
+            # render an extremely tall page (Codex P2 #347).
+            auto_height=len(alert_df) <= 10,
+            height=420,
         )
 
     st.markdown("<br>", unsafe_allow_html=True)
