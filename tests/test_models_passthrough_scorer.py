@@ -35,9 +35,17 @@ def _event(
     channel: str = "cash",
     base: datetime | None = None,
 ) -> dict:
-    """Test fixture helper — build one event dict at `base + Nh`."""
+    """Test fixture helper — build one event dict at `base + Nh`.
+
+    `row_id` mirrors the DuckDB rowid the engine pulls from the
+    `txn` table; the scorer uses it for `matched_row_ids` lineage so
+    the Lineage Explorer's `df_txns.iloc[rowid]` walk-back resolves.
+    `txn_id` stays as a human-readable label (it's not the lineage
+    key — the Codex P2 round 1 catch on PR-ML-1).
+    """
     base = base or datetime(2026, 5, 15, 0, 0, 0, tzinfo=timezone.utc)
     return {
+        "row_id": txn_id,
         "txn_id": f"T{txn_id:05d}",
         "amount": float(amount),
         "direction": direction,
@@ -259,9 +267,13 @@ class TestAlertShape:
         # risk_score is bounded [0, 1] for the Model Performance
         # score-distribution bucketing.
         assert 0.0 <= alert["risk_score"] <= 1.0
-        # All 5 source row IDs walk back in matched_row_ids — the
-        # Lineage Explorer reads this for audit evidence.
-        assert alert["matched_row_ids"] == ["T00001", "T00002", "T00003", "T00004", "T00005"]
+        # All 5 source rowids walk back in matched_row_ids — the
+        # Lineage Explorer reads this for audit evidence. INTEGER
+        # rowids (not txn_id strings) is the engine's lineage
+        # contract — `df_txns.iloc[rowid]` would TypeError on strings
+        # (Codex P2 round 1 catch on PR-ML-1).
+        assert alert["matched_row_ids"] == [1, 2, 3, 4, 5]
+        assert all(isinstance(r, int) for r in alert["matched_row_ids"])
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +326,12 @@ class TestEngineContract:
         alert = alerts[0]
         assert alert["customer_id"] == "C0007"
         assert alert["sum_amount"] == 43_000
-        assert alert["matched_row_ids"] == ["T1", "T2", "T3", "T4", "T5"]
+        # DuckDB rowids — integers in [0, len(table)). C0007's 5
+        # source rows were inserted first (rowids 0..4); C0099's
+        # negative-control row got rowid 5. Lineage Explorer's
+        # `df_txns.iloc[rowid]` indexes on these integers.
+        assert alert["matched_row_ids"] == [0, 1, 2, 3, 4]
+        assert all(isinstance(r, int) for r in alert["matched_row_ids"])
 
     def test_passthrough_funnel_scorer_returns_empty_when_no_txns(self, duck_con):
         as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)

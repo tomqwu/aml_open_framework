@@ -86,9 +86,16 @@ def _fetch_customer_events(
     rows, well within memory).
     """
     window_start = as_of - timedelta(days=lookback_days)
+    # `rowid` is the DuckDB pseudo-column the framework's lineage
+    # contract pins for `matched_row_ids` (Lineage Explorer
+    # `df_txns.iloc[rowid]`); same idiom as `list_match` in
+    # `engine/runner.py`'s execution path. Pull it alongside the
+    # business columns so each event carries the rowid the engine
+    # later stamps onto the alert.
     rows = con.execute(
         """
-        SELECT customer_id, txn_id, amount, direction, channel, booked_at
+        SELECT rowid AS __row_id, customer_id, txn_id, amount,
+               direction, channel, booked_at
         FROM txn
         WHERE booked_at >= ?
           AND booked_at <  ?
@@ -97,9 +104,10 @@ def _fetch_customer_events(
         [window_start, as_of],
     ).fetchall()
     events: dict[str, list[dict[str, Any]]] = {}
-    for cust, txn_id, amount, direction, channel, booked_at in rows:
+    for row_id, cust, txn_id, amount, direction, channel, booked_at in rows:
         events.setdefault(cust, []).append(
             {
+                "row_id": int(row_id),
                 "txn_id": txn_id,
                 "amount": float(amount),
                 "direction": direction,
@@ -208,7 +216,10 @@ def _alert_from_window(customer_id: str, window: dict[str, Any]) -> dict[str, An
         "window_start": window["anchor"]["booked_at"],
         "window_end": max(e["booked_at"] for e in drain),
         "risk_score": round(min(1.0, total / 100_000), 4),
-        "matched_row_ids": [e["txn_id"] for e in funding] + [e["txn_id"] for e in drain],
+        # DuckDB rowids (integers) — the Lineage Explorer's
+        # `df_txns.iloc[rowid]` walk-back expects this shape. txn_id
+        # strings would TypeError there (Codex P2 round 1, PR-ML-1).
+        "matched_row_ids": [e["row_id"] for e in funding] + [e["row_id"] for e in drain],
     }
 
 
