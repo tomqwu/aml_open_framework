@@ -123,35 +123,19 @@ rules:
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, geographic_risk]
 
-  # --- PASS-THROUGH FUNNEL (procedural python_ref, PR-ML-1) ------------
-  # Channel-agnostic IN→OUT funnel detector. community_bank had NO
-  # pass-through coverage today — this is the closer for the R1b
-  # "dead ground truth" gap (planted C0007 fired no rule in this spec).
-  # Works across `[cash, wire, ach, card]` channels because the
-  # algorithm only checks direction, not channel: cash→wire,
-  # cash→ach, even card→wire all count.
-  - id: passthrough_funnel_scorer
-    name: Pass-through funnel (procedural, cross-channel)
-    severity: critical
-    regulation_refs:
-      - citation: "31 CFR 1020.320"
-        description: "SAR obligation — suspicious activity reporting."
-      - citation: "FFIEC BSA/AML Manual — Funnel Accounts"
-        description: "Funnel-account typology covered in the FFIEC examination manual."
-    logic:
-      type: python_ref
-      callable: aml_framework.models.passthrough_scorer:passthrough_funnel_scorer
-      model_id: passthrough_funnel_v1
-      model_version: 2026-05-20
-    escalate_to: l2_investigator
-    evidence:
-      - all_matching_transactions
-      - customer_kyc_profile
-      - counterparty_analysis
-      - prior_alerts_90d
-    tags: [pass_through, layering, funnel, ml_governed]
-    model_tier: medium
-    validation_cadence_months: 18
+  # NOTE — PR-ML-1 deferred the community_bank wire-in of
+  # `passthrough_funnel_scorer`. The shared synthetic dataset plants
+  # C0007/C0028/C0019 with `e_transfer`/`crypto`/`prepaid` channels
+  # which aren't in this spec's `txn.channel` enum
+  # `[cash, wire, ach, card]` — `_build_warehouse` doesn't reject
+  # out-of-contract enum values today, so wiring the scorer in here
+  # would open critical cases on rows the spec declares
+  # out-of-contract (Codex P2 round 7). Follow-up: either plant
+  # community-bank-shaped data (cash→wire funnel) in
+  # `data/synthetic.py`, or make the scorer spec-aware (filter by
+  # declared channel enum). The `canadian_schedule_i_bank` spec's
+  # `e_transfer` channel covers the bundled C0007 planted shape
+  # in-contract, so PR-ML-1's R1b-closer ships there.
 
   - id: large_cash_ctr
     name: Cash activity exceeding CTR threshold ($10,000/day)
@@ -367,10 +351,6 @@ metrics:
               - high_risk_jurisdiction
               - dormant_account_activity
               - investment_scam_invs_velocity
-              # PR-ML-1 added a severity:critical python_ref rule —
-              # its alerts count in the denominator and must count in
-              # the numerator too, else the severity share understates.
-              - passthrough_funnel_scorer
       denominator:
         type: count
         source: alerts
@@ -446,9 +426,9 @@ metrics:
       source: rules
       # `high` + `critical` together — both severity tiers are
       # operationally "high severity" for catalogue-health
-      # reporting. Without `critical` here, PR-ML-1's
-      # passthrough_funnel_scorer (severity:critical) silently
-      # drops out of the count (Codex P2 round 6).
+      # reporting. (Pre-existing inconsistency the metric name
+      # promised but the filter didn't deliver — kept aligned with
+      # the canadian spec which has the same fix.)
       filter: { severity: { in: [high, critical] }, status: active }
     thresholds:
       green: { gte: 2 }
