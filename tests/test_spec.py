@@ -387,7 +387,9 @@ class TestUKSpec:
         spec = load_spec(SPEC_UK)
         assert spec.program.jurisdiction == "UK"
         assert spec.program.regulator == "FCA"
-        assert len(spec.rules) == 4
+        # 4 base + 1 PR-ML-2 python_ref mule_return_burst_scorer
+        # (consumes the newly-declared `txn_return` contract).
+        assert len(spec.rules) == 5
 
     def test_uk_spec_runs(self, tmp_path):
         spec = load_spec(SPEC_UK)

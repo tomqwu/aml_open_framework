@@ -39,6 +39,35 @@ data_contracts:
       - { name: edd_last_review, type: timestamp, nullable: true }
       - { name: pep_status,   type: string, nullable: true }
 
+  # PR-ML-2: pacs.004 return events. The framework's synthetic
+  # generator emits this contract's rows (C0011 "ROAMR LTD"
+  # planted with 3 high-risk returns) but no spec consumed them
+  # until this PR — "dead ground truth" that PR-ML-2 closes.
+  # Mirrors the snippet-library contract shape used by
+  # `high_risk_return_burst_mule_probing`.
+  - id: txn_return
+    source: raw.pacs004_returns
+    freshness_sla: 4h
+    columns:
+      - { name: return_id,               type: string,    nullable: false }
+      - { name: original_uetr,           type: string,    nullable: true }
+      - { name: original_end_to_end_id,  type: string,    nullable: true }
+      - { name: original_tx_id,          type: string,    nullable: true }
+      - { name: amount,                  type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,                type: string,    nullable: false }
+      - { name: returned_at,             type: timestamp, nullable: false }
+      - { name: reason_code,             type: string,    nullable: false }
+      - { name: reason_info,             type: string,    nullable: true }
+      - { name: originator_name,         type: string,    nullable: false, pii: true }
+      - { name: originator_country,      type: string,    nullable: true }
+      - { name: beneficiary_name,        type: string,    nullable: true, pii: true }
+      - { name: beneficiary_country,     type: string,    nullable: true }
+      - { name: msg_id,                  type: string,    nullable: true }
+      - { name: msg_kind,                type: string,    nullable: true }
+    quality_checks:
+      - { not_null: [return_id, amount, returned_at, reason_code, originator_name] }
+      - { unique: [return_id] }
+
 rules:
   - id: structuring_cash
     name: Cash structuring below GBP 10,000
@@ -158,6 +187,37 @@ rules:
     evidence:
       - all_matching_transactions
     tags: [unusual_activity, behavioral]
+
+  # PR-ML-2: mule-return-burst python_ref scorer.
+  # Reads the txn_return contract declared above. Goes beyond the
+  # `high_risk_return_burst_mule_probing` custom_sql snippet in
+  # spec/library by layering count + beneficiary-country fan-out +
+  # shell-name density signals. C0011 "ROAMR LTD" (3 returns,
+  # AC03/AC04/MD07, all CH-jurisdiction SHELL VEHICLE) is the
+  # planted ground-truth positive both paths fire on.
+  - id: mule_return_burst_scorer
+    name: Mule return-burst (pacs.004 + cross-signal)
+    severity: high
+    regulation_refs:
+      - citation: "POCA 2002 s.330"
+        description: "Regulated sector SAR obligation."
+      - citation: "FCA FG24/4 — APP fraud detection expectations"
+        description: "Return-reason mining for mule signatures."
+      - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
+        description: "Money-mule recruitment via probing return-reason patterns."
+    logic:
+      type: python_ref
+      callable: aml_framework.models.mule_return_burst_scorer:mule_return_burst_scorer
+      model_id: mule_return_burst_v1
+      model_version: 2026-05-20
+    escalate_to: l2_investigator
+    evidence:
+      - matching_return_events
+      - originator_kyc_profile
+      - beneficiary_lookup
+    tags: [mule, pacs004, return_reasons, ml_governed]
+    model_tier: medium
+    validation_cadence_months: 18
 
 workflow:
   queues:
