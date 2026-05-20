@@ -49,7 +49,6 @@ import json
 import logging
 import os
 import threading
-import time
 from collections.abc import Mapping
 from typing import Any, Literal
 
@@ -163,13 +162,42 @@ def _get_executor() -> concurrent.futures.ThreadPoolExecutor:
 
 
 def _do_llm_call(*, question: str, context: Any, backend_name: str, model: str | None) -> Any:
-    """Worker-thread entry point. Delegates to `_call_backend` and lets
-    any exception propagate into the `Future` — it is NOT swallowed
-    into a TemplateBackend reply here. The poller captures the
-    exception into `_FAILED` so the operator sees the real error (the
-    #311 contract: a failing ollama/openai backend must be visible,
-    not masked by canned scaffolding)."""
-    return _call_backend(question=question, context=context, backend_name=backend_name, model=model)
+    """Worker-thread entry point. Runs the actual backend call in an
+    inner daemon thread bounded by `_TIMEOUT_SECONDS` so the outer
+    future ALWAYS resolves within the timeout window — the perpetual
+    `Generating explanation` placeholder for a hung backend (user-
+    reported 2026-05-19) becomes an immediate `st.error` banner via
+    the existing `_FAILED` → render path.
+
+    Exceptions still propagate verbatim into the `Future` (no
+    TemplateBackend masking — the #311 contract). On timeout, the
+    inner thread is abandoned (Python threads aren't forcibly
+    killable); `daemon=True` keeps it from blocking process exit and
+    the backend's own HTTP-layer timeout (~60s) caps the leak.
+    """
+    result_box: dict[str, Any] = {}
+
+    def _run() -> None:
+        try:
+            result_box["reply"] = _call_backend(
+                question=question, context=context, backend_name=backend_name, model=model
+            )
+        except BaseException as exc:  # noqa: BLE001 — propagate everything
+            result_box["error"] = exc
+
+    worker = threading.Thread(target=_run, daemon=True)
+    worker.start()
+    worker.join(timeout=_TIMEOUT_SECONDS)
+    if worker.is_alive():
+        raise TimeoutError(
+            f"AI backend `{backend_name}` (model `{model or '?'}`) did not respond "
+            f"within {_TIMEOUT_SECONDS}s — request abandoned. Check that the backend "
+            f"is reachable and `AML_AI_BACKEND` / `AML_OLLAMA_URL` are configured "
+            f"for this Container App."
+        )
+    if "error" in result_box:
+        raise result_box["error"]
+    return result_box["reply"]
 
 
 # Process-global cache — shared across all Streamlit sessions in this
@@ -564,11 +592,6 @@ def section_explainer(
                         "model": model or "",
                         "run_dir": ctx_run_dir,
                         "audit_mode": ctx_audit_mode,
-                        # Wall-clock at dispatch — the drain uses this to
-                        # cancel futures whose backend never returns so
-                        # the "Generating…" placeholder doesn't persist
-                        # indefinitely (user-reported 2026-05-19).
-                        "submitted_at": time.time(),
                     }
                     _FUTURES[key] = _get_executor().submit(
                         _do_llm_call,
@@ -634,41 +657,24 @@ def _promote_resolved() -> bool:
     (the asking session's run_dir), not the draining session's state.
     No `st.*` calls — unit-testable without a fragment/run context."""
     claimed: list[tuple[tuple[str, str, str, str], Any, dict]] = []
-    timed_out: list[tuple[tuple[str, str, str, str], dict]] = []
-    now = time.time()
     with _DRAIN_LOCK:
         for key in list(_FUTURES.keys()):
             fut = _FUTURES.get(key)
-            if fut is None:
+            if fut is None or not fut.done():
                 continue
-            if fut.done():
-                meta = _FUTURE_META.pop(key, {})
-                _FUTURES.pop(key, None)
-                claimed.append((key, fut, meta))
-                continue
-            # Timeout sweep: a backend that never returns must NOT
-            # leave the "Generating…" placeholder up forever
-            # (user-reported 2026-05-19). After `_TIMEOUT_SECONDS`,
-            # try to cancel the future and (if cancellation actually
-            # took effect) surface a `TimeoutError` via the existing
-            # _FAILED → st.error banner path. Codex P2: if cancel
-            # fails the worker is already running — leave the future
-            # in _FUTURES so its eventual reply/exception still drains
-            # normally (no duplicate audit, no orphaned executor
-            # thread). The in-backend HTTP timeout (~60s) caps the
-            # worst case.
-            meta_peek = _FUTURE_META.get(key) or {}
-            submitted_at = meta_peek.get("submitted_at", now)
-            if now - submitted_at > _TIMEOUT_SECONDS and fut.cancel():
-                meta = _FUTURE_META.pop(key, {})
-                _FUTURES.pop(key, None)
-                timed_out.append((key, meta))
+            meta = _FUTURE_META.pop(key, {})
+            _FUTURES.pop(key, None)
+            claimed.append((key, fut, meta))
 
     for key, fut, meta in claimed:
         run_dir = meta.get("run_dir")
         try:
             reply = fut.result()
         except BaseException as exc:  # noqa: BLE001 — surface ALL failures
+            # Includes the TimeoutError raised by `_do_llm_call` when
+            # the inner worker thread exceeded `_TIMEOUT_SECONDS` —
+            # the operator sees the same st.error banner path as any
+            # other backend failure, distinguished by exception class.
             _FAILED[key] = exc
             _log_failure_to_audit(
                 exc,
@@ -688,27 +694,7 @@ def _promote_resolved() -> bool:
             run_dir=run_dir,
             audit_mode=meta.get("audit_mode"),
         )
-
-    for key, meta in timed_out:
-        backend = meta.get("backend_name", "?")
-        model_name = meta.get("model", "?")
-        exc = TimeoutError(
-            f"AI backend `{backend}` (model `{model_name}`) did not respond "
-            f"within {_TIMEOUT_SECONDS}s — request cancelled. Check that the "
-            f"backend is reachable and `AML_AI_BACKEND` / `AML_OLLAMA_URL` "
-            f"are configured for this Container App."
-        )
-        _FAILED[key] = exc
-        _log_failure_to_audit(
-            exc,
-            section_id=key[1],
-            section_title=meta.get("section_title", key[1]),
-            run_dir=meta.get("run_dir"),
-            backend=backend,
-            model=meta.get("model", ""),
-        )
-
-    return bool(claimed) or bool(timed_out)
+    return bool(claimed)
 
 
 @st.fragment(run_every="1.2s")
