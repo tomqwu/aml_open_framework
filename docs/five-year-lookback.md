@@ -33,7 +33,7 @@ mechanism the framework already ships:
 
 | Property | How the framework enforces it |
 |---|---|
-| **Complete** | `aml validate` + `aml validate-data` cross-check every rule's contract columns against the loaded data before any rule fires — a missing column is a build failure, not a silent zero. Run-time `engine/freshness.py` adds DQ floors. |
+| **Complete** | `aml validate` checks spec structure + cross-references. `aml validate-data` + the engine's `_build_warehouse` fail-closed *only on missing non-nullable contract columns* — they raise `ContractViolation` before any rule fires. **Missing nullable columns are silently `None`-filled** (a rule filtering on that column will produce zero matches, not a build failure), so author your contracts with `nullable: false` for every field a rule depends on. Run-time `engine/freshness.py` adds DQ floors on staleness. |
 | **Point-in-time correct** | Engine threads `as_of` through every rule. `custom_sql` rules get `{as_of}`, `{window_start}`, `{recent_start}`, `{baseline_start}`, `{dormant_cutoff}` substituted at compile time so the SQL operates on the business date. PIT-correctness of *reference data* (e.g. risk rating valid on the transaction date) is *the author's job*: declare an effective-dated contract and encode the `effective_start_date`/`effective_end_date` join in your `custom_sql`. The framework provides the `as_of` placeholder; it does not auto-apply effective-date filters. |
 | **Repeatable** | The deterministic-replay contract: same spec + same data + same `as_of` + same seed ⇒ byte-identical alert/case/decision hashes. Pinned by `tests/test_engine.py::test_run_is_reproducible`. |
 | **Performant** | DuckDB in-memory for the engine; cloud sources (Snowflake/BigQuery/S3/GCS/Parquet) loaded by `data/sources.py`. The loaders pull whole files/tables — there is no source-side predicate pushdown of `{as_of}`/`{window_start}` to the warehouse. Performance for 5-year scale comes from *you* materializing one-month slices upstream (per §4 Pattern 1) and feeding each slice as the run's input. |
@@ -430,11 +430,11 @@ checklist to where the framework already emits each artefact:
 
 | Reference-doc artefact | Where the framework emits it |
 |---|---|
-| `run_manifest` (batch_id, source periods/tables, rule versions, parameter versions, code commit hash, status) | `run_dir/manifest.json` — every field above is already a manifest column |
+| `run_manifest` (batch_id, source periods/tables, rule versions, parameter versions, code commit hash, status) | `run_dir/manifest.json` — has `engine_version`, `run_dir` (= batch id), `spec_path`, `spec_content_hash` (YAML bytes, not git SHA — see §5), `as_of`, `inputs` (per-contract source_path + row_count + content_hash + earliest_ts/latest_ts + schema_columns + schema_hash), `rule_outputs` (per-rule alert-file hash), `decisions_hash`, `finalised_at`. **Not in the manifest today**: git commit SHA (write `git rev-parse HEAD` to a sidecar), parameter-version field (versioning lives in your git history of the spec), pipeline status flag (your orchestrator owns success/fail status). |
 | `reconciliation_report` (source row count, target row count, totals, exceptions, alert count) | `run_dir/reports/*.md` per spec-declared `report:` carry alert/case totals + counts. **🛠 The legacy-vs-new divergence report is planned · TM Gap 1** — until `engine/equivalence.py` lands you produce that side externally (see Pattern 5 pandas scaffold). |
 | `rule_output_report` (alert count by month / customer segment / geography / reason code) | `run_dir/alerts/*.jsonl` (raw) + the **Rule Performance** + **Comparative Analytics** dashboard pages (`pages/5_Rule_Performance.py`, `pages/19_Comparative_Analytics.py`) |
 | `dq_report` (completeness, duplicates, validity, referential integrity, PIT coverage) | **Partial.** The framework emits `not_null` + `unique` results via the **Data Quality** dashboard (`pages/14_Data_Quality.py`) and staleness via `engine/freshness.py`. **Referential integrity, PIT-coverage, FX-rate-date, and many-to-many ownership are NOT evaluated by the framework today** (see §5 stitching table) — produce that part of `dq_report` in your upstream Lakeflow/dbt/Spark step and stitch it into evidence alongside `run_dir/`. |
-| `defect_log` (defect_id, severity, root cause, owner, fix version, retest evidence) | The audit ledger's failure-audit rows (every `_FAILED` future writes a `ai_section_explanation_failed`-shape event with `error_type`, `error_message`, `run_dir`, `backend`, `model` — same shape applies to any rule-execution defect). Custom defect_logs land as wall-clock sidecars per `cases/filing.py`'s `append_to_run_dir` pattern. |
+| `defect_log` (defect_id, severity, root cause, owner, fix version, retest evidence) | **🛠 External / planned.** The framework emits `rule_failed` events (engine/constants.py:Event.RULE_FAILED) for `python_ref` failures with an `error` string — that's the *signal*, not a structured defect_log. The dashboard's `_FAILED` future is specific to AI section-explanation, not rule-execution. A proper defect_log (defect_id, severity, root cause, owner, fix version, retest evidence) is your remediation-system's job today (Jira/ServiceNow). Land it next to `run_dir/` as a wall-clock sidecar per `cases/filing.py`'s `append_to_run_dir` pattern. |
 
 The reference doc says: *"can you prove what data was run, which
 rules ran, why outputs were created, what exceptions occurred, and
@@ -583,8 +583,13 @@ Honest boundaries:
 - **You own the medallion data platform.** ADLS / Delta / Lakeflow /
   ADF / Databricks pipelines that produce the Gold rule-ready tables
   are yours. The framework reads from them; it doesn't replace them.
-- **You own the legacy parallel-run extract.** The framework
-  classifies divergences, but it can't generate the legacy side.
+- **You own the legacy parallel-run extract AND the divergence
+  classification today.** The framework can't generate the legacy
+  side, and the on-`main` engine does not classify divergences either
+  — `engine/equivalence.py` + `Program.legacy_reference` are planned
+  (TM Gap 1 in [`docs/progress.md`](progress.md)). Until that lands,
+  follow §4 Pattern 5's pandas scaffold or your warehouse SQL to
+  produce the diff yourself.
 - **You own the historical schema-evolution story.** If your
   `transactions` schema changed in 2023, you need versioned
   `data_contracts[]` (the framework supports it; you have to author
