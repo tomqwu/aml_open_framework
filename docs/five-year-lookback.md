@@ -34,7 +34,7 @@ mechanism the framework already ships:
 | Property | How the framework enforces it |
 |---|---|
 | **Complete** | `aml validate` + `aml validate-data` cross-check every rule's contract columns against the loaded data before any rule fires — a missing column is a build failure, not a silent zero. Run-time `engine/freshness.py` adds DQ floors. |
-| **Point-in-time correct** | Engine threads `as_of` through every rule. `custom_sql` rules get `{as_of}`, `{window_start}`, `{recent_start}`, `{baseline_start}`, `{dormant_cutoff}` auto-substituted. Reference data joined as of the transaction date, not "now". |
+| **Point-in-time correct** | Engine threads `as_of` through every rule. `custom_sql` rules get `{as_of}`, `{window_start}`, `{recent_start}`, `{baseline_start}`, `{dormant_cutoff}` substituted at compile time so the SQL operates on the business date. PIT-correctness of *reference data* (e.g. risk rating valid on the transaction date) is *the author's job*: declare an effective-dated contract and encode the `effective_start_date`/`effective_end_date` join in your `custom_sql`. The framework provides the `as_of` placeholder; it does not auto-apply effective-date filters. |
 | **Repeatable** | The deterministic-replay contract: same spec + same data + same `as_of` + same seed ⇒ byte-identical alert/case/decision hashes. Pinned by `tests/test_engine.py::test_run_is_reproducible`. |
 | **Performant** | DuckDB in-memory for the engine; cloud sources (Snowflake/BigQuery/S3/GCS/Parquet) loaded by `data/sources.py` with predicate pushdown via the placeholder system. |
 | **Auditable** | `engine/audit.py` writes a SHA-256-hash-chained `decisions.jsonl`. `AuditLedger.verify_decisions()` proves no tampering at any horizon. |
@@ -195,46 +195,61 @@ window_end, ...)` — same recipe the reference doc proposes.
 
 ### Pattern 3 — Batch ID everywhere
 
-Every artefact in `run_dir` carries the run identifiers:
+Every run produces one `<artifacts>/run-<timestamp>/manifest.json`
+(`run-<timestamp>` is the natural batch ID — directory name is the
+ISO timestamp the run was created at). Real shape on `main`:
 
 ```json
-// run_dir/manifest.json (extract)
+// run_dir/manifest.json (real keys; extract)
 {
-  "run_id":         "01J7XK8Q9...",
-  "spec_path":      "examples/your_program/aml.yaml",
-  "spec_hash":      "sha256:b09f...",
-  "as_of":          "2021-09-30T23:59:59Z",
-  "seed":           42,
-  "git_sha":        "00ca73c",
-  "app_version":    "0.1.28",
-  "build_time":     "2026-05-20T01:16Z",
-  "input_manifest": [{ "table": "transactions", "rows": 4923711,
-                       "sha256": "..." }, ...],
-  "decisions_count": 312,
-  "decisions_hash":  "sha256:..."   // chain head
+  "run_dir":            ".artifacts/run-2026-05-20T01-16-00Z/",
+  "spec_path":          "examples/your_program/aml.yaml",
+  "spec_content_hash":  "sha256:b09f...",
+  "as_of":              "2021-09-30T23:59:59Z",
+  "inputs": [
+    { "contract_id": "txn",      "rows": 4923711, "sha256": "..." },
+    { "contract_id": "customer", "rows":    91842, "sha256": "..." }
+  ],
+  "rule_outputs":   { "structuring_cash_deposits": 87, ... },
+  "metrics":        [ ... ],
+  "reports":        [ "svp_exec_brief", "data_quality" ],
+  "decisions_hash": "sha256:..."     // chain head — itself sealed into
+                                     //   decisions.jsonl via _sha256
 }
 ```
 
-Every alert / case / decision row references the `run_id`. The
-manifest is itself sealed into the audit chain.
+The directory name (`run-<timestamp>`) is the batch ID you reference
+when verifying or exporting. `aml verify-decisions --run-dir <path>`
+and `aml audit-pack --run-dir <path>` both take the `run-<ts>/`
+directory (or omit it to pick the latest under `--artifacts`).
 
 ### Pattern 4 — Point-in-time reference data
 
-The framework supports point-in-time reference data via:
+PIT is **author-encoded, not auto-applied**. The framework gives you
+the building blocks; you wire the effective-date join yourself:
 
-- **`as_of` placeholders** in `custom_sql` rules — the engine
-  substitutes the business date at run time, so the SQL naturally
-  pulls reference values valid at that date.
-- **Effective-dated contracts** — `data_contracts[].columns` can
-  declare `effective_start_date` / `effective_end_date` columns; the
-  loader and rules respect them.
-- **The bigger discipline**: the *spec* is point-in-time too. Tag your
-  `aml.yaml` per period
-  (`examples/your_program/aml.yaml@2021-09-30`) so you can rerun the
-  *rules as they were on 2021-09-30* against the *data as it was on
-  2021-09-30*. The framework's `setuptools-scm` + git-tag-driven
-  version IDs make this natural: every run carries the spec's git
-  commit SHA.
+- **`as_of` placeholder** in `custom_sql` rules — the engine
+  substitutes the business date at compile time, so the SQL operates
+  on the business date naturally.
+- **Effective-dated reference contracts** — declare an
+  `customer_risk_ratings_pit` (or similar) `data_contract` whose
+  columns include `effective_start_date` and `effective_end_date`. The
+  loader treats these as ordinary declared columns — *no special PIT
+  machinery*. Your `custom_sql` rule joins on `t.booked_at BETWEEN
+  r.effective_start_date AND COALESCE(r.effective_end_date,
+  TIMESTAMP '9999-12-31')` and you have PIT correctness.
+- **The bigger discipline**: the *spec* is point-in-time too. Tag
+  your `aml.yaml` per period (`my_program/aml.yaml@2021-09-30`) so
+  you can rerun the *rules as they were on 2021-09-30* against the
+  *data as it was on 2021-09-30*. `setuptools-scm` + git tags ensure
+  every run carries the spec's git commit SHA in
+  `manifest.spec_content_hash`.
+
+Non-`custom_sql` rules (`aggregation_window`, `list_match`,
+`python_ref`) don't have a PIT-join knob today — they read whatever
+the data load produces. If a rule needs PIT-correct reference data,
+use `custom_sql` or pre-join the effective-dated view into your Gold
+table before the engine runs.
 
 ```yaml
 # Example: rule that uses risk_rating *as of the transaction date*,
@@ -314,20 +329,26 @@ schema lands.
 
 ## 5. Data stitching — what the framework catches before rules run
 
-The reference doc's stitching-failure table maps directly to
-framework controls:
+The reference doc's stitching-failure table maps to framework controls
+*at different layers*. Be precise about which command catches what
+today (Codex caught false-assurance phrasing in an earlier draft):
 
-| Failure mode | Where the framework catches it |
+| Failure mode | Where today |
 |---|---|
-| Missing customer/account link | `aml validate-data` fails: the `data_contract` declares `customer_id` as non-null with FK to `customers.id`. |
-| Duplicate transaction | `data_contract.quality_checks.unique: [transaction_id]` flags it pre-run. |
-| Late-arriving record | The `as_of` bound: any row with `booked_at > as_of` is excluded. Late arrivals are visible in `engine/freshness.py` reports as "rows landed after as_of". |
-| Current reference data used for old transaction | Point-in-time reference contracts + the `effective_start_date` / `effective_end_date` discipline above. |
-| Wrong currency conversion date | Same point-in-time pattern applied to FX rate tables. |
-| Many-to-many ownership ignored | Explicit join shape in `custom_sql` rules; the framework doesn't auto-resolve M:M (by design — silent M:M is the bug, not the feature). |
+| Type / null / encoding errors per row | `aml validate-data` (CSV only — see §6+§10 note) runs `validate_csv` per contract column: type coercion + non-null check + row-num-anchored error messages. |
+| Missing customer/account link (referential integrity) | **Not enforced by `validate-data`** today. The `data_contract.quality_checks` block declares the constraints (`unique:`, `non_null:`, `foreign_key:`-style) but `validate_csv` does not evaluate them; they surface on `pages/14_Data_Quality.py` and `pages/30_Data_Integration.py` in the dashboard. Your platform layer (Lakeflow expectations / dbt tests on the Gold table) should fail the build pre-engine; the dashboard is the *visibility* layer, not the *gate*. |
+| Duplicate transaction | Same as above — declare `quality_checks.unique: [transaction_id]` in your contract; surfaces on the DQ page; enforce upstream in your Gold pipeline. |
+| Late-arriving record | The `as_of` bound: any row with `booked_at > as_of` is excluded by `custom_sql`/`aggregation_window` predicates. `engine/freshness.py` surfaces "rows landed after as_of" on `pages/14_Data_Quality.py`. |
+| Current reference data used for old transaction | Author-encoded effective-date join in your `custom_sql` rule (Pattern 4). No auto-PIT machinery. |
+| Wrong currency conversion date | Same pattern — declare an FX rate contract with `effective_start_date`/`effective_end_date` and join on `t.booked_at` in `custom_sql`. |
+| Many-to-many ownership ignored | Explicit join shape in `custom_sql`. The framework deliberately doesn't auto-resolve M:M — silent M:M is the bug, not the feature. |
 
-The `data_contract` IS your stitching contract — declared in YAML,
-validated before every run, version-controlled alongside the rules.
+**Why the framework draws this line.** Pre-engine DQ enforcement
+belongs in your data platform (Lakeflow / dbt / Spark expectations)
+where it has full table-level capacity. The framework's `data_contract`
++ dashboard layer give you the *spec for what should be true* + the
+*visibility when it isn't* — the gate-vs-visibility split is the same
+discipline as separating policy from enforcement.
 
 ---
 
@@ -429,17 +450,27 @@ $EDITOR examples/my_program/aml.yaml
 # 3. Validate the spec.
 aml validate examples/my_program/aml.yaml
 
-# 4. Map your warehouse to the spec's contracts.
-aml byod examples/my_program/aml.yaml /mnt/gold/2021-09/
+# 4. Map your warehouse to the spec's contracts. NOTE: `aml byod`
+#    profiles CSV today — point it at a representative CSV sample
+#    (one month of Gold exported to CSV is enough) during onboarding.
+#    In production you don't run byod against the live Parquet feed
+#    — the mapping it produces is a one-time artefact.
+aml byod examples/my_program/aml.yaml /tmp/gold_sample_csv/
 $EDITOR data_mapping.yaml
 
 # 5. Validate one month of historical data against the spec's
-#    contracts. Catches stitching failures before any rule runs.
-aml validate-data examples/my_program/aml.yaml /mnt/gold/2021-09/
+#    contracts. NOTE: `aml validate-data` is CSV-only today (it
+#    looks for `<contract.id>.csv` under DATA_DIR). For the Parquet
+#    production path, fail data quality in your Lakeflow / dbt /
+#    Spark pipeline before the engine runs (see §5). Use this CLI
+#    during dev against a CSV sample:
+aml validate-data examples/my_program/aml.yaml /tmp/gold_sample_csv/
 
 # 6. Backfill — one independent run per business month. In
 #    production, ADF / Lakeflow materializes the per-month Gold slice
-#    to a Parquet mount and wraps the loop in parallel branches.
+#    to a Parquet mount and wraps this loop in parallel branches.
+#    --artifacts <dir> creates <dir>/run-<timestamp>/ — that is the
+#    run_dir name everything else references.
 months=(
   "2021-01-31T23:59:59" "2021-02-28T23:59:59" "2021-03-31T23:59:59"
   # ... 60 month-end timestamps ...
@@ -455,38 +486,36 @@ for ts in "${months[@]}"; do
         --artifacts  "/evidence/runs/${ym}/"
 done
 
-# 7. Verify the hash chain per month. Wrap this in a script that
-#    walks every /evidence/runs/<month>/ — `verify-decisions` takes
-#    one --run-dir at a time.
-for ym in /evidence/runs/*/; do
-    aml verify-decisions \
-        --run-dir   "${ym}.artifacts/" \
-        --artifacts "${ym}.artifacts/"
+# 7. Verify the hash chain per month. `verify-decisions` defaults its
+#    --run-dir to the latest `run-*` under --artifacts, so a per-month
+#    artifacts dir + a no-explicit-run-dir invocation works:
+for ym_dir in /evidence/runs/*/; do
+    aml verify-decisions --artifacts "$ym_dir"
 done
 
-# 8. Build the regulator-ready bundles. `aml audit-pack` produces the
-#    pre-examination bundle per run; `aml export` zips a run dir as
-#    a deterministic evidence bundle. Both take ONE --run-dir today;
-#    wrap in a loop. Concatenate the per-month ZIPs into your
-#    deliverable.
-for ym in /evidence/runs/*/; do
+# 8. Build the regulator-ready bundles. Both `audit-pack` and `export`
+#    default their --run-dir to "latest under --artifacts" the same
+#    way — one invocation per month picks up that month's run-*/.
+for ym_dir in /evidence/runs/*/; do
+    ym=$(basename "$ym_dir")
     aml audit-pack examples/my_program/aml.yaml \
-        --run-dir "${ym}.artifacts/" \
-        --out     "${ym}audit-pack.zip"
+        --artifacts "$ym_dir" \
+        --out       "${ym_dir}audit-pack.zip"
     aml export examples/my_program/aml.yaml \
-        --run-dir "${ym}.artifacts/" \
-        --out     "${ym}evidence.zip"
+        --artifacts "$ym_dir" \
+        --out       "${ym_dir}evidence.zip"
 done
 
 # 9. (🛠 Planned · TM Gap 1.) Reconcile against the legacy system per
 #    month — `engine/equivalence.py` is roadmap, not on main today.
-#    Until it lands, run your own SQL/Spark/pandas diff over each
-#    month's alerts/*.jsonl ↔ legacy alert export and classify each
-#    divergence by hand. See Pattern 5 above.
+#    Until it lands, diff each month's alerts/*.jsonl against your
+#    legacy alert export in your own SQL/Spark/pandas step. See
+#    Pattern 5 above for the pandas-style scaffold.
 
 # 10. Build per-rule MRM dossiers when ML scorers are in play.
+#     Same `--artifacts` defaulting as audit-pack:
 aml mrm-bundle examples/my_program/aml.yaml \
-    --run-dir /evidence/runs/2025-12/.artifacts/
+    --artifacts /evidence/runs/2025-12/
 ```
 
 Each per-month bundle contains the spec it ran against, the run
