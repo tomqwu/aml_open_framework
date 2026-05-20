@@ -14,11 +14,23 @@ layer** that sits on top: it consumes your curated tables, produces
 deterministic alerts/cases/decisions, and emits the regulator-facing
 evidence chain. Everything Azure-side stays Azure-side.
 
-> **Implemented today vs. TM-roadmap planned.** This doc names the
-> commands and spec fields that exist on `main` *and* the items that
-> the TM roadmap in [`docs/progress.md`](progress.md) explicitly
-> sequences for later. The line is marked inline (look for **🛠
-> planned · TM Gap N**). The "lookback in N commands" runbook at §10
+> **⚠ Verify before quoting in evidence packs.** This doc has been
+> through 7 rounds of automated source-of-truth review against the
+> code on `main`, and is reasonably accurate as of the merge date —
+> but new framework features land continuously and review can still
+> miss subtle CLI flag / manifest field / event-name drift. Before
+> citing a specific command, flag, manifest field, or event in a
+> regulator-facing artefact, **re-verify against the actual source**
+> (CLI: `aml <cmd> --help`; manifest shape: `engine/audit.py`;
+> events: `engine/constants.py`). The architectural posture (PIT
+> discipline + hash-chained ledger + sidecar wall-clock separation)
+> is stable; the exact field names and flags are the moving parts.
+>
+> **Implemented today vs. TM-roadmap planned.** Items marked **🛠
+> planned · TM Gap N** are not on `main` yet — the TM roadmap that
+> sequences them is the plan file `Roadmap: Transaction-Monitoring
+> feature gaps`, not `progress.md` (which is a chronological progress
+> log, not a roadmap). The "lookback in N commands" runbook at §10
 > uses only commands that exist today; the equivalence/parallel-run
 > path is gated behind Gap 1 and §10 says so.
 
