@@ -648,15 +648,18 @@ def _promote_resolved() -> bool:
                 continue
             # Timeout sweep: a backend that never returns must NOT
             # leave the "Generating…" placeholder up forever
-            # (user-reported 2026-05-19). After
-            # `_TIMEOUT_SECONDS`, cancel the future and surface a
-            # `TimeoutError` via the existing _FAILED → st.error
-            # banner path. Audit row distinguishes timeout from
-            # other failures via the exception type.
+            # (user-reported 2026-05-19). After `_TIMEOUT_SECONDS`,
+            # try to cancel the future and (if cancellation actually
+            # took effect) surface a `TimeoutError` via the existing
+            # _FAILED → st.error banner path. Codex P2: if cancel
+            # fails the worker is already running — leave the future
+            # in _FUTURES so its eventual reply/exception still drains
+            # normally (no duplicate audit, no orphaned executor
+            # thread). The in-backend HTTP timeout (~60s) caps the
+            # worst case.
             meta_peek = _FUTURE_META.get(key) or {}
             submitted_at = meta_peek.get("submitted_at", now)
-            if now - submitted_at > _TIMEOUT_SECONDS:
-                fut.cancel()
+            if now - submitted_at > _TIMEOUT_SECONDS and fut.cancel():
                 meta = _FUTURE_META.pop(key, {})
                 _FUTURES.pop(key, None)
                 timed_out.append((key, meta))
@@ -692,7 +695,7 @@ def _promote_resolved() -> bool:
         exc = TimeoutError(
             f"AI backend `{backend}` (model `{model_name}`) did not respond "
             f"within {_TIMEOUT_SECONDS}s — request cancelled. Check that the "
-            f"backend is reachable and `AML_AI_BACKEND` / `AML_OLLAMA_HOST` "
+            f"backend is reachable and `AML_AI_BACKEND` / `AML_OLLAMA_URL` "
             f"are configured for this Container App."
         )
         _FAILED[key] = exc
