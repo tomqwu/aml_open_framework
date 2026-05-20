@@ -20,6 +20,7 @@ from aml_framework.models.mule_return_burst_scorer import (
     _fetch_returns,
     _is_shell_name,
     _qualifies,
+    _resolve_customer_id,
     mule_return_burst_scorer,
 )
 
@@ -198,7 +199,11 @@ class TestAlertShape:
             _return(3, "MD07", 7_800, 5),
         ]
         q = _qualifies(returns)
-        alert = _alert_from_qualification("ROAMR LTD", q)
+        # `customer_id` is the resolved internal id (PR-ML-2 Codex
+        # P2 round 1 — separated from originator_name so downstream
+        # KYC joins work). Test passes both args directly here; the
+        # engine path goes through `_resolve_customer_id`.
+        alert = _alert_from_qualification("C0011", "ROAMR LTD", q)
         for key in (
             "rule_id",
             "customer_id",
@@ -211,15 +216,21 @@ class TestAlertShape:
             "window_start",
             "window_end",
             "risk_score",
-            "matched_row_ids",
+            "matched_return_ids",
         ):
             assert key in alert, f"missing required key {key!r}"
+        # CRUCIAL: no `matched_row_ids` field — would mis-render in
+        # Lineage Explorer's df_txns lookup (Codex P1 round 1).
+        assert "matched_row_ids" not in alert
         assert alert["rule_id"] == "mule_return_burst_scorer"
-        assert alert["customer_id"] == "ROAMR LTD"  # originator-as-customer
+        assert alert["customer_id"] == "C0011"
+        assert alert["originator_name"] == "ROAMR LTD"
         assert alert["sum_amount"] == 29_300.0
         assert alert["count"] == 3
-        assert alert["matched_row_ids"] == [1, 2, 3]
-        assert all(isinstance(r, int) for r in alert["matched_row_ids"])
+        # Return-id strings (the pacs.004 natural identifier), not
+        # rowids — the framework's lineage walk-back can show these
+        # via `txn_return.return_id` lookup.
+        assert alert["matched_return_ids"] == ["RTR-001", "RTR-002", "RTR-003"]
         assert 0.0 <= alert["risk_score"] <= 1.0
 
     def test_cross_signal_path_has_higher_risk_score(self):
@@ -240,15 +251,37 @@ class TestAlertShape:
             _return(3, "MD07", 6_000, 4, beneficiary_country="LU"),
         ]
         # Path A picks "snippet" because count ≥ 3 hits first.
-        a_alert = _alert_from_qualification("X", _qualifies(path_a_returns))
+        a_alert = _alert_from_qualification("X", "X NAME", _qualifies(path_a_returns))
         # Path B forces the score-bonus path by rebuilding the
         # qualification with the path label override (the qualification
         # function picks A when both qualify; we override here purely
         # to test the score branch).
         b_qual = _qualifies(path_b_returns)
         b_qual["qualifying_path"] = "cross_signal"
-        b_alert = _alert_from_qualification("X", b_qual)
+        b_alert = _alert_from_qualification("X", "X NAME", b_qual)
         assert b_alert["risk_score"] > a_alert["risk_score"]
+
+
+class TestResolveCustomerId:
+    """`_resolve_customer_id` joins originator_name → customer_id
+    so downstream KYC / Customer 360 joins resolve (Codex P2 round 1)."""
+
+    def test_resolves_known_originator(self, duck_con):
+        duck_con.execute("CREATE TABLE customer (customer_id VARCHAR, full_name VARCHAR)")
+        duck_con.execute("INSERT INTO customer VALUES ('C0011', 'ROAMR LTD')")
+        assert _resolve_customer_id(duck_con, "ROAMR LTD") == "C0011"
+
+    def test_falls_back_to_originator_when_no_match(self, duck_con):
+        duck_con.execute("CREATE TABLE customer (customer_id VARCHAR, full_name VARCHAR)")
+        duck_con.execute("INSERT INTO customer VALUES ('C0001', 'Acme Inc')")
+        # ROAMR LTD isn't in the customer table — fall back to the
+        # originator name rather than producing a None customer_id.
+        assert _resolve_customer_id(duck_con, "ROAMR LTD") == "ROAMR LTD"
+
+    def test_falls_back_when_customer_table_missing(self, duck_con):
+        # No `customer` table at all (extreme BYOD case) — graceful
+        # fallback, no exception.
+        assert _resolve_customer_id(duck_con, "ROAMR LTD") == "ROAMR LTD"
 
 
 # ---------------------------------------------------------------------------
@@ -324,15 +357,17 @@ class TestEngineContract:
         alerts = mule_return_burst_scorer(duck_con, as_of)
         assert len(alerts) == 1
         alert = alerts[0]
+        # `customer_id` is the originator name here because the
+        # integration test's customer table doesn't contain a
+        # matching full_name. The end-to-end uk_bank run resolves
+        # ROAMR LTD → C0011 (covered separately by the live-run
+        # smoke); this test pins the fallback behavior.
         assert alert["customer_id"] == "ROAMR LTD"
+        assert alert["originator_name"] == "ROAMR LTD"
         assert alert["count"] == 3
-        # rowids assigned by DuckDB insertion order: ROAMR LTD's
-        # rows are 0 (days=2), 1 (days=4), 2 (days=5). The fetch's
-        # `ORDER BY returned_at` returns them oldest-first, so
-        # matched_row_ids is [2, 1, 0] (Lineage Explorer's
-        # `df_returns.iloc[rowid]` walk-back works on any order).
-        assert sorted(alert["matched_row_ids"]) == [0, 1, 2]
-        assert all(isinstance(r, int) for r in alert["matched_row_ids"])
+        # return_id strings (pacs.004 natural identifier), not
+        # rowids — see TestAlertShape comment for the rationale.
+        assert sorted(alert["matched_return_ids"]) == ["RTR-001", "RTR-002", "RTR-003"]
 
     def test_scorer_returns_empty_when_no_returns(self, duck_con):
         as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)
@@ -391,6 +426,36 @@ class TestEngineContract:
 
 
 class TestFetchReturns:
+    def test_empty_contract_with_no_columns_returns_empty(self):
+        # `_build_warehouse` creates `SELECT NULL WHERE 1=0` (a
+        # zero-column placeholder) when a contract has no rows.
+        # Without the information_schema probe, the scorer's SELECT
+        # would raise a DuckDB binder error and strict-mode
+        # python_ref would abort the whole run (Codex P1 round 1).
+        con = duckdb.connect(":memory:")
+        try:
+            con.execute("CREATE TABLE txn_return AS SELECT NULL WHERE 1=0")
+            as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)
+            # Returns empty without raising — the scorer is correctly
+            # silent on a no-returns dataset.
+            assert _fetch_returns(con, as_of) == {}
+            # End-to-end: the entry point also returns empty.
+            assert mule_return_burst_scorer(con, as_of) == []
+        finally:
+            con.close()
+
+    def test_completely_missing_table_returns_empty(self):
+        # A scorer wired into a spec that doesn't declare
+        # `txn_return` at all — the table simply isn't there.
+        # The probe finds no matching rows in information_schema
+        # and the scorer returns empty rather than raising.
+        con = duckdb.connect(":memory:")
+        try:
+            as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)
+            assert _fetch_returns(con, as_of) == {}
+        finally:
+            con.close()
+
     def test_null_originator_skipped(self, duck_con):
         # If a row's originator_name is NULL, the row can't be
         # grouped by originator — drop it so the scorer doesn't

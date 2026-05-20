@@ -43,9 +43,19 @@ Engine contract (`engine/runner.py:845-927`):
 
     scorer(con, as_of) -> list[dict]
 
-`matched_row_ids` carries the `txn_return.rowid`s the alert fired
-on, populated directly on each alert dict (no `_inspect_context`
-needed since the scorer has the rows in hand).
+The alert dict carries `matched_return_ids` (the pacs.004 natural
+identifier strings, NOT the framework's lineage-keyed
+`matched_row_ids`). Existing Lineage Explorer / Audit Evidence
+pages treat `matched_row_ids` as indexes into `df_txns`; emitting
+`txn_return` rowids under that name would walk back to unrelated
+transaction rows. The `return_id` strings give reviewers a
+queryable identifier without mis-rendering.
+
+`customer_id` on the alert is resolved by joining
+`originator_name` against `customer.full_name` so downstream
+Customer 360 / case KYC lookups land on the right entity (e.g.
+"ROAMR LTD" → C0011 for the planted positive). Falls back to the
+originator name when no customer match exists (BYOD-friendly).
 """
 
 from __future__ import annotations
@@ -105,6 +115,19 @@ _DISTINCT_COUNTRY_FANOUT = 2
 _SHELL_NAME_DENSITY = 2
 
 
+_REQUIRED_COLUMNS = frozenset(
+    {
+        "return_id",
+        "originator_name",
+        "reason_code",
+        "beneficiary_name",
+        "beneficiary_country",
+        "amount",
+        "returned_at",
+    }
+)
+
+
 def _fetch_returns(
     con: duckdb.DuckDBPyConnection,
     as_of: datetime,
@@ -119,8 +142,30 @@ def _fetch_returns(
     `beneficiary_country`, `amount`, `returned_at`. The scorer
     reads `originator_name` rather than `customer_id` because the
     pacs.004 message format keys on the legal entity name, not the
-    sending PSP's internal customer id; the snippet does the same.
+    sending PSP's internal customer id; the snippet does the same
+    (alert customer_id is resolved downstream via
+    `_resolve_customer_id`).
+
+    Empty-contract guard: when `txn_return` exists in the spec but
+    has zero rows, `_build_warehouse` creates a placeholder
+    `SELECT NULL WHERE 1=0` table with no columns. A SELECT against
+    the named columns then raises a DuckDB binder error and the
+    strict python_ref runner aborts the whole run (Codex P1 round
+    1). Probe `information_schema.columns` first; if the required
+    columns aren't present, return empty — the scorer is correctly
+    silent on a no-returns dataset rather than crashing.
     """
+    present = {
+        name
+        for (name,) in con.execute(
+            """
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'txn_return'
+            """
+        ).fetchall()
+    }
+    if not _REQUIRED_COLUMNS.issubset(present):
+        return {}
     window_start = as_of - timedelta(days=lookback_days)
     rows = con.execute(
         """
@@ -209,8 +254,39 @@ def _qualifies(returns: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
+def _resolve_customer_id(con: duckdb.DuckDBPyConnection, originator_name: str) -> str:
+    """Look up the customer's internal `customer_id` by joining
+    `originator_name` against `customer.full_name`. Falls back to
+    the originator name if no match — graceful for BYOD scenarios
+    where the customer table doesn't carry every counterparty.
+
+    Why this matters: downstream pages (Customer 360, case profile,
+    Audit Evidence) join on `alert.customer_id == customer.customer_id`.
+    If we stamp `customer_id = "ROAMR LTD"` but the customer table
+    has `customer_id = "C0011"`, the KYC lookup says "not found"
+    even though the case requests `originator_kyc_profile` as
+    evidence (Codex P2 round 1).
+    """
+    try:
+        row = con.execute(
+            """
+            SELECT customer_id FROM customer
+            WHERE full_name = ?
+            LIMIT 1
+            """,
+            [originator_name],
+        ).fetchone()
+    except duckdb.Error:
+        # customer table may not exist in tests or in non-canonical
+        # BYOD shapes — fall back gracefully.
+        return originator_name
+    if row and row[0]:
+        return str(row[0])
+    return originator_name
+
+
 def _alert_from_qualification(
-    originator_name: str, qualification: dict[str, Any]
+    customer_id: str, originator_name: str, qualification: dict[str, Any]
 ) -> dict[str, Any]:
     """Shape a qualified originator into the engine-contract alert
     dict. Mirrors the canonical alert fields the Alert Queue + Model
@@ -220,10 +296,11 @@ def _alert_from_qualification(
     total = sum((r["amount"] for r in matched), Decimal("0"))
     return {
         "rule_id": "mule_return_burst_scorer",
-        # `customer_id` shape — the snippet aliases originator_name
-        # as customer_id; we do the same for downstream compatibility
-        # (Alert Queue groups by customer_id).
-        "customer_id": originator_name,
+        # `customer_id` is the resolved internal id (joined from
+        # `customer.full_name = originator_name`) so the Alert Queue
+        # / Customer 360 / Audit Evidence joins work. Falls back to
+        # originator_name if no customer match (Codex P2 round 1).
+        "customer_id": customer_id,
         "originator_name": originator_name,
         "sum_amount": float(total),
         "count": qualification["high_risk_count"],
@@ -244,11 +321,15 @@ def _alert_from_qualification(
             ),
             4,
         ),
-        # DuckDB rowids (integers) — the framework's lineage
-        # contract pins this shape for Lineage Explorer
-        # `df_returns.iloc[rowid]` (parallel to the funnel scorer's
-        # discipline against `df_txns`).
-        "matched_row_ids": [r["row_id"] for r in matched],
+        # `matched_return_ids` (NOT `matched_row_ids`) — the
+        # framework's existing `matched_row_ids` lineage contract
+        # indexes into `df_txns` per Lineage Explorer; emitting
+        # rowids from a different table (`txn_return`) under that
+        # name would walk back to UNRELATED txn rows and mislead
+        # reviewers (Codex P1 round 1). Use the `return_id` strings
+        # instead — they're the natural pacs.004 identifier and the
+        # evidence drill-down can show them as-is.
+        "matched_return_ids": [r["return_id"] for r in matched],
     }
 
 
@@ -270,5 +351,6 @@ def mule_return_burst_scorer(
         qualification = _qualifies(by_origin[originator_name])
         if qualification is None:
             continue
-        alerts.append(_alert_from_qualification(originator_name, qualification))
+        customer_id = _resolve_customer_id(con, originator_name)
+        alerts.append(_alert_from_qualification(customer_id, originator_name, qualification))
     return alerts

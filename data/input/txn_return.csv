@@ -1,0 +1,4 @@
+return_id,original_uetr,original_end_to_end_id,original_tx_id,amount,currency,returned_at,reason_code,reason_info,originator_name,originator_country,beneficiary_name,beneficiary_country,msg_id,msg_kind
+RTR-001,7d91dbcc-6a95-4ce2-b766-3e35cdba2cac,ROAMR-2026-04-22-A,ORIG-1,12000.00,EUR,2026-05-15 14:00:00,AC03,Invalid creditor account number,ROAMR LTD,GB,SHELL VEHICLE 1,CH,RTR-2026-04-20-001,pacs.004
+RTR-002,a1aa8c49-4ed9-474f-b4f4-8fdc0351d800,ROAMR-2026-04-24-A,ORIG-2,9500.00,EUR,2026-05-13 14:00:00,AC04,Closed creditor account,ROAMR LTD,GB,SHELL VEHICLE 2,CH,RTR-2026-04-20-001,pacs.004
+RTR-003,4f844346-a165-437d-96ad-3649289a2abc,ROAMR-2026-04-25-A,ORIG-3,7800.00,EUR,2026-05-12 14:00:00,MD07,End-customer deceased,ROAMR LTD,GB,SHELL VEHICLE 3,CH,RTR-2026-04-20-001,pacs.004
