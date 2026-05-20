@@ -120,15 +120,6 @@ _FUTURE_META: dict[tuple[str, str, str, str], dict[str, str]] = {}
 # clears the entry so a later navigation can retry.
 _FAILED: dict[tuple[str, str, str, str], BaseException] = {}
 
-# Max wall-clock seconds a future may be pending before the drain
-# cancels it and promotes a `TimeoutError` into `_FAILED`. Without
-# this the placeholder `⟳ Generating explanation…` would persist
-# indefinitely when the backend hangs / is unreachable
-# (user-reported 2026-05-19). 30s is comfortably above a healthy
-# deepseek-v4-flash response (~2-3s) but well short of "user thinks
-# the page is broken." Overridable via `AML_AI_TIMEOUT_SECONDS`.
-_TIMEOUT_SECONDS: float = float(os.environ.get("AML_AI_TIMEOUT_SECONDS", "30"))
-
 # Serializes the poller drain. Multiple Streamlit sessions/tabs on one
 # replica each mount their own poller fragment over these shared
 # globals; without this, two pollers can both observe the same
@@ -162,42 +153,24 @@ def _get_executor() -> concurrent.futures.ThreadPoolExecutor:
 
 
 def _do_llm_call(*, question: str, context: Any, backend_name: str, model: str | None) -> Any:
-    """Worker-thread entry point. Runs the actual backend call in an
-    inner daemon thread bounded by `_TIMEOUT_SECONDS` so the outer
-    future ALWAYS resolves within the timeout window — the perpetual
-    `Generating explanation` placeholder for a hung backend (user-
-    reported 2026-05-19) becomes an immediate `st.error` banner via
-    the existing `_FAILED` → render path.
+    """Worker-thread entry point. Delegates to `_call_backend` and lets
+    any exception propagate into the `Future` — it is NOT swallowed
+    into a TemplateBackend reply here. The poller captures the
+    exception into `_FAILED` so the operator sees the real error (the
+    #311 contract: a failing ollama/openai backend must be visible,
+    not masked by canned scaffolding).
 
-    Exceptions still propagate verbatim into the `Future` (no
-    TemplateBackend masking — the #311 contract). On timeout, the
-    inner thread is abandoned (Python threads aren't forcibly
-    killable); `daemon=True` keeps it from blocking process exit and
-    the backend's own HTTP-layer timeout (~60s) caps the leak.
+    NOTE on hung-backend timeouts: an in-process timeout layered here
+    can't reliably cancel a started call (Python threads aren't
+    killable) and bypassing the executor pool with an inner daemon
+    leaks workers under sustained backend hangs. The correct
+    enforcement point is the backends' own HTTP client (httpx /
+    requests `timeout=...`). The placeholder caption below
+    (`section_explainer`'s render path) tells the operator the wait
+    can take up to ~60s on a cold backend so a slow-but-progressing
+    call isn't perceived as stuck.
     """
-    result_box: dict[str, Any] = {}
-
-    def _run() -> None:
-        try:
-            result_box["reply"] = _call_backend(
-                question=question, context=context, backend_name=backend_name, model=model
-            )
-        except BaseException as exc:  # noqa: BLE001 — propagate everything
-            result_box["error"] = exc
-
-    worker = threading.Thread(target=_run, daemon=True)
-    worker.start()
-    worker.join(timeout=_TIMEOUT_SECONDS)
-    if worker.is_alive():
-        raise TimeoutError(
-            f"AI backend `{backend_name}` (model `{model or '?'}`) did not respond "
-            f"within {_TIMEOUT_SECONDS}s — request abandoned. Check that the backend "
-            f"is reachable and `AML_AI_BACKEND` / `AML_OLLAMA_URL` are configured "
-            f"for this Container App."
-        )
-    if "error" in result_box:
-        raise result_box["error"]
-    return result_box["reply"]
+    return _call_backend(question=question, context=context, backend_name=backend_name, model=model)
 
 
 # Process-global cache — shared across all Streamlit sessions in this
@@ -603,7 +576,14 @@ def section_explainer(
 
             # Non-blocking placeholder. NOT `st.spinner` (that blocks
             # the script). The poller replaces this on the next rerun.
-            st.caption("⟳ Generating explanation…")
+            # Caption hints the wait window so a slow-but-progressing
+            # cold-backend call isn't perceived as stuck (user
+            # reported 2026-05-19). The underlying HTTP timeouts in
+            # the backends bound the worst case.
+            st.caption(
+                f"⟳ Generating explanation via `{backend_name}`… "
+                f"(can take ~30-60s on a cold backend)"
+            )
     except Exception as exc:  # noqa: BLE001
         # Don't break the page (the host section already rendered) but
         # surface the actual error so the operator can diagnose instead

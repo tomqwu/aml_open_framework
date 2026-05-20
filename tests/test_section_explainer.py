@@ -1184,46 +1184,33 @@ def test_promote_resolved_skips_not_done_future(stub_st):
     pending.cancel()
 
 
-def test_do_llm_call_raises_timeout_when_backend_hangs(stub_st, monkeypatch):
-    """A hung backend (e.g. ollama unreachable) is bounded by
-    `_TIMEOUT_SECONDS` so the outer future always resolves — the
-    perpetual `Generating explanation` placeholder for the user-
-    reported case (2026-05-19) becomes an immediate `st.error`
-    banner via the existing `_FAILED` → render path. Codex insisted
-    that drain-level Future.cancel() alone wasn't enough: a running
-    worker can't be cancelled. The fix wraps the actual backend
-    call in an inner daemon thread bounded by `_TIMEOUT_SECONDS` so
-    the OUTER future always resolves within the window via the
-    raised TimeoutError. The eventual long-running backend reply is
-    discarded; the inner thread's daemon=True keeps it from
-    blocking process exit, and the backend's own HTTP-layer timeout
-    (~60s) caps the leak."""
-    import threading as _threading
-
+def test_placeholder_caption_carries_backend_and_wait_hint(stub_st, monkeypatch):
+    """The non-blocking placeholder caption names the backend and the
+    expected wait window so an operator doesn't perceive a slow-but-
+    progressing cold-backend call as `Generating explanation` stuck
+    forever (user-reported 2026-05-19). The eventual real-error
+    surface still wins via `_FAILED` when the backend genuinely
+    fails — this is purely a UX cue while in-flight."""
     from aml_framework.dashboard import section_explainer as mod
 
-    monkeypatch.setattr(mod, "_TIMEOUT_SECONDS", 0.2)
+    captions: list[str] = []
+    stub_st.caption = captions.append
 
-    # _call_backend hangs forever — simulates a wedged ollama/openai
-    # call (no HTTP response). The wrapper must time out the wait.
-    forever = _threading.Event()
+    monkeypatch.setenv("AML_AI_BACKEND", "ollama")
+    # Keep the worker pending — never resolve — so the placeholder
+    # render path fires (not the cached/failed branches).
+    fake_future = mock.MagicMock()
+    fake_future.done.return_value = False
+    monkeypatch.setattr(
+        mod, "_get_executor", lambda: mock.MagicMock(submit=lambda *a, **kw: fake_future)
+    )
 
-    def _hang(**_kw):
-        forever.wait()
+    mod.section_explainer(page="P", section_id="s", section_title="t", data_summary={"v": 1})
 
-    with mock.patch.object(mod, "_call_backend", side_effect=_hang):
-        try:
-            mod._do_llm_call(
-                question="q", context={"x": 1}, backend_name="ollama", model="deepseek-v4-pro"
-            )
-        except TimeoutError as exc:
-            assert "did not respond" in str(exc)
-            assert "ollama" in str(exc)
-            assert "deepseek-v4-pro" in str(exc)
-        else:
-            forever.set()  # let the hung thread exit before raising
-            raise AssertionError("expected TimeoutError, got none")
-
-    # Release the still-running inner daemon thread so it doesn't
-    # leak into subsequent tests.
-    forever.set()
+    placeholder_lines = [c for c in captions if "Generating explanation" in c]
+    assert placeholder_lines, "placeholder caption never rendered"
+    line = placeholder_lines[-1]
+    assert "ollama" in line, "caption must name the backend so a misconfig is visible"
+    assert "30-60s" in line or "cold backend" in line, (
+        "caption must hint at the expected wait window so slow != stuck"
+    )
