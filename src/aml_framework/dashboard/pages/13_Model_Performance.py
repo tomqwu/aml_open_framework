@@ -173,6 +173,18 @@ for rule in ml_rules:
         alert_df = pd.DataFrame(alerts)
         show_cols = ["customer_id", "risk_score", "sum_amount", "count"]
         available = [c for c in show_cols if c in alert_df.columns]
+        # Defensive coerce: a python_ref ML scorer may emit
+        # `sum_amount` as a dict (e.g. {"value": X, "unit": "USD"});
+        # AG Grid then renders the cell as `[object Object]`
+        # (user-reported 2026-05-19). pd.to_numeric with
+        # errors="coerce" turns dicts into NaN → 0 — harmless for
+        # already-scalar values, eliminates the JS-stringified-dict
+        # surface. Same defensive coerce for `count`.
+        for _num_col in ("sum_amount", "count"):
+            if _num_col in available:
+                alert_df[_num_col] = pd.to_numeric(
+                    alert_df[_num_col], errors="coerce"
+                ).fillna(0)
         # risk_score gradient is inverted: high score = bad (red).
         # 0.65 = action threshold (model card), 0.85 = high-confidence
         # band. gradient_invert=True flips data_grid's default
