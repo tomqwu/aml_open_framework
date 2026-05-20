@@ -731,9 +731,7 @@ class TestPythonRefErrorBoundary:
         # rules in the spec (PR-ML-1 added passthrough_funnel_scorer)
         # ran normally and produced their normal alert sets.
         hijacked = next(
-            r
-            for r in spec.rules
-            if r.logic.type == "python_ref" and "nope" in r.logic.callable
+            r for r in spec.rules if r.logic.type == "python_ref" and "nope" in r.logic.callable
         )
         assert result.alerts.get(hijacked.id, []) == []
 
