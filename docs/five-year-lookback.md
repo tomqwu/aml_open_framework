@@ -123,7 +123,7 @@ contributes:
 | **ADLS Gen2 / OneLake** | The production shape: ADF / Lakeflow materializes per-month Gold Parquet to a mount; `aml run --data-source parquet --data-dir /mnt/gold/<month>/` reads it. The `data/sources.py` module also has S3 / GCS / Snowflake / BigQuery resolvers (programmatic), but `aml run`'s `--data-source` only exposes synthetic / csv / parquet / duckdb today; broader exposure is a follow-up. |
 | **Azure Data Factory / Fabric Data Factory** | The framework's CLI (`aml run`, `aml validate`, `aml export`) is wrap-friendly. A typical ADF pipeline: *Extract → land Parquet → `aml validate-data` activity → `aml run` activity → publish run_dir back to Gold → publish ZIP to evidence container*. |
 | **Databricks / Spark / Lakeflow** | Your Lakeflow pipelines produce the rule-ready Gold tables; the framework reads them. For Spark-native rule execution you don't need this framework, but you give up the spec contract + the deterministic audit chain. The framework's value-add is the **defensible spec + evidence**, not raw compute. |
-| **Delta Lake** | The framework treats Delta tables as Parquet (Delta's read API is Parquet-compatible). Delta's time-travel + the framework's `as_of` together give you full point-in-time replay: pin Delta's version + the framework's `as_of` to the same business date. |
+| **Delta Lake** | The framework's `--data-source parquet` loader (`data/sources.py:load_parquet_source`) reads a single file per contract — `<data-dir>/<contract_id>.parquet`. It does **not** read Delta directories, Delta versions, or partitioned Parquet directories directly. Pin Delta's version on your side, then `SELECT * FROM delta.\`...\`` and export to flat per-contract `.parquet` files for the framework to consume. Native Delta support is a planned loader extension. |
 | **Microsoft Fabric Lakehouse / Warehouse** | Same as Databricks — Fabric produces the curated layer, framework consumes. The Streamlit dashboard can be embedded in Fabric or run standalone (current Azure deploy is Container Apps). |
 | **Microsoft Purview** | `walk_lineage` is the framework-side equivalent: alert → rule → matched_row_ids → source row. Already exercised by `tests/test_integrations_purview.py`; the lineage events can publish to Purview's REST API for full enterprise-catalog integration. |
 | **Synapse Analytics** | The framework's outputs are JSON-Lines + Parquet-friendly + markdown reports. Synapse SQL can query the alert/case JSONLs via OPENROWSET; Power BI can consume metrics.json. |
@@ -214,23 +214,37 @@ Every run produces one `<artifacts>/run-<timestamp>/manifest.json`
 ISO timestamp the run was created at). Real shape on `main`:
 
 ```json
-// run_dir/manifest.json (real keys; extract)
+// run_dir/manifest.json (real shape — copy from engine/audit.py:finalize +
+// engine/runner.py post-finalize patches)
 {
-  "run_dir":            ".artifacts/run-2026-05-20T01-16-00Z/",
+  "engine_version":     "0.1.x",
+  "run_dir":            "/evidence/runs/2021-09/run-2026-05-20T01-16-00Z/",
   "spec_path":          "examples/your_program/aml.yaml",
-  "spec_content_hash":  "sha256:b09f...",
-  "as_of":              "2021-09-30T23:59:59Z",
-  "inputs": [
-    { "contract_id": "txn",      "rows": 4923711, "sha256": "..." },
-    { "contract_id": "customer", "rows":    91842, "sha256": "..." }
-  ],
-  "rule_outputs":   { "structuring_cash_deposits": 87, ... },
-  "metrics":        [ ... ],
-  "reports":        [ "svp_exec_brief", "data_quality" ],
-  "decisions_hash": "sha256:..."     // chain head — itself sealed into
-                                     //   decisions.jsonl via _sha256
+  "spec_content_hash":  "b09f...",     // raw SHA-256 hex of the YAML bytes,
+                                       //   no "sha256:" prefix
+  "as_of":              "2021-09-30T23:59:59+00:00",
+  "inputs": {                          // keyed by contract id (NOT an array)
+    "txn":      { "row_count": 4923711, "content_hash": "...",
+                  "earliest_ts": "...", "latest_ts": "...",
+                  "source_path": "...", "schema_columns": [...],
+                  "schema_hash": "..." },
+    "customer": { "row_count":   91842, "content_hash": "...", ... }
+  },
+  "rule_outputs": {                    // rule_id -> SHA-256 hex of the
+                                       //   alerts/<rule_id>.jsonl file
+    "structuring_cash_deposits": "a1b2c3...",
+    "wire_high_risk_country":    "d4e5f6..."
+  },
+  "decisions_hash":     "...",         // chain head (hex)
+  "finalised_at":       "2026-05-20T01:17:23+00:00",
+  "metrics":            [ ... ],       // appended by runner after finalize()
+  "reports":            [ "svp_exec_brief", "data_quality" ]
 }
 ```
+
+Alert counts per rule are **not** in the manifest — recover them by
+counting lines in `alerts/<rule_id>.jsonl`. The manifest gives you
+the file hash so you can prove the count came from the sealed file.
 
 The directory name (`run-<timestamp>`) is the batch ID you reference
 when verifying or exporting. `aml verify-decisions --run-dir <path>`
@@ -281,7 +295,6 @@ rules:
   - id: high_risk_jurisdiction_with_pit_rating
     logic:
       type: custom_sql
-      source: txn
       sql: |
         SELECT t.customer_id, SUM(t.amount) AS sum_amount
         FROM txn t
@@ -510,11 +523,19 @@ for ts in "${months[@]}"; do
         --artifacts  "/evidence/runs/${ym}/"
 done
 
-# 7. Verify the hash chain per month. `verify-decisions` defaults its
-#    --run-dir to the latest `run-*` under --artifacts, so a per-month
-#    artifacts dir + a no-explicit-run-dir invocation works:
+# 7. Verify the hash chain per month. ALWAYS pass --expected-hash from
+#    an out-of-band store (WORM bucket, signed log, regulator-witnessed
+#    DB). Without it, verify-decisions falls back to comparing against
+#    the SAME directory's manifest.json — an attacker who rewrites
+#    decisions.jsonl can usually rewrite manifest.json too, so that
+#    path only catches *partial* tampering. Store each month's
+#    decisions_hash externally at run time:
+#       sha=$(jq -r .decisions_hash $run_dir/manifest.json)
+#       echo "$ym $sha" >> /worm/decisions-hashes.log    # WORM bucket
 for ym_dir in /evidence/runs/*/; do
-    aml verify-decisions --artifacts "$ym_dir"
+    ym=$(basename "$ym_dir")
+    expected=$(grep "^$ym " /worm/decisions-hashes.log | awk '{print $2}')
+    aml verify-decisions --artifacts "$ym_dir" --expected-hash "$expected"
 done
 
 # 8. Build the regulator-ready bundles. Both `audit-pack` and `export`
