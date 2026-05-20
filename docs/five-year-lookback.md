@@ -36,9 +36,9 @@ mechanism the framework already ships:
 | **Complete** | `aml validate` + `aml validate-data` cross-check every rule's contract columns against the loaded data before any rule fires — a missing column is a build failure, not a silent zero. Run-time `engine/freshness.py` adds DQ floors. |
 | **Point-in-time correct** | Engine threads `as_of` through every rule. `custom_sql` rules get `{as_of}`, `{window_start}`, `{recent_start}`, `{baseline_start}`, `{dormant_cutoff}` substituted at compile time so the SQL operates on the business date. PIT-correctness of *reference data* (e.g. risk rating valid on the transaction date) is *the author's job*: declare an effective-dated contract and encode the `effective_start_date`/`effective_end_date` join in your `custom_sql`. The framework provides the `as_of` placeholder; it does not auto-apply effective-date filters. |
 | **Repeatable** | The deterministic-replay contract: same spec + same data + same `as_of` + same seed ⇒ byte-identical alert/case/decision hashes. Pinned by `tests/test_engine.py::test_run_is_reproducible`. |
-| **Performant** | DuckDB in-memory for the engine; cloud sources (Snowflake/BigQuery/S3/GCS/Parquet) loaded by `data/sources.py` with predicate pushdown via the placeholder system. |
+| **Performant** | DuckDB in-memory for the engine; cloud sources (Snowflake/BigQuery/S3/GCS/Parquet) loaded by `data/sources.py`. The loaders pull whole files/tables — there is no source-side predicate pushdown of `{as_of}`/`{window_start}` to the warehouse. Performance for 5-year scale comes from *you* materializing one-month slices upstream (per §4 Pattern 1) and feeding each slice as the run's input. |
 | **Auditable** | `engine/audit.py` writes a SHA-256-hash-chained `decisions.jsonl`. `AuditLedger.verify_decisions()` proves no tampering at any horizon. |
-| **Explainable** | Every alert carries `matched_row_ids` referencing the exact source rows (#341 fix replays the rule filter so audit evidence matches the alert's own SQL). `walk_lineage` reconstructs alert → rule → data. |
+| **Explainable** | `aggregation_window` rules auto-stamp `matched_row_ids` referencing the exact source rows (#341 fix replays the rule filter so audit evidence matches the alert's own SQL). `custom_sql` only carries row IDs if the SQL `SELECT`s them explicitly; `python_ref` only if the scorer implements the optional inspection hook. `walk_lineage` reconstructs alert → rule → data when row IDs are present. |
 | **Reconciled** | **🛠 planned · TM Gap 1.** An `engine/equivalence.py` module is sequenced in [`docs/progress.md`](progress.md) — joins legacy ↔ new outputs and classifies each divergence (`data` / `rule` / `mapping` / `intentional`). Until it lands, reconciliation today is "diff your legacy export against `run_dir/alerts/*.jsonl` in your own SQL/Spark step." |
 | **Signed off** | Cases carry a disposition + reviewer; `cases/filing.py` enforces a wall-clock sidecar that's *out* of the deterministic-replay contract so signoff timing is preserved without breaking reproducibility. |
 
@@ -191,9 +191,21 @@ sha256sum /runs/2021-09/decisions.jsonl
 # Compare to the previously-archived hash. Match ⇒ no replay needed.
 ```
 
-For alert-level dedupe across runs, the `alert_key` field is computed
-as `hash(rule_id, rule_version, customer_id, window_start,
-window_end, ...)` — same recipe the reference doc proposes.
+For *alert-level* dedupe across runs, the engine does not emit a
+pre-computed `alert_key` field today. The deterministic primitives
+you stitch are:
+
+- `manifest.json:spec_content_hash` (rule version proxy — any rule
+  edit changes it)
+- `manifest.json:decisions_hash` (whole-run hash)
+- The alert's own keys it already carries (`customer_id`,
+  `window_start`/`window_end` for `aggregation_window`, or the column
+  set your `custom_sql` returned)
+
+Compute the dedupe key downstream in your warehouse / Spark step
+(`hash(rule_id, rule_version, customer_id, window_start, window_end)`)
+— the framework gives you the inputs; an alert-level deterministic key
+column inside `alerts/*.jsonl` is a planned addition.
 
 ### Pattern 3 — Batch ID everywhere
 
@@ -435,7 +447,7 @@ specific mechanisms:
 3. **What does idempotence mean here?** Same spec + same data + same `as_of` + same seed ⇒ byte-identical `decisions.jsonl`. `test_run_is_reproducible` pins this.
 4. **Why is batch ID important?** `run_dir/manifest.json` is the batch ID + every artefact it produced. Every alert/case/decision references it.
 5. **What fields are needed for point-in-time reference data?** `effective_start_date`, `effective_end_date`, declared in `data_contracts[].columns` + joined with the `as_of` placeholder.
-6. **Common stitching failures?** All caught by `aml validate-data` + `data_contract.quality_checks` (table in §5).
+6. **Common stitching failures?** Only the two `quality_checks` your dashboard DQ page evaluates today (`not_null`, `unique`) are caught by the framework itself. Referential integrity, point-in-time reference joins, FX-rate date joins, and many-to-many ownership are **not** enforced by `aml validate-data` or the engine — they are platform/spec-author responsibility (table in §5 has the full picture). For a compliance lookback, treat the framework as the rule engine + audit chain, not as your data-quality gate.
 7. **What evidence should a lookback run automatically generate?** Everything in §7 — already in `run_dir/`.
 8. **How would you explain ADLS / Databricks / Delta / Fabric / Synapse / Purview?** The framework is *layered on top of* this stack, not a replacement (§2–§3).
 
