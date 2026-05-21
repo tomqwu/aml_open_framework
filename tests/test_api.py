@@ -72,7 +72,20 @@ class TestHealth:
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestLandingFrontDoor:
     """PR-U1: FastAPI owns / and serves the thin static hero so the
-    framework hosts its own landing (GH-Pages demo retired later)."""
+    framework hosts its own landing. PR-U4 retired the GH Pages demo
+    in favor of the dashboard's native Knowledge section."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_url_env(self, monkeypatch):
+        # Codex P3 round 2: default-case tests are environment-
+        # dependent. If `AML_APP_URL` or `AML_KB_URL` are set in
+        # the test runner's env (CI, local dev), the "default"
+        # assertions exercise the override path instead and
+        # produce false negatives. Clear both before every test
+        # in this class; tests that need an override re-set
+        # within the method body.
+        monkeypatch.delenv("AML_APP_URL", raising=False)
+        monkeypatch.delenv("AML_KB_URL", raising=False)
 
     def test_root_serves_hero_html(self):
         resp = client.get("/")
