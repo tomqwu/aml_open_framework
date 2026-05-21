@@ -115,6 +115,14 @@ class LegacyReference(_Base):
     format: LegacyReferenceFormat = "csv"
     dataset: str | None = None
     key_columns: list[str] = Field(min_length=1)
+    # PR-EQ-2 (TM Gap 1 step 2): optional new→legacy rule id mapping
+    # consumed by `engine/equivalence.py` when classifying alert-level
+    # divergence. Keys are new-framework `rule_id`s, values are the
+    # corresponding legacy-system rule identifiers (e.g.
+    # {"rapid_pass_through": "MANTAS_RPT_001"}). Optional — when absent,
+    # `classify_alerts` requires the caller to supply the map at call
+    # time, preserving PR-EQ-1's additive-only spec contract.
+    rule_map: dict[str, str] | None = None
 
 
 class Program(_Base):
@@ -447,6 +455,22 @@ class AMLSpec(_Base):
                             f"`last_refreshed_at_column` '{ref}' which is type "
                             f"'{sibling.type}', not `timestamp` or `date`"
                         )
+
+        # PR-EQ-2 cross-ref: when the spec carries a legacy_reference
+        # with a rule_map, every new-side rule_id in the map must refer
+        # to a real rule on this spec. Catches typos at spec-load time
+        # so the equivalence engine never silently misclassifies a
+        # mistyped rule_id as LEGACY_ONLY. Keeps PR-EQ-1's additive
+        # contract — only fires when an operator opts into the map.
+        legacy_ref = self.program.legacy_reference
+        if legacy_ref is not None and legacy_ref.rule_map:
+            rule_ids = {r.id for r in self.rules}
+            for new_rule_id in legacy_ref.rule_map:
+                if new_rule_id not in rule_ids:
+                    raise ValueError(
+                        f"program.legacy_reference.rule_map references unknown "
+                        f"rule_id '{new_rule_id}'"
+                    )
 
         metric_ids = {m.id for m in self.metrics}
         for report in self.reports:

@@ -84,6 +84,11 @@
           "minItems": 1,
           "items": { "type": "string", "minLength": 1 },
           "description": "Columns that identify a legacy alert (e.g. ['alert_id'] or ['rule_id', 'customer_id', 'window_start']) for the join with run_dir/alerts/*.jsonl."
+        },
+        "rule_map": {
+          "type": "object",
+          "description": "PR-EQ-2: optional new→legacy rule_id mapping consumed by engine/equivalence.py. Keys are new-framework rule_ids (must exist on this spec); values are the corresponding legacy rule identifiers.",
+          "additionalProperties": { "type": "string", "minLength": 1 }
         }
       }
     },
