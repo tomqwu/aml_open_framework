@@ -90,6 +90,33 @@ class InformationSharing(_Base):
     notes: str = ""
 
 
+LegacyReferenceFormat = Literal["csv", "parquet", "jsonl"]
+
+
+class LegacyReference(_Base):
+    """PR-EQ-1 (TM Gap 1): pointer to a legacy alert export for
+    parallel-run divergence classification.
+
+    Pure metadata — the engine ignores this field at run time
+    (determinism-safe; doesn't affect `decisions_hash`). PR-EQ-2's
+    `engine/equivalence.py` consumes it to join the legacy export
+    against `run_dir/alerts/*.jsonl` and emit `LEGACY_EQUIV_CHECK`
+    audit events classifying each divergence as data / rule /
+    mapping / intentional.
+
+    Required because the 5-year-lookback runbook
+    (`docs/five-year-lookback.md`) explicitly calls divergence
+    classification out as planned · TM Gap 1; operators running
+    a lookback need to prove that the new engine's alerts agree
+    with the legacy system's, and where they don't, explain why.
+    """
+
+    path: str = Field(min_length=1)
+    format: LegacyReferenceFormat = "csv"
+    dataset: str | None = None
+    key_columns: list[str] = Field(min_length=1)
+
+
 class Program(_Base):
     name: str
     jurisdiction: str
@@ -102,6 +129,13 @@ class Program(_Base):
     # recall; institutions opt into this only after clearing it against
     # their privacy posture (the spec change is itself the paper trail).
     ai_audit_log: AiAuditLogMode = "hash_only"
+    # PR-EQ-1 (TM Gap 1): optional pointer to a legacy alert export
+    # for parallel-run divergence classification. See `LegacyReference`
+    # — engine ignores this at runtime; consumed by `engine/equivalence.py`
+    # (PR-EQ-2) when the operator runs `aml equivalence` (or the
+    # equivalent dashboard surface in PR-EQ-3). Default `None` =
+    # no legacy comparison (the common case for greenfield deployments).
+    legacy_reference: LegacyReference | None = None
 
 
 class Column(_Base):

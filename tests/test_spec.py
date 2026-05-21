@@ -172,6 +172,84 @@ def test_ca_spec_validates():
     # specific custom_sql rapid_pass_through.
     assert len(spec.rules) == 14
     assert len(spec.workflow.queues) == 5
+    # PR-EQ-1: demonstrative legacy_reference on the CA spec for
+    # the 5-year-lookback parallel-run divergence classifier.
+    assert spec.program.legacy_reference is not None
+    assert spec.program.legacy_reference.dataset == "mantas_v2"
+    assert spec.program.legacy_reference.key_columns == [
+        "rule_id",
+        "customer_id",
+        "window_start",
+    ]
+
+
+class TestLegacyReference:
+    """PR-EQ-1: optional legacy_reference pointer on Program.
+    Pure metadata — engine ignores at runtime; PR-EQ-2's
+    engine/equivalence.py consumes it for parallel-run divergence
+    classification."""
+
+    def test_legacy_reference_optional_by_default(self):
+        # Specs without `legacy_reference` (the common greenfield
+        # case) load with None — no break to existing specs.
+        from aml_framework.spec.loader import load_spec as _ls
+
+        # eu_bank doesn't carry a legacy_reference today
+        spec = _ls("examples/eu_bank/aml.yaml")
+        assert spec.program.legacy_reference is None
+
+    def test_legacy_reference_round_trips_full_shape(self):
+        from aml_framework.spec.models import LegacyReference
+
+        ref = LegacyReference(
+            path="/evidence/legacy/mantas_export.parquet",
+            format="parquet",
+            dataset="mantas_v2",
+            key_columns=["alert_id"],
+        )
+        assert ref.path == "/evidence/legacy/mantas_export.parquet"
+        assert ref.format == "parquet"
+        assert ref.dataset == "mantas_v2"
+        assert ref.key_columns == ["alert_id"]
+
+    def test_legacy_reference_requires_path_and_keys(self):
+        from pydantic import ValidationError
+
+        from aml_framework.spec.models import LegacyReference
+
+        # `path` is required (min_length=1) — empty rejects.
+        with pytest.raises(ValidationError):
+            LegacyReference(path="", key_columns=["alert_id"])
+        # `key_columns` requires ≥1 item.
+        with pytest.raises(ValidationError):
+            LegacyReference(path="/some/path", key_columns=[])
+
+    def test_legacy_reference_format_enum_enforced(self):
+        from pydantic import ValidationError
+
+        from aml_framework.spec.models import LegacyReference
+
+        with pytest.raises(ValidationError):
+            LegacyReference(
+                path="/x.csv",
+                format="xml",  # type: ignore[arg-type] — not in enum
+                key_columns=["k"],
+            )
+
+    def test_legacy_reference_does_not_break_determinism_contract(self):
+        # Engine ignores legacy_reference; same spec + same data
+        # + same as_of should produce identical decisions_hash with
+        # or without it. Pinned indirectly via the
+        # `test_run_is_reproducible` contract elsewhere, but this
+        # asserts the field is purely metadata (no engine code path
+        # branches on it today).
+        import aml_framework.engine.runner as runner
+
+        src = Path(runner.__file__).read_text(encoding="utf-8")
+        assert "legacy_reference" not in src, (
+            "PR-EQ-1: engine/runner.py must NOT read legacy_reference "
+            "— PR-EQ-2 owns that consumer in engine/equivalence.py."
+        )
 
 
 def test_new_rail_channel_enum_extended():
