@@ -207,29 +207,27 @@ def _qualifies(outflows: list[dict[str, Any]]) -> dict[str, Any] | None:
         return None
     count = len(outflows)
     total = sum((o["amount"] for o in outflows), Decimal("0"))
-    # Concentration: top counterparty's share of total. ONLY
-    # bucket rows that carry a real counterparty_id — NULL/empty
-    # ids would otherwise all roll up under "<unknown>" and make
-    # concentration look like 100% for any 2-payout customer
-    # whose data didn't provide counterparty IDs. That would let
-    # Path B fire on missing evidence, raising a high-severity
-    # alert without proof both payouts went to the same
-    # beneficiary (Codex P2 round 1).
+    # Concentration: top counterparty's share of TOTAL volume.
+    # Each row with a missing counterparty_id gets its own
+    # synthetic distinct bucket (`<unknown-N>`) so it counts in
+    # the denominator AND fragments the single-counterparty
+    # evidence. That way a 2-payout customer with one known
+    # offshore cp and one missing cp gets concentration = 50%
+    # (just at threshold) AND single_cp = False (2 distinct
+    # bucket ids) — Path B's "all to same beneficiary" gate
+    # closes (Codex P2 rounds 1 + 2).
     cp_totals: dict[str, Decimal] = {}
-    known_cp_total = Decimal("0")
-    for o in outflows:
-        cp = o["counterparty_id"]
-        if not cp:
-            continue
+    for idx, o in enumerate(outflows):
+        cp = o["counterparty_id"] or f"<unknown-{idx}>"
         cp_totals[cp] = cp_totals.get(cp, Decimal("0")) + o["amount"]
-        known_cp_total += o["amount"]
     top_cp_total = max(cp_totals.values()) if cp_totals else Decimal("0")
-    # Use the known-cp total as the denominator so concentration is
-    # a faithful measure of "of the payouts where we know the
-    # beneficiary, how much went to the top one". When ALL cp_ids
-    # are missing, known_cp_total = 0 and concentration = 0 — Path
-    # B can't fire.
-    concentration = top_cp_total / known_cp_total if known_cp_total > 0 else Decimal("0")
+    concentration = top_cp_total / total if total > 0 else Decimal("0")
+    # `single_cp` only counts KNOWN counterparty IDs. Synthetic
+    # `<unknown-N>` buckets must not satisfy the
+    # "all-to-same-beneficiary" gate (no evidence those rows went
+    # to the same place).
+    known_cp_ids = {o["counterparty_id"] for o in outflows if o["counterparty_id"]}
+    single_known_cp = len(known_cp_ids) == 1 and all(o["counterparty_id"] for o in outflows)
     # Foreign dominance: how much went to a country different
     # from the originator's debtor_country.
     foreign_total = sum(
@@ -245,12 +243,12 @@ def _qualifies(outflows: list[dict[str, Any]]) -> dict[str, Any] | None:
     foreign_ratio = foreign_total / total if total > 0 else Decimal("0")
     accelerating = _gaps_strictly_decreasing(outflows)
     path_a = count >= _HIGH_COUNT_THRESHOLD and total >= _HIGH_SUM_THRESHOLD
-    # Path B's "or" clause: on 2-event count, all-to-single-
-    # counterparty is sufficient acceleration evidence (it's the
-    # same beneficiary getting drained again — pig-butchering
-    # signature). On 3+ events, gaps must actually decrease.
-    single_cp = len(cp_totals) == 1
-    accel_or_single = accelerating if count >= 3 else single_cp
+    # Path B's "or" clause: on 2-event count, ALL outflows going
+    # to a single KNOWN counterparty is sufficient acceleration
+    # evidence (same beneficiary drained twice = pig-butchering
+    # signature). Synthetic `<unknown-N>` ids don't satisfy this
+    # gate. On 3+ events, gaps must actually decrease.
+    accel_or_single = accelerating if count >= 3 else single_known_cp
     path_b = (
         count >= _LOW_COUNT_THRESHOLD
         and concentration >= _COUNTERPARTY_CONCENTRATION_RATIO

@@ -175,6 +175,23 @@ class TestQualifies:
         # Path A fails (count=2 < 3); Path B fails (concentration=0).
         assert _qualifies(outflows) is None
 
+    def test_path_b_one_known_one_unknown_counterparty_does_not_fire(self):
+        # Codex P2 round 2: 2 outflows where one has a known
+        # offshore counterparty and the other has NULL would have
+        # given concentration=100% on the known-cp denominator and
+        # single_cp=True (only one known bucket). Result: Path B
+        # would fire without evidence the unknown payout went to
+        # the same beneficiary.
+        # Fix: synthetic `<unknown-N>` bucket in concentration AND
+        # `single_known_cp` gate that requires ALL outflows to have
+        # known counterparty_ids. With this fix, concentration
+        # drops to 50% (two buckets) and single_known_cp = False.
+        outflows = [
+            _outflow(1, 5000, 5, counterparty_id="CP-OFFSHORE-1"),
+            _outflow(2, 5000, 2, counterparty_id=""),  # missing id
+        ]
+        assert _qualifies(outflows) is None
+
     def test_path_a_still_fires_when_optional_columns_missing(self):
         # Codex P1 round 1: when the spec's contract doesn't
         # declare counterparty_id/country/debtor_country (eu_bank's
