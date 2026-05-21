@@ -330,23 +330,28 @@ async def landing():
     return HTMLResponse(html)
 
 
-@app.get("/app", include_in_schema=False)
+@app.api_route("/app", methods=["GET", "HEAD"], include_in_schema=False)
 async def app_redirect():
     """PR-U4: stable `/app` redirect to the dashboard. Marketing
     / docs / cross-references can link `<api-host>/app` and
     survive dashboard-host moves — operators only need to keep
     `AML_APP_URL` env in sync (or rely on the default).
+
+    PR-U6: accepts HEAD too so health-checkers / link-validators
+    don't hit 405 (`@app.get` only allowed GET; HEAD probes
+    returned `405 Method Not Allowed`).
     """
     from fastapi.responses import RedirectResponse
 
     return RedirectResponse(url=_app_url(), status_code=302)
 
 
-@app.get("/knowledge", include_in_schema=False)
+@app.api_route("/knowledge", methods=["GET", "HEAD"], include_in_schema=False)
 async def knowledge_redirect():
     """PR-U4: stable `/knowledge` redirect to the dashboard's
     Knowledge entry. Default derives from the effective app URL
     so non-dev deployments don't accidentally point at dev.
+    PR-U6: HEAD support — see `app_redirect` for the rationale.
     """
     from fastapi.responses import RedirectResponse
 
