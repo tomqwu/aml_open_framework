@@ -153,6 +153,19 @@ class TestLandingFrontDoor:
         assert resp.status_code == 302
         assert resp.headers["location"] == "https://docs.example.test/knowledge"
 
+    def test_app_redirect_supports_head(self):
+        # PR-U6: HEAD probes (link-validators, health-checkers)
+        # should get the redirect, not 405. `@app.get` only
+        # accepted GET; replaced with `api_route(methods=[GET, HEAD])`.
+        resp = client.head("/app", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "ca-aml-dashboard-dev" in resp.headers["location"]
+
+    def test_knowledge_redirect_supports_head(self):
+        resp = client.head("/knowledge", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/Architecture" in resp.headers["location"]
+
     def test_knowledge_default_derives_from_app_url(self, monkeypatch):
         # Codex P2 round 1 — when an operator sets AML_APP_URL to a
         # non-dev dashboard but leaves AML_KB_URL unset, the
