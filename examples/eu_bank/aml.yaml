@@ -36,8 +36,16 @@ data_contracts:
       # closed and C0010 fires Path A (the SQL-equivalent baseline)
       # — the python_ref scorer's MRM-surfacing + score-distribution
       # remain valuable even before Path B has firing data.
-      - { name: counterparty_id,    type: string,    nullable: true }
-      - { name: debtor_country,     type: string,    nullable: true }
+      #
+      # `counterparty_account` is the framework's pacs.008
+      # parser's beneficiary identifier (different from
+      # `counterparty_id` which is the BYOD/CSV-style id). The
+      # scorer COALESCEs counterparty_id ← counterparty_account so
+      # both ingestion paths populate Path B's concentration gate
+      # (Codex round 5 + 6).
+      - { name: counterparty_id,      type: string,    nullable: true }
+      - { name: counterparty_account, type: string,    nullable: true }
+      - { name: debtor_country,       type: string,    nullable: true }
       - { name: counterparty_country, type: string,  nullable: true }
     quality_checks:
       - { not_null: [txn_id, customer_id, amount, booked_at] }
