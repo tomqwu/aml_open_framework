@@ -27,6 +27,17 @@ data_contracts:
       # data sources that don't supply it; downstream purpose-code
       # rules degrade gracefully when the column is empty.
       - { name: purpose_code,       type: string,    nullable: true }
+      # PR-ML-3: Path B counterparty/debtor fields. Declared
+      # nullable so existing CSV/synthetic rows missing them still
+      # load. Path B (cross-signal amplification) activates when
+      # richer pacs.008 ingestion or BYOD data populates these.
+      # On the canonical seed-42 dataset they are sparse, so
+      # Path B's "all-to-same-known-counterparty" gate stays
+      # closed and C0010 fires Path A (the SQL-equivalent baseline)
+      # — the python_ref scorer's MRM-surfacing + score-distribution
+      # remain valuable even before Path B has firing data.
+      - { name: counterparty_id,    type: string,    nullable: true }
+      - { name: debtor_country,     type: string,    nullable: true }
       - { name: counterparty_country, type: string,  nullable: true }
     quality_checks:
       - { not_null: [txn_id, customer_id, amount, booked_at] }
