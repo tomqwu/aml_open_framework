@@ -447,6 +447,63 @@ class TestEngineContract:
         finally:
             con.close()
 
+    def test_counterparty_account_falls_back_for_path_b(self):
+        # Codex P2 round 5: framework's pacs.008 parser emits the
+        # beneficiary identifier as `counterparty_account`, not
+        # `counterparty_id`. The scorer's COALESCE picks
+        # counterparty_id first, falls back to counterparty_account
+        # so Path B activates on the common ISO 20022 ingestion
+        # path. Pin: 2 INVS outflows to same counterparty_account
+        # → Path B fires.
+        con = duckdb.connect(":memory:")
+        try:
+            con.execute(
+                """
+                CREATE TABLE txn (
+                    customer_id          VARCHAR,
+                    amount               DOUBLE,
+                    direction            VARCHAR,
+                    purpose_code         VARCHAR,
+                    counterparty_country VARCHAR,
+                    counterparty_account VARCHAR,
+                    debtor_country       VARCHAR,
+                    booked_at            TIMESTAMP
+                )
+                """
+            )
+            as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)
+            rows = [
+                (
+                    "C0010",
+                    5000.0,
+                    "out",
+                    "INVS",
+                    "CH",
+                    "CH-ACCT-12345",
+                    "DE",
+                    as_of - timedelta(days=5),
+                ),
+                (
+                    "C0010",
+                    5000.0,
+                    "out",
+                    "INVS",
+                    "CH",
+                    "CH-ACCT-12345",
+                    "DE",
+                    as_of - timedelta(days=2),
+                ),
+            ]
+            con.executemany("INSERT INTO txn VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows)
+            alerts = investment_scam_scorer(con, as_of)
+            assert len(alerts) == 1
+            # 2 outflows + same counterparty_account + foreign +
+            # single_known_cp → Path B (cross_signal) fires.
+            assert alerts[0]["qualifying_path"] == "cross_signal"
+            assert alerts[0]["count"] == 2
+        finally:
+            con.close()
+
     def test_loop_skips_non_qualifying_customer(self, duck_con):
         # Two customers in the table: one qualifies, the other
         # has just 1 INVS outflow (below all thresholds). Exercises

@@ -128,7 +128,15 @@ def _fetch_invs_outflows(
     # Optional columns are selected dynamically — if the spec's
     # contract doesn't declare them, SELECT them as NULL constants
     # so the scorer stays operable on Path A.
-    cp_id_expr = "counterparty_id" if "counterparty_id" in present else "NULL"
+    #
+    # `counterparty_id` falls back to `counterparty_account` when
+    # present — the framework's pacs.008 parser emits the
+    # beneficiary identifier as `counterparty_account`, not
+    # `counterparty_id`, so without this COALESCE Path B silently
+    # disabled on the common ISO 20022 ingestion path (Codex P2
+    # round 5).
+    cp_id_terms = [c for c in ("counterparty_id", "counterparty_account") if c in present]
+    cp_id_expr = f"COALESCE({', '.join(cp_id_terms)})" if cp_id_terms else "NULL"
     cp_country_expr = "counterparty_country" if "counterparty_country" in present else "NULL"
     debtor_expr = "debtor_country" if "debtor_country" in present else "NULL"
     window_start = as_of - timedelta(days=lookback_days)
