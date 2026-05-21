@@ -368,6 +368,21 @@ KNOWLEDGE_PAGES = [
 ]
 
 
+# PR-NS-1. North-Star Pillar Coverage is a cross-cutting synthesis
+# surface — it answers "which of the 8 AML/TM + DS pillars does this
+# framework demonstrably honor today?" — so every persona (pitch
+# reviewer, examiner, CCO, engineer) needs visibility. Routed
+# UNIVERSALLY via the same idiom as Today / Executive Dashboard /
+# KNOWLEDGE_PAGES (app.py adds these titles to the visible set for
+# every persona), NOT via AUDIENCE_PAGES — that preserves
+# MAX_PAGES_PER_PERSONA=9. Kept as its own constant rather than
+# folded into KNOWLEDGE_PAGES because it's a live-run synthesis
+# page, not a static research brief.
+NORTH_STAR_PAGES = [
+    "North-Star Pillar Coverage",
+]
+
+
 def show_audience_context(page_title: str) -> None:
     """Show a subtle context line if an audience is selected."""
     import streamlit as st
