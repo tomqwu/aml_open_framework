@@ -295,7 +295,29 @@ _STATIC_DIR = Path(__file__).parent / "static"
 _DEFAULT_APP_URL = (
     "https://ca-aml-dashboard-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io"
 )
-_DEFAULT_KB_URL = "https://ca-aml-dashboard-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io/Architecture"
+# First Knowledge page slug (per app.py's nav order — PR-U2's
+# `33_Knowledge_Architecture.py`). Knowledge defaults are DERIVED
+# from the effective app URL via `_kb_url()` so a deployment
+# that sets `AML_APP_URL` to a non-dev dashboard automatically
+# gets the right KB pointer too; only an explicit `AML_KB_URL`
+# overrides the derivation (Codex P2 round 1 on PR-U4).
+_KB_PATH = "/Architecture"
+
+
+def _app_url() -> str:
+    """The dashboard URL — `AML_APP_URL` env or the dev default."""
+    return os.environ.get("AML_APP_URL", _DEFAULT_APP_URL)
+
+
+def _kb_url() -> str:
+    """The Knowledge entry URL. If `AML_KB_URL` is explicitly set,
+    use it. Otherwise derive from the effective app URL so a
+    non-dev deployment's `AML_APP_URL` correctly anchors the
+    Knowledge link (Codex P2 round 1)."""
+    explicit = os.environ.get("AML_KB_URL")
+    if explicit:
+        return explicit
+    return _app_url().rstrip("/") + _KB_PATH
 
 
 @app.get("/", include_in_schema=False)
@@ -303,37 +325,32 @@ async def landing():
     from fastapi.responses import HTMLResponse
 
     html = (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
-    html = html.replace("__APP_URL__", os.environ.get("AML_APP_URL", _DEFAULT_APP_URL))
-    html = html.replace("__KB_URL__", os.environ.get("AML_KB_URL", _DEFAULT_KB_URL))
+    html = html.replace("__APP_URL__", _app_url())
+    html = html.replace("__KB_URL__", _kb_url())
     return HTMLResponse(html)
 
 
 @app.get("/app", include_in_schema=False)
 async def app_redirect():
-    """PR-U4: stable `/app` redirect to the dashboard.
-
-    Marketing / docs / cross-references can link `<api-host>/app`
-    and survive dashboard-host moves — operators only need to
-    keep `AML_APP_URL` env in sync (or rely on the default).
-    Same idiom as the `__APP_URL__` substitution above; this
-    just gives the path a permanent server-side address.
+    """PR-U4: stable `/app` redirect to the dashboard. Marketing
+    / docs / cross-references can link `<api-host>/app` and
+    survive dashboard-host moves — operators only need to keep
+    `AML_APP_URL` env in sync (or rely on the default).
     """
     from fastapi.responses import RedirectResponse
 
-    target = os.environ.get("AML_APP_URL", _DEFAULT_APP_URL)
-    return RedirectResponse(url=target, status_code=302)
+    return RedirectResponse(url=_app_url(), status_code=302)
 
 
 @app.get("/knowledge", include_in_schema=False)
 async def knowledge_redirect():
     """PR-U4: stable `/knowledge` redirect to the dashboard's
-    Knowledge section (now the canonical home for the content
-    the GH-Pages demo was hosting).
+    Knowledge entry. Default derives from the effective app URL
+    so non-dev deployments don't accidentally point at dev.
     """
     from fastapi.responses import RedirectResponse
 
-    target = os.environ.get("AML_KB_URL", _DEFAULT_KB_URL)
-    return RedirectResponse(url=target, status_code=302)
+    return RedirectResponse(url=_kb_url(), status_code=302)
 
 
 @app.get("/api/v1/health")

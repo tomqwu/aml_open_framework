@@ -140,6 +140,22 @@ class TestLandingFrontDoor:
         assert resp.status_code == 302
         assert resp.headers["location"] == "https://docs.example.test/knowledge"
 
+    def test_knowledge_default_derives_from_app_url(self, monkeypatch):
+        # Codex P2 round 1 — when an operator sets AML_APP_URL to a
+        # non-dev dashboard but leaves AML_KB_URL unset, the
+        # knowledge fallback must follow the app host (otherwise
+        # /knowledge silently sends users to the dev stack).
+        monkeypatch.delenv("AML_KB_URL", raising=False)
+        monkeypatch.setenv("AML_APP_URL", "https://prod-dash.example.test")
+        resp = client.get("/knowledge", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "https://prod-dash.example.test/Architecture"
+        # And the landing page's __KB_URL__ substitution follows
+        # the same derivation.
+        body = client.get("/").text
+        assert "https://prod-dash.example.test/Architecture" in body
+        assert "ca-aml-dashboard-dev" not in body
+
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestAuth:
