@@ -278,17 +278,24 @@ class RunRequest(BaseModel):
 
 # --- Public front door (PR-U1: unified product) ---
 # The FastAPI container owns "/" so the framework itself hosts the
-# landing page and the GitHub-Pages demo can eventually be retired.
-# A *thin* static hero — fast first paint, SEO-able, no Streamlit
-# cold-start for the first impression. CTA targets are env-overridable
-# so the same image works across deploys; defaults keep the page
-# useful out of the box (the dashboard container + the still-live
-# knowledge site until later PR-U phases wire them internally).
+# landing page. A *thin* static hero — fast first paint, SEO-able,
+# no Streamlit cold-start for the first impression. CTA targets
+# are env-overridable so the same image works across deploys.
+#
+# PR-U4 of the unified-product epic: the Knowledge content
+# (whitepapers + decks + videos) is now fully native in the
+# dashboard via PR-U2's 8 research pages + PR-U3's 2 deck pages
+# (10 Knowledge pages total). `_DEFAULT_KB_URL` now points at the
+# dashboard's `/Architecture` Knowledge entry point — the same
+# content the GH-Pages demo was hosting, served from the
+# canonical product. The GH-Pages site is now superseded and can
+# be retired (operators with a custom `AML_KB_URL` env override
+# keep their pointer).
 _STATIC_DIR = Path(__file__).parent / "static"
 _DEFAULT_APP_URL = (
     "https://ca-aml-dashboard-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io"
 )
-_DEFAULT_KB_URL = "https://tomqwu.github.io/aml_open_framework_demo/"
+_DEFAULT_KB_URL = "https://ca-aml-dashboard-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io/Architecture"
 
 
 @app.get("/", include_in_schema=False)
@@ -299,6 +306,34 @@ async def landing():
     html = html.replace("__APP_URL__", os.environ.get("AML_APP_URL", _DEFAULT_APP_URL))
     html = html.replace("__KB_URL__", os.environ.get("AML_KB_URL", _DEFAULT_KB_URL))
     return HTMLResponse(html)
+
+
+@app.get("/app", include_in_schema=False)
+async def app_redirect():
+    """PR-U4: stable `/app` redirect to the dashboard.
+
+    Marketing / docs / cross-references can link `<api-host>/app`
+    and survive dashboard-host moves — operators only need to
+    keep `AML_APP_URL` env in sync (or rely on the default).
+    Same idiom as the `__APP_URL__` substitution above; this
+    just gives the path a permanent server-side address.
+    """
+    from fastapi.responses import RedirectResponse
+
+    target = os.environ.get("AML_APP_URL", _DEFAULT_APP_URL)
+    return RedirectResponse(url=target, status_code=302)
+
+
+@app.get("/knowledge", include_in_schema=False)
+async def knowledge_redirect():
+    """PR-U4: stable `/knowledge` redirect to the dashboard's
+    Knowledge section (now the canonical home for the content
+    the GH-Pages demo was hosting).
+    """
+    from fastapi.responses import RedirectResponse
+
+    target = os.environ.get("AML_KB_URL", _DEFAULT_KB_URL)
+    return RedirectResponse(url=target, status_code=302)
 
 
 @app.get("/api/v1/health")

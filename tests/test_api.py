@@ -97,6 +97,49 @@ class TestLandingFrontDoor:
         # The new "/" route must not shadow the API surface.
         assert client.get("/api/v1/health").status_code == 200
 
+    def test_default_kb_url_points_at_dashboard_knowledge(self):
+        # PR-U4: GH-Pages demo retired in favor of the dashboard's
+        # native Knowledge section (PR-U2 + PR-U3 = 10 ported
+        # pages). Pin: the default KB URL is no longer a github.io
+        # link.
+        body = client.get("/").text
+        assert "github.io" not in body, (
+            "GH-Pages demo URL should no longer be the default KB target"
+        )
+        # And the dashboard Architecture page should be in the body
+        # (substituted into __KB_URL__).
+        assert "/Architecture" in body
+
+    def test_app_redirect_returns_302_to_dashboard(self):
+        # PR-U4: stable `/app` marketing URL redirects to the
+        # dashboard. Operators / docs can link `<api-host>/app`
+        # and survive dashboard-host moves via env override.
+        resp = client.get("/app", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "ca-aml-dashboard-dev" in resp.headers["location"] or (
+            "AML_APP_URL" in resp.headers.get("location", "")
+        )
+
+    def test_app_redirect_honors_env_override(self, monkeypatch):
+        monkeypatch.setenv("AML_APP_URL", "https://app.example.test")
+        resp = client.get("/app", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "https://app.example.test"
+
+    def test_knowledge_redirect_returns_302_to_dashboard(self):
+        resp = client.get("/knowledge", follow_redirects=False)
+        assert resp.status_code == 302
+        # Default points at the dashboard's Architecture entry
+        # (the first Knowledge page in PR-U2's port order).
+        assert "/Architecture" in resp.headers["location"]
+        assert "github.io" not in resp.headers["location"]
+
+    def test_knowledge_redirect_honors_env_override(self, monkeypatch):
+        monkeypatch.setenv("AML_KB_URL", "https://docs.example.test/knowledge")
+        resp = client.get("/knowledge", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "https://docs.example.test/knowledge"
+
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestAuth:
