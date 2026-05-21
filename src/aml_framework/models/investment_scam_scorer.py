@@ -207,36 +207,47 @@ def _qualifies(outflows: list[dict[str, Any]]) -> dict[str, Any] | None:
         return None
     count = len(outflows)
     total = sum((o["amount"] for o in outflows), Decimal("0"))
-    # Concentration: top counterparty's share of TOTAL volume.
-    # Each row with a missing counterparty_id gets its own
-    # synthetic distinct bucket (`<unknown-N>`) so it counts in
-    # the denominator AND fragments the single-counterparty
-    # evidence. That way a 2-payout customer with one known
-    # offshore cp and one missing cp gets concentration = 50%
-    # (just at threshold) AND single_cp = False (2 distinct
-    # bucket ids) — Path B's "all to same beneficiary" gate
-    # closes (Codex P2 rounds 1 + 2).
+    # Concentration: top KNOWN counterparty's share of TOTAL
+    # volume. Unknown counterparties contribute to the
+    # denominator (they dilute concentration) but NEVER to the
+    # numerator — there's no evidence a synthetic bucket
+    # represents a real beneficiary, so it can't count toward
+    # "top counterparty" (Codex P2 rounds 1, 2, 3).
+    #
+    # Example: 3 outflows all with NULL counterparty_id (amounts
+    # 300/100/100). The prior version made each unknown a
+    # distinct bucket and `top_cp_total` = 300 → concentration
+    # = 60% → fires Path B with no real evidence. Now
+    # top_known_cp_total = 0 → concentration = 0 → Path B can't
+    # fire.
     cp_totals: dict[str, Decimal] = {}
-    for idx, o in enumerate(outflows):
-        cp = o["counterparty_id"] or f"<unknown-{idx}>"
+    for o in outflows:
+        cp = o["counterparty_id"]
+        if not cp:
+            continue
         cp_totals[cp] = cp_totals.get(cp, Decimal("0")) + o["amount"]
-    top_cp_total = max(cp_totals.values()) if cp_totals else Decimal("0")
-    concentration = top_cp_total / total if total > 0 else Decimal("0")
-    # `single_cp` only counts KNOWN counterparty IDs. Synthetic
-    # `<unknown-N>` buckets must not satisfy the
-    # "all-to-same-beneficiary" gate (no evidence those rows went
-    # to the same place).
+    top_known_cp_total = max(cp_totals.values()) if cp_totals else Decimal("0")
+    concentration = top_known_cp_total / total if total > 0 else Decimal("0")
+    # `single_known_cp` requires ALL outflows have known
+    # counterparty_ids AND there's exactly 1 distinct id.
     known_cp_ids = {o["counterparty_id"] for o in outflows if o["counterparty_id"]}
     single_known_cp = len(known_cp_ids) == 1 and all(o["counterparty_id"] for o in outflows)
+
     # Foreign dominance: how much went to a country different
-    # from the originator's debtor_country.
+    # from the originator's debtor_country. ISO country codes
+    # are case-insensitive — normalize before comparing so a
+    # `DE` vs `de` mismatch doesn't get classified as foreign
+    # (Codex P2 round 3).
+    def _norm_country(value: str) -> str:
+        return (value or "").strip().upper()
+
     foreign_total = sum(
         (
             o["amount"]
             for o in outflows
-            if o["counterparty_country"]
-            and o["debtor_country"]
-            and o["counterparty_country"] != o["debtor_country"]
+            if _norm_country(o["counterparty_country"])
+            and _norm_country(o["debtor_country"])
+            and _norm_country(o["counterparty_country"]) != _norm_country(o["debtor_country"])
         ),
         Decimal("0"),
     )

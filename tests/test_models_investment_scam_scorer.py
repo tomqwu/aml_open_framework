@@ -192,6 +192,53 @@ class TestQualifies:
         ]
         assert _qualifies(outflows) is None
 
+    def test_path_b_all_unknown_counterparties_does_not_fire(self):
+        # Codex P2 round 3: 3 accelerating outflows with skewed
+        # amounts (300/100/100), all NULL counterparty_ids, all
+        # foreign destination — the prior version made each
+        # unknown a distinct bucket so top_cp_total = 300 →
+        # concentration = 60% → fires Path B without ANY real
+        # counterparty evidence.
+        # Fix: unknown counterparties contribute to denominator
+        # but NEVER to numerator → concentration = 0 → no fire.
+        outflows = [
+            _outflow(1, 300, 10, counterparty_id=""),
+            _outflow(2, 100, 5, counterparty_id=""),
+            _outflow(3, 100, 2, counterparty_id=""),
+        ]
+        # Path A fails too (total $500 < $5k). Path B must also
+        # fail — no real concentration evidence.
+        assert _qualifies(outflows) is None
+
+    def test_path_b_country_case_mismatch_does_not_count_as_foreign(self):
+        # Codex P2 round 3: ISO country codes are case-
+        # insensitive. The prior version would treat
+        # `counterparty_country='DE'` vs `debtor_country='de'` as
+        # foreign, inflating foreign_ratio to 100% on actually-
+        # domestic payouts.
+        # Fix: normalize (strip + upper) before comparing.
+        outflows = [
+            _outflow(
+                1,
+                5000,
+                5,
+                counterparty_id="CP-1",
+                counterparty_country="DE",
+                debtor_country="de",
+            ),
+            _outflow(
+                2,
+                5000,
+                2,
+                counterparty_id="CP-1",
+                counterparty_country=" DE ",
+                debtor_country="DE",
+            ),
+        ]
+        # All domestic. Path A fails (count < 3). Path B must
+        # fail on foreign_ratio = 0%.
+        assert _qualifies(outflows) is None
+
     def test_path_a_still_fires_when_optional_columns_missing(self):
         # Codex P1 round 1: when the spec's contract doesn't
         # declare counterparty_id/country/debtor_country (eu_bank's
