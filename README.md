@@ -1,6 +1,10 @@
 # AML Open Framework
 
 [![CI](https://github.com/tomqwu/aml_open_framework/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tomqwu/aml_open_framework/actions/workflows/ci.yml)
+[![unit tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftomqwu%2Faml_open_framework%2Fmain%2F.github%2Fbadges%2Funit.json)](https://github.com/tomqwu/aml_open_framework/actions/workflows/ci.yml)
+[![api tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftomqwu%2Faml_open_framework%2Fmain%2F.github%2Fbadges%2Fapi.json)](https://github.com/tomqwu/aml_open_framework/actions/workflows/ci.yml)
+[![e2e tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftomqwu%2Faml_open_framework%2Fmain%2F.github%2Fbadges%2Fe2e.json)](https://github.com/tomqwu/aml_open_framework/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftomqwu%2Faml_open_framework%2Fmain%2F.github%2Fbadges%2Fcoverage.json)](https://github.com/tomqwu/aml_open_framework/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.35%2B-FF4B4B.svg)](https://streamlit.io/)

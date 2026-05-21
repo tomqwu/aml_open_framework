@@ -29,7 +29,31 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_dashboard_mobile.py --ignore=tests/test_api.py -q
+      # Capture the test count before the suite runs so the badge
+      # update can run with `if: always()` and still know how many
+      # tests were collected even when the suite fails.
+      - id: collect
+        run: |
+          count=$(pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_dashboard_mobile.py --ignore=tests/test_api.py --collect-only -q 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1)
+          echo "count=${count:-0}" >> "$GITHUB_OUTPUT"
+      - id: pytest
+        run: pytest tests/ --ignore=tests/test_e2e_dashboard.py --ignore=tests/test_e2e_dashboard_mobile.py --ignore=tests/test_api.py -q
+      - name: Write unit badge JSON
+        if: always()
+        run: |
+          mkdir -p .github/badges
+          python scripts/_make_badge_json.py \
+            --label unit \
+            --count "${{ steps.collect.outputs.count }}" \
+            --status "${{ steps.pytest.outcome == 'success' && 'success' || steps.pytest.outcome }}" \
+            > .github/badges/unit.json
+          cat .github/badges/unit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: badge-unit
+          path: .github/badges/unit.json
+          if-no-files-found: warn
 
   coverage:
     runs-on: ubuntu-latest
@@ -39,14 +63,36 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev,api,dashboard]"
-      - run: |
+      - id: pytest
+        run: |
           pytest tests/ \
             --ignore=tests/test_e2e_dashboard.py \
             --ignore=tests/test_e2e_dashboard_mobile.py \
             --cov=aml_framework \
             --cov-report=term-missing \
+            --cov-report=json:.coverage_report.json \
             --cov-fail-under=99 \
             -q
+      - name: Write coverage badge JSON
+        if: always()
+        run: |
+          mkdir -p .github/badges
+          # `coverage_report.json` carries `totals.percent_covered` as a
+          # float. Fall back to 0 when the file is missing (job didn't
+          # reach the test step) so the badge still renders something.
+          percent=$(python -c "import json,os; d=json.load(open('.coverage_report.json')) if os.path.exists('.coverage_report.json') else {}; print(d.get('totals',{}).get('percent_covered', 0))")
+          python scripts/_make_badge_json.py \
+            --label coverage \
+            --coverage "$percent" \
+            --status "${{ steps.pytest.outcome == 'success' && 'success' || steps.pytest.outcome }}" \
+            > .github/badges/coverage.json
+          cat .github/badges/coverage.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: badge-coverage
+          path: .github/badges/coverage.json
+          if-no-files-found: warn
 
   api-tests:
     runs-on: ubuntu-latest
@@ -56,7 +102,28 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev,api]"
-      - run: pytest tests/test_api.py -q
+      - id: collect
+        run: |
+          count=$(pytest tests/test_api.py --collect-only -q 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1)
+          echo "count=${count:-0}" >> "$GITHUB_OUTPUT"
+      - id: pytest
+        run: pytest tests/test_api.py -q
+      - name: Write api badge JSON
+        if: always()
+        run: |
+          mkdir -p .github/badges
+          python scripts/_make_badge_json.py \
+            --label api \
+            --count "${{ steps.collect.outputs.count }}" \
+            --status "${{ steps.pytest.outcome == 'success' && 'success' || steps.pytest.outcome }}" \
+            > .github/badges/api.json
+          cat .github/badges/api.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: badge-api
+          path: .github/badges/api.json
+          if-no-files-found: warn
 
   e2e-dashboard:
     runs-on: ubuntu-latest
@@ -73,12 +140,101 @@ jobs:
           python-version: "3.12"
       - run: pip install -e ".[dev,dashboard]" playwright
       - run: python -m playwright install chromium
-      - run: pytest tests/test_e2e_dashboard.py tests/test_e2e_dashboard_mobile.py -q
+      - id: collect
+        run: |
+          count=$(pytest tests/test_e2e_dashboard.py tests/test_e2e_dashboard_mobile.py --collect-only -q 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1)
+          echo "count=${count:-0}" >> "$GITHUB_OUTPUT"
+      - id: pytest
+        run: pytest tests/test_e2e_dashboard.py tests/test_e2e_dashboard_mobile.py -q
         # The desktop suite renders every page plus Today / Executive /
         # one persona-specific page for every registered persona. Each
         # Playwright navigation waits for Streamlit to settle, so keep
         # headroom for new personas and pages without per-PR retuning.
         timeout-minutes: 25
+      - name: Write e2e badge JSON
+        if: always()
+        run: |
+          mkdir -p .github/badges
+          python scripts/_make_badge_json.py \
+            --label e2e \
+            --count "${{ steps.collect.outputs.count }}" \
+            --status "${{ steps.pytest.outcome == 'success' && 'success' || steps.pytest.outcome }}" \
+            > .github/badges/e2e.json
+          cat .github/badges/e2e.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: badge-e2e
+          path: .github/badges/e2e.json
+          if-no-files-found: warn
+
+  tests-badge:
+    # Consolidate per-job badge JSONs and commit them to main so the
+    # README's shields.io endpoint badges render fresh counts. The job
+    # only PUSHES on main; on PR runs it just validates the artifacts
+    # exist + lints the JSON (lets reviewers see the artifact in the
+    # run summary without a side-effect commit). [skip ci] on the
+    # commit message keeps the auto-commit from triggering another
+    # full CI run.
+    needs: [unit-tests, api-tests, coverage, e2e-dashboard]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Need full history for the rebase-retry on push race below.
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: .github/badges/_incoming
+          merge-multiple: false
+      - name: Stage badge JSONs
+        run: |
+          mkdir -p .github/badges
+          for label in unit api coverage e2e; do
+            src=".github/badges/_incoming/badge-${label}/${label}.json"
+            if [ -f "$src" ]; then
+              cp "$src" ".github/badges/${label}.json"
+              echo "Updated .github/badges/${label}.json:"
+              cat ".github/badges/${label}.json"
+            else
+              echo "WARN: ${src} missing — keeping committed copy of ${label}.json"
+            fi
+          done
+          rm -rf .github/badges/_incoming
+      - name: Commit + push (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet .github/badges/; then
+            echo "No badge JSON changes — skipping commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Pull recent diff into the commit body so `git log` reads
+          # like a changelog of test-count moves.
+          summary=$(for f in .github/badges/{unit,api,coverage,e2e}.json; do
+            [ -f "$f" ] && python -c "import json,sys; d=json.load(open('$f')); print(f\"- {d['label']}: {d['message']}\")"
+          done)
+          git add .github/badges/
+          git commit -m "chore(ci): refresh test-count badges [skip ci]" -m "$summary"
+          # Up to 3 push attempts to survive a PR-merge race
+          # (e.g. another PR squash-merge lands between our checkout
+          # and our push — common during gate-drain sessions).
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "Push succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Push failed on attempt $attempt — rebasing on main"
+            git pull --rebase origin main
+          done
+          echo "Push failed after 3 attempts" >&2
+          exit 1
 
   docker-build:
     runs-on: ubuntu-latest
