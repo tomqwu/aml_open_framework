@@ -5,6 +5,13 @@ on:
     branches: [main, "claude/*"]
   pull_request:
     branches: [main]
+  # Daily refresh + on-demand: auto-merge by GITHUB_TOKEN doesn't fire
+  # `push` events, so the `tests-badge` job (which commits refreshed
+  # JSONs to main) never ran on those merges. The schedule + manual
+  # dispatch give a recovery path.
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -205,7 +212,12 @@ jobs:
           done
           rm -rf .github/badges/_incoming
       - name: Commit + push (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # schedule + workflow_dispatch refresh badges even when GitHub
+        # auto-merge (GITHUB_TOKEN) skips the push event — see issue #389.
+        if: |
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'schedule' ||
+          github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
