@@ -1,23 +1,21 @@
-"""Knowledge · Business Deck — board-pack walkthrough + 12 narrative slides.
+"""Knowledge · Business Deck — board-pack walkthrough + 64s board video + PDF.
 
-PR-U3 of the unified-product epic. The GitHub-Pages knowledge site
-hosts a board-style business deck + a 64-second board-video at
-``docs/pitch/deck-v2/business-slides/`` and
-``docs/pitch/deck-v2/board-video/``. This page surfaces both inside the
-native dashboard so the GH page can be retired (PR-U4 finishes that).
-
-Structure mirrors the other Knowledge pages (33-40): direct-URL-safe
-`ensure_initialized()`, a LITERAL `page_header(...)`, the page-level
-`section_explainer(...)`, then the body. The body is image+video
-oriented (not prose), so unlike the research whitepaper pages there
-is no `dashboard.data.research` extraction — slide PNGs and MP4s live
-under `docs/` in the deployed image (Dockerfile copies the whole
-`docs/` tree to `/app/docs/`), reached by walking 4 parents up from
-this file.
+PR-U3 of the unified-product epic surfaces the GitHub-Pages
+business deck + board video natively in the dashboard. PR-U5
+(this revision) drops the PNG slide gallery — `st.image` with
+`use_container_width=True` was stretching the 1920×1080 captures
+to the dashboard column width on wide desktops, blurring them —
+and switches to a native browser PDF iframe. Browsers render
+PDFs with built-in zoom, page navigation, full-screen, and search
+without any extra dashboard infrastructure (the base64 data URI
+keeps the PDF inline so there's no cross-origin static-server
+to wire up). The PDF is the canonical artefact anyway — operators
+download it for offline reading.
 """
 
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 
 import streamlit as st
@@ -40,45 +38,23 @@ section_explainer(
     },
 )
 
-# Repo-root anchor: pages/41_*.py → parents[4] is the project root
-# (src/aml_framework/dashboard/pages/<file> → src/aml_framework/dashboard
-# → src/aml_framework → src → root). In the deployed container the
-# Dockerfile sets WORKDIR=/app and COPYs docs/, so /app/docs/ exists at
-# this path. For pip-installed wheels the docs/ tree is not bundled —
-# we render a graceful caption in that case rather than crashing.
+# pages/41_*.py → parents[4] is the project root. In the deployed
+# container the Dockerfile sets WORKDIR=/app and COPYs docs/, so
+# /app/docs/ exists at this path. For pip-installed wheels the
+# docs/ tree is not bundled — graceful caption fallback.
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _DECK_DIR = _REPO_ROOT / "docs" / "pitch" / "deck-v2"
-_SLIDES_DIR = _DECK_DIR / "business-slides" / "slides"
 _PDF_PATH = _DECK_DIR / "business-slides" / "aml-open-framework-business.pdf"
 _BOARD_VIDEO = _DECK_DIR / "board-video" / "board-video.mp4"
 
-# (file-stem, headline) — pinning the slide order + the human-readable
-# headline that captions each panel. Sourced from the slide HTML
-# `<title>` elements at build time, baked here so we don't HTML-parse
-# at runtime.
-_SLIDES: list[tuple[str, str]] = [
-    ("01-cover", "Cover — board briefing"),
-    ("02-2to1-rule", "The 2:1 rule"),
-    ("03-cost", "The cost in three sizes"),
-    ("04-quotes", "What leaders actually say"),
-    ("05-thesis", "The thesis"),
-    ("06-how-it-works", "How it works"),
-    ("07-tuesday", "A Tuesday on the AML floor"),
-    ("08-meetings", "The meetings that stop happening"),
-    ("09-changes", "Pain → Capability map"),
-    ("10-quadrant", "Where this sits in the market"),
-    ("11-numbers", "By the numbers"),
-    ("12-close", "Close — what we're asking for"),
-]
-
 
 st.markdown(
-    "The business deck is a 12-slide board-pack for CCO, MLRO, and "
-    "Audit Committee audiences. It pairs with the 64-second "
-    "**board video** at the top — a McKinsey-style walkthrough of the "
-    "thesis with no CLI register. Both artefacts live next to the "
-    "framework source in `docs/pitch/deck-v2/` and ship inside the "
-    "deployed container."
+    "The business deck is the 12-slide board-pack for CCO, MLRO, "
+    "and Audit Committee audiences. It pairs with the 64-second "
+    "**board video** at the top — a McKinsey-style walkthrough of "
+    "the thesis with no CLI register. Both artefacts live next to "
+    "the framework source in `docs/pitch/deck-v2/` and ship inside "
+    "the deployed container."
 )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -94,12 +70,25 @@ else:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Download buttons row — PDF for offline reading + a deep-link the
-# user can paste into a meeting invite. Both target files inside the
-# container; `st.download_button` streams bytes, no Streamlit static
-# server config needed.
+st.markdown("### Deck — 12 slides")
+
 if _PDF_PATH.exists():
     pdf_bytes = _PDF_PATH.read_bytes()
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+    # Browsers render PDFs natively in iframes with built-in zoom,
+    # page navigation, full-screen, search. Inlining via base64
+    # data URI avoids the cross-origin / static-server wiring that
+    # serving the PDF over HTTP would require.
+    st.markdown(
+        f'<iframe src="data:application/pdf;base64,{pdf_b64}#view=FitH" '
+        f'width="100%" height="780" '
+        f'style="border:1px solid rgba(255,255,255,0.12);border-radius:8px;">'
+        f"</iframe>",
+        unsafe_allow_html=True,
+    )
+    st.markdown("<br>", unsafe_allow_html=True)
+    # Keep the download button for offline reading + meeting-invite
+    # attachment workflows.
     st.download_button(
         label="📄 Download business deck (PDF)",
         data=pdf_bytes,
@@ -109,26 +98,6 @@ if _PDF_PATH.exists():
     )
 else:
     st.caption(
-        "PDF not bundled. Source: "
+        "PDF not bundled in this install. Source: "
         "`docs/pitch/deck-v2/business-slides/aml-open-framework-business.pdf`."
-    )
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-st.markdown("### Slides")
-
-missing_slides: list[str] = []
-for stem, headline in _SLIDES:
-    img_path = _SLIDES_DIR / f"{stem}.png"
-    if not img_path.exists():
-        missing_slides.append(stem)
-        continue
-    st.markdown(f"**{stem.split('-', 1)[0]} · {headline}**")
-    st.image(str(img_path), use_container_width=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-if missing_slides:
-    st.caption(
-        f"Slides not bundled in this install: {', '.join(missing_slides)}. "
-        "Source: `docs/pitch/deck-v2/business-slides/slides/`."
     )

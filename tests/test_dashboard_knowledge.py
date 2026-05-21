@@ -230,43 +230,68 @@ class TestDeckKnowledgePages:
                 f"find docs/pitch/deck-v2/ in the container"
             )
 
-    def test_each_deck_page_handles_missing_assets_gracefully(self):
-        # The PNGs/MP4s/PDF are large; if a future slim wheel drops
-        # them the page should caption (not crash). Verified by file
-        # text since we can't run streamlit in unit-test CI.
+    def test_each_deck_page_handles_missing_pdf_gracefully(self):
+        # PR-U5: pages now embed the PDF via base64 iframe (drops
+        # the stretched-image slide gallery). If a future slim
+        # wheel drops the PDF, page should caption rather than
+        # crash. Verified by file text since unit-test CI can't
+        # run streamlit.
         for _no, fname, _nav, _src in EXPECTED_DECKS:
             body = (PAGES_DIR / fname).read_text(encoding="utf-8")
             assert "if _PDF_PATH.exists()" in body, f"{fname} missing PDF fallback"
-            assert "missing_slides" in body, f"{fname} missing slide-fallback"
+            assert "st.caption" in body, f"{fname} missing graceful-fallback caption"
+
+    def test_each_deck_page_embeds_pdf_via_base64_iframe(self):
+        # PR-U5: native browser PDF viewer (zoom, page nav,
+        # full-screen, search) replaces the stretched-image
+        # gallery. Pin the iframe contract so a future
+        # refactor doesn't silently regress to image rendering.
+        for _no, fname, _nav, _src in EXPECTED_DECKS:
+            body = (PAGES_DIR / fname).read_text(encoding="utf-8")
+            assert "base64" in body, f"{fname} should base64-encode PDF for inline iframe"
+            assert "application/pdf" in body, f"{fname} missing PDF iframe data URI"
+            assert "<iframe" in body, f"{fname} missing iframe embed"
+            # `#view=FitH` defaults the PDF viewer to fit-horizontal
+            # so the deck opens at slide-width, not page-height.
+            assert "#view=FitH" in body, f"{fname} missing FitH viewer fragment"
+
+    def test_no_deck_page_calls_st_image(self):
+        # PR-U5 regression guard: `st.image(..., use_container_width=True)`
+        # stretched 1920×1080 captures and blurred them on wide
+        # viewports. The PDF iframe replaces this; the call site
+        # must stay gone. (`st.image` may appear in docstrings as
+        # prose — check the actual call site `st.image(` instead.)
+        for _no, fname, _nav, _src in EXPECTED_DECKS:
+            body = (PAGES_DIR / fname).read_text(encoding="utf-8")
+            assert "st.image(" not in body, (
+                f"{fname} reintroduced st.image() — use the PDF iframe "
+                "instead (stretched captures blur on wide viewports)"
+            )
 
     def test_deck_assets_present_in_source_tree(self):
         # The committed assets must exist at the paths the pages
         # reference. A stale asset path would silently render an
         # empty page — this catches that pre-deploy.
-        assert (self.DECK_V2 / "business-slides" / "slides").is_dir()
-        assert (self.DECK_V2 / "slides").is_dir()
         assert (self.DECK_V2 / "business-slides" / "aml-open-framework-business.pdf").is_file()
         assert (self.DECK_V2 / "aml-open-framework-v2.pdf").is_file()
         assert (self.DECK_V2 / "board-video" / "board-video.mp4").is_file()
         assert (self.DECK_V2 / "video" / "walkthrough.mp4").is_file()
 
-    def test_each_deck_page_renders_with_a_real_slide(self):
-        # Every slide stem listed in the page must have a committed
-        # PNG in the matching source subdir. Drift here = a slide
-        # claimed by the page but never captured = an empty render.
-        import re
-
-        for _no, fname, _nav, src_subdir in EXPECTED_DECKS:
-            body = (PAGES_DIR / fname).read_text(encoding="utf-8")
-            stems = re.findall(r'\("(\d{2}-[a-z0-9-]+)", "[^"]+"\)', body)
-            assert stems, f"{fname} declares no slide stems"
-            slides_dir = self.DECK_V2 / src_subdir
-            for stem in stems:
-                png = slides_dir / f"{stem}.png"
-                assert png.is_file(), (
-                    f"{fname} references slide {stem}.png but "
-                    f"{slides_dir}/{stem}.png does not exist"
-                )
+    def test_pdf_paths_resolvable_from_parents_4_anchor(self):
+        # Source-tree path check: walking from each page's location
+        # via parents[4] / "docs" / "pitch" / "deck-v2" / <pdf>
+        # must hit a real file. Replaces the PR-U3 slide-stem ↔ PNG
+        # check (PR-U5 dropped the stem list when the iframe took
+        # over from the gallery).
+        for _no, fname, _nav, _src in EXPECTED_DECKS:
+            page = PAGES_DIR / fname
+            # Mirror the page's own resolution: parents[4] from
+            # src/aml_framework/dashboard/pages/<file> = the repo
+            # root.
+            repo_root = page.resolve().parents[4]
+            assert (repo_root / "docs" / "pitch" / "deck-v2").is_dir(), (
+                f"{fname}: deck-v2 dir not reachable via parents[4]"
+            )
 
     def test_app_registers_both_deck_pages(self):
         body = APP.read_text(encoding="utf-8")
