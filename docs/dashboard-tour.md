@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **42 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **43 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 The final ten pages form the **Knowledge** reference shelf — the merged GitHub-Pages knowledge site, ported native (PR-U2 ported 8 Research whitepapers; PR-U3 added the Business + Technical decks with their walkthrough videos — both PRs of the unified-product epic). They carry no engine coupling; every persona keeps access to them regardless of the audience filter.
 
@@ -118,6 +118,12 @@ Run-over-run comparison showing metrics vs targets, RAG distribution, and per-ru
 Pre-built library of 20+ AML detection rule templates across 9 categories: structuring, layering, shell companies, sanctions/PEP, behavioral anomalies, trade-based ML, mule activity, crypto/virtual assets, and geographic risk. Browse templates and add to your spec with institution-specific thresholds.
 
 ![Typology Catalogue](screenshots/18_typology_catalogue.png)
+
+### North Star Coverage
+
+The 8 AML/TM + DS pillars this framework is built around (equivalence-before-optimization, evidence-as-a-product, point-in-time correctness, DQ/reconciliation/defect management, risk-based controls, alert lifecycle & explainability, DS as governed augmentation, serve five roles) — surfaced as 8 cards classified COVERED / PARTIAL / GAP with concrete artefacts from the live spec/run and links to the relevant dashboard pages (PR-NS-1). Read-only synthesis surface — no engine call, no buttons. Honest about gaps: pillar 1 (equivalence) is flagged GAP until the dedicated equivalence engine ships in PR-EQ-2. Routed universally — every persona sees it, same idiom as the Knowledge shelf.
+
+_Screenshot: pending — see follow-up._
 
 ---
 
@@ -289,7 +295,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The 42 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
+The 43 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|
