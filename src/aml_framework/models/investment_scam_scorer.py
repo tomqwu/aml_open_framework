@@ -135,7 +135,16 @@ def _fetch_invs_outflows(
     # `counterparty_id`, so without this COALESCE Path B silently
     # disabled on the common ISO 20022 ingestion path (Codex P2
     # round 5).
-    cp_id_terms = [c for c in ("counterparty_id", "counterparty_account") if c in present]
+    # `NULLIF(TRIM(...), '')` normalizes blank-string values to
+    # NULL before COALESCE — without this a warehouse/BYOD row
+    # carrying `counterparty_id = ''` and a populated
+    # `counterparty_account` would return the empty string from
+    # COALESCE, masking the account fallback (Codex P2 round 7).
+    cp_id_terms = [
+        f"NULLIF(TRIM({c}), '')"
+        for c in ("counterparty_id", "counterparty_account")
+        if c in present
+    ]
     cp_id_expr = f"COALESCE({', '.join(cp_id_terms)})" if cp_id_terms else "NULL"
     cp_country_expr = "counterparty_country" if "counterparty_country" in present else "NULL"
     debtor_expr = "debtor_country" if "debtor_country" in present else "NULL"

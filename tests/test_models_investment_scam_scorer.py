@@ -447,6 +447,63 @@ class TestEngineContract:
         finally:
             con.close()
 
+    def test_blank_counterparty_id_falls_through_to_account(self):
+        # Codex P2 round 7: warehouse/BYOD feeds preserve blanks
+        # (e.g. `counterparty_id = ''`); without NULLIF(TRIM())
+        # the COALESCE returns the empty string, masking the
+        # counterparty_account fallback.
+        con = duckdb.connect(":memory:")
+        try:
+            con.execute(
+                """
+                CREATE TABLE txn (
+                    customer_id          VARCHAR,
+                    amount               DOUBLE,
+                    direction            VARCHAR,
+                    purpose_code         VARCHAR,
+                    counterparty_country VARCHAR,
+                    counterparty_id      VARCHAR,
+                    counterparty_account VARCHAR,
+                    debtor_country       VARCHAR,
+                    booked_at            TIMESTAMP
+                )
+                """
+            )
+            as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)
+            # Two outflows: counterparty_id = '' (blank), but
+            # counterparty_account populated. Path B must fire
+            # via the fallback.
+            rows = [
+                (
+                    "C0010",
+                    5000.0,
+                    "out",
+                    "INVS",
+                    "CH",
+                    "",
+                    "CH-ACCT-12345",
+                    "DE",
+                    as_of - timedelta(days=5),
+                ),
+                (
+                    "C0010",
+                    5000.0,
+                    "out",
+                    "INVS",
+                    "CH",
+                    "  ",
+                    "CH-ACCT-12345",
+                    "DE",
+                    as_of - timedelta(days=2),
+                ),
+            ]
+            con.executemany("INSERT INTO txn VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+            alerts = investment_scam_scorer(con, as_of)
+            assert len(alerts) == 1
+            assert alerts[0]["qualifying_path"] == "cross_signal"
+        finally:
+            con.close()
+
     def test_counterparty_account_falls_back_for_path_b(self):
         # Codex P2 round 5: framework's pacs.008 parser emits the
         # beneficiary identifier as `counterparty_account`, not
