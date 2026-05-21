@@ -161,6 +161,37 @@ class TestQualifies:
     def test_empty_outflows_does_not_fire(self):
         assert _qualifies([]) is None
 
+    def test_path_b_null_counterparty_id_does_not_qualify(self):
+        # Codex P2 round 1: 2 payouts both with NULL counterparty_id
+        # would have bucketed under "<unknown>" making concentration
+        # = 100% and single_cp = True, firing a high-severity alert
+        # without evidence the payouts went to the same beneficiary.
+        # The fix: NULL ids skip the concentration calculation
+        # entirely, so concentration = 0 and Path B can't fire.
+        outflows = [
+            _outflow(1, 5000, 5, counterparty_id=""),
+            _outflow(2, 5000, 2, counterparty_id=""),
+        ]
+        # Path A fails (count=2 < 3); Path B fails (concentration=0).
+        assert _qualifies(outflows) is None
+
+    def test_path_a_still_fires_when_optional_columns_missing(self):
+        # Codex P1 round 1: when the spec's contract doesn't
+        # declare counterparty_id/country/debtor_country (eu_bank's
+        # actual shape), the loaded rows have empty strings for
+        # those fields. Path A must STILL fire (it doesn't depend
+        # on those columns) — the prior all-or-nothing column guard
+        # made the scorer a no-op on eu_bank.
+        outflows = [
+            _outflow(1, 2500, 10, counterparty_id="", counterparty_country="", debtor_country=""),
+            _outflow(2, 3000, 5, counterparty_id="", counterparty_country="", debtor_country=""),
+            _outflow(3, 2800, 2, counterparty_id="", counterparty_country="", debtor_country=""),
+        ]
+        q = _qualifies(outflows)
+        assert q is not None
+        assert q["qualifying_path"] == "snippet"
+        assert q["count"] == 3
+
 
 # ---------------------------------------------------------------------------
 # Alert shape
@@ -318,6 +349,40 @@ class TestEngineContract:
         finally:
             con.close()
 
+    def test_fires_against_eu_bank_shape_with_only_required_columns(self):
+        # Codex P1 round 1: eu_bank's `txn` contract doesn't
+        # declare counterparty_id/debtor_country. With the
+        # all-or-nothing column guard, the scorer was a no-op.
+        # Now it must STILL run Path A by SELECTing NULL for the
+        # missing optional columns.
+        con = duckdb.connect(":memory:")
+        try:
+            con.execute(
+                """
+                CREATE TABLE txn (
+                    customer_id          VARCHAR,
+                    amount               DOUBLE,
+                    direction            VARCHAR,
+                    purpose_code         VARCHAR,
+                    counterparty_country VARCHAR,
+                    booked_at            TIMESTAMP
+                )
+                """
+            )
+            as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)
+            rows = [
+                ("C0010", 2500.0, "out", "INVS", "CH", as_of - timedelta(days=10)),
+                ("C0010", 3000.0, "out", "INVS", "CH", as_of - timedelta(days=5)),
+                ("C0010", 2800.0, "out", "INVS", "CH", as_of - timedelta(days=2)),
+            ]
+            con.executemany("INSERT INTO txn VALUES (?, ?, ?, ?, ?, ?)", rows)
+            alerts = investment_scam_scorer(con, as_of)
+            assert len(alerts) == 1
+            assert alerts[0]["customer_id"] == "C0010"
+            assert alerts[0]["qualifying_path"] == "snippet"
+        finally:
+            con.close()
+
     def test_loop_skips_non_qualifying_customer(self, duck_con):
         # Two customers in the table: one qualifies, the other
         # has just 1 INVS outflow (below all thresholds). Exercises
@@ -326,9 +391,36 @@ class TestEngineContract:
         as_of = datetime(2026, 5, 20, 12, 0, 0, tzinfo=timezone.utc)
         rows = [
             # C0010 qualifies — 3 INVS outflows to single offshore cp
-            ("C0010", 2500.0, "out", "INVS", "CH", "CP-OFFSHORE-1", "DE", as_of - timedelta(days=10)),
-            ("C0010", 3000.0, "out", "INVS", "CH", "CP-OFFSHORE-1", "DE", as_of - timedelta(days=5)),
-            ("C0010", 2800.0, "out", "INVS", "CH", "CP-OFFSHORE-1", "DE", as_of - timedelta(days=2)),
+            (
+                "C0010",
+                2500.0,
+                "out",
+                "INVS",
+                "CH",
+                "CP-OFFSHORE-1",
+                "DE",
+                as_of - timedelta(days=10),
+            ),
+            (
+                "C0010",
+                3000.0,
+                "out",
+                "INVS",
+                "CH",
+                "CP-OFFSHORE-1",
+                "DE",
+                as_of - timedelta(days=5),
+            ),
+            (
+                "C0010",
+                2800.0,
+                "out",
+                "INVS",
+                "CH",
+                "CP-OFFSHORE-1",
+                "DE",
+                as_of - timedelta(days=2),
+            ),
             # C0099 has 1 INVS outflow — qualifies neither path A
             # nor path B. The scorer must skip and emit no alert
             # for this customer (the `continue` branch).

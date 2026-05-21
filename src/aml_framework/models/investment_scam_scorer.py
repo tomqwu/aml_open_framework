@@ -71,19 +71,31 @@ _LOW_COUNT_THRESHOLD = 2
 _COUNTERPARTY_CONCENTRATION_RATIO = Decimal("0.5")
 _FOREIGN_DESTINATION_RATIO = Decimal("0.8")
 
-# Same path-safety + column-presence pattern as
-# `mule_return_burst_scorer` — defends against zero-row
-# placeholder contracts and BYOD shapes.
+# Required columns for Path A baseline (snippet-equivalent). The
+# scorer is a no-op without these — there's nothing to evaluate.
+# Same probe-before-SELECT pattern as `mule_return_burst_scorer`
+# defends against zero-row placeholder contracts.
 _REQUIRED_COLUMNS = frozenset(
     {
         "customer_id",
         "amount",
         "direction",
         "purpose_code",
-        "counterparty_country",
-        "counterparty_id",
-        "debtor_country",
         "booked_at",
+    }
+)
+
+# Optional columns for Path B cross-signal qualification. When
+# the spec's `txn` contract doesn't declare these (e.g. eu_bank's
+# current shape), `_build_warehouse` drops them from loaded rows.
+# Path B silently degrades to "not evaluable" rather than blocking
+# the scorer entirely (Codex P1 round 1 — the all-or-nothing
+# column guard made the scorer a no-op on eu_bank).
+_OPTIONAL_PATH_B_COLUMNS = frozenset(
+    {
+        "counterparty_id",
+        "counterparty_country",
+        "debtor_country",
     }
 )
 
@@ -113,11 +125,19 @@ def _fetch_invs_outflows(
     }
     if not _REQUIRED_COLUMNS.issubset(present):
         return {}
+    # Optional columns are selected dynamically — if the spec's
+    # contract doesn't declare them, SELECT them as NULL constants
+    # so the scorer stays operable on Path A.
+    cp_id_expr = "counterparty_id" if "counterparty_id" in present else "NULL"
+    cp_country_expr = "counterparty_country" if "counterparty_country" in present else "NULL"
+    debtor_expr = "debtor_country" if "debtor_country" in present else "NULL"
     window_start = as_of - timedelta(days=lookback_days)
     rows = con.execute(
-        """
+        f"""
         SELECT rowid AS __row_id, customer_id, amount,
-               counterparty_country, counterparty_id, debtor_country,
+               {cp_country_expr} AS counterparty_country,
+               {cp_id_expr}      AS counterparty_id,
+               {debtor_expr}     AS debtor_country,
                booked_at
         FROM txn
         WHERE direction = 'out'
@@ -187,13 +207,29 @@ def _qualifies(outflows: list[dict[str, Any]]) -> dict[str, Any] | None:
         return None
     count = len(outflows)
     total = sum((o["amount"] for o in outflows), Decimal("0"))
-    # Concentration: top counterparty's share of total.
+    # Concentration: top counterparty's share of total. ONLY
+    # bucket rows that carry a real counterparty_id — NULL/empty
+    # ids would otherwise all roll up under "<unknown>" and make
+    # concentration look like 100% for any 2-payout customer
+    # whose data didn't provide counterparty IDs. That would let
+    # Path B fire on missing evidence, raising a high-severity
+    # alert without proof both payouts went to the same
+    # beneficiary (Codex P2 round 1).
     cp_totals: dict[str, Decimal] = {}
+    known_cp_total = Decimal("0")
     for o in outflows:
-        cp = o["counterparty_id"] or "<unknown>"
+        cp = o["counterparty_id"]
+        if not cp:
+            continue
         cp_totals[cp] = cp_totals.get(cp, Decimal("0")) + o["amount"]
+        known_cp_total += o["amount"]
     top_cp_total = max(cp_totals.values()) if cp_totals else Decimal("0")
-    concentration = top_cp_total / total if total > 0 else Decimal("0")
+    # Use the known-cp total as the denominator so concentration is
+    # a faithful measure of "of the payouts where we know the
+    # beneficiary, how much went to the top one". When ALL cp_ids
+    # are missing, known_cp_total = 0 and concentration = 0 — Path
+    # B can't fire.
+    concentration = top_cp_total / known_cp_total if known_cp_total > 0 else Decimal("0")
     # Foreign dominance: how much went to a country different
     # from the originator's debtor_country.
     foreign_total = sum(
