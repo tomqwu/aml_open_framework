@@ -14,6 +14,17 @@ program:
   regulator: FINTRAC
   owner: chief_anti_money_laundering_officer
   effective_date: 2026-01-01
+  # PR-EQ-1 (TM Gap 1): demonstrative `legacy_reference` for the
+  # 5-year-lookback parallel-run divergence classifier. Points at
+  # a CSV the operator exports from the legacy alert system (path
+  # is illustrative — operators replace at deploy time). Engine
+  # ignores this at runtime; `engine/equivalence.py` (PR-EQ-2)
+  # consumes it.
+  legacy_reference:
+    path: data/legacy/td_mantas_alerts.csv
+    format: csv
+    dataset: mantas_v2
+    key_columns: [rule_id, customer_id, window_start]
 
 # ---------------------------------------------------------------------------
 # Data contracts — one per channel to enforce channel-level coverage.
