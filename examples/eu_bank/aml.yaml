@@ -242,6 +242,38 @@ rules:
       logic.having.count:      [{gte: 2}, {gte: 3}, {gte: 5}]
       logic.having.sum_amount: [{gte: 2500}, {gte: 5000}, {gte: 10000}]
 
+  # PR-ML-3: investment-scam amplifier (python_ref alongside the
+  # SQL aggregation_window above). Same baseline (≥3 outflows
+  # summing ≥$5k = Path A "snippet"), PLUS a lower-count cross-
+  # signal path (Path B) that catches the early pig-butchering
+  # shape: 2 outflows to a single offshore counterparty with
+  # foreign-destination dominance ≥80% — the FinCEN
+  # FIN-2023-Alert005 + FATF Cyber-Enabled Fraud (Feb 2026)
+  # "accelerating offshore single-beneficiary drain" pattern the
+  # SQL count-3 floor misses.
+  - id: investment_scam_scorer
+    name: Investment-scam amplifier (counterparty + foreign-dest + accel)
+    severity: high
+    regulation_refs:
+      - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
+        description: "Investment-scam typology — purpose-code INVS misuse."
+      - citation: "FinCEN FIN-2023-Alert005"
+        description: "Pig-butchering / relationship-investment scams."
+    logic:
+      type: python_ref
+      callable: aml_framework.models.investment_scam_scorer:investment_scam_scorer
+      model_id: investment_scam_v1
+      model_version: 2026-05-20
+    escalate_to: l2_investigator
+    evidence:
+      - matching_invs_transactions
+      - customer_kyc_profile
+      - beneficiary_lookup
+      - counterparty_concentration_report
+    tags: [iso20022, purpose_code, invs, pig_butchering, ml_governed]
+    model_tier: medium
+    validation_cadence_months: 18
+
 workflow:
   queues:
     - id: l1_analyst

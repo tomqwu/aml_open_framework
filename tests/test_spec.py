@@ -320,10 +320,13 @@ class TestEUSpec:
         assert spec.program.jurisdiction == "EU"
         assert spec.program.regulator == "EBA"
         # Round-5 #2 added FATF R.16 travel-rule python_ref rule;
-        # Round-5 #3 added the INVS purpose-code velocity rule.
-        assert len(spec.rules) == 7
+        # Round-5 #3 added the INVS purpose-code velocity rule;
+        # PR-ML-3 added the investment_scam_scorer python_ref
+        # amplifier alongside the SQL aggregation_window rule.
+        assert len(spec.rules) == 8
         assert any(r.id == "travel_rule_completeness" for r in spec.rules)
         assert any(r.id == "invs_velocity_investment_scam" for r in spec.rules)
+        assert any(r.id == "investment_scam_scorer" for r in spec.rules)
 
     def test_eu_spec_runs(self, tmp_path):
         spec = load_spec(SPEC_EU)
