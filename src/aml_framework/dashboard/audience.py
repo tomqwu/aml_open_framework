@@ -383,17 +383,25 @@ NORTH_STAR_PAGES = [
 ]
 
 
-# PR-E1 (closes #378). False-Positive Analysis is the Pillar 7
-# "DS as governed augmentation" surface — per-rule FP rate so the
-# operator can see which rules to tune first. Cross-persona: analysts,
-# MLROs, engineers, examiners, and CCOs all need it. Routed
-# UNIVERSALLY via the same idiom as NORTH_STAR_PAGES / KNOWLEDGE_PAGES
-# so the per-persona operational cap (MAX_PAGES_PER_PERSONA=9) is
-# untouched. Kept as its own constant rather than folded into an
-# existing list because it's an FP-rate synthesis page, not a static
-# knowledge brief or pillar-coverage map.
+# Pillar-7 ("DS as governed augmentation") cross-cutting surfaces that
+# need universal visibility — MRM reviewers, engineers, analysts, and
+# auditors all need access regardless of persona. Folding them into
+# every AUDIENCE_PAGES entry would blow MAX_PAGES_PER_PERSONA, so they
+# route UNIVERSALLY via the same idiom as NORTH_STAR_PAGES /
+# KNOWLEDGE_PAGES (app.py adds these titles to every persona's visible
+# set). Kept as its own constant because each entry is a live-run
+# synthesis page, not a static knowledge brief or pillar map.
+#
+# Authoring order:
+#   - PR-E1 (#378): FP Analysis — per-rule false-positive rate.
+#   - PR-E3 (#380): Drift Monitor — per-scorer alert-volume drift.
+#
+# Multiple PRs in the [E3][epic] are extending this constant — treat
+# additions as additive (one entry per PR, no in-place edits to
+# existing entries).
 TUNING_PAGES = [
     "FP Analysis",
+    "Drift Monitor",
 ]
 
 

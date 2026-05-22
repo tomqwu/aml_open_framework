@@ -159,6 +159,12 @@ ML model analytics for `python_ref` rules: model inventory with version tracking
 
 ![Model Performance](screenshots/13_model_performance.png)
 
+### Drift Monitor
+
+Per-scorer alert-volume drift across the most recent runs (last 10). For each `python_ref` scorer the page reads stored alerts from `aml_framework.api.db` (the same source as Run History), computes per-run alert counts + mean numeric score (when present), and flags scorers whose last-run count is ≥2× or ≤0.5× the median of prior runs as **high drift**. Roll-up KPIs at the top; high-drift scorers surface above the per-scorer timelines with a Tuning Lab cross-link. Universally routed (every persona sees it) — MRM reviewers and engineers both reach it regardless of audience selection. The signal is intentionally count-based; richer distribution-level drift (KS / PSI / Wasserstein on the model's input feature vector) is deferred to a future ML scoring epic — see the inline "What this signal does — and does NOT — cover" expander on the page.
+
+_Screenshot: pending — see follow-up._
+
 ### Data Quality
 
 Executes data contract quality checks (`not_null`, `unique` constraints) against actual data. Shows PASS/FAIL per check, freshness SLA compliance with breach detection, and column-level statistics (non-null count, unique values, types).

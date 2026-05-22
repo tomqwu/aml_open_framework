@@ -1,0 +1,430 @@
+"""Drift Monitor — per-scorer input/output drift across recent runs.
+
+PR-E3 (issue #380, [E3][epic]). Pillar 7 (DS as governed augmentation).
+
+Read-only synthesis surface — no engine call, no spec write. For each
+`python_ref` scorer the framework runs, this page reads the per-rule
+alert artefacts from the most recent stored runs (via
+`aml_framework.api.db.list_runs()` + `get_run_alerts()`), computes a
+count-based drift signal per scorer, and surfaces high-drift scorers
+with a Tuning Lab cross-link.
+
+NOTE — drift here is intentionally count-based: a scorer whose alert
+count last-run was >2× or <0.5× the median of prior runs is flagged
+"high drift". Richer statistical drift (KS test / PSI / Wasserstein on
+feature distributions) is deferred to a future ML scoring epic — that
+work requires capturing the model's input feature vector per alert,
+which the current alert payload doesn't carry. See the deferred-work
+note inline.
+
+Universally routed (every persona sees it) via `TUNING_PAGES` —
+mirrors the Knowledge / North-Star idiom in `app.py`. NOT in
+`AUDIENCE_PAGES` so the per-persona MAX_PAGES_PER_PERSONA cap is
+preserved.
+"""
+
+from __future__ import annotations
+
+from statistics import median
+
+import pandas as pd
+import streamlit as st
+
+from aml_framework.dashboard.audience import show_audience_context
+from aml_framework.dashboard.components import (
+    empty_state,
+    kpi_card,
+    line_chart,
+    link_to_page,
+    page_footer,
+    page_header,
+    section_explainer,
+    see_also_footer,
+)
+from aml_framework.dashboard.data_grid import data_grid
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
+page_header(
+    "Drift Monitor",
+    "Per-scorer alert-volume drift across recent runs — surfaces "
+    "python_ref scorers whose output materially diverges from their "
+    "recent baseline.",
+)
+show_audience_context("Drift Monitor")
+
+section_explainer(
+    page="Drift Monitor",
+    section_id="drift_monitor.page",
+    section_title="Drift Monitor",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+        "metrics": len(getattr(st.session_state.get("spec"), "metrics", []) or []),
+        "case_count": (
+            len(st.session_state.get("df_cases"))
+            if st.session_state.get("df_cases") is not None
+            else 0
+        ),
+    },
+)
+
+spec = st.session_state.spec
+result = st.session_state.result
+
+# Find python_ref rules — these are the ML scorers the page monitors.
+ml_rules = [r for r in spec.rules if r.logic.type == "python_ref"]
+
+# Load recent stored runs from the persistence layer. `list_runs()` is
+# the canonical enumerate-runs idiom (Run History + Comparative
+# Analytics use it). Defensive: when the API isn't reachable (no
+# DATABASE_URL on a dashboard-only local launch, Cosmos misconfig,
+# etc.) we fall back to current-session-only.
+try:
+    from aml_framework.api.db import get_run_alerts, init_db, list_runs
+
+    init_db()
+    stored_runs = list_runs()
+except Exception:
+    stored_runs = []
+    get_run_alerts = None  # type: ignore[assignment]
+
+# Cap at last 10 runs to keep the page snappy. `list_runs()` returns
+# DESC by created_at; reverse for chronological X-axis on the line chart.
+RECENT_RUN_CAP = 10
+recent_runs = list(reversed(stored_runs[:RECENT_RUN_CAP]))
+
+
+def _no_data_path(reason: str) -> None:
+    """Helper — render an empty-state and exit cleanly.
+
+    Codex pattern: `page_footer()` BEFORE `st.stop()` so the bottom-of-
+    page affordance renders on the early-return path (otherwise
+    `test_st_stop_is_preceded_by_page_footer` fails).
+    """
+    empty_state(
+        reason,
+        icon="📉",
+        detail=(
+            "Drift monitoring needs either a python_ref scorer in the spec "
+            "AND ≥1 persisted run, or the current session must include "
+            "a python_ref scorer. Run a few jobs (`aml run` or `POST "
+            "/runs`) — each persisted execution feeds this surface."
+        ),
+    )
+    page_footer()
+    st.stop()
+
+
+if not ml_rules:
+    _no_data_path("No python_ref scorers in this spec.")
+
+if not recent_runs and not result.alerts:
+    _no_data_path("No persisted runs and no current-session alerts available.")
+
+# -----------------------------------------------------------------------
+# Per-scorer per-run summary stats. Read the alert list for each
+# (run_id, rule_id) pair from the persistence layer; the current
+# session run is appended as the rightmost point so the latest signal
+# is always visible (Run History uses the same "current session is the
+# anchor" idiom).
+#
+# Stats kept intentionally minimal — count + mean of any numeric score
+# field if present. Tolerant of missing score fields: a scorer that
+# only emits categorical evidence (no `score` / `risk_score` /
+# `confidence` field) still gets a count-only signal. Don't crash on
+# empty alert lists either — a scorer that fired zero alerts in a run
+# is a legitimate signal, not a bug.
+# -----------------------------------------------------------------------
+
+_SCORE_FIELDS = ("score", "risk_score", "confidence")
+
+
+def _alert_score(alert: dict) -> float | None:
+    """Pick the first present numeric score field on an alert payload,
+    or None if no recognisable score exists. Be tolerant of dict-shaped
+    values (the python_ref scorer occasionally wraps numerics in
+    `{"value": X, "unit": ...}` — see `_scalar_amount` in
+    13_Model_Performance.py for the same defensive pattern). Returns
+    None for non-numeric values so the caller can skip them rather
+    than poison the mean."""
+    for k in _SCORE_FIELDS:
+        if k not in alert:
+            continue
+        v = alert[k]
+        if isinstance(v, dict):
+            for nested in ("value", "score"):
+                if nested in v:
+                    try:
+                        return float(v[nested])
+                    except (TypeError, ValueError):
+                        return None
+            return None
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _summarise(alerts: list[dict]) -> tuple[int, float | None]:
+    """Return (alert_count, mean_score_or_None). Empty list → (0, None)."""
+    count = len(alerts)
+    if not alerts:
+        return 0, None
+    scores = [s for s in (_alert_score(a) for a in alerts) if s is not None]
+    if not scores:
+        return count, None
+    return count, sum(scores) / len(scores)
+
+
+# Build per-rule timeline: list of (run_label, count, mean_score)
+# rows, ordered chronologically. Each row's mean_score may be None;
+# the caller must guard before charting.
+per_rule_timeline: dict[str, list[dict]] = {r.id: [] for r in ml_rules}
+
+# Stored-run history (oldest → newest among the last RECENT_RUN_CAP).
+if get_run_alerts is not None:
+    for run in recent_runs:
+        run_id = run.get("run_id", "")
+        try:
+            run_alert_rows = get_run_alerts(run_id)
+        except Exception:
+            run_alert_rows = []
+        # `get_run_alerts` returns [{rule_id, alerts}, ...]; index by rule.
+        by_rule: dict[str, list[dict]] = {}
+        for row in run_alert_rows:
+            by_rule[row["rule_id"]] = row.get("alerts") or []
+        # Compact run label for the X-axis — first 8 chars of run_id is
+        # enough to distinguish runs without crowding the axis.
+        label = (run_id[:8] + "…") if len(run_id) > 8 else (run_id or "?")
+        for rule in ml_rules:
+            count, mean_score = _summarise(by_rule.get(rule.id, []))
+            per_rule_timeline[rule.id].append(
+                {
+                    "run": label,
+                    "run_id": run_id,
+                    "count": count,
+                    "mean_score": mean_score,
+                }
+            )
+
+# Current session run as the rightmost anchor — same idiom as Run
+# History. result.alerts is the in-memory dict {rule_id: [alert,...]}.
+for rule in ml_rules:
+    count, mean_score = _summarise(result.alerts.get(rule.id, []) or [])
+    per_rule_timeline[rule.id].append(
+        {
+            "run": "current",
+            "run_id": "current_session",
+            "count": count,
+            "mean_score": mean_score,
+        }
+    )
+
+
+# -----------------------------------------------------------------------
+# Drift flag — last-run alert count vs median of priors. >2× OR <0.5×
+# the prior median is flagged "high drift". Skips scorers with <2
+# total data points (need at least 1 prior + 1 current to compare).
+#
+# Limit of approach (documented inline so a reviewer doesn't think
+# we missed it): this is a coarse alert-volume drift signal, NOT a
+# statistical input-distribution drift (KS / PSI / Wasserstein). The
+# alert payload doesn't carry the model's full input feature vector
+# today; richer distribution-level drift ships with the future ML
+# scoring epic that will persist feature snapshots per alert.
+# -----------------------------------------------------------------------
+
+DRIFT_HIGH_MULTIPLIER = 2.0
+DRIFT_LOW_MULTIPLIER = 0.5
+
+
+def _drift_classify(timeline: list[dict]) -> tuple[str, float | None, float | None]:
+    """Return (status, last_count, prior_median).
+
+    status ∈ {"high", "normal", "insufficient_data"}. `prior_median`
+    is None when status == "insufficient_data".
+    """
+    if len(timeline) < 2:
+        return "insufficient_data", None, None
+    last = timeline[-1]["count"]
+    priors = [t["count"] for t in timeline[:-1]]
+    # `statistics.median` raises on empty; the `< 2` guard above
+    # already excludes that path.
+    prior_med = float(median(priors))
+    if prior_med == 0:
+        # If the scorer was silent on all prior runs, treat any fire
+        # in the latest run as drift (>0 from 0). Avoids a divide-by-
+        # zero while still surfacing the new signal.
+        return ("high" if last > 0 else "normal", float(last), prior_med)
+    ratio = last / prior_med
+    if ratio >= DRIFT_HIGH_MULTIPLIER or ratio <= DRIFT_LOW_MULTIPLIER:
+        return "high", float(last), prior_med
+    return "normal", float(last), prior_med
+
+
+drift_rows = []
+for rule in ml_rules:
+    status, last_count, prior_med = _drift_classify(per_rule_timeline[rule.id])
+    drift_rows.append(
+        {
+            "rule_id": rule.id,
+            "model_id": rule.logic.model_id,
+            "model_version": rule.logic.model_version,
+            "status": status,
+            "last_count": last_count,
+            "prior_median": prior_med,
+        }
+    )
+
+high_drift = [r for r in drift_rows if r["status"] == "high"]
+
+# -----------------------------------------------------------------------
+# Roll-up KPIs
+# -----------------------------------------------------------------------
+runs_analyzed = len(recent_runs) + 1  # stored + current
+c1, c2, c3 = st.columns(3)
+with c1:
+    kpi_card("python_ref scorers", len(ml_rules), "#2563eb")
+with c2:
+    # Red when any scorer is flagged — a meaningful at-a-glance signal.
+    kpi_card("High-drift scorers", len(high_drift), "#dc2626" if high_drift else "#16a34a")
+with c3:
+    kpi_card("Runs analyzed", runs_analyzed, "#7c3aed")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# -----------------------------------------------------------------------
+# High-drift surface (top of page when present) — pulls scorers
+# requiring attention out of the per-rule grid below so the analyst
+# can act without scrolling.
+# -----------------------------------------------------------------------
+if high_drift:
+    st.markdown("### High-drift scorers")
+    st.caption(
+        f"These {len(high_drift)} scorer(s) have a last-run alert count "
+        f"≥{DRIFT_HIGH_MULTIPLIER:g}× or ≤{DRIFT_LOW_MULTIPLIER:g}× the median "
+        "of prior runs. Open Tuning Lab to investigate the threshold / "
+        "feature-distribution context."
+    )
+    high_df = pd.DataFrame(
+        [
+            {
+                "Rule": r["rule_id"],
+                "Model": f"{r['model_id']} v{r['model_version']}",
+                "Last count": int(r["last_count"]) if r["last_count"] is not None else 0,
+                "Prior median": (
+                    round(r["prior_median"], 2) if r["prior_median"] is not None else 0.0
+                ),
+            }
+            for r in high_drift
+        ]
+    )
+    data_grid(
+        high_df,
+        key="drift_high_drift_table",
+        pinned_left=["Rule"] if "Rule" in high_df.columns else None,
+        auto_height=True,
+    )
+    link_to_page(
+        "pages/23_Tuning_Lab.py",
+        "→ Open Tuning Lab to investigate threshold / feature drift",
+    )
+    st.markdown("<br>", unsafe_allow_html=True)
+
+# -----------------------------------------------------------------------
+# Per-scorer alert-count timeline. One small chart per python_ref
+# rule. Pandas-NaN-safe: `mean_score` may be None for runs where the
+# scorer didn't emit a score (or emitted no alerts) — the chart only
+# uses `count`, so the NaN cells don't affect rendering.
+# -----------------------------------------------------------------------
+st.markdown("### Per-scorer alert volume over recent runs")
+
+if runs_analyzed < 2:
+    # Only one data point — line chart is meaningless. Surface as info
+    # rather than render an empty axis (Codex P2 pattern from Run History).
+    st.info(
+        "Only one run has been analysed so far — drift trends need at least "
+        "2 runs. Persist additional runs (via `aml run` or the API) to "
+        "populate the timeline."
+    )
+else:
+    for rule in ml_rules:
+        timeline = per_rule_timeline[rule.id]
+        timeline_df = pd.DataFrame(timeline)
+        status = next(r["status"] for r in drift_rows if r["rule_id"] == rule.id)
+        # Status pill mirrors Tuning Lab's vocabulary so the cross-link
+        # reads coherently.
+        pill_color = {
+            "high": "#dc2626",
+            "normal": "#16a34a",
+            "insufficient_data": "#9ca3af",
+        }[status]
+        pill_label = {
+            "high": "HIGH DRIFT",
+            "normal": "STABLE",
+            "insufficient_data": "INSUFFICIENT DATA",
+        }[status]
+        st.markdown(
+            f"#### {rule.id} — {rule.logic.model_id} v{rule.logic.model_version} "
+            f"<span style='font-family:ui-monospace,monospace;font-size:0.72rem;"
+            f"padding:2px 8px;border-radius:999px;background:{pill_color}22;"
+            f"color:{pill_color};border:1px solid {pill_color}55;'>"
+            f"{pill_label}</span>",
+            unsafe_allow_html=True,
+        )
+
+        # If literally every value is zero, surface that and skip the
+        # chart — an all-zero line reads as a chart bug, not as "scorer
+        # has been silent." Empty-list scorers (no alerts in any run)
+        # would hit this path.
+        if timeline_df["count"].sum() == 0:
+            st.caption("This scorer fired no alerts in any analysed run.")
+            continue
+
+        line_chart(
+            timeline_df,
+            x="run",
+            y="count",
+            title=f"{rule.id} — alert count per run",
+            height=240,
+            key=f"drift_timeline_{rule.id}",
+        )
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# -----------------------------------------------------------------------
+# Deferred-work note — honest about what this signal does NOT cover so
+# reviewers don't read "Drift Monitor" as "ML monitoring is solved here."
+# -----------------------------------------------------------------------
+with st.expander("What this signal does — and does NOT — cover"):
+    st.markdown(
+        "**Today:** alert-volume drift only. A scorer's last-run count is "
+        f"compared against the median of its prior recent runs (last "
+        f"{RECENT_RUN_CAP}). >{DRIFT_HIGH_MULTIPLIER:g}× or "
+        f"<{DRIFT_LOW_MULTIPLIER:g}× ⇒ HIGH DRIFT.\n\n"
+        "**Deferred (future ML scoring epic):** statistical "
+        "distribution-level drift (Kolmogorov-Smirnov, Population "
+        "Stability Index, Wasserstein) on the scorer's input feature "
+        "vector. That work requires capturing the feature snapshot per "
+        "alert; the current `python_ref` alert payload doesn't carry "
+        "it. When that lands, this page gains a per-scorer KS / PSI "
+        "panel alongside the existing count-based signal."
+    )
+
+# -----------------------------------------------------------------------
+# See-also cross-links — pillar-7 navigation hub. Drift Monitor sits
+# between Model Performance (per-scorer analytics this-run) and Tuning
+# Lab (threshold what-if). Run History anchors the timeline.
+# -----------------------------------------------------------------------
+see_also_footer(
+    [
+        "[Model Performance — per-scorer this-run analytics](./Model_Performance)",
+        "[Tuning Lab — threshold what-if analysis](./Tuning_Lab)",
+        "[Run History — full run-by-run manifest browser](./Run_History)",
+    ]
+)
+
+page_footer()

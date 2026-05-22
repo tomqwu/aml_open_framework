@@ -130,6 +130,15 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             title="Model Performance",
             icon=":material/model_training:",
         ),
+        # PR-E3 — per-scorer alert-volume drift across recent runs.
+        # Universally routed (added to every persona's visible set via
+        # TUNING_PAGES, same idiom as Knowledge / North-Star) so MRM
+        # reviewers and engineers both reach it regardless of persona.
+        st.Page(
+            "pages/50_Drift_Monitor.py",
+            title="Drift Monitor",
+            icon=":material/timeline:",
+        ),
         st.Page(
             "pages/23_Tuning_Lab.py",
             title="Tuning Lab",
@@ -362,9 +371,10 @@ if selected_audience:
     # "are we honoring the 8 pillars?" surface — pitch reviewers,
     # examiners, every persona needs it. Universal same as Knowledge.
     relevant_titles.update(NORTH_STAR_PAGES)
-    # PR-E1 (#378): FP Analysis is cross-persona — analysts, MLROs,
-    # engineers, examiners, and CCOs all need to see which rules are
-    # noisiest. Universal same as North-Star / Knowledge.
+    # TUNING_PAGES — the pillar-7 ("DS as governed augmentation") cross-
+    # cutting tuning surfaces (PR-E1 FP Analysis, PR-E3 Drift Monitor).
+    # Cross-persona: analysts, MLROs, engineers, examiners, and CCOs
+    # all need them. Universal same as North-Star / Knowledge.
     relevant_titles.update(TUNING_PAGES)
     # PR-A4 (#365): the Rule Lifecycle page surfaces lifecycle state
     # + the approval-workflow placeholder. Governance is cross-cutting
