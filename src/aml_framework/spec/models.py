@@ -125,6 +125,36 @@ class LegacyReference(_Base):
     rule_map: dict[str, str] | None = None
 
 
+class NonFunctionalRequirements(_Base):
+    """PR-D2 (#375): operational NFRs declared on the Program for
+    examiner/2LoD/SRE-facing transparency.
+
+    All fields optional — defaults mean "not declared" (different from
+    "declared 0", which the validator forbids via `gt=0`). Engine ignores
+    this block at runtime; downstream surfaces (regulator pack,
+    dashboard NFR card, ops runbook) consume it. Recording NFRs in the
+    spec means they're versioned, peer-reviewed, and replayed against
+    historical runs — same discipline as detection rules.
+
+    Sources mapping to backlog #375:
+    - `rto_minutes` / `rpo_minutes`: BCP / DR posture (OSFI E-21, FFIEC).
+    - `sla_p95_ms`: alert-emission latency target (relevant when
+      `Rule.evaluation_mode` is `streaming` / `both`).
+    - `throughput_per_min`: transaction-rate ceiling the program is
+      designed for (capacity planning + tuning floor).
+    - `retention_days`: alert/case/evidence retention horizon —
+      complementary to `retention_policy` (per-artifact) but operator-
+      facing rollup.
+    """
+
+    rto_minutes: int | None = Field(default=None, gt=0)
+    rpo_minutes: int | None = Field(default=None, ge=0)
+    sla_p95_ms: int | None = Field(default=None, gt=0)
+    throughput_per_min: int | None = Field(default=None, gt=0)
+    retention_days: int | None = Field(default=None, gt=0)
+    notes: str = ""
+
+
 class Program(_Base):
     name: str
     jurisdiction: str
@@ -144,6 +174,10 @@ class Program(_Base):
     # equivalent dashboard surface in PR-EQ-3). Default `None` =
     # no legacy comparison (the common case for greenfield deployments).
     legacy_reference: LegacyReference | None = None
+    # PR-D2 (#375): optional NFR declaration block. See
+    # `NonFunctionalRequirements`. Engine ignores at runtime; surfaces
+    # consume for capacity planning, BCP/DR posture, regulator pack.
+    nfrs: NonFunctionalRequirements | None = None
 
 
 class Column(_Base):

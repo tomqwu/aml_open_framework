@@ -67,7 +67,21 @@
         "owner":          { "type": "string", "minLength": 1 },
         "effective_date": { "type": "string", "format": "date" },
         "ai_audit_log":   { "type": "string", "enum": ["hash_only", "full_text"], "default": "hash_only" },
-        "legacy_reference": { "$ref": "#/$defs/legacy_reference" }
+        "legacy_reference": { "$ref": "#/$defs/legacy_reference" },
+        "nfrs":             { "$ref": "#/$defs/nfrs" }
+      }
+    },
+    "nfrs": {
+      "type": "object",
+      "description": "PR-D2 (#375): operational NFR declaration. All fields optional. Engine ignores at runtime; surfaces consume for capacity planning, BCP/DR posture, regulator pack.",
+      "additionalProperties": false,
+      "properties": {
+        "rto_minutes":        { "type": "integer", "exclusiveMinimum": 0, "description": "Recovery Time Objective in minutes (BCP/DR — OSFI E-21, FFIEC)." },
+        "rpo_minutes":        { "type": "integer", "minimum": 0, "description": "Recovery Point Objective in minutes. 0 = zero data loss tolerated." },
+        "sla_p95_ms":         { "type": "integer", "exclusiveMinimum": 0, "description": "Alert-emission latency target p95 (relevant for streaming/both rules)." },
+        "throughput_per_min": { "type": "integer", "exclusiveMinimum": 0, "description": "Transaction-rate ceiling the program is designed for." },
+        "retention_days":     { "type": "integer", "exclusiveMinimum": 0, "description": "Alert/case/evidence retention horizon (operator-facing rollup)." },
+        "notes":              { "type": "string" }
       }
     },
     "legacy_reference": {
