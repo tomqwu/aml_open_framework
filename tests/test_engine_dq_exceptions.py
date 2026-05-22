@@ -264,6 +264,91 @@ class TestEvaluateContractChecksPure:
         assert exc.failing_value == "not-a-number"
         assert exc.reason == "non-numeric value cannot be range-checked"
 
+    def test_range_accepts_decimal_values(self):
+        # CSV-backed contract columns of `type: decimal` are loaded as
+        # `decimal.Decimal` via `data/sources.py`; the range evaluator
+        # must accept them as numeric, not mis-flag them as non-numeric.
+        # Codex review (B1 pass 1).
+        from decimal import Decimal
+
+        rows = [
+            {"amount": Decimal("50.00")},  # in range
+            {"amount": Decimal("-1.00")},  # below min
+            {"amount": Decimal("2000000.00")},  # above max
+        ]
+        checks = [{"range": {"amount": {"min": 0, "max": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        # In-range Decimal must NOT fire; below-min and above-max must.
+        types_and_indices = sorted((e.row_index, e.reason) for e in excs)
+        assert len(excs) == 2
+        assert types_and_indices[0][0] == 1
+        assert "below min" in types_and_indices[0][1]
+        assert types_and_indices[1][0] == 2
+        assert "above max" in types_and_indices[1][1]
+        # And the in-range Decimal must NOT have been mis-flagged as non-numeric.
+        for exc in excs:
+            assert exc.reason != "non-numeric value cannot be range-checked"
+
+    def test_range_string_bound_does_not_crash(self):
+        # `quality_checks` is untyped at the spec layer — a careless
+        # spec can carry a quoted bound like `{"min": "0"}`. The
+        # evaluator must coerce it (or skip the bound), never raise
+        # `TypeError` from `<`/`>` against an int row value and abort
+        # the whole `aml run`. Codex review (B1 pass 1).
+        rows = [{"amount": 5}, {"amount": -1}]
+        checks = [{"range": {"amount": {"min": "0", "max": "1000000"}}}]
+        # Must not raise.
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        # And the coerced bound must still work: -1 < 0 → below min.
+        assert len(excs) == 1
+        assert excs[0].row_index == 1
+        assert "below min" in excs[0].reason
+
+    def test_range_garbage_bound_is_treated_as_no_bound(self):
+        # An uncoerceable bound (e.g. a dict where a number was
+        # expected) is treated as "no bound that side" — the check
+        # silently becomes a no-op for that side rather than crashing.
+        rows = [{"amount": -1}, {"amount": 5}]
+        # `min` is garbage → only the `max` side is enforced; nothing
+        # exceeds 100, so no violations.
+        checks = [{"range": {"amount": {"min": {"nope": True}, "max": 100}}}]
+        assert evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF) == []
+
+    def test_enum_reason_does_not_embed_failing_value(self):
+        # PII-safety: `reason` must NOT carry the raw failing value;
+        # the runner only masks `failing_value`, not `reason`. Codex
+        # review (B1 pass 1).
+        rows = [{"currency": "SECRET-VALUE"}]
+        checks = [{"enum": {"currency": ["USD", "CAD"]}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert "SECRET-VALUE" not in excs[0].reason
+        # The masked-side carrier is `failing_value`, which is still
+        # populated (runner masks it when the column is PII).
+        assert excs[0].failing_value == "SECRET-VALUE"
+
+    def test_regex_reason_does_not_embed_failing_value(self):
+        # PII-safety: same posture as enum — pattern is config, safe;
+        # raw value must not appear in `reason`. Codex review (B1 pass 1).
+        rows = [{"email": "secret-pii-value"}]
+        checks = [{"regex": {"email": r"^[^@]+@[^@]+\.[^@]+$"}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert "secret-pii-value" not in excs[0].reason
+        assert excs[0].failing_value == "secret-pii-value"
+
+    def test_range_reason_does_not_embed_failing_value(self):
+        # PII-safety: bounds in `reason` are config, safe; the raw
+        # numeric value must not appear in `reason` so it can't slip
+        # past the runner's `failing_value`-only mask on a `pii: true`
+        # numeric column. Codex review (B1 pass 1).
+        rows = [{"amount": 999999.42}]
+        checks = [{"range": {"amount": {"min": 0, "max": 100}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert "999999.42" not in excs[0].reason
+        assert excs[0].failing_value == "999999.42"
+
 
 # ---------------------------------------------------------------------------
 # `_build_warehouse` is unchanged: row counts match input

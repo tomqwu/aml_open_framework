@@ -44,10 +44,18 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from numbers import Real
+from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Numeric types accepted by range checks. `Decimal` is included because
+# CSV-backed contract columns of type `decimal` are loaded as
+# `decimal.Decimal` (see `data/sources.py`); excluding it would falsely
+# flag every monetary amount as `non-numeric`. `bool` is deliberately
+# excluded below — `isinstance(True, int)` is True, but a True/False in
+# a numeric column is almost certainly a defect.
+_NUMERIC_TYPES = (int, float, Decimal)
 
 DQCheckType = Literal["not_null", "unique", "enum", "regex", "range"]
 
@@ -232,6 +240,12 @@ def _eval_enum(
         if value is None:
             continue
         if value not in allowed_set:
+            # PII-safety: do NOT embed the raw `value` in `reason`. The
+            # runner's `_maybe_mask_dq_exception` only masks
+            # `failing_value`; a raw value in `reason` would still leak
+            # to `dq_exceptions.jsonl` and `decisions.jsonl` when the
+            # column is `pii: true` and `AML_PII_MASKING=1`. The
+            # allowed-set is config, not data, so embedding it is safe.
             out.append(
                 DQException(
                     contract_id=contract_id,
@@ -241,8 +255,7 @@ def _eval_enum(
                     failing_value=_format_value(value),
                     row_index=idx,
                     reason=(
-                        f"column '{column}' value {value!r} not in allowed set "
-                        f"{allowed_set!r} at row {idx}"
+                        f"column '{column}' value not in allowed set {allowed_set!r} at row {idx}"
                     ),
                     at=at,
                 )
@@ -281,6 +294,9 @@ def _eval_regex(
         if value is None:
             continue
         if not isinstance(value, str) or compiled.fullmatch(value) is None:
+            # PII-safety: do NOT embed raw `value` in `reason` — the
+            # runner masks `failing_value` for `pii: true` columns but
+            # not the reason text. Pattern is config, safe to include.
             out.append(
                 DQException(
                     contract_id=contract_id,
@@ -290,13 +306,44 @@ def _eval_regex(
                     failing_value=_format_value(value),
                     row_index=idx,
                     reason=(
-                        f"column '{column}' value {value!r} does not fullmatch "
+                        f"column '{column}' value does not fullmatch "
                         f"pattern {pattern!r} at row {idx}"
                     ),
                     at=at,
                 )
             )
     return out
+
+
+def _coerce_bound(bound: Any) -> Decimal | None:
+    """Coerce a spec-declared range bound to a `Decimal` for comparison.
+
+    `quality_checks` entries are untyped in both the JSON Schema and
+    Pydantic at this revision, so a spec can carry a quoted bound like
+    `range: {amount: {min: "0"}}` and validate cleanly. Comparing a
+    numeric row value against a string bound raises `TypeError` at
+    `<`/`>` time and aborts the whole `aml run`. Coerce here so a
+    malformed bound becomes "no bound that side" rather than a crash.
+
+    Returns `None` when the bound is `None` (not provided) or can't be
+    coerced to a number — the caller treats both the same way.
+    """
+    if bound is None:
+        return None
+    if isinstance(bound, bool):
+        # Reject bools the same way we reject them as values — almost
+        # certainly a contract defect, not a real bound.
+        return None
+    if isinstance(bound, Decimal):
+        return bound
+    if isinstance(bound, (int, float)):
+        return Decimal(str(bound))
+    if isinstance(bound, str):
+        try:
+            return Decimal(bound)
+        except Exception:
+            return None
+    return None
 
 
 def _eval_range(
@@ -318,12 +365,17 @@ def _eval_range(
     `isinstance(True, int)` is True, but a True/False in a numeric
     column is almost always a contract defect, not a 1/0 to be range-
     checked. Treat it as non-numeric so it surfaces as a violation.
+
+    `Decimal` IS accepted as numeric — CSV-backed contract columns of
+    `type: decimal` are loaded as `decimal.Decimal` (see
+    `data/sources.py`), so excluding it would falsely flag every
+    monetary amount as `non-numeric` in real runs.
     """
     if not isinstance(bounds, dict):
         return []
-    lo = bounds.get("min")
-    hi = bounds.get("max")
-    # If neither bound is provided the check is a no-op; emit nothing.
+    lo = _coerce_bound(bounds.get("min"))
+    hi = _coerce_bound(bounds.get("max"))
+    # If neither bound resolves to a usable number the check is a no-op.
     if lo is None and hi is None:
         return []
     out: list[DQException] = []
@@ -333,7 +385,7 @@ def _eval_range(
         value = row[column]
         if value is None:
             continue
-        if isinstance(value, bool) or not isinstance(value, Real):
+        if isinstance(value, bool) or not isinstance(value, _NUMERIC_TYPES):
             out.append(
                 DQException(
                     contract_id=contract_id,
@@ -347,7 +399,17 @@ def _eval_range(
                 )
             )
             continue
-        if lo is not None and value < lo:
+        # Cross-type compare via `Decimal` so int/float/Decimal all play
+        # together without a `decimal.InvalidOperation` or surprise
+        # precision skew. `Decimal(str(float))` is the safe path.
+        if isinstance(value, Decimal):
+            value_dec = value
+        else:
+            value_dec = Decimal(str(value))
+        # PII-safety: do NOT embed raw `value` in `reason` — runner
+        # masks `failing_value` for `pii: true` columns. Bounds are
+        # config, safe to include.
+        if lo is not None and value_dec < lo:
             out.append(
                 DQException(
                     contract_id=contract_id,
@@ -356,12 +418,12 @@ def _eval_range(
                     column=column,
                     failing_value=_format_value(value),
                     row_index=idx,
-                    reason=(f"column '{column}' value {value!r} below min {lo!r} at row {idx}"),
+                    reason=(f"column '{column}' value below min {lo!r} at row {idx}"),
                     at=at,
                 )
             )
             continue
-        if hi is not None and value > hi:
+        if hi is not None and value_dec > hi:
             out.append(
                 DQException(
                     contract_id=contract_id,
@@ -370,7 +432,7 @@ def _eval_range(
                     column=column,
                     failing_value=_format_value(value),
                     row_index=idx,
-                    reason=(f"column '{column}' value {value!r} above max {hi!r} at row {idx}"),
+                    reason=(f"column '{column}' value above max {hi!r} at row {idx}"),
                     at=at,
                 )
             )
