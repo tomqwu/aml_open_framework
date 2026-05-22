@@ -75,9 +75,10 @@ PAGES = [
     "North-Star Pillar Coverage",
     # PR-E1: false-positive analysis (universal, like Knowledge).
     "FP Analysis",
-    # PR-A4 (#365): rule lifecycle dashboard + approval-workflow
-    # placeholder (universally routed, same idiom as North-Star).
+    # PR-A4 (#365): rule lifecycle dashboard + approval-workflow placeholder.
     "Rule Lifecycle",
+    # PR-EQ-3: equivalence (legacy↔new parallel-run divergence).
+    "Equivalence",
 ]
 
 
@@ -218,6 +219,7 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Audit & Evidence": "Audit & Reference",
     "Run History": "Audit & Reference",
     "AI Assistant": "Audit & Reference",
+    "Equivalence": "Audit & Reference",
     "FinTech Cockpit": "FinTech",
     # PR-U2: the Knowledge reference shelf (universal — visible to
     # every persona regardless of the audience filter).

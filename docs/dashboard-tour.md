@@ -203,6 +203,12 @@ Pareto-frontier exploration of rule threshold combinations. Loads labelled histo
 
 Per-rule false-positive rate (`closed_no_action ÷ total cases`) derived at render time from the cached `df_cases`. High-FP rules above 70% surface as a coloured callout at the top with a Tuning Lab cross-link; the per-rule table is sortable on the numeric `fp_rate_pct` column so AG Grid orders worst-offenders first. Filing queues are derived from the live spec workflow (any `regulator_form`-bearing queue counts as escalated), so custom STR/SAR/CTR queue ids classify correctly. The Pillar 7 ("DS as governed augmentation") surface that the North-Star coverage page flags as missing. PR-E1 (closes #378). Universally routed — every persona sees it.
 
+### Equivalence
+
+Legacy↔new alert parallel-run divergence surface (PR-EQ-3). When a spec declares `program.legacy_reference`, this page loads the legacy alert CSV via `load_legacy_alerts_csv`, calls `classify_alerts(...)` against the live run, and surfaces the result as a MATCH / NEW_ONLY / LEGACY_ONLY / DIFF roll-up, a by-rule breakdown table, and a cell-level table (capped at 200 rows for readability). When no `legacy_reference` is declared, the page shows an info card with a YAML snippet explaining how to opt in. Examiner-facing migration evidence under SR 11-7 / OSFI E-23. Routed universally — every persona sees it — and closes the Pillar 1 gap (Equivalence before optimization) flagged on the North-Star Coverage page from GAP to PARTIAL.
+
+_Screenshot: pending — see follow-up._
+
 ---
 
 ## Compliance Workflow Pages

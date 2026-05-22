@@ -400,16 +400,22 @@ TUNING_PAGES = [
 # PR-A4 (#365). Rule Lifecycle is a governance-adjacent surface —
 # every persona benefits from being able to see "which rules are
 # active vs experimental vs deprecated, with the approval-workflow
-# placeholder per rule." It's NOT tuning (Tuning Lab owns that, via
-# the FP-rate analysis sibling above) and NOT alert-volume analytics
-# (Rule Performance owns that), so it sits in its own constant rather
-# than being folded into TUNING_PAGES. Routed UNIVERSALLY via the
-# same idiom as KNOWLEDGE_PAGES / NORTH_STAR_PAGES / TUNING_PAGES
-# (app.py adds these titles to the visible set for every persona),
-# NOT via AUDIENCE_PAGES — that preserves MAX_PAGES_PER_PERSONA=9
-# for the operational arcs.
+# placeholder per rule." Universal-routing rationale same as
+# KNOWLEDGE_PAGES / NORTH_STAR_PAGES.
 LIFECYCLE_PAGES = [
     "Rule Lifecycle",
+]
+
+
+# PR-EQ-3. Equivalence is the parallel-run divergence surface — it
+# loads the legacy alert export declared in `program.legacy_reference`
+# and classifies every (customer, period, rule) cell as MATCH /
+# NEW_ONLY / LEGACY_ONLY / DIFF (via `engine/equivalence.py` shipped
+# in PR-EQ-2). Every persona may need it: examiners verify migration
+# completeness, MLROs sign off, engineers explain the diffs. Routed
+# UNIVERSALLY for the same reason as NORTH_STAR_PAGES.
+EQUIVALENCE_PAGES = [
+    "Equivalence",
 ]
 
 

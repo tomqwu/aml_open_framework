@@ -6,6 +6,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import (
     AUDIENCE_PAGES,
+    EQUIVALENCE_PAGES,
     KNOWLEDGE_PAGES,
     LIFECYCLE_PAGES,
     NORTH_STAR_PAGES,
@@ -242,6 +243,16 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             title="AI Assistant",
             icon=":material/smart_toy:",
         ),
+        # PR-EQ-3 — equivalence (legacy↔new parallel-run divergence)
+        # surface. Examiner-facing audit artefact (SR 11-7 / OSFI E-23
+        # migration evidence), so it lives in Audit & Reference even
+        # though it's universally routed via EQUIVALENCE_PAGES (every
+        # persona sees it regardless of the operational filter).
+        st.Page(
+            "pages/48_Equivalence.py",
+            title="Equivalence",
+            icon=":material/compare_arrows:",
+        ),
     ],
     "FinTech": [
         # 1-MLRO niche. Sponsor-bank cure-notice timer + 8 realities
@@ -366,11 +377,10 @@ if selected_audience:
     # engineers, examiners, and CCOs all need to see which rules are
     # noisiest. Universal same as North-Star / Knowledge.
     relevant_titles.update(TUNING_PAGES)
-    # PR-A4 (#365): the Rule Lifecycle page surfaces lifecycle state
-    # + the approval-workflow placeholder. Governance is cross-cutting
-    # so every persona needs visibility. Universal same as North-Star
-    # / FP Analysis.
+    # PR-A4 (#365): Rule Lifecycle page.
     relevant_titles.update(LIFECYCLE_PAGES)
+    # PR-EQ-3: Equivalence (parallel-run divergence) page.
+    relevant_titles.update(EQUIVALENCE_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()
