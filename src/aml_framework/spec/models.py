@@ -49,6 +49,12 @@ ModelTier = Literal["high", "medium", "low"]
 # institutions can declare risk-based posture independently of either.
 RiskTier = Literal["low", "medium", "high"]
 
+# PR-D1 (#374): medallion-architecture stage hint for a data contract.
+# Engine ignores at runtime; downstream surfaces (Data Integration page,
+# regulator pack, NFR dashboard) consume for medallion-architecture
+# provenance. Additive — defaults to unset.
+Layer = Literal["bronze", "silver", "gold"]
+
 
 class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -213,6 +219,12 @@ class DataContract(_Base):
     allow_empty: bool = False
     columns: list[Column]
     quality_checks: list[dict[str, Any]] = Field(default_factory=list)
+    # PR-D1 (#374): optional medallion-architecture stage hint. Engine
+    # ignores at runtime; downstream surfaces (Data Integration page,
+    # regulator pack, NFR dashboard) consume for medallion-architecture
+    # provenance. Defaults to None — contracts without an explicit layer
+    # carry no medallion signal.
+    layer: Layer | None = None
 
 
 class RegulationRef(_Base):
