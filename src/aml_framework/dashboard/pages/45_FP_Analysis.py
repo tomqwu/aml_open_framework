@@ -206,21 +206,26 @@ if _high_fp_rules:
 # ---------------------------------------------------------------------------
 # Per-rule FP table. Use the shared `data_grid` component for the same
 # sort + filter + colouring vocabulary as the rest of the dashboard.
-# `gradient_cols=["fp_rate"]` paints the rate cell on the red→amber→
-# green scale so the eye lands on the worst rules first; `severity_col`
-# colours the severity column with the canonical severity palette.
+# `severity_col` colours the severity column with the canonical
+# severity palette.
+#
+# FP rate is kept as a numeric 0-100 column (`fp_rate_pct`) so AG Grid
+# sorts and filters it numerically — a string-percent version would
+# sort lexicographically (`9.0%` would rank above `80.0%`), masking
+# exactly the rules the page is meant to surface. The header label is
+# the suffix that tells the reader the units.
 # ---------------------------------------------------------------------------
 st.markdown("### Per-rule FP rate")
 
-# Format fp_rate as a percent string for the table so the column reads
-# naturally; keep the raw float in a hidden helper column if a future
-# revision wants to sort numerically. data_grid sort is client-side so
-# the string form sorts lexicographically — fine because the page-load
-# sort above already pre-orders the rows correctly.
+# Convert the 0-1 float to a 0-100 numeric percentage and round to one
+# decimal place. AG Grid renders `9.1` and `80.0` naturally; sort and
+# filter both stay numeric. Null stays null so unresolved rules render
+# as blank rather than zero (which would be a misleading "0% FP").
 df_display = df.copy()
-df_display["fp_rate"] = df_display["fp_rate"].apply(
-    lambda v: f"{v:.1%}" if v is not None and pd.notna(v) else "—"
+df_display["fp_rate_pct"] = df_display["fp_rate"].apply(
+    lambda v: round(v * 100, 1) if v is not None and pd.notna(v) else None
 )
+df_display = df_display.drop(columns=["fp_rate"])
 
 data_grid(
     df_display,
@@ -230,10 +235,11 @@ data_grid(
     auto_height=True,
     pagination=False,
     hint=(
-        "Sorted by FP rate descending. FP rate = closed_no_action ÷ "
-        "total_cases. `in_flight` = cases not yet resolved (still "
-        "counted in the denominator so a noisy rule with a long queue "
-        "tail can't hide its FP rate behind unresolved cases)."
+        "Sorted by FP rate descending. `fp_rate_pct` = closed_no_action "
+        "÷ total_cases × 100. `in_flight` = cases not yet resolved "
+        "(still counted in the denominator so a noisy rule with a long "
+        "queue tail can't hide its FP rate behind unresolved cases). "
+        "Column is numeric — click the header to re-sort numerically."
     ),
 )
 
