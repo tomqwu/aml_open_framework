@@ -500,6 +500,25 @@ def _eval_range(
                 expected="dict with optional 'min' / 'max' numeric bounds",
             )
         ]
+    # Detect typoed bound keys (`minimum`/`maximum`/`lo`/etc.) — a
+    # non-empty bounds dict that carries NO recognised key is almost
+    # certainly a spec typo, not an intentional no-op. The
+    # `quality_checks` shape is untyped at the spec layer so the
+    # misuse passes `aml validate`; surfacing a `malformed_check`
+    # event keeps it out of the silent-disablement category. Codex
+    # review (B1 pass 11).
+    recognised_keys = {"min", "max"}
+    unknown_keys = set(bounds.keys()) - recognised_keys
+    if bounds and not (recognised_keys & bounds.keys()):
+        return [
+            _malformed_check_exception(
+                contract_id,
+                f"range:{column}",
+                bounds,
+                at,
+                expected=f"'min' and/or 'max' keys (got {sorted(unknown_keys)!r})",
+            )
+        ]
     raw_lo = bounds.get("min")
     raw_hi = bounds.get("max")
     lo = _coerce_bound(raw_lo)

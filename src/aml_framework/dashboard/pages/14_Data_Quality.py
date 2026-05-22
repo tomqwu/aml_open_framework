@@ -171,8 +171,17 @@ for contract in spec.data_contracts:
                 # for regex; not-in-list for enum). Codex review (B1
                 # pass 6).
                 for field, check_spec in fields.items():
-                    if field not in df.columns:
-                        continue
+                    # Do NOT skip on `field not in df.columns` here:
+                    # the inner check_spec may still be malformed (the
+                    # engine emits `malformed_check` for those shapes
+                    # even on empty / column-absent feeds), and the
+                    # dashboard must surface that as a FAIL row. Codex
+                    # review (B1 pass 11). For a well-formed spec on
+                    # an absent column, `field_values` will be empty
+                    # → 0 violations → PASS, matching engine behavior
+                    # (engine iterates `rows` and `column not in row:
+                    # continue`, so an absent column produces zero
+                    # exceptions).
                     total_checks += 1
                     # Only the engine's "missing / None = skip" rule
                     # applies; everything else (including NaN) is a

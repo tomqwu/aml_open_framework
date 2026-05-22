@@ -486,6 +486,29 @@ class TestEvaluateContractChecksPure:
         assert excs[0].check_type == "malformed_check"
         assert excs[0].check_id == "malformed_check:range:amount"
 
+    def test_inner_malformed_range_typoed_bound_keys_emits_event(self):
+        # Typoed bound keys like `minimum`/`maximum` would silently
+        # disable a range check before pass 11 — bounds dict has no
+        # recognised key so both raw_lo/raw_hi are None and the path
+        # exited as a no-op. Surface the typo via `malformed_check`.
+        # Codex review (B1 pass 11).
+        rows = [{"amount": 50}, {"amount": -100}]
+        checks = [{"range": {"amount": {"minimum": 0, "maximum": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:range:amount"
+        # Reason mentions the unknown keys so operators see the typo.
+        assert "minimum" in excs[0].reason and "maximum" in excs[0].reason
+
+    def test_inner_range_empty_bounds_dict_is_silent_noop(self):
+        # `range: {amount: {}}` carries NO bound at all — this is the
+        # "intentional no-op" path, not a typo. No malformed_check
+        # event, no row violations.
+        rows = [{"amount": 50}, {"amount": -100}]
+        checks = [{"range": {"amount": {}}}]
+        assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
+
     def test_range_handles_nan_and_infinity_without_crashing(self):
         # `float('nan')` and `Decimal('NaN')` pass the type guard but
         # raise `decimal.InvalidOperation` on `<`/`>` — that would abort

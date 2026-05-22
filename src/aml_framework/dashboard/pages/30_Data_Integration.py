@@ -298,8 +298,13 @@ for contract in spec.data_contracts:
                 # silently filter NaN values that the engine flags as
                 # violations. Codex review (B1 pass 6).
                 for field, check_spec in fields.items():
-                    if field not in df.columns:
-                        continue
+                    # Do NOT skip on `field not in df.columns`: a
+                    # malformed inner check_spec must still surface
+                    # even on an empty / column-absent feed (engine
+                    # emits `malformed_check`). For a well-formed spec
+                    # on an absent column, `field_values` is empty →
+                    # the well-formed branches naturally award a pass.
+                    # Codex (B1 pass 11).
                     contract_total += 1
                     field_values = [r[field] for r in rows if field in r and r[field] is not None]
                     if check_type == "enum":
