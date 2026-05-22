@@ -21,6 +21,7 @@ class Event:
     NARRATIVE_REVIEW = "narrative_review"  # analyst accepted/amended/rejected a draft
     PKYC_REVIEW = "pkyc_review"  # analyst acted on a pKYC trigger
     TUNING_RUN = "tuning_run"  # `aml tune` swept thresholds for a rule
+    DQ_EXCEPTION = "dq_exception"  # data_contract.quality_checks failure (B4 #369)
 
 
 class Queue:

@@ -15,6 +15,7 @@ import duckdb
 
 from aml_framework.engine.audit import AuditLedger, rule_version_hash
 from aml_framework.engine.constants import Event, Queue
+from aml_framework.engine.dq import DQException, evaluate_contract_checks
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
 from aml_framework.generators.sql import _compile_filter, compile_rule_sql
@@ -763,6 +764,27 @@ def _simulate_case_resolution(
         )
 
 
+def _write_dq_exceptions(run_dir: Path, exceptions: list[DQException]) -> None:
+    """Persist DQ exceptions as one JSON object per line under the run dir.
+
+    Always writes the file, even when `exceptions` is empty, so downstream
+    consumers (exporters, dashboard surfacers in a follow-up PR) can rely
+    on the artifact's existence rather than guarding on `exists()`. Stdlib
+    `json` only — no new dependency. Per-line ordering follows
+    `evaluate_contract_checks`'s deterministic order so the JSONL diff is
+    stable across re-runs.
+    """
+    path = run_dir / "dq_exceptions.jsonl"
+    if not exceptions:
+        path.write_bytes(b"")
+        return
+    lines = [
+        json.dumps(exc.model_dump(mode="json"), sort_keys=True, default=str).encode("utf-8")
+        for exc in exceptions
+    ]
+    path.write_bytes(b"\n".join(lines) + b"\n")
+
+
 def run_spec(
     spec: AMLSpec,
     spec_path: Path,
@@ -831,6 +853,40 @@ def run_spec(
         violations = scan_contract_freshness(contract, rows, as_of)
         for v in violations:
             ledger.append_decision(v.to_event())
+
+    # B4 (#369) — Data Quality visibility. Evaluate each contract's
+    # `quality_checks` (not_null, unique) against the loaded rows and
+    # record every exception both as an audit-ledger event (hash-chain
+    # protected) and as a line in `dq_exceptions.jsonl` under the run
+    # dir. Crucially this is **observability only**: no rows are dropped
+    # or mutated, so warehouse row counts always match input counts.
+    # Specs are clean by design — most runs will produce zero exceptions
+    # — but the artifact is still emitted (possibly empty) so downstream
+    # consumers can count on its presence.
+    dq_exceptions: list[DQException] = []
+    for contract in spec.data_contracts:
+        rows = data.get(contract.id, [])
+        contract_exceptions = evaluate_contract_checks(
+            rows,
+            contract.quality_checks,
+            contract_id=contract.id,
+            at=as_of,
+        )
+        dq_exceptions.extend(contract_exceptions)
+        for exc in contract_exceptions:
+            ledger.append_decision(
+                {
+                    "event": Event.DQ_EXCEPTION,
+                    "contract_id": exc.contract_id,
+                    "check_id": exc.check_id,
+                    "check_type": exc.check_type,
+                    "column": exc.column,
+                    "failing_value": exc.failing_value,
+                    "row_index": exc.row_index,
+                    "reason": exc.reason,
+                }
+            )
+    _write_dq_exceptions(ledger.run_dir, dq_exceptions)
 
     resolve_entities(con, spec)
 
