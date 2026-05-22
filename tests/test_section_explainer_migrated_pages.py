@@ -78,9 +78,10 @@ _EXPECTED_PAGE_LEVEL = {
     # PR-E1: universally-routed false-positive analysis page, same
     # explainer contract as the universally-routed pages above.
     "45_FP_Analysis.py",
-    # PR-A4 (#365): universally-routed rule lifecycle dashboard, same
-    # explainer contract as the rest of the Detection & Tuning family.
+    # PR-A4 (#365): rule lifecycle dashboard.
     "51_Rule_Lifecycle.py",
+    # PR-E4 (#381): MLflow-like experiment tracking page.
+    "46_Experiment_Tracking.py",
     "4_Case_Investigation.py",
     "5_Rule_Performance.py",
     "6_Risk_Assessment.py",

@@ -75,9 +75,10 @@ PAGES = [
     "North-Star Pillar Coverage",
     # PR-E1: false-positive analysis (universal, like Knowledge).
     "FP Analysis",
-    # PR-A4 (#365): rule lifecycle dashboard + approval-workflow
-    # placeholder (universally routed, same idiom as North-Star).
+    # PR-A4 (#365): rule lifecycle dashboard.
     "Rule Lifecycle",
+    # PR-E4 (#381): MLflow-style experiment tracking.
+    "Experiment Tracking",
 ]
 
 
@@ -205,6 +206,7 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Spec Editor": "Detection & Tuning",
     "FP Analysis": "Detection & Tuning",
     "Rule Lifecycle": "Detection & Tuning",
+    "Experiment Tracking": "Detection & Tuning",
     "Data Integration": "Data",
     "Data Quality": "Data",
     "Customer 360": "Data",

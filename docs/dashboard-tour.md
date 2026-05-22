@@ -177,6 +177,10 @@ Past engine executions from the persistence layer (SQLite locally, PostgreSQL in
 
 ![Run History](screenshots/15_run_history.png)
 
+### Experiment Tracking
+
+MLflow-style overview of every persisted run as one row in a sortable table — `spec_content_hash`, `seed`, `as_of`, `engine_version`, `total_alerts`, `decisions_hash`, `dq_exceptions_hash`. Operators tuning thresholds or comparing spec variants get the "all experiments at a glance" view without standing up a separate tracking server. Universally routed (PR-E4, closes #381) — every persona sees it. Complementary to Run History (per-run manifest browser) and Comparative Analytics (run-over-run trend deltas).
+
 ---
 
 ## Audit Pages

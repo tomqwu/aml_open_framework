@@ -397,6 +397,7 @@ TUNING_PAGES = [
 ]
 
 
+<<<<<<< HEAD
 # PR-A4 (#365). Rule Lifecycle is a governance-adjacent surface —
 # every persona benefits from being able to see "which rules are
 # active vs experimental vs deprecated, with the approval-workflow
@@ -410,6 +411,17 @@ TUNING_PAGES = [
 # for the operational arcs.
 LIFECYCLE_PAGES = [
     "Rule Lifecycle",
+=======
+# PR-E4 (closes #381). Experiment Tracking is the cross-cutting
+# "MLflow-style overview of every persisted run" surface — operators
+# tuning thresholds, MLROs comparing spec variants, examiners scanning
+# the corpus of runs all need it on demand. Same universal-routing
+# idiom as NORTH_STAR_PAGES so the per-persona operational cap of 9
+# stays untouched. Distinct constant because it's an experiments-
+# aggregate surface, not a pillar synthesis or a static knowledge brief.
+TRACKING_PAGES = [
+    "Experiment Tracking",
+>>>>>>> f8de70a (feat(dashboard): PR-E4 — MLflow-like experiment tracking page (closes #381))
 ]
 
 
