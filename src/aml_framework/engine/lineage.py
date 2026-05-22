@@ -23,8 +23,12 @@ Rule-logic coverage:
   `window_end = MAX(booked_at)`) that `compile_rule_sql` writes on every
   alert. `count` is modeled as a transform over `*` (no single column)
   so it stays honest about its semantics.
-- `list_match`: traces the rule's `field` to the source contract with
-  transform=list_match.
+- `list_match`: traces every derived alert key the executor produces:
+  `matched_name` → (source, field), `customer_id` → (source,
+  customer_id), `match_score` → (`*`, list_name); fuzzy alerts also
+  trace `list_entry` → (`*`, list_name). The reference list itself is
+  not a declared contract, so list-derived fields use `source_contract_id="*"`
+  with the list name captured in `source_column`.
 - `custom_sql`: best-effort — emits one synthetic row per rule with
   `source_column="*"` and `transform="custom_sql"`. Parsing the SQL is
   intentionally out of scope (it would re-implement a SQL parser); the
@@ -35,8 +39,11 @@ Rule-logic coverage:
   `customer` seed table (the executor ignores `logic.source` and seeds
   from `FROM customer`), and emits both `component_size` AND
   `counterparty_count` rows because the executor always populates both
-  alert keys regardless of which the rule thresholds on. Source columns
-  for the metrics are best-effort `*` (the resolved_entity_link graph).
+  alert keys regardless of which the rule thresholds on. Both metrics
+  trace back to the `customer` contract with `source_column="*"`
+  (the underlying `resolved_entity_link` table is an in-memory derived
+  artifact, NOT a declared contract — pointing there would leave an
+  auditor with no resolvable source).
 
 Only `status="active"` rules contribute lineage rows — `experimental`
 and `deprecated` rules are skipped by `run_spec` and therefore have
@@ -164,13 +171,19 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
                     )
                 )
         elif logic_type == "list_match":
-            # `_execute_list_match` emits `matched_name` (the value of
-            # the screened field, upper-cased) and `customer_id` (carried
-            # from the source row) on every alert. Map both back to the
-            # source contract so the artifact answers lineage questions
-            # for sanctions/PEP alerts. Mapping `logic.field` directly
-            # would point at a non-existent alert key — codex caught
-            # this on PR-A3.
+            # `_execute_list_match` emits on every alert:
+            #   - `matched_name` (the upper-cased value of the screened
+            #     source field)
+            #   - `customer_id` (carried from the source row)
+            #   - `match_score` (1.0 for exact, fuzzy ratio otherwise)
+            # Plus, on fuzzy alerts only:
+            #   - `list_entry` (the reference-list value that matched)
+            # All four are derived alert fields a regulator needs to
+            # explain "why did this alert fire?" — codex P2 on PR-A3
+            # caught the original under-coverage. `match_score` and
+            # `list_entry` reference the configured reference list
+            # rather than a contract column, so source_column captures
+            # the list name and source_contract_id is a wildcard.
             entries.append(
                 FieldLineageEntry(
                     rule_id=rule.id,
@@ -191,6 +204,27 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
                     at=at,
                 )
             )
+            entries.append(
+                FieldLineageEntry(
+                    rule_id=rule.id,
+                    alert_field="match_score",
+                    source_contract_id="*",
+                    source_column=logic.list,
+                    transform=f"list_match:{logic.match}",
+                    at=at,
+                )
+            )
+            if logic.match == "fuzzy":
+                entries.append(
+                    FieldLineageEntry(
+                        rule_id=rule.id,
+                        alert_field="list_entry",
+                        source_contract_id="*",
+                        source_column=logic.list,
+                        transform="list_match:fuzzy",
+                        at=at,
+                    )
+                )
         elif logic_type == "custom_sql":
             # Parsing arbitrary SQL is out of scope (a real implementation
             # would need a SQL AST library and dialect awareness). Emit a
@@ -238,12 +272,20 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
                     at=at,
                 )
             )
+            # `resolved_entity_link` is a derived in-memory DuckDB
+            # table built by `resolve_entities` from declared linking
+            # attributes on the `customer` contract. It is not itself
+            # a declared data contract, so naming it as the source
+            # would point auditors at an unresolvable contract id.
+            # Point at the underlying `customer` contract with
+            # `source_column="*"` so the chain back to a declared
+            # input is preserved. Codex P2 on PR-A3.
             for metric in ("component_size", "counterparty_count"):
                 entries.append(
                     FieldLineageEntry(
                         rule_id=rule.id,
                         alert_field=metric,
-                        source_contract_id="resolved_entity_link",
+                        source_contract_id="customer",
                         source_column="*",
                         transform=f"network_pattern:{logic.pattern}",
                         at=at,

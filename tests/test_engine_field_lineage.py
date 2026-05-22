@@ -216,13 +216,13 @@ class TestDeriveFieldLineagePure:
         assert e.source_column == "*"
         assert e.transform == "python_ref:aml_framework.models.iso_forest:score"
 
-    def test_list_match_traces_matched_name_and_customer_id(self):
-        # `_execute_list_match` writes the screened value to
-        # `matched_name`, NOT to a key named after `logic.field`. The
-        # lineage map must point at the actual alert keys
-        # (`matched_name` + `customer_id`) so a regulator can resolve
-        # "where did matched_name come from?" without re-reading the
-        # runner source. Codex P2 finding on PR-A3.
+    def test_list_match_exact_traces_matched_name_customer_id_and_score(self):
+        # `_execute_list_match` writes `matched_name`, `customer_id`,
+        # and `match_score` (=1.0 for exact) on every alert. The
+        # lineage map must include all three so a regulator can resolve
+        # "where did this alert come from?" without re-reading the
+        # runner source. Codex P2 findings on PR-A3 (matched_name → field,
+        # then match_score coverage).
         rule = Rule(
             id="r_listmatch",
             name="R",
@@ -241,17 +241,51 @@ class TestDeriveFieldLineagePure:
         spec = _make_spec(rules=[rule], contracts=[_txn_contract(), _customer_contract()])
         entries = derive_field_lineage(spec, _AS_OF)
 
-        assert len(entries) == 2
+        assert len(entries) == 3
         by_field = {e.alert_field: e for e in entries}
-        assert set(by_field) == {"matched_name", "customer_id"}
+        assert set(by_field) == {"matched_name", "customer_id", "match_score"}
         assert by_field["matched_name"].source_contract_id == "customer"
         assert by_field["matched_name"].source_column == "legal_name"
         assert by_field["matched_name"].transform == "list_match"
         assert by_field["customer_id"].source_contract_id == "customer"
         assert by_field["customer_id"].source_column == "customer_id"
         assert by_field["customer_id"].transform == "GROUP_BY"
+        # match_score's source is the reference list, not a contract
+        # column — source_column captures the list name, source_contract_id
+        # is wildcard. `list_entry` is NOT emitted for exact matches.
+        assert by_field["match_score"].source_contract_id == "*"
+        assert by_field["match_score"].source_column == "ofac_sdn"
+        assert by_field["match_score"].transform == "list_match:exact"
         for e in entries:
             assert e.rule_id == "r_listmatch"
+
+    def test_list_match_fuzzy_also_traces_list_entry(self):
+        # Fuzzy alerts additionally emit `list_entry` (the matched
+        # reference-list value); lineage must include it. Codex P2.
+        rule = Rule(
+            id="r_listmatch_fuzzy",
+            name="R",
+            severity="critical",
+            regulation_refs=[RegulationRef(citation="x", description="x")],
+            logic=ListMatchLogic(
+                type="list_match",
+                source="customer",
+                field="legal_name",
+                list="ofac_sdn",
+                match="fuzzy",
+                threshold=0.85,
+            ),
+            escalate_to="q1",
+            evidence=[],
+        )
+        spec = _make_spec(rules=[rule], contracts=[_txn_contract(), _customer_contract()])
+        entries = derive_field_lineage(spec, _AS_OF)
+        by_field = {e.alert_field: e for e in entries}
+        assert set(by_field) == {"matched_name", "customer_id", "match_score", "list_entry"}
+        assert by_field["match_score"].transform == "list_match:fuzzy"
+        assert by_field["list_entry"].source_contract_id == "*"
+        assert by_field["list_entry"].source_column == "ofac_sdn"
+        assert by_field["list_entry"].transform == "list_match:fuzzy"
 
     def test_non_active_rules_are_skipped(self):
         # `run_spec` skips experimental + deprecated rules — see
@@ -345,9 +379,14 @@ class TestDeriveFieldLineagePure:
         # be overridden — the executor ignores the override).
         assert by_field["customer_id"].source_contract_id == "customer"
         assert by_field["customer_id"].source_column == "customer_id"
-        # Both metrics emit even though only one is thresholded.
+        # Both metrics emit even though only one is thresholded. They
+        # trace back to `customer` (the underlying declared contract);
+        # `resolved_entity_link` is a derived in-memory table and is
+        # NOT a valid lineage target — codex P2 caught the original
+        # pointer.
         for metric in ("component_size", "counterparty_count"):
-            assert by_field[metric].source_contract_id == "resolved_entity_link"
+            assert by_field[metric].source_contract_id == "customer"
+            assert by_field[metric].source_column == "*"
             assert by_field[metric].transform == "network_pattern:component_size"
 
     def test_empty_spec_returns_empty_list(self):
