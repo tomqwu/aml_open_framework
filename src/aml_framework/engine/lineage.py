@@ -16,11 +16,13 @@ part of the regulator-shippable evidence bundle.
 
 Rule-logic coverage:
 
-- `aggregation_window`: traces each `group_by` column (transform=GROUP_BY)
-  and each `having` metric to its underlying source column via the
-  `_HAVING_AGGREGATES` map mirrored from `generators.sql`. `count` is
-  modeled as a transform over `*` (no single column) so it stays
-  honest about its semantics.
+- `aggregation_window`: traces each `group_by` column (transform=GROUP_BY),
+  each `having` metric to its underlying source column via the
+  `_HAVING_AGGREGATES` map mirrored from `generators.sql`, and the two
+  emitted window fields (`window_start = MIN(booked_at)`,
+  `window_end = MAX(booked_at)`) that `compile_rule_sql` writes on every
+  alert. `count` is modeled as a transform over `*` (no single column)
+  so it stays honest about its semantics.
 - `list_match`: traces the rule's `field` to the source contract with
   transform=list_match.
 - `custom_sql`: best-effort — emits one synthetic row per rule with
@@ -142,6 +144,22 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
                         source_contract_id=logic.source,
                         source_column=src_col,
                         transform=transform,
+                        at=at,
+                    )
+                )
+            # `compile_rule_sql` always emits `window_start = MIN(booked_at)`
+            # and `window_end = MAX(booked_at)` on every aggregation
+            # alert — these are source-derived fields too and must have
+            # a lineage row, or the artifact under-represents the alert
+            # shape. Codex P2 on PR-A3 caught the omission.
+            for window_field, agg in (("window_start", "MIN"), ("window_end", "MAX")):
+                entries.append(
+                    FieldLineageEntry(
+                        rule_id=rule.id,
+                        alert_field=window_field,
+                        source_contract_id=logic.source,
+                        source_column="booked_at",
+                        transform=agg,
                         at=at,
                     )
                 )

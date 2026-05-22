@@ -109,9 +109,15 @@ class TestDeriveFieldLineagePure:
 
         entries = derive_field_lineage(spec, _AS_OF)
 
-        # 1 group_by + 2 having metrics = 3 entries.
-        assert len(entries) == 3
-        assert {e.alert_field for e in entries} == {"customer_id", "count", "sum_amount"}
+        # 1 group_by + 2 having metrics + 2 window fields = 5 entries.
+        assert len(entries) == 5
+        assert {e.alert_field for e in entries} == {
+            "customer_id",
+            "count",
+            "sum_amount",
+            "window_start",
+            "window_end",
+        }
         for e in entries:
             assert e.rule_id == "rapid_pass_through"
             assert e.source_contract_id == "txn"
@@ -124,6 +130,12 @@ class TestDeriveFieldLineagePure:
         assert by_field["count"].transform == "COUNT"
         assert by_field["sum_amount"].source_column == "amount"
         assert by_field["sum_amount"].transform == "SUM"
+        # `compile_rule_sql` always emits window_start = MIN(booked_at)
+        # and window_end = MAX(booked_at) on every aggregation alert.
+        assert by_field["window_start"].source_column == "booked_at"
+        assert by_field["window_start"].transform == "MIN"
+        assert by_field["window_end"].source_column == "booked_at"
+        assert by_field["window_end"].transform == "MAX"
 
     def test_aggregation_window_max_min_avg_traces_amount(self):
         rule = Rule(
@@ -442,7 +454,8 @@ class TestRunSpecEmitsFieldLineage:
         assert lineage_path.exists(), "field_lineage.jsonl must always be written"
 
         lines = [ln for ln in lineage_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
-        assert len(lines) == 3, f"expected 3 entries (1 group_by + 2 having), got {lines}"
+        # 1 group_by + 2 having + 2 window fields = 5 entries.
+        assert len(lines) == 5, f"expected 5 entries, got {lines}"
 
         rows = [json.loads(ln) for ln in lines]
         by_field = {r["alert_field"]: r for r in rows}
@@ -452,6 +465,10 @@ class TestRunSpecEmitsFieldLineage:
         assert by_field["count"]["source_column"] == "*"
         assert by_field["sum_amount"]["transform"] == "SUM"
         assert by_field["sum_amount"]["source_column"] == "amount"
+        assert by_field["window_start"]["source_column"] == "booked_at"
+        assert by_field["window_start"]["transform"] == "MIN"
+        assert by_field["window_end"]["source_column"] == "booked_at"
+        assert by_field["window_end"]["transform"] == "MAX"
         for r in rows:
             assert r["rule_id"] == "r_agg"
             assert r["source_contract_id"] == "txn"
