@@ -339,8 +339,7 @@ _render_pillar(
         "the named queue via `_build_case()`.",
         "**In:** Risk Assessment page surfaces customer-segment exposure "
         "and the typology-vs-rule coverage matrix.",
-        "**In:** Typology Catalogue cross-references each typology to its "
-        "detection rule(s).",
+        "**In:** Typology Catalogue cross-references each typology to its detection rule(s).",
         "**Missing:** a first-class `risk_tier` / `risk_rating` Rule "
         "attribute (today the priority signal is `severity` and routing "
         "is `escalate_to`, not a risk attribute), and customer-segment "
