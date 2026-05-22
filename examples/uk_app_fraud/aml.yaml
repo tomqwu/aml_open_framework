@@ -97,6 +97,18 @@ rules:
       - customer_kyc_with_typical_payment_size
       - customer_session_log
     tags: [app_fraud, first_use_payee, psr, fca]
+    business_intent: >
+      Detect any outbound payment of £1,000+ where payee_first_use is true —
+      the textbook PSR-cited APP-fraud impersonation signature. Fraudsters
+      pose as HMRC, utility companies, or the bank itself and direct
+      victims to send to an account they've never paid before; sending PSPs
+      now carry 50% of reimbursable losses, so interdiction before
+      settlement is the value lever.
+    out_of_scope:
+      - payments to known payees (the rule requires payee_first_use=true)
+      - first-use payees below the £1,000 threshold (commercial intent below the floor outweighs the signal)
+      - inbound first-use credits (different shape — handled by velocity / mule rules)
+      - first-use commercial payments to a verified business with a CoP match (post-investigation filter)
 
   # --- APP Typology #2: Confirmation-of-Payee mismatch ---
   # CoP is the UK's payee-name verification service. A `no_match` or
@@ -130,6 +142,18 @@ rules:
       - cop_response_log
       - customer_intervention_history
     tags: [app_fraud, cop_mismatch, psr]
+    business_intent: >
+      Flag any outbound payment of £100+ where Confirmation of Payee
+      returned no_match or close_match and the customer proceeded anyway.
+      A CoP-override is the strongest pre-settlement APP-fraud signal in
+      PSR's mandatory scheme — vulnerable customers often push through
+      under social-engineering pressure even when the payee-name warning
+      is shown.
+    out_of_scope:
+      - CoP match outcomes (the rule keys on no_match/close_match)
+      - cases where the customer cancelled after the CoP warning (no resulting txn to surface)
+      - unsupported CoP outcomes due to receiving-bank gaps (require remediation, not detection)
+      - business-payment overrides where the difference is a known trading name variant
 
   # --- APP Typology #3: Vulnerable customer + atypical large payment ---
   # PSR's CRS Annex 4 on consumer standard of caution exempts
@@ -172,6 +196,18 @@ rules:
       - customer_session_log
       - call_centre_intervention_history
     tags: [app_fraud, vulnerable_customer, psr, fca]
+    business_intent: >
+      Flag outbound payments from customers carrying the vulnerable-
+      customer flag where the amount is ≥5x their typical p95 payment
+      size and at least £500. PSR CRS Annex 4 exempts vulnerable
+      customers from the gross-negligence test, so catching the at-risk
+      pattern pre-settlement is materially valuable to the bank's
+      reimbursement liability.
+    out_of_scope:
+      - non-vulnerable customers (separate intervention threshold applies — see first_use_payee rule)
+      - vulnerable customers with no populated typical_payment_size_p95 baseline
+      - inbound credits to vulnerable customers (different shape — mule-receiver concern)
+      - payments under £500 that may be uplifted but commercially routine
 
   # --- APP Typology #4: Rapid pass-through within sending PSP ---
   # Inbound from victim → outbound to mule within 1 hour. The bank
@@ -225,6 +261,17 @@ rules:
       - customer_kyc_profile
       - beneficiary_account_status
     tags: [app_fraud, mule, pass_through, psr]
+    business_intent: >
+      Detect the receiving-PSP mule signature — an inbound credit of £500+
+      followed within one hour by an outbound payment of ≥80% of the
+      inbound value. The bank carries the receiving-PSP share of the PSR
+      50/50 liability split, so detecting mule accounts early reduces the
+      reimbursement bill as well as supporting NCA SAR filing.
+    out_of_scope:
+      - pass-through patterns beyond one hour (different shape — see ramp_up rules in adjacent specs)
+      - outbound legs below the 80% pass-through ratio (treated as ordinary spend)
+      - inbound credits without a matched outbound leg (handled by other behavioural rules)
+      - genuine treasury sweeps between a customer's own accounts
 
 workflow:
   queues:
