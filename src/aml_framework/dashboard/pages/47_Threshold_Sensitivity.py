@@ -109,12 +109,14 @@ def _first_numeric_threshold(having: dict) -> tuple[str, str, int | float] | Non
     Returns ``None`` when no sweepable threshold is present (e.g. the
     rule's having clause is purely categorical, or the value is bool).
 
-    The returned value keeps the spec's numeric type — int for count-
-    style thresholds, float for amounts / ratios — so the sweep math
-    downstream knows whether to coerce results back to int (count rules
-    must sweep at integer thresholds; DuckDB rounds `COUNT(*) >= 2.25`
-    to `>= 3` and the ±25% point would collapse onto the baseline).
-    Codex pass 2 caught the original `float(val)` collapse.
+    The returned value keeps the spec's numeric type — `float(val)`
+    would demote integer count thresholds and lose the type signal the
+    sweep loop uses to decide rounding policy. Domain-specific
+    rounding (integer-coerce for `count`-shaped metrics, leave amount
+    /ratio thresholds alone) is applied in the sweep loop via
+    `_is_count_metric`. Codex pass 2 + pass 3 caught the divergence
+    when this picker stripped the type and when the rounding was
+    applied uniformly.
     """
     for metric, cond in having.items():
         if not isinstance(cond, dict):
@@ -221,32 +223,57 @@ def _alerts_at(rule: Rule, logic: AggregationWindowLogic, having: dict) -> int:
 # count high-sensitivity rules without re-running every sweep twice.
 # ---------------------------------------------------------------------------
 _results: list[dict] = []
+
+
+def _is_count_metric(name: str) -> bool:
+    """True for count-style having metrics (integer-only domain).
+
+    Count metrics carry an integer domain in DuckDB — `COUNT(*) >= 2.25`
+    rounds up to `>= 3` and the 0.75× sweep point would collapse onto
+    the baseline. Only `count`-shaped metrics get integer coercion;
+    amount / average / ratio metrics keep their full numeric type so
+    the 1.0× baseline matches the spec value exactly and the
+    multiplied points stay distinct from one another.
+
+    The match is conservative — exactly `count` or a `*_count` suffix
+    so a future `count_distinct_customer` style metric also classifies
+    correctly without picking up `discount` or similar.
+    """
+    return name == "count" or name.endswith("_count")
+
+
 for rule, metric, op, spec_val in _tunable:
     logic = rule.logic
-    # Build the swept threshold values. Preserve the spec value's numeric
-    # type at the 1.0× baseline so the displayed baseline matches the
-    # engine's actual rule threshold:
-    #   - int spec_val + int-clean multiplied result → int (counts).
-    #   - float spec_val (e.g. `avg_amount: {gte: 100.50}`) → float, no
-    #     rounding, so the 1.0× point equals the spec value exactly.
+    # Sweep math. Two cases — see `_is_count_metric` docstring above:
+    #   1. count-style metrics: integer domain; round multiplied values
+    #      to nearest integer (1.0× == spec_val exactly).
+    #   2. Everything else (sum_amount / avg_amount / ratios / scores):
+    #      keep the full numeric value the multiplier produces — no
+    #      rounding, no clamping. The 1.0× baseline is then exactly the
+    #      spec value (engine SQL == rule's actual threshold) and the
+    #      ±25% points are exactly `spec_val * 0.75` / `spec_val * 1.25`.
+    #
     # No `max(1, ...)` clamp — a spec is free to author `count: {gt: 0}`
     # and the sweep should respect that at 0.5× (= 0), not silently
     # clamp to 1. The chart will simply show alerts at that threshold.
-    spec_val_is_int = isinstance(spec_val, int) and not isinstance(spec_val, bool)
+    metric_is_count = _is_count_metric(metric)
 
     def _swept(
-        mult: float, _is_int: bool = spec_val_is_int, _v: int | float = spec_val
+        mult: float, _is_count: bool = metric_is_count, _v: int | float = spec_val
     ) -> int | float:
         raw = _v * mult
-        if _is_int:
-            # Integer-typed thresholds (counts) stay integer. `round`
-            # nudges floating-point drift (e.g. 3 * 0.75 = 2.25 → 2)
-            # while keeping the 1.0× row exactly == spec_val.
+        if _is_count:
+            # Integer domain — `round` nudges floating-point drift
+            # (e.g. 3 * 0.75 = 2.25 → 2) while keeping the 1.0× row
+            # exactly == spec_val.
             return int(round(raw))
-        # Float-typed thresholds (money, ratios) stay float so the
-        # 1.0× baseline equals the spec value exactly. Round to 2dp
-        # for display + SQL hygiene (avoids 100.5 * 0.75 == 75.375).
-        return round(raw, 2)
+        # Amount / ratio / score domain — pass the value through
+        # unrounded so the 1.0× baseline equals the spec value
+        # exactly for both `sum_amount: {gte: 999}` (int) and
+        # `avg_amount: {gte: 100.125}` (float). Display formatting
+        # is handled at chart-render time, separately from the SQL
+        # value (codex pass 3).
+        return raw
 
     # `sweep_points` carries `(multiplier, swept_threshold_value, alert_count)`
     # — the swept value is recorded so the chart's x-axis renders the
