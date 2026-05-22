@@ -18,6 +18,7 @@ from aml_framework.engine.constants import Event, Queue
 from aml_framework.engine.dq import DQException, evaluate_contract_checks
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
+from aml_framework.engine.lineage import FieldLineageEntry, derive_field_lineage
 from aml_framework.generators.sql import _compile_filter, compile_rule_sql
 from aml_framework.metrics.engine import MetricResult, evaluate_metrics
 from aml_framework.metrics.reports import render_all_reports
@@ -810,6 +811,27 @@ def _write_dq_exceptions(run_dir: Path, exceptions: list[DQException]) -> None:
     path.write_bytes(b"\n".join(lines) + b"\n")
 
 
+def _write_field_lineage(run_dir: Path, entries: list[FieldLineageEntry]) -> None:
+    """Persist field lineage entries as one JSON object per line under the run dir.
+
+    Always writes the file, even when `entries` is empty (e.g. an empty
+    spec), so downstream consumers can rely on its presence rather than
+    guarding on `exists()` — same audit-integrity posture as
+    `dq_exceptions.jsonl`. Ordering is deterministic (set by
+    `derive_field_lineage`) so the JSONL diff is byte-stable across
+    re-runs — required for the run reproducibility contract.
+    """
+    path = run_dir / "field_lineage.jsonl"
+    if not entries:
+        path.write_bytes(b"")
+        return
+    lines = [
+        json.dumps(entry.model_dump(mode="json"), sort_keys=True, default=str).encode("utf-8")
+        for entry in entries
+    ]
+    path.write_bytes(b"\n".join(lines) + b"\n")
+
+
 def run_spec(
     spec: AMLSpec,
     spec_path: Path,
@@ -897,6 +919,13 @@ def run_spec(
                 }
             )
     _write_dq_exceptions(ledger.run_dir, dq_exceptions)
+
+    # PR-A3 (#364) — field lineage is pure-spec derivation, so it can be
+    # written any time after `run_dir` exists. Doing it here (before the
+    # warehouse build) means an early ContractViolation that aborts the
+    # run still leaves a field_lineage.jsonl behind, which keeps the
+    # artifact-always-present invariant the manifest-hash code relies on.
+    _write_field_lineage(ledger.run_dir, derive_field_lineage(spec, as_of))
 
     con = duckdb.connect(":memory:")
     _harden_duckdb(con)
