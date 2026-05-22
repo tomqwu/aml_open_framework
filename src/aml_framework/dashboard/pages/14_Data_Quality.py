@@ -171,10 +171,23 @@ for contract in spec.data_contracts:
                         hi = spec.get("max") if isinstance(spec, dict) else None
 
                         def _to_num(v):
+                            # Mirror engine `_eval_range` / `_coerce_bound`
+                            # so the dashboard scorecard agrees with
+                            # `dq_exceptions.jsonl`: reject bools
+                            # (a True/False in a numeric column is a
+                            # defect, not 1/0), and reject non-finite
+                            # values (NaN/Inf can't be compared).
+                            import math as _m
+
+                            if v is None or isinstance(v, bool):
+                                return None
                             try:
-                                return float(v) if v is not None else None
+                                f = float(v)
                             except (TypeError, ValueError):
                                 return None
+                            if not _m.isfinite(f):
+                                return None
+                            return f
 
                         lo_n = _to_num(lo)
                         hi_n = _to_num(hi)
