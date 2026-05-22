@@ -349,6 +349,35 @@ class TestEvaluateContractChecksPure:
         assert "999999.42" not in excs[0].reason
         assert excs[0].failing_value == "999999.42"
 
+    def test_range_rejects_non_finite_bound_without_crashing(self):
+        # A spec with `min: "NaN"` or `min: .nan` (YAML) would survive
+        # the untyped quality_checks shape; the previous coercion
+        # returned `Decimal('NaN')` which then raised
+        # `decimal.InvalidOperation` against any real numeric row.
+        # Filter non-finite bounds back to None so the malformed side
+        # becomes unbounded rather than crashing the run. Codex review
+        # (B1 pass 3).
+        rows = [{"amount": 50.0}, {"amount": -100.0}, {"amount": 1_000_000.0}]
+        # String-NaN min, real max → only the max side enforces.
+        checks = [{"range": {"amount": {"min": "NaN", "max": 100}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        # Only the 1_000_000 row exceeds 100; the -100 row would have
+        # violated a real min but the NaN bound was rejected.
+        assert len(excs) == 1
+        assert excs[0].row_index == 2
+        assert "above max" in excs[0].reason
+
+    def test_range_rejects_infinity_bound_without_crashing(self):
+        # `Inf` / `-Inf` bounds are uncomparable too — also treat as
+        # unusable. Codex review (B1 pass 3).
+        from decimal import Decimal
+
+        rows = [{"amount": 50.0}, {"amount": -100.0}]
+        checks = [{"range": {"amount": {"min": Decimal("-Infinity"), "max": Decimal("Infinity")}}}]
+        # Both bounds non-finite → the whole check degenerates to a
+        # no-op (lo and hi both None after coercion).
+        assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
+
     def test_range_handles_nan_and_infinity_without_crashing(self):
         # `float('nan')` and `Decimal('NaN')` pass the type guard but
         # raise `decimal.InvalidOperation` on `<`/`>` — that would abort

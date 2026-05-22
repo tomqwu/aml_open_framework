@@ -325,8 +325,11 @@ def _coerce_bound(bound: Any) -> Decimal | None:
     `<`/`>` time and aborts the whole `aml run`. Coerce here so a
     malformed bound becomes "no bound that side" rather than a crash.
 
-    Returns `None` when the bound is `None` (not provided) or can't be
-    coerced to a number — the caller treats both the same way.
+    Returns `None` when the bound is `None` (not provided), can't be
+    coerced to a number, or coerces to a non-finite Decimal
+    (`NaN`/`Inf` — e.g. `min: .nan` in YAML or `min: "NaN"`). Non-
+    finite bounds would otherwise still raise `decimal.InvalidOperation`
+    at compare time and abort `aml run`. Codex review (B1 pass 3).
     """
     if bound is None:
         return None
@@ -335,15 +338,24 @@ def _coerce_bound(bound: Any) -> Decimal | None:
         # certainly a contract defect, not a real bound.
         return None
     if isinstance(bound, Decimal):
-        return bound
-    if isinstance(bound, (int, float)):
-        return Decimal(str(bound))
-    if isinstance(bound, str):
+        result = bound
+    elif isinstance(bound, (int, float)):
         try:
-            return Decimal(bound)
+            result = Decimal(str(bound))
         except Exception:
             return None
-    return None
+    elif isinstance(bound, str):
+        try:
+            result = Decimal(bound)
+        except Exception:
+            return None
+    else:
+        return None
+    # Filter non-finite (`NaN`, `Inf`, `-Inf`) — these bounds are
+    # uncomparable and would crash the `<`/`>` step.
+    if not result.is_finite():
+        return None
+    return result
 
 
 def _eval_range(
