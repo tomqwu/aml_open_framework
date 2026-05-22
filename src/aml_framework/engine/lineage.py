@@ -29,10 +29,17 @@ Rule-logic coverage:
   gap is documented so downstream consumers know not to expect more.
 - `python_ref`: best-effort — `source_column="*"`,
   `transform="python_ref:<callable>"`.
-- `network_pattern`: traces seed `customer_id` + each having metric
-  (`component_size`, `counterparty_count`) — the rule consumes the
-  resolved_entity_link graph, so source columns are best-effort `*`
-  with a graph-walk transform tag.
+- `network_pattern`: traces seed `customer_id` to the hard-coded
+  `customer` seed table (the executor ignores `logic.source` and seeds
+  from `FROM customer`), and emits both `component_size` AND
+  `counterparty_count` rows because the executor always populates both
+  alert keys regardless of which the rule thresholds on. Source columns
+  for the metrics are best-effort `*` (the resolved_entity_link graph).
+
+Only `status="active"` rules contribute lineage rows — `experimental`
+and `deprecated` rules are skipped by `run_spec` and therefore have
+no alerts in `rule_outputs`; emitting lineage for them would
+misrepresent the evidence bundle.
 
 The output is sorted deterministically so two calls on the same spec
 produce byte-identical artifacts (pinned by `test_determinism_two_calls_match`
@@ -96,6 +103,13 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
     entries: list[FieldLineageEntry] = []
 
     for rule in spec.rules:
+        # Match `run_spec`'s skip rule: only `status="active"` rules run,
+        # so only active rules should claim lineage in the regulator-
+        # facing artifact. Codex P2 on PR-A3 caught the misrepresentation
+        # — a deprecated rule with no alerts in `rule_outputs` would
+        # otherwise still appear in field_lineage.jsonl.
+        if getattr(rule, "status", "active") != "active":
+            continue
         logic = rule.logic
         logic_type = getattr(logic, "type", None)
 
@@ -188,18 +202,25 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
                 )
             )
         elif logic_type == "network_pattern":
-            # seed entity is customer_id on the configured source contract.
+            # `_execute_network_pattern` hard-codes the seed table to
+            # `customer` (regardless of `logic.source`) — see the
+            # `FROM customer` line in the recursive CTE — and always
+            # emits BOTH `component_size` and `counterparty_count` on
+            # every alert (not just the metrics named in `having`).
+            # Mirror that exactly so the artifact tells the truth about
+            # the executor: seed_contract=customer, both metrics
+            # present. Codex P2 on PR-A3 caught the divergence.
             entries.append(
                 FieldLineageEntry(
                     rule_id=rule.id,
                     alert_field="customer_id",
-                    source_contract_id=logic.source,
+                    source_contract_id="customer",
                     source_column="customer_id",
                     transform="GROUP_BY",
                     at=at,
                 )
             )
-            for metric in logic.having.keys():
+            for metric in ("component_size", "counterparty_count"):
                 entries.append(
                     FieldLineageEntry(
                         rule_id=rule.id,

@@ -29,6 +29,7 @@ from aml_framework.spec.models import (
     CustomSQLLogic,
     DataContract,
     ListMatchLogic,
+    NetworkPatternLogic,
     Program,
     PythonRefLogic,
     Queue,
@@ -239,6 +240,103 @@ class TestDeriveFieldLineagePure:
         assert by_field["customer_id"].transform == "GROUP_BY"
         for e in entries:
             assert e.rule_id == "r_listmatch"
+
+    def test_non_active_rules_are_skipped(self):
+        # `run_spec` skips experimental + deprecated rules — see
+        # `if rule.status != "active": continue` in runner.py. The
+        # lineage artifact must match, or it claims lineage for rules
+        # whose alerts/SQL never landed. Codex P2 on PR-A3.
+        active = Rule(
+            id="r_active",
+            name="A",
+            severity="low",
+            regulation_refs=[RegulationRef(citation="x", description="x")],
+            logic=AggregationWindowLogic(
+                type="aggregation_window",
+                source="txn",
+                group_by=["customer_id"],
+                window="7d",
+                having={"count": {"gte": 1}},
+            ),
+            escalate_to="q1",
+            evidence=[],
+        )
+        experimental = Rule(
+            id="r_experimental",
+            name="X",
+            severity="low",
+            status="experimental",
+            regulation_refs=[RegulationRef(citation="x", description="x")],
+            logic=AggregationWindowLogic(
+                type="aggregation_window",
+                source="txn",
+                group_by=["customer_id"],
+                window="7d",
+                having={"count": {"gte": 1}},
+            ),
+            escalate_to="q1",
+            evidence=[],
+        )
+        deprecated = Rule(
+            id="r_deprecated",
+            name="D",
+            severity="low",
+            status="deprecated",
+            regulation_refs=[RegulationRef(citation="x", description="x")],
+            logic=AggregationWindowLogic(
+                type="aggregation_window",
+                source="txn",
+                group_by=["customer_id"],
+                window="7d",
+                having={"count": {"gte": 1}},
+            ),
+            escalate_to="q1",
+            evidence=[],
+        )
+        spec = _make_spec(rules=[active, experimental, deprecated])
+        entries = derive_field_lineage(spec, _AS_OF)
+        rule_ids = {e.rule_id for e in entries}
+        assert rule_ids == {"r_active"}, (
+            f"only active rules should contribute lineage; got {rule_ids}"
+        )
+
+    def test_network_pattern_emits_both_metrics_and_customer_seed(self):
+        # `_execute_network_pattern` always populates BOTH
+        # `component_size` and `counterparty_count` on every alert
+        # (regardless of which is thresholded in `having`), and seeds
+        # from the hard-coded `customer` table (ignoring `logic.source`).
+        # The lineage artifact must match the executor's actual output
+        # contract. Codex P2 on PR-A3.
+        rule = Rule(
+            id="r_net",
+            name="Net",
+            severity="high",
+            regulation_refs=[RegulationRef(citation="x", description="x")],
+            logic=NetworkPatternLogic(
+                type="network_pattern",
+                pattern="component_size",
+                max_hops=2,
+                # `having` thresholds only component_size — but the alert
+                # still carries counterparty_count, so lineage must too.
+                having={"component_size": {"gte": 3}},
+            ),
+            escalate_to="q1",
+            evidence=[],
+        )
+        spec = _make_spec(rules=[rule], contracts=[_txn_contract(), _customer_contract()])
+        entries = derive_field_lineage(spec, _AS_OF)
+
+        by_field = {e.alert_field: e for e in entries}
+        assert set(by_field) == {"customer_id", "component_size", "counterparty_count"}
+        # Seed customer_id traces to the hardcoded customer table, NOT to
+        # `logic.source` (which defaults to "customer" anyway but could
+        # be overridden — the executor ignores the override).
+        assert by_field["customer_id"].source_contract_id == "customer"
+        assert by_field["customer_id"].source_column == "customer_id"
+        # Both metrics emit even though only one is thresholded.
+        for metric in ("component_size", "counterparty_count"):
+            assert by_field[metric].source_contract_id == "resolved_entity_link"
+            assert by_field[metric].transform == "network_pattern:component_size"
 
     def test_empty_spec_returns_empty_list(self):
         # An AMLSpec with no rules — Pydantic permits it (the JSON schema's
