@@ -311,11 +311,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-<<<<<<< HEAD
 The 45 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
-=======
-The 44 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
->>>>>>> ea42e35 (feat(dashboard): PR-E5 — anomaly discovery surface (closes #382))
 
 | Persona | Primary pages |
 |---|---|
