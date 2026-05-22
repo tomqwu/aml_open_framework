@@ -118,6 +118,33 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
             vb = getattr(spec_b.program, field)
             if va != vb:
                 program_changes.append(FieldChange(field=field, before=str(va), after=str(vb)))
+        # PR-D2 (#375): surface nfrs changes per-attribute so an NFR-only
+        # update (e.g. rto_minutes 60 → 30) doesn't slip through audit
+        # review with no program_changes recorded. Codex pass on PR-D2.
+        nfrs_a = spec_a.program.nfrs
+        nfrs_b = spec_b.program.nfrs
+        if nfrs_a != nfrs_b:
+            for field in (
+                "rto_minutes",
+                "rpo_minutes",
+                "sla_p95_ms",
+                "throughput_per_min",
+                "retention_days",
+                "notes",
+            ):
+                va = getattr(nfrs_a, field, None) if nfrs_a is not None else None
+                vb = getattr(nfrs_b, field, None) if nfrs_b is not None else None
+                before = "" if va is None else str(va)
+                after = "" if vb is None else str(vb)
+                # Skip when the rendered strings match — `notes` defaults
+                # to "" on a fresh NFR block, so adding `nfrs: {rto: 60}`
+                # would otherwise emit a bogus `nfrs.notes` row with
+                # identical before/after empty strings. Codex pass 2.
+                if before == after:
+                    continue
+                program_changes.append(
+                    FieldChange(field=f"nfrs.{field}", before=before, after=after)
+                )
 
     rules_a = {r.id: r for r in spec_a.rules}
     rules_b = {r.id: r for r in spec_b.rules}
