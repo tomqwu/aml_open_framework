@@ -104,6 +104,22 @@ session_row = {
     "dq_exceptions_hash": _short(session_manifest.get("dq_exceptions_hash")),
 }
 
+# Resolve the active tenant — when the dashboard was launched through
+# the tenant registry, `active_tenant` is set on session_state and the
+# persistence helpers must be scoped to that tenant. Without this, a
+# user viewing Bank A's spec would see Bank B's runs mixed into the
+# table, and the 50-row cap could evict Bank A's own runs by Bank B's
+# unrelated experiments. Codex pass 2 caught this.
+_active_tenant = st.session_state.get("active_tenant")
+_active_tenant_id = _active_tenant.id if _active_tenant is not None else None
+
+# Sentinel for "alert lookup failed, real count unknown" — surfaced as
+# the literal string "n/a" in the table so a reviewer can distinguish
+# a real zero-alert run from a lookup-failure. Codex pass 2: silently
+# fabricating `0` on exception understated alert volume on what's
+# meant to be an audit surface.
+_ALERTS_UNAVAILABLE = "n/a"
+
 # Try to load stored runs. Same defensive try/except as Run History +
 # Comparative Analytics — the API persistence layer is optional, and
 # the page must still render when the SQLite/Postgres path is not
@@ -114,20 +130,24 @@ try:
     from aml_framework.api.db import get_run, get_run_alerts, init_db, list_runs
 
     init_db()
-    for entry in list_runs():
+    for entry in list_runs(tenant_id=_active_tenant_id):
         run_id = entry.get("run_id", "")
         # Fetch the persisted manifest for the rich fields the
         # `list_runs` projection doesn't return (it only carries
         # run_id / spec_path / seed / created_at by design).
-        manifest = get_run(run_id) or {}
+        manifest = get_run(run_id, tenant_id=_active_tenant_id) or {}
         # Sum total_alerts from the alerts table. `get_run_alerts`
         # returns one row per rule_id with a list of alerts; the
-        # experiment-table cell is the sum across rules.
+        # experiment-table cell is the sum across rules. On failure
+        # (connection drop, permission error, malformed stored JSON)
+        # we surface the `_ALERTS_UNAVAILABLE` sentinel rather than
+        # fabricating a 0 — the audit surface must not silently
+        # understate alert volume on a transient lookup error.
         try:
-            alert_rows = get_run_alerts(run_id)
-            total_alerts = sum(len(r.get("alerts") or []) for r in alert_rows)
+            alert_rows = get_run_alerts(run_id, tenant_id=_active_tenant_id)
+            total_alerts: int | str = sum(len(r.get("alerts") or []) for r in alert_rows)
         except Exception:
-            total_alerts = 0
+            total_alerts = _ALERTS_UNAVAILABLE
         stored_rows.append(
             {
                 "run_id": run_id,
@@ -171,7 +191,16 @@ all_rows = [session_row] + stored_rows
 _LIST_RUNS_PAGE_SIZE = 50
 
 _distinct_specs = {row["spec_content_hash"] for row in all_rows if row.get("spec_content_hash")}
-_total_alerts_shown = sum(int(row.get("total_alerts") or 0) for row in all_rows)
+# Sum only rows whose alert count is numeric — `_ALERTS_UNAVAILABLE`
+# sentinels skip the sum entirely. Without this, `int("n/a")` would
+# raise; with `or 0` it would silently treat unknowns as zero, which
+# is exactly the misreport codex pass 2 caught.
+_total_alerts_shown = sum(
+    int(row["total_alerts"])
+    for row in all_rows
+    if isinstance(row.get("total_alerts"), (int, float))
+)
+_unavailable_rows = sum(1 for row in all_rows if row.get("total_alerts") == _ALERTS_UNAVAILABLE)
 _window_capped = len(stored_rows) >= _LIST_RUNS_PAGE_SIZE
 
 c1, c2, c3 = st.columns(3)
@@ -194,6 +223,20 @@ if _window_capped:
         "`list_runs()` is capped at 50 rows by design — older runs are "
         "not summed into the KPIs above. For deeper history, query "
         "`aml_framework.api.db` directly or extend the projection."
+    )
+
+if _unavailable_rows:
+    # The audit surface must distinguish "alert lookup failed" from
+    # "real zero-alert run" — codex pass 2 caught the silent
+    # fabrication. Surface the count so a reviewer reads the table
+    # cells marked `n/a` as deliberate, not data drift.
+    st.warning(
+        f"Alert lookup failed for {_unavailable_rows} row(s); their "
+        f"`total_alerts` cell shows `{_ALERTS_UNAVAILABLE}` and is "
+        "excluded from the headline KPI. Most likely cause: a "
+        "permission or connection error against the runs table — "
+        "retry after restoring API persistence, or inspect "
+        "`aml_framework.api.db` logs."
     )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -248,7 +291,12 @@ data_grid(
     df,
     key="experiment_tracking_table",
     pinned_left=["run_ts", "run_id"],
-    gradient_cols=["total_alerts"] if "total_alerts" in df.columns else None,
+    # No gradient on `total_alerts` — the column may carry the
+    # `_ALERTS_UNAVAILABLE` sentinel string for failed lookups, and a
+    # gradient signalling "high is good / low is bad" doesn't apply to
+    # this experiment-overview view anyway (alert count is descriptive,
+    # not a tuning target on this page). Operators tuning thresholds
+    # use Rule Tuning / Tuning Lab for that.
     height=420,
 )
 
