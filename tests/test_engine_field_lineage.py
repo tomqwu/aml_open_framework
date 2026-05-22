@@ -203,7 +203,13 @@ class TestDeriveFieldLineagePure:
         assert e.source_column == "*"
         assert e.transform == "python_ref:aml_framework.models.iso_forest:score"
 
-    def test_list_match_traces_field_to_source_column(self):
+    def test_list_match_traces_matched_name_and_customer_id(self):
+        # `_execute_list_match` writes the screened value to
+        # `matched_name`, NOT to a key named after `logic.field`. The
+        # lineage map must point at the actual alert keys
+        # (`matched_name` + `customer_id`) so a regulator can resolve
+        # "where did matched_name come from?" without re-reading the
+        # runner source. Codex P2 finding on PR-A3.
         rule = Rule(
             id="r_listmatch",
             name="R",
@@ -222,13 +228,17 @@ class TestDeriveFieldLineagePure:
         spec = _make_spec(rules=[rule], contracts=[_txn_contract(), _customer_contract()])
         entries = derive_field_lineage(spec, _AS_OF)
 
-        assert len(entries) == 1
-        e = entries[0]
-        assert e.rule_id == "r_listmatch"
-        assert e.alert_field == "legal_name"
-        assert e.source_contract_id == "customer"
-        assert e.source_column == "legal_name"
-        assert e.transform == "list_match"
+        assert len(entries) == 2
+        by_field = {e.alert_field: e for e in entries}
+        assert set(by_field) == {"matched_name", "customer_id"}
+        assert by_field["matched_name"].source_contract_id == "customer"
+        assert by_field["matched_name"].source_column == "legal_name"
+        assert by_field["matched_name"].transform == "list_match"
+        assert by_field["customer_id"].source_contract_id == "customer"
+        assert by_field["customer_id"].source_column == "customer_id"
+        assert by_field["customer_id"].transform == "GROUP_BY"
+        for e in entries:
+            assert e.rule_id == "r_listmatch"
 
     def test_empty_spec_returns_empty_list(self):
         # An AMLSpec with no rules — Pydantic permits it (the JSON schema's

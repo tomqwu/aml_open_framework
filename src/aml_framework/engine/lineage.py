@@ -132,13 +132,30 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
                     )
                 )
         elif logic_type == "list_match":
+            # `_execute_list_match` emits `matched_name` (the value of
+            # the screened field, upper-cased) and `customer_id` (carried
+            # from the source row) on every alert. Map both back to the
+            # source contract so the artifact answers lineage questions
+            # for sanctions/PEP alerts. Mapping `logic.field` directly
+            # would point at a non-existent alert key — codex caught
+            # this on PR-A3.
             entries.append(
                 FieldLineageEntry(
                     rule_id=rule.id,
-                    alert_field=logic.field,
+                    alert_field="matched_name",
                     source_contract_id=logic.source,
                     source_column=logic.field,
                     transform="list_match",
+                    at=at,
+                )
+            )
+            entries.append(
+                FieldLineageEntry(
+                    rule_id=rule.id,
+                    alert_field="customer_id",
+                    source_contract_id=logic.source,
+                    source_column="customer_id",
+                    transform="GROUP_BY",
                     at=at,
                 )
             )
