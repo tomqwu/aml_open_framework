@@ -136,23 +136,28 @@ for contract in spec.data_contracts:
                         }
                     )
             elif check_type in ("enum", "regex", "range") and isinstance(fields, dict):
-                for field, spec in fields.items():
+                # NOTE: iterate as `check_spec`, NOT `spec` — this page
+                # runs at module scope so binding `spec` here would
+                # shadow the page-level `spec` object loaded from
+                # `st.session_state`, breaking later `spec.data_contracts`
+                # access. Codex review (B1 pass 5).
+                for field, check_spec in fields.items():
                     if field not in df.columns:
                         continue
                     total_checks += 1
                     series = df[field]
                     present = series.dropna()
                     if check_type == "enum":
-                        allowed = list(spec) if isinstance(spec, (list, tuple)) else []
+                        allowed = list(check_spec) if isinstance(check_spec, (list, tuple)) else []
                         bad = int((~present.isin(allowed)).sum()) if allowed else 0
                         passed = bad == 0
                         detail = f"{bad} out-of-set" if bad else "0 out-of-set"
                     elif check_type == "regex":
                         import re as _re
 
-                        if isinstance(spec, str):
+                        if isinstance(check_spec, str):
                             try:
-                                pat = _re.compile(spec)
+                                pat = _re.compile(check_spec)
                                 bad = int(
                                     sum(
                                         1
@@ -167,8 +172,8 @@ for contract in spec.data_contracts:
                         passed = bad == 0
                         detail = f"{bad} pattern misses" if bad else "0 pattern misses"
                     else:  # range
-                        lo = spec.get("min") if isinstance(spec, dict) else None
-                        hi = spec.get("max") if isinstance(spec, dict) else None
+                        lo = check_spec.get("min") if isinstance(check_spec, dict) else None
+                        hi = check_spec.get("max") if isinstance(check_spec, dict) else None
 
                         def _to_num(v):
                             # Mirror engine `_eval_range` / `_coerce_bound`
