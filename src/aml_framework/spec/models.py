@@ -318,17 +318,19 @@ class Rule(_Base):
     # models annually (12), medium every 18-24, low every 24-36.
     # If unset, the MRM generator picks a default by tier.
     validation_cadence_months: int | None = Field(default=None, ge=1, le=60)
-    # Free-text rationale for why this rule exists, written for an examiner /
-    # 2LoD reviewer (not a regulation citation — those go in regulation_refs).
-    # Surfaced verbatim in STR narratives and the audit/MRM pack. Optional
-    # in this PR; a follow-up will populate all example specs and flip
-    # to required.
+    # PR-A2: free-text rationale for why this rule exists, written for
+    # an examiner / 2LoD reviewer (not a regulation citation — those go
+    # in regulation_refs). This PR is additive-only: the field lands on
+    # the loaded spec and is exercised by the spec-diff path (so an
+    # `aml diff` reviewer sees authored-intent changes); the STR /
+    # audit-pack / MRM wire-in ships in a follow-up. Optional now;
+    # may flip to required once examples populate.
     business_intent: str | None = None
-    # Explicit list of activities or typologies this rule does NOT catch.
-    # Used by the regulator pack to pre-answer "why didn't this fire on
-    # case X" and by tuning to scope challenger experiments. Empty list
-    # means "no known exclusions" (different from None — None means
-    # "the rule author did not document exclusions yet").
+    # PR-A2: explicit list of activities or typologies this rule does
+    # NOT catch. Stored on the loaded spec for the regulator pack's
+    # "why didn't this fire on case X" answer in a follow-up PR. Empty
+    # list means "no known exclusions" (different from None — None
+    # means "the rule author did not document exclusions yet").
     out_of_scope: list[str] = Field(default_factory=list)
 
 

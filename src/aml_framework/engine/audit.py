@@ -160,11 +160,32 @@ def rule_version_hash(rule: Any) -> str:
     plain dict. Returns the first 16 hex chars to keep ledger lines
     compact while staying collision-resistant for the rule-population
     sizes the framework targets (~hundreds, not millions).
+
+    PR-A2 (#363): the additive `business_intent` / `out_of_scope` fields
+    are excluded from the hash when they're at their defaults, so a
+    schema bump alone doesn't churn rule_versions for existing specs
+    that don't author the new metadata (which would falsely break
+    historical lineage diffs). Once the fields are populated, they
+    are included — an authored-rationale change IS a rule_version
+    change.
     """
     if hasattr(rule, "model_dump_json"):
-        body = rule.model_dump_json().encode("utf-8")
+        exclude_fields: set[str] = set()
+        if getattr(rule, "business_intent", None) is None:
+            exclude_fields.add("business_intent")
+        if getattr(rule, "out_of_scope", None) in (None, []):
+            exclude_fields.add("out_of_scope")
+        body = rule.model_dump_json(exclude=exclude_fields).encode("utf-8")
     else:
-        body = _canonical_json(rule)
+        # Same normalization for the plain-dict path so callers that
+        # pass `Rule.model_dump()` (which materializes the defaults
+        # back into the dict) don't accidentally churn rule_version.
+        normalized = dict(rule)
+        if normalized.get("business_intent") is None:
+            normalized.pop("business_intent", None)
+        if normalized.get("out_of_scope") in (None, []):
+            normalized.pop("out_of_scope", None)
+        body = _canonical_json(normalized)
     return _sha256(body)[:16]
 
 

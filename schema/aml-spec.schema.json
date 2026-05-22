@@ -203,12 +203,12 @@
         "business_intent": {
           "type": "string",
           "minLength": 1,
-          "description": "Free-text rationale for why this rule exists, for examiner / 2LoD reviewer. Surfaced in STR narratives + MRM dossier."
+          "description": "PR-A2: free-text rationale for why this rule exists, written for an examiner / 2LoD reviewer (not a regulation citation — those go in regulation_refs). Stored on the loaded spec for downstream surfaces (STR narrative generator, audit pack, MRM dossier) to consume in a follow-up PR. This PR is additive-only and lands the schema/model field."
         },
         "out_of_scope": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Activities/typologies this rule does NOT catch. Pre-answers 'why didn't this fire on case X' in regulator pack."
+          "description": "PR-A2: explicit list of activities/typologies this rule does NOT catch. Stored on the loaded spec for the regulator-pack 'why didn't this fire on case X' answer in a follow-up PR. This PR is additive-only."
         }
       }
     },

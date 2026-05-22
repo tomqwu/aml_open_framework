@@ -173,6 +173,13 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
             changes.append("logic changed")
         if ra.escalate_to != rb.escalate_to:
             changes.append(f"queue: {ra.escalate_to} -> {rb.escalate_to}")
+        # PR-A2: surface authored-rationale + explicit-scope changes
+        # so an examiner reviewing `aml diff` sees changes to the
+        # rule's documented intent, not just its mechanical fields.
+        if ra.business_intent != rb.business_intent:
+            changes.append("business_intent changed")
+        if ra.out_of_scope != rb.out_of_scope:
+            changes.append("out_of_scope changed")
         if changes:
             rules_modified.append(RuleModified(id=rid, changes=changes))
 
