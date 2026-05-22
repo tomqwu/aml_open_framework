@@ -74,13 +74,29 @@ spec = st.session_state.spec
 result = st.session_state.result
 
 # Find python_ref rules — these are the ML scorers the page monitors.
-ml_rules = [r for r in spec.rules if r.logic.type == "python_ref"]
+# Restrict to status=="active": the engine itself skips non-active rules
+# (`engine/runner.py:938`) so a deprecated scorer would always emit zero
+# alerts in the current run, which the drift classifier would then
+# misread as a downward outlier vs. its historical baseline. Mirrors
+# the engine's own filter so drift only fires on scorers that actually
+# ran. (Codex P2.)
+ml_rules = [r for r in spec.rules if r.logic.type == "python_ref" and r.status == "active"]
 
 # Load recent stored runs from the persistence layer. `list_runs()` is
 # the canonical enumerate-runs idiom (Run History + Comparative
 # Analytics use it). Defensive: when the API isn't reachable (no
 # DATABASE_URL on a dashboard-only local launch, Cosmos misconfig,
 # etc.) we fall back to current-session-only.
+#
+# Scope stored runs to the CURRENT spec_path so drift baselines aren't
+# polluted by runs that came from a different spec / different ruleset.
+# A scorer might not exist on an older spec — without this filter a
+# brand-new scorer would have an all-zero prior baseline drawn from
+# runs that pre-date it, and its first real-run count would always
+# flag HIGH DRIFT. spec_path is the cheapest comparable key (already
+# returned by `list_runs()`); a strict spec_content_hash filter would
+# need a per-run `get_run()` lookup that's not worth the round trip.
+# Codex P1.
 try:
     from aml_framework.api.db import get_run_alerts, init_db, list_runs
 
@@ -90,10 +106,13 @@ except Exception:
     stored_runs = []
     get_run_alerts = None  # type: ignore[assignment]
 
+_current_spec_path = str(st.session_state.spec_path)
+_scoped_runs = [r for r in stored_runs if str(r.get("spec_path", "")) == _current_spec_path]
+
 # Cap at last 10 runs to keep the page snappy. `list_runs()` returns
 # DESC by created_at; reverse for chronological X-axis on the line chart.
 RECENT_RUN_CAP = 10
-recent_runs = list(reversed(stored_runs[:RECENT_RUN_CAP]))
+recent_runs = list(reversed(_scoped_runs[:RECENT_RUN_CAP]))
 
 
 def _no_data_path(reason: str) -> None:
@@ -185,6 +204,16 @@ def _summarise(alerts: list[dict]) -> tuple[int, float | None]:
 per_rule_timeline: dict[str, list[dict]] = {r.id: [] for r in ml_rules}
 
 # Stored-run history (oldest → newest among the last RECENT_RUN_CAP).
+# Per-run we ONLY append a timeline point for rules that the stored
+# run actually produced a row for. A missing `rule_id` key means the
+# scorer didn't exist on the spec used by that run (rules added since
+# then) — treating that as "0 alerts" would draw a false baseline of
+# zero priors and flag the scorer HIGH DRIFT on its first real run.
+# A genuine zero-alert run still persists a row (the engine writes an
+# empty list to `run_alerts` when the rule ran but matched nothing —
+# `engine/runner.py` populates `result.alerts[rule.id] = []` and the
+# API store_run() persists every key in that dict). So presence in
+# `by_rule` is the right "did this rule run" signal. Codex P1.
 if get_run_alerts is not None:
     for run in recent_runs:
         run_id = run.get("run_id", "")
@@ -200,7 +229,12 @@ if get_run_alerts is not None:
         # enough to distinguish runs without crowding the axis.
         label = (run_id[:8] + "…") if len(run_id) > 8 else (run_id or "?")
         for rule in ml_rules:
-            count, mean_score = _summarise(by_rule.get(rule.id, []))
+            if rule.id not in by_rule:
+                # Rule wasn't on the spec that produced this run — skip
+                # rather than fabricate a zero prior. See block comment
+                # above.
+                continue
+            count, mean_score = _summarise(by_rule[rule.id])
             per_rule_timeline[rule.id].append(
                 {
                     "run": label,
