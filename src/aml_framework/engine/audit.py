@@ -212,6 +212,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # PR #396 (B4 / #369) — DQ exception artifact must freeze too so
     # exported DQ tables can't diverge from the hash-chained evidence.
     "dq_exceptions.jsonl",
+    # PR-A3 (#364) — field lineage artifact must freeze too so a
+    # regulator can verify the alert→source-column map hasn't been
+    # tampered with post-finalization.
+    "field_lineage.jsonl",
 )
 
 
@@ -489,6 +493,14 @@ class AuditLedger:
         dq_path = self.run_dir / "dq_exceptions.jsonl"
         dq_exceptions_hash = _sha256(dq_path.read_bytes()) if dq_path.exists() else None
 
+        # PR-A3 (#364): same posture for `field_lineage.jsonl` — the
+        # alert→source-column mapping is regulator-facing evidence; the
+        # hash pinned here is what `verify_decisions()`-style callers
+        # compare against to detect post-finalize tampering. File always
+        # exists post-runner (possibly empty); guarded for older runs.
+        lineage_path = self.run_dir / "field_lineage.jsonl"
+        field_lineage_hash = _sha256(lineage_path.read_bytes()) if lineage_path.exists() else None
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -499,6 +511,7 @@ class AuditLedger:
             "rule_outputs": self.rule_outputs,
             "decisions_hash": decisions_hash,
             "dq_exceptions_hash": dq_exceptions_hash,
+            "field_lineage_hash": field_lineage_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         (self.run_dir / "manifest.json").write_bytes(
