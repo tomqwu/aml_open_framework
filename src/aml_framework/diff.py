@@ -67,6 +67,25 @@ class MetricModified(_Base):
     changes: list[str]
 
 
+# PR-D1 (#374): structured diff entries for DataContract changes. The
+# spec_diff path didn't surface contract-level edits before this PR, so
+# a layer re-tier (or any future additive contract field) would slip
+# through `aml diff` silently. Mirrors the Rule equivalents.
+class DataContractAdded(_Base):
+    id: str
+    source: str
+
+
+class DataContractRemoved(_Base):
+    id: str
+    source: str
+
+
+class DataContractModified(_Base):
+    id: str
+    changes: list[str]
+
+
 class SpecDiffSummary(_Base):
     rules_total_a: int
     rules_total_b: int
@@ -78,6 +97,13 @@ class SpecDiffSummary(_Base):
     metrics_removed: int
     queues_total_a: int
     queues_total_b: int
+    # PR-D1 (#374): contract-level totals + deltas for symmetry with the
+    # rules / metrics roll-up so a `compute_spec_diff` consumer can spot
+    # contract churn without iterating the full list.
+    data_contracts_total_a: int
+    data_contracts_total_b: int
+    data_contracts_added: int
+    data_contracts_removed: int
 
 
 class SpecDiffResult(_Base):
@@ -92,6 +118,13 @@ class SpecDiffResult(_Base):
     metrics_modified: list[MetricModified]
     queues_added: list[str]
     queues_removed: list[str]
+    # PR-D1 (#374): contract-level added/removed/modified lists. Added
+    # alongside the rule/metric equivalents so the API surface stays
+    # symmetrical. `data_contracts_modified` surfaces per-attribute
+    # transitions (currently `layer`) for an `aml diff` reviewer.
+    data_contracts_added: list[DataContractAdded]
+    data_contracts_removed: list[DataContractRemoved]
+    data_contracts_modified: list[DataContractModified]
     summary: SpecDiffSummary
 
 
@@ -216,6 +249,32 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
     queues_added = sorted(queues_b - queues_a)
     queues_removed = sorted(queues_a - queues_b)
 
+    # PR-D1 (#374): contract-level diff. Surfaces added/removed contracts
+    # and per-attribute transitions on common contracts (currently
+    # `layer`). The pre-D1 spec_diff path didn't track contracts at all,
+    # so any contract edit was invisible to an `aml diff` reviewer.
+    contracts_a = {c.id: c for c in spec_a.data_contracts}
+    contracts_b = {c.id: c for c in spec_b.data_contracts}
+    c_added_ids = sorted(set(contracts_b) - set(contracts_a))
+    c_removed_ids = sorted(set(contracts_a) - set(contracts_b))
+    c_common_ids = sorted(set(contracts_a) & set(contracts_b))
+
+    data_contracts_added = [
+        DataContractAdded(id=cid, source=contracts_b[cid].source) for cid in c_added_ids
+    ]
+    data_contracts_removed = [
+        DataContractRemoved(id=cid, source=contracts_a[cid].source) for cid in c_removed_ids
+    ]
+
+    data_contracts_modified: list[DataContractModified] = []
+    for cid in c_common_ids:
+        ca, cb = contracts_a[cid], contracts_b[cid]
+        changes: list[str] = []
+        if ca.layer != cb.layer:
+            changes.append(f"layer: {ca.layer} -> {cb.layer}")
+        if changes:
+            data_contracts_modified.append(DataContractModified(id=cid, changes=changes))
+
     summary = SpecDiffSummary(
         rules_total_a=len(spec_a.rules),
         rules_total_b=len(spec_b.rules),
@@ -227,6 +286,10 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
         metrics_removed=len(m_removed_ids),
         queues_total_a=len(spec_a.workflow.queues),
         queues_total_b=len(spec_b.workflow.queues),
+        data_contracts_total_a=len(spec_a.data_contracts),
+        data_contracts_total_b=len(spec_b.data_contracts),
+        data_contracts_added=len(c_added_ids),
+        data_contracts_removed=len(c_removed_ids),
     )
 
     return SpecDiffResult(
@@ -241,6 +304,9 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
         metrics_modified=metrics_modified,
         queues_added=queues_added,
         queues_removed=queues_removed,
+        data_contracts_added=data_contracts_added,
+        data_contracts_removed=data_contracts_removed,
+        data_contracts_modified=data_contracts_modified,
         summary=summary,
     )
 
@@ -305,6 +371,26 @@ def _render(result: SpecDiffResult) -> None:
             table.add_row("[red]- removed[/red]", qid)
         console.print(table)
 
+    # PR-D1 (#374): print contract changes so an `aml diff` reviewer
+    # sees added/removed contracts and `layer` transitions.
+    contracts_changed = (
+        result.data_contracts_added
+        or result.data_contracts_removed
+        or result.data_contracts_modified
+    )
+    if contracts_changed:
+        table = Table(title="Data Contract Changes")
+        table.add_column("Change")
+        table.add_column("Contract ID")
+        table.add_column("Details")
+        for c in result.data_contracts_added:
+            table.add_row("[green]+ added[/green]", c.id, c.source)
+        for c in result.data_contracts_removed:
+            table.add_row("[red]- removed[/red]", c.id, c.source)
+        for c in result.data_contracts_modified:
+            table.add_row("[yellow]~ modified[/yellow]", c.id, "; ".join(c.changes))
+        console.print(table)
+
     console.print("\n[bold]Summary:[/bold]")
     s = result.summary
     console.print(
@@ -316,4 +402,8 @@ def _render(result: SpecDiffResult) -> None:
         f"({s.metrics_added} added, {s.metrics_removed} removed)"
     )
     console.print(f"  Queues: {s.queues_total_a} -> {s.queues_total_b}")
+    console.print(
+        f"  Data Contracts: {s.data_contracts_total_a} -> {s.data_contracts_total_b} "
+        f"({s.data_contracts_added} added, {s.data_contracts_removed} removed)"
+    )
     console.print()

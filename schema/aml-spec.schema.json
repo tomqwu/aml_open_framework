@@ -123,6 +123,11 @@
         "quality_checks": {
           "type": "array",
           "items": { "type": "object" }
+        },
+        "layer": {
+          "type": "string",
+          "description": "PR-D1: optional medallion-architecture stage hint for this data contract (bronze/silver/gold). Engine ignores at runtime; surfaces consume for medallion-architecture provenance (Data Integration page, regulator pack, NFR dashboard). Additive — defaults to unset.",
+          "enum": ["bronze", "silver", "gold"]
         }
       }
     },
