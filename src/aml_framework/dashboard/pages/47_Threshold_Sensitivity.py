@@ -100,7 +100,7 @@ _MULTIPLIERS: tuple[float, ...] = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 _HIGH_SENSITIVITY_DELTA = 0.50
 
 
-def _first_numeric_threshold(having: dict) -> tuple[str, str, float] | None:
+def _first_numeric_threshold(having: dict) -> tuple[str, str, int | float] | None:
     """Return ``(metric, op, value)`` for the first sweepable threshold.
 
     Mirrors the Rule Tuning page's "main_metric" picker: scan the
@@ -108,6 +108,13 @@ def _first_numeric_threshold(having: dict) -> tuple[str, str, float] | None:
     ``gte/gt/lte/lt`` and whose value is a finite, non-bool number.
     Returns ``None`` when no sweepable threshold is present (e.g. the
     rule's having clause is purely categorical, or the value is bool).
+
+    The returned value keeps the spec's numeric type — int for count-
+    style thresholds, float for amounts / ratios — so the sweep math
+    downstream knows whether to coerce results back to int (count rules
+    must sweep at integer thresholds; DuckDB rounds `COUNT(*) >= 2.25`
+    to `>= 3` and the ±25% point would collapse onto the baseline).
+    Codex pass 2 caught the original `float(val)` collapse.
     """
     for metric, cond in having.items():
         if not isinstance(cond, dict):
@@ -126,13 +133,15 @@ def _first_numeric_threshold(having: dict) -> tuple[str, str, float] | None:
                 continue
             if val in (float("inf"), float("-inf")):
                 continue
-            return metric, op, float(val)
+            # Preserve int vs float — see docstring. `float` stays
+            # `float`, `int` stays `int` (not promoted to float).
+            return metric, op, val
     return None
 
 
 # Build the list once so the KPI roll-up and the per-rule sweep loop
 # read from the same source.
-_tunable: list[tuple[Rule, str, str, float]] = []
+_tunable: list[tuple[Rule, str, str, int | float]] = []
 for rule in spec.rules:
     logic = rule.logic
     if not isinstance(logic, AggregationWindowLogic):
@@ -225,7 +234,9 @@ for rule, metric, op, spec_val in _tunable:
     # clamp to 1. The chart will simply show alerts at that threshold.
     spec_val_is_int = isinstance(spec_val, int) and not isinstance(spec_val, bool)
 
-    def _swept(mult: float, _is_int: bool = spec_val_is_int, _v: float = spec_val) -> float | int:
+    def _swept(
+        mult: float, _is_int: bool = spec_val_is_int, _v: int | float = spec_val
+    ) -> int | float:
         raw = _v * mult
         if _is_int:
             # Integer-typed thresholds (counts) stay integer. `round`
@@ -269,12 +280,25 @@ for rule, metric, op, spec_val in _tunable:
     # caught this exact pattern on PR-F3 pass 2 — DataFrame columns can
     # carry NaN, plain Python None / int from this function cannot, but
     # the explicit guard keeps the contract obvious to readers).
+    #
+    # Two paths to "high sensitivity":
+    #   1. Non-zero baseline: classic ratio test — abs change at ±25%
+    #      ÷ baseline ≥ 50%.
+    #   2. Zero baseline that goes non-zero at ±25%: the operator
+    #      cares MORE about this case (a small spec edit creates queue
+    #      volume from nothing). Codex pass 2 caught the original guard
+    #      classifying these rules as Stable.
     high_sensitivity = False
-    if baseline is not None and baseline > 0 and not pd.isna(baseline):
+    if baseline is not None and not pd.isna(baseline):
         nearby = [a for m, _v, a in sweep_points if m in (0.75, 1.25)]
         if nearby:
-            max_delta = max(abs(a - baseline) / baseline for a in nearby)
-            high_sensitivity = max_delta >= _HIGH_SENSITIVITY_DELTA
+            if baseline > 0:
+                max_delta = max(abs(a - baseline) / baseline for a in nearby)
+                high_sensitivity = max_delta >= _HIGH_SENSITIVITY_DELTA
+            else:
+                # baseline == 0 — any non-zero nearby count is a steep
+                # transition out of the quiet zone, so flag it.
+                high_sensitivity = any(a > 0 for a in nearby)
 
     _results.append(
         {
