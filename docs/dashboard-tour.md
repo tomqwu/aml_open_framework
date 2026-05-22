@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **44 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **45 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 The final ten pages form the **Knowledge** reference shelf — the merged GitHub-Pages knowledge site, ported native (PR-U2 ported 8 Research whitepapers; PR-U3 added the Business + Technical decks with their walkthrough videos — both PRs of the unified-product epic). They carry no engine coupling; every persona keeps access to them regardless of the audience filter.
 
@@ -134,6 +134,12 @@ _Screenshot: pending — see follow-up._
 Per-rule analytics table showing alert counts, detection rates, and logic types. Severity distribution charts, detection coverage by logic type, and a rule-to-regulation cross-reference matrix. Typology tag coverage shows which declared typologies have active detection.
 
 ![Rule Performance](screenshots/05_rule_performance.png)
+
+### Rule Lifecycle
+
+Per-rule lifecycle state (active / experimental / deprecated) plus a per-rule approval-workflow placeholder (PR-A4, closes #365). Lifecycle KPI strip counts rules by status; the governance table surfaces `model_tier`, `validation_cadence_months`, `rule_version` (16-hex SHA-256), `business_intent` (truncated), `out_of_scope` exclusion count, and `risk_tier` — deliberately different columns from Rule Performance (alert volume + detection rate) so the two pages complement instead of overlap. Sorted by status (deprecated last, then experimental, then active) so the "rules being tuned right now" band is most visible. The `approval` column is an HONEST placeholder: until the signed-off-version store ships in a follow-up PR, every row reads `⚠ unapproved` — captioned plainly so a reviewer is never misled into thinking the workflow is wired. Cross-links to Spec Editor (modify rules), Rule Performance (per-rule stats), and Tuning Lab (validate experimental rules before promotion). Routed universally — every persona sees it, same idiom as the Knowledge shelf and North-Star Coverage.
+
+_Screenshot: pending — see follow-up._
 
 ### Rule Tuning
 
@@ -299,7 +305,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The 43 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
+The 45 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|
