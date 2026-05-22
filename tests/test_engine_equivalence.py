@@ -205,6 +205,430 @@ class TestEdgeCases:
         assert report.counts[EquivalenceClass.LEGACY_ONLY] == 0
 
 
+class TestSeverityFallbackFromSpec:
+    """Codex PR-EQ-2 pass 1: when the alert payload doesn't carry
+    `severity` (the engine runner puts it on cases, not alerts), the
+    classifier must fall back to the spec's rule severity so a
+    severity mismatch surfaces as DIFF instead of silently degrading
+    to MATCH."""
+
+    def test_severity_diff_from_rule_severities_map(self):
+        # Real runner-shaped alert: no `severity` key on the dict.
+        new = [
+            {
+                "rule_id": "rapid_pass_through",
+                "customer_id": "C001",
+                "window_start": PS,
+                "window_end": PE,
+            },
+        ]
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            new,
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+            rule_severities={"rapid_pass_through": "medium"},
+        )
+        assert report.counts[EquivalenceClass.DIFF] == 1, (
+            f"expected DIFF when severities mismatch via rule map; got {report.counts}"
+        )
+        assert report.counts[EquivalenceClass.MATCH] == 0
+
+    def test_severity_match_from_rule_severities_map(self):
+        # Same shape but severities agree → MATCH.
+        new = [
+            {
+                "rule_id": "rapid_pass_through",
+                "customer_id": "C001",
+                "window_start": PS,
+                "window_end": PE,
+            },
+        ]
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            new,
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+            rule_severities={"rapid_pass_through": "high"},
+        )
+        assert report.counts[EquivalenceClass.MATCH] == 1
+
+    def test_payload_severity_wins_when_present(self):
+        # If the caller already enriched the alert with severity,
+        # don't ignore it. payload wins → DIFF expected here.
+        new = [_new("rapid_pass_through", "C001", severity="medium")]
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            new,
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+            rule_severities={"rapid_pass_through": "high"},  # would have matched, but
+            # the payload's "medium" should win
+        )
+        assert report.counts[EquivalenceClass.DIFF] == 1
+
+
+class TestManyNewRulesPerLegacy:
+    """Codex PR-EQ-2 pass 1: when two new rule_ids map to the same
+    legacy rule_id (operator-declared many-to-one) AND both fire on
+    the same customer/window, neither alert should disappear from the
+    report."""
+
+    def test_two_new_rules_same_legacy_same_cell_no_legacy_alert(self):
+        # Two new alerts share one legacy mapping for the same cell.
+        # No legacy alert exists → both should surface as NEW_ONLY,
+        # not collapse to a single bucket.
+        new = [
+            _new("rapid_pass_through_v1", "C001", severity="high"),
+            _new("rapid_pass_through_v2", "C001", severity="medium"),
+        ]
+        report = classify_alerts(
+            new,
+            [],
+            rule_map={
+                "rapid_pass_through_v1": "MANTAS_RPT",
+                "rapid_pass_through_v2": "MANTAS_RPT",
+            },
+        )
+        assert report.counts[EquivalenceClass.NEW_ONLY] == 2, (
+            f"both new alerts must surface as NEW_ONLY; got {report.counts}"
+        )
+        seen_rule_ids = {c.rule_id_new for c in report.cells}
+        assert seen_rule_ids == {"rapid_pass_through_v1", "rapid_pass_through_v2"}
+
+    def test_two_new_rules_same_legacy_with_legacy_alert(self):
+        # Two new alerts share one legacy mapping; one legacy alert
+        # at the same cell. The first new alert pairs to MATCH/DIFF
+        # with legacy; the other surfaces as NEW_ONLY (instead of
+        # being silently dropped by dict-clobber).
+        new = [
+            _new("rapid_pass_through_v1", "C001", severity="high"),
+            _new("rapid_pass_through_v2", "C001", severity="high"),
+        ]
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            new,
+            legacy,
+            rule_map={
+                "rapid_pass_through_v1": "MANTAS_RPT",
+                "rapid_pass_through_v2": "MANTAS_RPT",
+            },
+        )
+        # Total cells = 2 (no NEW_ONLY collapse); 1 MATCH + 1 NEW_ONLY.
+        assert report.counts[EquivalenceClass.MATCH] == 1
+        assert report.counts[EquivalenceClass.NEW_ONLY] == 1
+        assert report.counts[EquivalenceClass.LEGACY_ONLY] == 0
+        assert report.counts[EquivalenceClass.DIFF] == 0
+
+
+class TestDuplicateNewRowsDeduped:
+    """Codex pass 6 P2: symmetrical to legacy dedupe — duplicate new-
+    side rows for the same cell must not inflate NEW_ONLY counts."""
+
+    def test_duplicate_new_rows_collapse_to_one_match(self):
+        # Two new alerts for the same cell (e.g. custom_sql join
+        # duplicate). One legacy alert. Expect one MATCH and no
+        # spurious NEW_ONLY.
+        new = [
+            _new("rapid_pass_through", "C001", severity="high"),
+            _new("rapid_pass_through", "C001", severity="high"),
+        ]
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            new,
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+        )
+        assert report.counts[EquivalenceClass.MATCH] == 1
+        assert report.counts[EquivalenceClass.NEW_ONLY] == 0
+        assert report.counts[EquivalenceClass.LEGACY_ONLY] == 0
+
+
+class TestMissingRuleIdFailsFast:
+    """Codex pass 8 P2: a flat new alert without `rule_id` must raise
+    rather than be silently dropped (otherwise a real MATCH/NEW_ONLY
+    would silently degrade to a false LEGACY_ONLY)."""
+
+    def test_flat_alert_without_customer_id_raises(self):
+        # Codex pass 9: same rationale as missing rule_id — silent
+        # acceptance would coerce to a blank cell key.
+        new = [
+            {
+                "rule_id": "rapid_pass_through",
+                # no customer_id
+                "window_start": PS,
+                "window_end": PE,
+                "severity": "high",
+            }
+        ]
+        with pytest.raises(ValueError, match="customer_id"):
+            classify_alerts(new, [], rule_map={"rapid_pass_through": "MANTAS_RPT"})
+
+    def test_flat_alert_without_rule_id_raises(self):
+        new = [
+            {
+                # no rule_id
+                "customer_id": "C001",
+                "window_start": PS,
+                "window_end": PE,
+                "severity": "high",
+            }
+        ]
+        with pytest.raises(ValueError, match="rule_id"):
+            classify_alerts(new, [], rule_map={"rapid_pass_through": "MANTAS_RPT"})
+
+
+class TestDictKeyAuthoritativeForRuleId:
+    """Codex pass 6 P2: when flattening dict-of-lists, the outer dict
+    key is the authoritative rule_id; any payload-level `rule_id`
+    must be overridden to avoid lookup-against-wrong-rule_map bugs."""
+
+    def test_dict_key_overrides_payload_rule_id(self):
+        # Alert payload carries a stale/sub-rule rule_id; the dict
+        # key is what the spec says the alert belongs to.
+        new_dict = {
+            "rapid_pass_through": [
+                {
+                    "rule_id": "internal_sub_rule_xyz",  # ignored
+                    "customer_id": "C001",
+                    "window_start": PS,
+                    "window_end": PE,
+                    "severity": "high",
+                },
+            ],
+        }
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            new_dict,
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+        )
+        # Despite the payload-level "internal_sub_rule_xyz", the alert
+        # should classify as MATCH via the dict-key rule_id.
+        assert report.counts[EquivalenceClass.MATCH] == 1
+        match_cell = next(c for c in report.cells if c.classification == EquivalenceClass.MATCH)
+        assert match_cell.rule_id_new == "rapid_pass_through"
+
+
+class TestDuplicateLegacyRowsDeduped:
+    """Codex pass 5 P2: duplicate legacy rows for the same cell must
+    not consume multiple new alerts and produce spurious LEGACY_ONLY
+    tallies. The report is cell-level by contract."""
+
+    def test_duplicate_legacy_rows_collapse_to_one_match(self):
+        new = [_new("rapid_pass_through", "C001", severity="high")]
+        # Two legacy rows for the same exact cell.
+        legacy = [
+            _legacy("MANTAS_RPT", "C001", severity="high"),
+            _legacy("MANTAS_RPT", "C001", severity="high"),
+        ]
+        report = classify_alerts(
+            new,
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+        )
+        # One MATCH, no spurious LEGACY_ONLY for the duplicate.
+        assert report.counts[EquivalenceClass.MATCH] == 1
+        assert report.counts[EquivalenceClass.LEGACY_ONLY] == 0
+        assert report.counts[EquivalenceClass.NEW_ONLY] == 0
+
+
+class TestAcceptsRunnerOutputShape:
+    """Codex pass 4 P2: `RunResult.alerts` is
+    ``dict[rule_id, list[alert]]`` not a flat list — `classify_alerts`
+    must accept both shapes at the boundary."""
+
+    def test_dict_of_lists_classified_correctly(self):
+        new_dict = {
+            "rapid_pass_through": [
+                {
+                    "customer_id": "C001",
+                    "window_start": PS,
+                    "window_end": PE,
+                    "severity": "high",
+                },
+                {
+                    "customer_id": "C002",
+                    "window_start": PS,
+                    "window_end": PE,
+                    "severity": "high",
+                },
+            ],
+        }
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            new_dict,
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+        )
+        assert report.counts[EquivalenceClass.MATCH] == 1
+        assert report.counts[EquivalenceClass.NEW_ONLY] == 1
+
+
+class TestDeterministicManyToOnePairing:
+    """Codex pass 4 P2: when two new alerts at the same cell have the
+    same severity, pairing must be order-independent so the audit
+    report can't blame different rules across re-runs."""
+
+    def test_same_severity_pairing_is_order_independent(self):
+        # Two new alerts, same severity, same cell. Pairing must
+        # consistently pick the alphabetically-earlier rule_id
+        # regardless of input order.
+        new_a = [
+            _new("rule_alpha", "C001", severity="high"),
+            _new("rule_zebra", "C001", severity="high"),
+        ]
+        new_b = list(reversed(new_a))
+        legacy = [_legacy("LEG", "C001", severity="high")]
+        rmap = {"rule_alpha": "LEG", "rule_zebra": "LEG"}
+        report_a = classify_alerts(new_a, legacy, rule_map=rmap)
+        report_b = classify_alerts(new_b, legacy, rule_map=rmap)
+        # Same audit-relevant attribution either way.
+        match_a = next(c for c in report_a.cells if c.classification == EquivalenceClass.MATCH)
+        match_b = next(c for c in report_b.cells if c.classification == EquivalenceClass.MATCH)
+        assert match_a.rule_id_new == match_b.rule_id_new == "rule_alpha"
+
+
+class TestTimezoneNormalization:
+    """Codex pass 3 P2: identical instants in different timezone
+    spellings (UTC-aware vs naive) must key as the same cell."""
+
+    def test_naive_new_alert_matches_utc_aware_legacy(self):
+        from datetime import timezone as _tz
+
+        # Runner-shaped alert: naive UTC datetime.
+        new = [
+            {
+                "rule_id": "rapid_pass_through",
+                "customer_id": "C001",
+                "window_start": datetime(2026, 1, 1, 0, 0, 0),  # naive
+                "window_end": datetime(2026, 2, 1, 0, 0, 0),  # naive
+                "severity": "high",
+            }
+        ]
+        # Legacy export: same instants but UTC-aware (trailing Z form).
+        legacy = [
+            LegacyAlert(
+                customer_id="C001",
+                period_start=datetime(2026, 1, 1, 0, 0, 0, tzinfo=_tz.utc),
+                period_end=datetime(2026, 2, 1, 0, 0, 0, tzinfo=_tz.utc),
+                rule_id_legacy="MANTAS_RPT",
+                severity="high",
+            )
+        ]
+        report = classify_alerts(
+            new,
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+        )
+        assert report.counts[EquivalenceClass.MATCH] == 1, (
+            f"naive + aware spellings of the same instant must MATCH; got {report.counts}"
+        )
+        assert report.counts[EquivalenceClass.NEW_ONLY] == 0
+        assert report.counts[EquivalenceClass.LEGACY_ONLY] == 0
+
+
+class TestManyToOnePairingPrefersSeverityMatch:
+    """Codex pass 3 P2: with many-to-one mappings and multiple new
+    alerts at the same cell, pair deterministically with the legacy
+    alert by preferring a severity match."""
+
+    def test_severity_match_wins_over_input_order(self):
+        # Two new alerts at the same cell, both mapping to MANTAS_RPT.
+        # The first has severity "medium" (would DIFF); the second
+        # has "high" (would MATCH). Pairing must prefer the second
+        # so the legacy cell classifies as MATCH, not DIFF.
+        new = [
+            _new("rapid_pass_through_v1", "C001", severity="medium"),
+            _new("rapid_pass_through_v2", "C001", severity="high"),
+        ]
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            new,
+            legacy,
+            rule_map={
+                "rapid_pass_through_v1": "MANTAS_RPT",
+                "rapid_pass_through_v2": "MANTAS_RPT",
+            },
+        )
+        # Expect 1 MATCH (the high-severity new alert) + 1 NEW_ONLY
+        # (the medium one, unpaired).
+        assert report.counts[EquivalenceClass.MATCH] == 1
+        assert report.counts[EquivalenceClass.NEW_ONLY] == 1
+        assert report.counts[EquivalenceClass.DIFF] == 0
+        # And the MATCH cell is from the high-severity new rule.
+        match_cell = next(c for c in report.cells if c.classification == EquivalenceClass.MATCH)
+        assert match_cell.rule_id_new == "rapid_pass_through_v2"
+
+
+class TestManyToOneLegacyAttribution:
+    """Codex pass 2 P2: many-to-one mappings must not arbitrarily
+    attribute a LEGACY_ONLY cell to one of multiple candidate new
+    rules. Leave `rule_id_new=None` so the rollup buckets under
+    `legacy:<id>` rather than blaming the wrong rule."""
+
+    def test_legacy_only_with_multiple_new_candidates_is_unattributed(self):
+        # Two new rules map to MANTAS_RPT. Legacy alerts but no new
+        # alert. The LEGACY_ONLY cell must have `rule_id_new=None`
+        # because picking either candidate would be order-dependent.
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            [],
+            legacy,
+            rule_map={
+                "rapid_pass_through_v1": "MANTAS_RPT",
+                "rapid_pass_through_v2": "MANTAS_RPT",
+            },
+        )
+        assert report.counts[EquivalenceClass.LEGACY_ONLY] == 1
+        cell = next(c for c in report.cells if c.classification == EquivalenceClass.LEGACY_ONLY)
+        assert cell.rule_id_new is None, (
+            "many-to-one mapping must not pick one candidate arbitrarily"
+        )
+        # And the rollup buckets under the synthetic legacy: prefix.
+        assert "legacy:MANTAS_RPT" in report.by_rule
+
+    def test_legacy_only_with_single_new_candidate_attributed(self):
+        # 1:1 mapping → attribution is unambiguous, keep current behavior.
+        legacy = [_legacy("MANTAS_RPT", "C001", severity="high")]
+        report = classify_alerts(
+            [],
+            legacy,
+            rule_map={"rapid_pass_through": "MANTAS_RPT"},
+        )
+        cell = next(c for c in report.cells if c.classification == EquivalenceClass.LEGACY_ONLY)
+        assert cell.rule_id_new == "rapid_pass_through"
+
+
+class TestUnmappedSeverityFallback:
+    """Codex pass 2 P3: unmapped-new branch must also use the
+    rule_severities map so unmapped-rule drilldown is consistent
+    with mapped branches."""
+
+    def test_unmapped_new_uses_rule_severities(self):
+        # Alert has no `severity` key on the dict; rule_id isn't in
+        # rule_map; rule_severities supplies the value.
+        new = [
+            {
+                "rule_id": "wired_only_scorer",  # not in rule_map
+                "customer_id": "C001",
+                "window_start": PS,
+                "window_end": PE,
+            }
+        ]
+        report = classify_alerts(
+            new,
+            [],
+            rule_map={},
+            rule_severities={"wired_only_scorer": "medium"},
+        )
+        assert report.counts[EquivalenceClass.NEW_ONLY] == 1
+        cell = report.cells[0]
+        assert cell.new_severity == "medium", (
+            f"unmapped-new branch must honor rule_severities; got {cell.new_severity!r}"
+        )
+
+
 class TestLoadLegacyAlertsCsv:
     """CSV → LegacyAlert round-trip."""
 
@@ -265,6 +689,40 @@ class TestLoadLegacyAlertsCsv:
         new = [_new("rapid_pass_through", "C001", severity="high")]
         report = classify_alerts(new, legacy, rule_map={"rapid_pass_through": "MANTAS_RPT"})
         assert report.counts[EquivalenceClass.MATCH] == 1
+
+    def test_headerless_csv_raises(self, tmp_path: Path):
+        # Codex pass 7: a zero-byte or otherwise headerless export must
+        # raise the same shape of error as a missing-column path,
+        # rather than silently returning [] (which would inflate
+        # NEW_ONLY counts on a mis-pointed export).
+        csv_path = tmp_path / "headerless.csv"
+        csv_path.write_text("", encoding="utf-8")
+        with pytest.raises(ValueError, match="no header row"):
+            load_legacy_alerts_csv(csv_path)
+
+    def test_column_mapping_supports_spec_native_legacy_columns(self, tmp_path: Path):
+        # The CA example spec declares `key_columns` as
+        # `["rule_id", "customer_id", "window_start"]`. The loader
+        # must respect that without forcing the operator to rename
+        # the legacy export. Codex pass 2 — closes spec/loader gap.
+        csv_path = tmp_path / "legacy.csv"
+        csv_path.write_text(
+            "customer_id,window_start,window_end,rule_id,severity\n"
+            "C001,2026-01-01T00:00:00,2026-02-01T00:00:00,MANTAS_RPT,high\n",
+            encoding="utf-8",
+        )
+        legacy = load_legacy_alerts_csv(
+            csv_path,
+            column_mapping={
+                "period_start": "window_start",
+                "period_end": "window_end",
+                "rule_id_legacy": "rule_id",
+            },
+        )
+        assert len(legacy) == 1
+        assert legacy[0].customer_id == "C001"
+        assert legacy[0].rule_id_legacy == "MANTAS_RPT"
+        assert legacy[0].severity == "high"
 
 
 class TestModelContracts:
