@@ -118,9 +118,12 @@ def _eval_not_null(
 ) -> list[DQException]:
     out: list[DQException] = []
     for idx, row in enumerate(rows):
-        if column not in row:
-            continue
-        if row[column] is None:
+        # Treat a missing key the same as an explicit `None`. `_build_warehouse`
+        # materializes declared columns as None when the source row dict
+        # doesn't carry the key, and downstream dashboard surfaces already
+        # count those as nulls — so the engine-time DQ artifact must too,
+        # otherwise sparse input rows under-report. Issue #369 codex pass.
+        if column not in row or row[column] is None:
             out.append(
                 DQException(
                     contract_id=contract_id,

@@ -764,6 +764,31 @@ def _simulate_case_resolution(
         )
 
 
+def _maybe_mask_dq_exception(exc: DQException, ledger: AuditLedger) -> DQException:
+    """Return a copy of `exc` with `failing_value` PII-masked if applicable.
+
+    `_mask_alert` masks alert payload fields by key name. Here the
+    sensitive content lives under a generic `failing_value` field on the
+    DQ exception, so the standard masker can't help — we look up the
+    *source column* on the contract and, when it's a `pii: true` column
+    and masking is enabled (`ledger.pii_columns` is non-empty), hash
+    the failing_value with the run's PII salt. Same HMAC-SHA256 / 16-hex
+    posture as `_pii_mask_value`, so a PII-aware reader can dedupe
+    across alert + DQ artifacts.
+
+    Issue #369 — codex review pass 3.
+    """
+    if not ledger.pii_columns or exc.column not in ledger.pii_columns:
+        return exc
+    if exc.failing_value is None:
+        return exc
+    from aml_framework.engine.audit import _pii_mask_value
+
+    return exc.model_copy(
+        update={"failing_value": _pii_mask_value(exc.failing_value, ledger.pii_salt)}
+    )
+
+
 def _write_dq_exceptions(run_dir: Path, exceptions: list[DQException]) -> None:
     """Persist DQ exceptions as one JSON object per line under the run dir.
 
@@ -824,6 +849,55 @@ def run_spec(
             schema_columns=schema_columns,
         )
 
+    # B4 (#369) — Data Quality visibility. MUST run before `_build_warehouse`
+    # because DuckDB tables are declared with `NOT NULL` for `nullable: false`
+    # columns (see `_build_warehouse` DDL); a not_null check failing on
+    # such a column would otherwise crash the warehouse insert before the
+    # evaluator ever runs, and no `dq_exception` ledger event would land.
+    # Evaluating the raw `data` dict here catches every check on the input
+    # rows, regardless of DuckDB constraints. Observability only — no rows
+    # are dropped or mutated. Specs are clean by design — most runs produce
+    # zero exceptions — but `dq_exceptions.jsonl` is still emitted (possibly
+    # empty) so downstream consumers can rely on its presence.
+    #
+    # PII masking — when `AML_PII_MASKING=1` and the failing column is
+    # marked `pii: true` on its contract, the `failing_value` on a
+    # `unique` violation would otherwise leak raw plaintext PII
+    # (customer_id, email, etc.) into both `decisions.jsonl` and
+    # `dq_exceptions.jsonl`. The audit ledger already hashes alert
+    # payload PII via `_mask_alert`; mirror that posture here by
+    # hashing `failing_value` with the same salt before persisting.
+    dq_exceptions: list[DQException] = []
+    for contract in spec.data_contracts:
+        rows = data.get(contract.id, [])
+        contract_exceptions = evaluate_contract_checks(
+            rows,
+            contract.quality_checks,
+            contract_id=contract.id,
+            at=as_of,
+        )
+        for raw_exc in contract_exceptions:
+            exc = _maybe_mask_dq_exception(raw_exc, ledger)
+            dq_exceptions.append(exc)
+            ledger.append_decision(
+                {
+                    "event": Event.DQ_EXCEPTION,
+                    # `queue` is None for DQ events — these are not
+                    # queue-routed work items. Included explicitly so the
+                    # dashboard's `df_decisions["queue"]` indexer (My Queue
+                    # page) finds a column on zero-alert / DQ-only runs.
+                    "queue": None,
+                    "contract_id": exc.contract_id,
+                    "check_id": exc.check_id,
+                    "check_type": exc.check_type,
+                    "column": exc.column,
+                    "failing_value": exc.failing_value,
+                    "row_index": exc.row_index,
+                    "reason": exc.reason,
+                }
+            )
+    _write_dq_exceptions(ledger.run_dir, dq_exceptions)
+
     con = duckdb.connect(":memory:")
     _harden_duckdb(con)
     try:
@@ -853,40 +927,6 @@ def run_spec(
         violations = scan_contract_freshness(contract, rows, as_of)
         for v in violations:
             ledger.append_decision(v.to_event())
-
-    # B4 (#369) — Data Quality visibility. Evaluate each contract's
-    # `quality_checks` (not_null, unique) against the loaded rows and
-    # record every exception both as an audit-ledger event (hash-chain
-    # protected) and as a line in `dq_exceptions.jsonl` under the run
-    # dir. Crucially this is **observability only**: no rows are dropped
-    # or mutated, so warehouse row counts always match input counts.
-    # Specs are clean by design — most runs will produce zero exceptions
-    # — but the artifact is still emitted (possibly empty) so downstream
-    # consumers can count on its presence.
-    dq_exceptions: list[DQException] = []
-    for contract in spec.data_contracts:
-        rows = data.get(contract.id, [])
-        contract_exceptions = evaluate_contract_checks(
-            rows,
-            contract.quality_checks,
-            contract_id=contract.id,
-            at=as_of,
-        )
-        dq_exceptions.extend(contract_exceptions)
-        for exc in contract_exceptions:
-            ledger.append_decision(
-                {
-                    "event": Event.DQ_EXCEPTION,
-                    "contract_id": exc.contract_id,
-                    "check_id": exc.check_id,
-                    "check_type": exc.check_type,
-                    "column": exc.column,
-                    "failing_value": exc.failing_value,
-                    "row_index": exc.row_index,
-                    "reason": exc.reason,
-                }
-            )
-    _write_dq_exceptions(ledger.run_dir, dq_exceptions)
 
     resolve_entities(con, spec)
 

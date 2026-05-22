@@ -178,6 +178,9 @@ _FROZEN_SNAPSHOT_TARGETS = (
     "spec_snapshot.yaml",
     "alerts",
     "rules",
+    # PR #396 (B4 / #369) — DQ exception artifact must freeze too so
+    # exported DQ tables can't diverge from the hash-chained evidence.
+    "dq_exceptions.jsonl",
 )
 
 
@@ -446,6 +449,15 @@ class AuditLedger:
         # Compute decision log hash chain for tamper detection.
         decisions_hash = self._compute_decisions_hash()
 
+        # PR #396 (B4 / #369): pin a SHA-256 of `dq_exceptions.jsonl`
+        # in the manifest so the regulator-facing DQ artifact can't be
+        # edited after finalization while `verify_decisions()` still
+        # passes. Computed here (not by the runner) so finalize() owns
+        # the single moment of integrity-pinning. File always exists
+        # post-runner (possibly empty) — guarded for older runs.
+        dq_path = self.run_dir / "dq_exceptions.jsonl"
+        dq_exceptions_hash = _sha256(dq_path.read_bytes()) if dq_path.exists() else None
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -455,6 +467,7 @@ class AuditLedger:
             "inputs": self.input_manifest,
             "rule_outputs": self.rule_outputs,
             "decisions_hash": decisions_hash,
+            "dq_exceptions_hash": dq_exceptions_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         (self.run_dir / "manifest.json").write_bytes(

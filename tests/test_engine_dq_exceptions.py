@@ -123,6 +123,22 @@ class TestEvaluateContractChecksPure:
         checks = [{"unique": ["x"]}]
         assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
 
+    def test_not_null_treats_missing_key_as_null(self):
+        # A row dict that omits the checked column entirely must report
+        # a not_null violation (not a silent skip). `_build_warehouse`
+        # materializes the column as None in DuckDB and dashboard surfaces
+        # already count `isna()` rows; the engine-time artifact must
+        # match. Issue #369 codex pass.
+        rows = [
+            {"email": "a@example.com"},
+            {},  # missing key entirely
+            {"email": None},  # explicit None
+            {"email": "d@example.com"},
+        ]
+        checks = [{"not_null": ["email"]}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert [(e.row_index, e.failing_value) for e in excs] == [(1, None), (2, None)]
+
 
 # ---------------------------------------------------------------------------
 # `_build_warehouse` is unchanged: row counts match input
@@ -346,6 +362,204 @@ class TestEngineEmitsDQExceptions:
         assert (run_a / "dq_exceptions.jsonl").read_bytes() == (
             run_b / "dq_exceptions.jsonl"
         ).read_bytes()
+
+    def test_dq_scan_runs_before_warehouse_so_not_null_violations_are_caught(self, tmp_path: Path):
+        """`_build_warehouse` declares columns with DuckDB NOT NULL when
+        `nullable: false`. If the DQ scan ran AFTER the warehouse build,
+        a not_null violation on such a column would crash the insert
+        before the evaluator could log it. This test pins the ordering:
+        a row with a null `customer_id` (declared `nullable=False`)
+        must surface as a `dq_exception` ledger event, not as an
+        uncaught DuckDB constraint error.
+
+        Issue #369 — codex review pass 2.
+        """
+        spec = self._spec_with_unique_violation()
+        # Row 1 has customer_id=None; the contract declares it as
+        # not_null + nullable=False — both DuckDB and the DQ scan would
+        # reject it. The DQ scan must win (run first).
+        data = {
+            "txn": [
+                {"txn_id": "T1", "customer_id": "C1", "amount": 10.0, "booked_at": _AS_OF},
+                {"txn_id": "T2", "customer_id": None, "amount": 20.0, "booked_at": _AS_OF},
+            ],
+        }
+
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        # The run is allowed to fail at the warehouse layer AFTER the DQ
+        # event lands; what matters is that `dq_exceptions.jsonl` carries
+        # the not_null violation. We swallow the downstream raise so the
+        # observability artifact can be checked.
+        try:
+            run_spec(
+                spec=spec,
+                spec_path=spec_path,
+                data=data,
+                as_of=_AS_OF,
+                artifacts_root=tmp_path,
+            )
+        except Exception:
+            pass
+
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+        dq_path = run_dir / "dq_exceptions.jsonl"
+        assert dq_path.exists()
+        lines = [ln for ln in dq_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        not_null_events = [
+            json.loads(ln) for ln in lines if json.loads(ln)["check_type"] == "not_null"
+        ]
+        assert any(
+            ev["column"] == "customer_id" and ev["row_index"] == 1 for ev in not_null_events
+        ), f"expected a not_null customer_id violation pre-warehouse; got {not_null_events}"
+
+    def test_manifest_pins_dq_exceptions_hash_and_event_carries_queue_field(self, tmp_path: Path):
+        """Two regulator-side hardening guarantees (issue #369 codex pass 4):
+
+        1. `manifest.json` pins a SHA-256 of `dq_exceptions.jsonl` so the
+           DQ artifact can't be edited post-finalization while
+           `verify_decisions()` still passes.
+        2. `dq_exception` decision rows carry a `queue` field (None) so
+           the My Queue dashboard's `df_decisions["queue"]` indexer
+           doesn't `KeyError` on DQ-only runs.
+        """
+        spec = self._spec_with_unique_violation()
+        data = self._data_with_one_dup()
+
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        run_spec(
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=_AS_OF,
+            artifacts_root=tmp_path,
+        )
+
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+
+        # Guarantee 1 — manifest pins the artifact digest.
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        import hashlib
+
+        dq_bytes = (run_dir / "dq_exceptions.jsonl").read_bytes()
+        expected = hashlib.sha256(dq_bytes).hexdigest()
+        assert manifest["dq_exceptions_hash"] == expected, (
+            "manifest must pin SHA-256 of dq_exceptions.jsonl for tamper detection"
+        )
+
+        # Guarantee 2 — every dq_exception event carries `queue` field.
+        decisions = (run_dir / "decisions.jsonl").read_text(encoding="utf-8")
+        dq_events = [
+            json.loads(ln)
+            for ln in decisions.splitlines()
+            if ln.strip() and json.loads(ln).get("event") == "dq_exception"
+        ]
+        assert dq_events, "expected at least one dq_exception event"
+        for ev in dq_events:
+            assert "queue" in ev, f"dq_exception event missing `queue` field: {ev}"
+            assert ev["queue"] is None, f"dq_exception `queue` should be None, got {ev['queue']!r}"
+
+    def test_dq_failing_value_masked_when_pii_masking_enabled(self, tmp_path: Path, monkeypatch):
+        """When `AML_PII_MASKING=1` and a `unique` violation fires on a
+        column marked `pii: true`, the persisted `failing_value` must
+        be the HMAC-SHA256 hash, not the raw plaintext — otherwise the
+        observability artifact leaks PII that the rest of the audit
+        ledger has already masked.
+
+        Issue #369 — codex review pass 3.
+        """
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="T",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        # customer_id is the PII column the violation fires on.
+                        Column(name="customer_id", type="string", nullable=False, pii=True),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                    quality_checks=[{"unique": ["customer_id"]}],
+                ),
+            ],
+            rules=[
+                Rule(
+                    id="r",
+                    name="R",
+                    severity="low",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=AggregationWindowLogic(
+                        type="aggregation_window",
+                        source="txn",
+                        group_by=["customer_id"],
+                        window="365d",
+                        having={"count": {"gte": 1}},
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        # Two rows with the same customer_id — duplicate must surface
+        # as a `unique` exception. The raw plaintext value would
+        # ordinarily land in `failing_value`.
+        plaintext = "C-CONFIDENTIAL-001"
+        data = {
+            "txn": [
+                {"txn_id": "T1", "customer_id": plaintext, "amount": 10.0, "booked_at": _AS_OF},
+                {"txn_id": "T2", "customer_id": plaintext, "amount": 20.0, "booked_at": _AS_OF},
+            ],
+        }
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        monkeypatch.setenv("AML_PII_MASKING", "1")
+        run_spec(
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=_AS_OF,
+            artifacts_root=tmp_path,
+        )
+
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+        dq_path = run_dir / "dq_exceptions.jsonl"
+        lines = [ln for ln in dq_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        assert len(lines) == 1, f"expected one unique violation; got {lines}"
+        rec = json.loads(lines[0])
+        # Plaintext must NOT appear; failing_value must be a 16-char hex
+        # hash (same length _pii_mask_value emits).
+        assert rec["failing_value"] != plaintext
+        assert rec["failing_value"] is not None
+        assert len(rec["failing_value"]) == 16
+        assert all(c in "0123456789abcdef" for c in rec["failing_value"])
+
+        # And the dq_exception decisions.jsonl entries must carry the
+        # masked value too — the ledger is the regulator-facing
+        # artifact, so DQ events cannot leak. (case_id contains
+        # plaintext in other entries — that's a pre-existing alert-id
+        # construction concern outside #369's scope.)
+        decisions = (run_dir / "decisions.jsonl").read_text(encoding="utf-8")
+        dq_lines = [
+            ln
+            for ln in decisions.splitlines()
+            if ln.strip() and json.loads(ln).get("event") == "dq_exception"
+        ]
+        for ln in dq_lines:
+            assert plaintext not in ln, f"dq_exception ledger entry leaked plaintext PII: {ln}"
 
     def test_dq_exception_artifact_is_empty_for_clean_canadian_spec(self, tmp_path: Path):
         """End-to-end smoke test on the canonical demo spec: the canned
