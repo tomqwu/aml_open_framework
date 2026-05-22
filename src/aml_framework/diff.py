@@ -180,6 +180,12 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
             changes.append("business_intent changed")
         if ra.out_of_scope != rb.out_of_scope:
             changes.append("out_of_scope changed")
+        # PR-RISK-1: surface risk_tier changes so a risk-based-controls
+        # reviewer sees re-tiering events in `aml diff`. Rendered as a
+        # value transition (mirrors severity / status / queue lines)
+        # because the field is a small enum, not free-text/list.
+        if ra.risk_tier != rb.risk_tier:
+            changes.append(f"risk_tier: {ra.risk_tier} -> {rb.risk_tier}")
         if changes:
             rules_modified.append(RuleModified(id=rid, changes=changes))
 

@@ -209,6 +209,11 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "PR-A2: explicit list of activities/typologies this rule does NOT catch. Stored on the loaded spec for the regulator-pack 'why didn't this fire on case X' answer in a follow-up PR. This PR is additive-only."
+        },
+        "risk_tier": {
+          "type": "string",
+          "description": "PR-RISK-1: first-class risk tier for this rule (low/medium/high). Closes the Pillar 5 'risk-based controls' gap on the North-Star Coverage page — today priority is signalled via `severity` and routing via `escalate_to`, neither of which is a risk attribute. Stored on the loaded spec for a follow-up PR to wire into alert-priority + queue routing. This PR is additive-only.",
+          "enum": ["low", "medium", "high"]
         }
       }
     },
