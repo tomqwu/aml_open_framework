@@ -126,6 +126,7 @@ _ALERTS_UNAVAILABLE = "n/a"
 # wired (or when running in a fresh container before the first run
 # lands).
 stored_rows: list[dict] = []
+_persistence_error: str | None = None
 try:
     from aml_framework.api.db import get_run, get_run_alerts, init_db, list_runs
 
@@ -167,11 +168,15 @@ try:
                 "dq_exceptions_hash": _short(manifest.get("dq_exceptions_hash")),
             }
         )
-except Exception:
+except Exception as exc:
     # Persistence layer not available — fall through with just the
-    # current-session row. The empty-state path below handles the
-    # "literally zero rows" edge separately.
+    # current-session row. Capture the error so the page can surface
+    # a warning rather than silently rendering an empty corpus: codex
+    # pass 3 caught that "backend down" was indistinguishable from
+    # "no runs persisted yet" on this audit surface. The empty-state
+    # path below handles the "literally zero rows" edge separately.
     stored_rows = []
+    _persistence_error = f"{type(exc).__name__}: {exc}"
 
 all_rows = [session_row] + stored_rows
 
@@ -189,6 +194,23 @@ all_rows = [session_row] + stored_rows
 # `SELECT TOP 50` in `aml_framework.api.db.list_runs()`. If that cap
 # ever changes, update this constant + the caption below in lock-step.
 _LIST_RUNS_PAGE_SIZE = 50
+
+if _persistence_error is not None:
+    # An audit surface must distinguish "backend down" from "no runs
+    # persisted yet" — silently rendering an empty corpus would let an
+    # operator under-report prior runs without realising it. Codex
+    # pass 3 caught this. Show the error class + message so the
+    # remediation path (rotate credentials / restart pod / check
+    # connectivity) is concrete.
+    st.error(
+        "Persistence layer unavailable — only the current in-memory "
+        "session is shown below; previously-persisted experiments are "
+        "NOT included. Likely cause: API persistence (SQLite/Postgres/"
+        "Cosmos) is misconfigured, down, or the manifest blob is "
+        f"corrupt. Underlying error: `{_persistence_error}`. "
+        "Restore the persistence backend and reload to see the full "
+        "experiment history."
+    )
 
 _distinct_specs = {row["spec_content_hash"] for row in all_rows if row.get("spec_content_hash")}
 # Sum only rows whose alert count is numeric — `_ALERTS_UNAVAILABLE`

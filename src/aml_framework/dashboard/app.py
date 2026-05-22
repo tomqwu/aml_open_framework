@@ -151,37 +151,19 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             # with the rest of the dashboard.
             url_path="FP_Analysis",
         ),
-<<<<<<< HEAD
-        # PR-A4 (#365) — rule lifecycle dashboard + approval-workflow
-        # placeholder. Lives in Detection & Tuning because the closest
-        # sibling pages (Rule Performance, Spec Editor, Tuning Lab) are
-        # the surfaces a reviewer crosses-back-and-forth with, even
-        # though governance is cross-cutting. Universally routed via
-        # LIFECYCLE_PAGES (same idiom as North-Star / Knowledge / FP
-        # Analysis) so every persona keeps visibility without burning a
-        # slot in AUDIENCE_PAGES (MAX_PAGES_PER_PERSONA=9 preserved).
-        # URL slug pinned to match the title-derived form the e2e
-        # helper uses.
+        # PR-A4 (#365) — rule lifecycle dashboard.
         st.Page(
             "pages/51_Rule_Lifecycle.py",
             title="Rule Lifecycle",
             icon=":material/account_tree:",
             url_path="Rule_Lifecycle",
-=======
-        # PR-E4 (#381) — MLflow-style experiment tracking. Sits in
-        # Detection & Tuning because it's the tuning-loop's "every
-        # variant I tried" overview, even though it's universally
-        # routed (every persona sees it via TRACKING_PAGES, same idiom
-        # as NORTH_STAR_PAGES / AUDIT_TRAIL_PAGES).
+        ),
+        # PR-E4 (#381) — MLflow-style experiment tracking.
         st.Page(
             "pages/46_Experiment_Tracking.py",
             title="Experiment Tracking",
             icon=":material/science:",
-            # Pin URL to match title-derived slug (`replace(' ', '_')`)
-            # so direct/bookmarked nav matches the rest of the dashboard.
-            # Same idiom as the Knowledge / North-Star pages above.
             url_path="Experiment_Tracking",
->>>>>>> f8de70a (feat(dashboard): PR-E4 — MLflow-like experiment tracking page (closes #381))
         ),
     ],
     "Data": [
@@ -383,18 +365,10 @@ if selected_audience:
     # engineers, examiners, and CCOs all need to see which rules are
     # noisiest. Universal same as North-Star / Knowledge.
     relevant_titles.update(TUNING_PAGES)
-<<<<<<< HEAD
-    # PR-A4 (#365): the Rule Lifecycle page surfaces lifecycle state
-    # + the approval-workflow placeholder. Governance is cross-cutting
-    # so every persona needs visibility. Universal same as North-Star
-    # / FP Analysis.
+    # PR-A4 (#365): Rule Lifecycle page.
     relevant_titles.update(LIFECYCLE_PAGES)
-=======
-    # PR-E4 (#381): Experiment Tracking is the MLflow-style aggregate
-    # surface — every persona scanning the corpus of persisted runs
-    # needs it on demand. Universal same as NORTH_STAR_PAGES.
+    # PR-E4 (#381): Experiment Tracking page.
     relevant_titles.update(TRACKING_PAGES)
->>>>>>> f8de70a (feat(dashboard): PR-E4 — MLflow-like experiment tracking page (closes #381))
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()
