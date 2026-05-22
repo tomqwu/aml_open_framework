@@ -168,6 +168,12 @@ def rule_version_hash(rule: Any) -> str:
     historical lineage diffs). Once the fields are populated, they
     are included — an authored-rationale change IS a rule_version
     change.
+
+    PR-RISK-1: same discipline for the new `risk_tier` field — excluded
+    from the hash when at its default (None) so the schema bump alone
+    doesn't churn rule_versions. Once authored, an explicit risk-tier
+    change IS a rule_version change (the alert population it implies
+    is different).
     """
     if hasattr(rule, "model_dump_json"):
         exclude_fields: set[str] = set()
@@ -175,6 +181,8 @@ def rule_version_hash(rule: Any) -> str:
             exclude_fields.add("business_intent")
         if getattr(rule, "out_of_scope", None) in (None, []):
             exclude_fields.add("out_of_scope")
+        if getattr(rule, "risk_tier", None) is None:
+            exclude_fields.add("risk_tier")
         body = rule.model_dump_json(exclude=exclude_fields).encode("utf-8")
     else:
         # Same normalization for the plain-dict path so callers that
@@ -185,6 +193,8 @@ def rule_version_hash(rule: Any) -> str:
             normalized.pop("business_intent", None)
         if normalized.get("out_of_scope") in (None, []):
             normalized.pop("out_of_scope", None)
+        if normalized.get("risk_tier") is None:
+            normalized.pop("risk_tier", None)
         body = _canonical_json(normalized)
     return _sha256(body)[:16]
 
