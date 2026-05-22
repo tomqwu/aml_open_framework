@@ -214,14 +214,38 @@ def _alerts_at(rule: Rule, logic: AggregationWindowLogic, having: dict) -> int:
 _results: list[dict] = []
 for rule, metric, op, spec_val in _tunable:
     logic = rule.logic
-    # Build the swept threshold values. `gte` / `gt` thresholds — the
-    # common case — get integer-coerced (counts are integers, sums are
-    # money so a fractional value reads as "$12,500.00" rounded). The
-    # int cast also drops any subtle floating-point drift from the
-    # multiplier math (e.g. 3 * 0.75 = 2.25 → 2 cleanly).
-    sweep_points: list[tuple[float, int]] = []
+    # Build the swept threshold values. Preserve the spec value's numeric
+    # type at the 1.0× baseline so the displayed baseline matches the
+    # engine's actual rule threshold:
+    #   - int spec_val + int-clean multiplied result → int (counts).
+    #   - float spec_val (e.g. `avg_amount: {gte: 100.50}`) → float, no
+    #     rounding, so the 1.0× point equals the spec value exactly.
+    # No `max(1, ...)` clamp — a spec is free to author `count: {gt: 0}`
+    # and the sweep should respect that at 0.5× (= 0), not silently
+    # clamp to 1. The chart will simply show alerts at that threshold.
+    spec_val_is_int = isinstance(spec_val, int) and not isinstance(spec_val, bool)
+
+    def _swept(mult: float, _is_int: bool = spec_val_is_int, _v: float = spec_val) -> float | int:
+        raw = _v * mult
+        if _is_int:
+            # Integer-typed thresholds (counts) stay integer. `round`
+            # nudges floating-point drift (e.g. 3 * 0.75 = 2.25 → 2)
+            # while keeping the 1.0× row exactly == spec_val.
+            return int(round(raw))
+        # Float-typed thresholds (money, ratios) stay float so the
+        # 1.0× baseline equals the spec value exactly. Round to 2dp
+        # for display + SQL hygiene (avoids 100.5 * 0.75 == 75.375).
+        return round(raw, 2)
+
+    # `sweep_points` carries `(multiplier, swept_threshold_value, alert_count)`
+    # — the swept value is recorded so the chart's x-axis renders the
+    # actual numeric threshold (the value the operator would land in the
+    # spec) rather than recomputing it later, which kept the engine SQL
+    # and the chart label in sync after codex flagged the original
+    # divergence (codex pass 1).
+    sweep_points: list[tuple[float, float | int, int]] = []
     for mult in _MULTIPLIERS:
-        swept_val = max(1, int(round(spec_val * mult)))
+        swept_val = _swept(mult)
         # Rebuild the having dict with the swapped threshold; all other
         # constraints in `having` (e.g. `sum_amount` when we're sweeping
         # `count`) are preserved so the sweep isolates a single axis.
@@ -233,11 +257,11 @@ for rule, metric, op, spec_val in _tunable:
                 swapped_having[m] = c
         alerts = _alerts_at(rule, logic, swapped_having)
         if alerts >= 0:
-            sweep_points.append((mult, alerts))
+            sweep_points.append((mult, swept_val, alerts))
 
     # Compute the baseline (spec-value) alert count so the sensitivity
     # flag has a denominator. Sweep at mult=1.0 is the baseline.
-    baseline = next((a for m, a in sweep_points if m == 1.0), None)
+    baseline = next((a for m, _v, a in sweep_points if m == 1.0), None)
 
     # Mark a rule high-sensitivity when ±25% threshold change moves the
     # alert count by ≥_HIGH_SENSITIVITY_DELTA. Use `pd.isna` to keep
@@ -247,7 +271,7 @@ for rule, metric, op, spec_val in _tunable:
     # the explicit guard keeps the contract obvious to readers).
     high_sensitivity = False
     if baseline is not None and baseline > 0 and not pd.isna(baseline):
-        nearby = [a for m, a in sweep_points if m in (0.75, 1.25)]
+        nearby = [a for m, _v, a in sweep_points if m in (0.75, 1.25)]
         if nearby:
             max_delta = max(abs(a - baseline) / baseline for a in nearby)
             high_sensitivity = max_delta >= _HIGH_SENSITIVITY_DELTA
@@ -332,10 +356,12 @@ for entry in _results:
         st.markdown(f"#### {rule.name}")
 
         # One-line context strip — what's being swept + where the spec
-        # currently sits + what we observed at the spec value.
+        # currently sits + what we observed at the spec value. Render
+        # the spec value with its native type so a float threshold (e.g.
+        # `avg_amount: {gte: 100.50}`) reads as `100.50`, not `100`.
         baseline_str = "—" if baseline is None else f"{baseline} alerts"
         st.caption(
-            f"Sweeping `{metric}` ({op}) — spec value `{int(spec_val)}`, "
+            f"Sweeping `{metric}` ({op}) — spec value `{spec_val}`, "
             f"baseline {baseline_str}. Window {rule.logic.window}, "
             f"source `{rule.logic.source}`."
         )
@@ -348,18 +374,15 @@ for entry in _results:
             )
             continue
 
-        # Build the chart frame. Plot the absolute threshold value
-        # (`threshold_value`) on the x-axis so a reader sees the actual
-        # number that would land in the spec — not the multiplier. The
-        # spec-value row is rendered as a separate one-point series so
-        # ECharts draws a distinct anchor symbol; see `line_chart` +
-        # the existing Rule Tuning sensitivity chart for the same idiom.
+        # Build the chart frame. Plot the absolute threshold value on the
+        # x-axis (the value that would land in the spec, not the
+        # multiplier). Use the same swept value the SQL run used so the
+        # chart and the engine never disagree on what's being shown.
         rows: list[dict] = []
-        for mult, alerts in sweep_points:
-            threshold_value = max(1, int(round(spec_val * mult)))
+        for mult, swept_val, alerts in sweep_points:
             rows.append(
                 {
-                    "threshold": threshold_value,
+                    "threshold": swept_val,
                     "alerts": alerts,
                     "label": f"{mult:.2f}×",
                 }
