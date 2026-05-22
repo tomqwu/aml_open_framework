@@ -8,10 +8,13 @@ Pillar Coverage page flags as missing.
 
 FP rate is derived at render time from the cached `df_cases`
 populated by `state.initialize_session()` — `closed_no_action`
-cases divided by total cases per `rule_id`. STR + SAR filings
-count as escalated (true-positive proxy). No engine call, no spec
-write, no ML/clustering, no threshold sweep — those each have their
-own follow-up PRs (anomaly discovery #382, threshold sweep #379).
+cases divided by total cases per `rule_id`. Any queue with a
+`regulator_form` set on the live spec workflow counts as an
+escalated filing (true-positive proxy) — derived from the spec, not
+hard-coded, so custom filing queues classify correctly. No engine
+call, no spec write, no ML/clustering, no threshold sweep — those
+each have their own follow-up PRs (anomaly discovery #382, threshold
+sweep #379).
 
 Universally routed (every persona sees it via TUNING_PAGES — same
 idiom as NORTH_STAR_PAGES / KNOWLEDGE_PAGES) because FP analysis
@@ -77,12 +80,33 @@ if df_cases is None or df_cases.empty:
 # ---------------------------------------------------------------------------
 # Per-rule FP rate computation. Cases carry `rule_id`, `severity`, and
 # `status` (the disposition queue id from `_simulate_case_resolution`).
-# A `closed_no_action` status counts as FP; STR / SAR filings count as
-# escalated (true-positive proxy). L2 in-flight cases are neither — we
-# surface the count but exclude them from the FP-rate denominator so
-# the rate isn't deflated by cases that haven't resolved yet.
+# A `closed_no_action` status counts as FP. Any queue that carries a
+# `regulator_form` on the live spec counts as an escalated filing
+# (true-positive proxy) — derived from the workflow, not hard-coded,
+# so custom filing queues (e.g. `fraud_filing`, `ctr_filing`,
+# jurisdiction-specific `fintrac_str`, etc.) classify correctly. The
+# built-in STR/SAR constants in `engine/constants.py` are added as a
+# safety net for specs whose queues do not yet declare a
+# `regulator_form` but use the canonical ids.
+#
+# FP rate denominator is `total_cases` per the page contract — every
+# case the rule generated, including in-flight, gets counted in the
+# denominator so a noisy rule with a long queue tail can't hide its
+# FP rate behind unresolved cases. In-flight cases (neither closed
+# nor escalated yet) are surfaced as their own count so the operator
+# sees both numbers.
 # ---------------------------------------------------------------------------
-_ESCALATED_STATUSES = {Queue.STR_FILING, Queue.SAR_FILING}
+_spec = st.session_state.spec
+# Filing queues = any queue with `regulator_form` set. That's the
+# canonical "this queue files to a regulator" marker (matches FINTRAC
+# STR, FinCEN SAR, OFSI SAR, etc. — same field the regulator pack
+# generator reads). Built-in STR_FILING / SAR_FILING included so a spec
+# that uses the canonical ids without declaring `regulator_form` still
+# classifies correctly.
+_ESCALATED_STATUSES: set[str] = {Queue.STR_FILING, Queue.SAR_FILING}
+for _q in _spec.workflow.queues:
+    if _q.regulator_form:
+        _ESCALATED_STATUSES.add(_q.id)
 
 
 def _categorize(status: str) -> str:
@@ -97,7 +121,7 @@ def _categorize(status: str) -> str:
 # the rule's declared priority alongside the empirical FP rate. The
 # session-state spec is the source of truth — same rules as the engine
 # saw on this run.
-_severity_by_rule = {r.id: r.severity for r in st.session_state.spec.rules}
+_severity_by_rule = {r.id: r.severity for r in _spec.rules}
 
 # Build the per-rule aggregate. Pandas groupby is overkill for the
 # typical ≤30-rule shape — a single pass is clearer and matches the
@@ -118,17 +142,16 @@ for case in df_cases.to_dict(orient="records"):
 # of this page.
 _records: list[dict[str, object]] = []
 for rule_id, row in _rows.items():
-    resolved = row["closed_no_action"] + row["escalated"]
-    # Denominator is resolved cases only — in-flight cases haven't yet
-    # been classified, so including them would deflate the rate. A
-    # rule with zero resolved cases is excluded from the rate (shown
-    # as null) rather than divided by zero.
-    fp_rate = (row["closed_no_action"] / resolved) if resolved else None
+    total = row["total_cases"]
+    # Denominator is total cases per the page contract (header +
+    # docstring): closed_no_action ÷ total cases. A rule with zero
+    # cases never reaches this loop, so `total` is always positive.
+    fp_rate: float | None = (row["closed_no_action"] / total) if total else None
     _records.append(
         {
             "rule_id": rule_id,
             "severity": _severity_by_rule.get(rule_id, "—"),
-            "total_cases": row["total_cases"],
+            "total_cases": total,
             "closed_no_action": row["closed_no_action"],
             "escalated": row["escalated"],
             "in_flight": row["in_flight"],
@@ -157,7 +180,7 @@ _high_fp_rules = [
 if _high_fp_rules:
     st.markdown("### High-FP rules — tune first")
     st.caption(
-        f"Rules with FP rate above {_HIGH_FP_THRESHOLD:.0%} of resolved cases. "
+        f"Rules with FP rate above {_HIGH_FP_THRESHOLD:.0%} of total cases. "
         "These are the analyst-time sinks — open Tuning Lab to model a "
         "threshold change before pushing a spec edit."
     )
@@ -170,8 +193,8 @@ if _high_fp_rules:
             f'margin-bottom:6px;background:#dc262611;border-radius:4px;">'
             f"<strong>{rule['rule_id']}</strong> · severity={rule['severity']} · "
             f"FP rate <strong>{rate_pct}</strong> "
-            f"({rule['closed_no_action']} closed / "
-            f"{int(rule['closed_no_action']) + int(rule['escalated'])} resolved)"
+            f"({rule['closed_no_action']} closed_no_action / "
+            f"{rule['total_cases']} total cases)"
             "</div>",
             unsafe_allow_html=True,
         )
@@ -207,8 +230,10 @@ data_grid(
     auto_height=True,
     pagination=False,
     hint=(
-        "Sorted by FP rate descending. `in_flight` = cases not yet resolved "
-        "(excluded from the FP-rate denominator)."
+        "Sorted by FP rate descending. FP rate = closed_no_action ÷ "
+        "total_cases. `in_flight` = cases not yet resolved (still "
+        "counted in the denominator so a noisy rule with a long queue "
+        "tail can't hide its FP rate behind unresolved cases)."
     ),
 )
 
