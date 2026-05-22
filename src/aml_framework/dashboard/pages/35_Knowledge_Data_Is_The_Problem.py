@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header, section_explainer
+from aml_framework.dashboard.components import page_header, section_explainer, page_footer
 from aml_framework.dashboard.data import research
 from aml_framework.dashboard.state import ensure_initialized
 
@@ -29,3 +29,5 @@ section_explainer(
 )
 
 research.render_body("data-problem")
+
+page_footer()

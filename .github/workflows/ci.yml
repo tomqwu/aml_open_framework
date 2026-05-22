@@ -5,6 +5,13 @@ on:
     branches: [main, "claude/*"]
   pull_request:
     branches: [main]
+  # Daily refresh + on-demand: auto-merge by GITHUB_TOKEN doesn't fire
+  # `push` events, so the `tests-badge` job (which commits refreshed
+  # JSONs to main) never ran on those merges. The schedule + manual
+  # dispatch give a recovery path.
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -132,7 +139,13 @@ jobs:
     # CLAUDE.md "PR/CI is the last gate, not a feedback loop": shifting
     # e2e off the PR matrix cuts PR feedback from ~15min to ~5min while
     # the same pre-push hook on the contributor's machine still runs it.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Run on main pushes AND on the schedule/workflow_dispatch recovery
+    # paths so the e2e badge artifact gets refreshed even when GITHUB_TOKEN
+    # auto-merge skips the push event (issue #389).
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'schedule') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
@@ -205,7 +218,15 @@ jobs:
           done
           rm -rf .github/badges/_incoming
       - name: Commit + push (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # schedule + workflow_dispatch refresh badges even when GitHub
+        # auto-merge (GITHUB_TOKEN) skips the push event — see issue #389.
+        # workflow_dispatch is ref-gated so a manual run on a feature
+        # branch can't commit badge JSONs back to that branch; main is
+        # the only source of truth for the README endpoint.
+        if: |
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'schedule' ||
+          (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

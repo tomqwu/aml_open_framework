@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     kpi_card,
     page_header,
     section_explainer,
@@ -156,3 +157,5 @@ see_also_footer(
         "[Framework Alignment — gap-to-roadmap traceability](./8_Framework_Alignment)",
     ]
 )
+
+page_footer()

@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     citation_link,
     data_grid,
     page_header,
@@ -225,3 +226,5 @@ see_also_footer(
         ),
     ]
 )
+
+page_footer()

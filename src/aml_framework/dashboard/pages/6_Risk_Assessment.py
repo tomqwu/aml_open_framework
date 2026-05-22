@@ -6,6 +6,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     data_grid,
     heatmap_chart,
@@ -82,6 +83,7 @@ df_customers = df_customers[
 ]
 if df_customers.empty:
     st.warning("No customers match the selected filters.")
+    page_footer()
     st.stop()
 
 # --- KPI row ---
@@ -244,3 +246,5 @@ see_also_footer(
         ),
     ]
 )
+
+page_footer()

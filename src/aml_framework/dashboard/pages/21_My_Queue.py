@@ -8,6 +8,7 @@ import streamlit as st
 
 from aml_framework.cases.sla import compute_sla_status
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     data_grid,
     empty_state,
@@ -371,3 +372,5 @@ if not df_decisions.empty and "resolution_hours" in df_decisions.columns:
         st.caption("No resolution data for this queue.")
 else:
     st.caption("No resolution time data available.")
+
+page_footer()

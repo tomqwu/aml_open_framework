@@ -9,6 +9,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     data_grid,
     kpi_card,
@@ -345,3 +346,5 @@ if not cust_txns.empty:
         height=300,
         key="customer360_channel_pie",
     )
+
+page_footer()

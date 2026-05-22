@@ -30,6 +30,7 @@ from aml_framework.cases import (
     summarise_backlog,
 )
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     glossary_legend,
     id_link,
@@ -77,6 +78,7 @@ df_cases = st.session_state.get("df_cases", pd.DataFrame())
 
 if spec is None or df_cases.empty:
     st.warning("No cases loaded. Run the engine via the Alert Queue page first.")
+    page_footer()
     st.stop()
 
 # Convert DataFrame back to list-of-dicts for the aggregator (it operates
@@ -177,6 +179,7 @@ st.caption(
 
 if not investigations:
     st.info("No investigations — no cases match the selected strategy's grouping rules.")
+    page_footer()
     st.stop()
 
 inv_rows = []
@@ -375,3 +378,5 @@ see_also_footer(
         ),
     ]
 )
+
+page_footer()

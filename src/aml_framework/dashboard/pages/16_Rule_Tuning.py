@@ -11,7 +11,13 @@ import duckdb
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import kpi_card, line_chart, page_header, section_explainer
+from aml_framework.dashboard.components import (
+    kpi_card,
+    line_chart,
+    page_header,
+    section_explainer,
+    page_footer,
+)
 from aml_framework.engine.runner import _build_warehouse
 from aml_framework.generators.sql import compile_rule_sql
 from aml_framework.spec.models import AggregationWindowLogic, Rule
@@ -60,6 +66,7 @@ tunable_rules = [r for r in spec.rules if r.logic.type == "aggregation_window"]
 
 if not tunable_rules:
     st.warning("No aggregation_window rules to tune.")
+    page_footer()
     st.stop()
 
 selected_rule_id = st.selectbox(
@@ -222,3 +229,5 @@ if main_metric and isinstance(having[main_metric], dict):
             height=350,
             key="rule_tuning_threshold_sweep",
         )
+
+page_footer()

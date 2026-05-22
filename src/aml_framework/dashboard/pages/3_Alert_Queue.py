@@ -8,6 +8,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     data_grid,
     kpi_card,
@@ -102,6 +103,7 @@ df_alerts = st.session_state.df_alerts
 
 if df_alerts.empty:
     st.warning("No alerts in this run.")
+    page_footer()
     st.stop()
 
 # --- Summary KPIs ---
@@ -471,3 +473,5 @@ if not df_cases.empty and "status" in df_cases.columns:
         st.success("All cases resolved.")
 else:
     st.caption("No cases in this run.")
+
+page_footer()

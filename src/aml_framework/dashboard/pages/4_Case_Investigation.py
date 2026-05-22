@@ -11,6 +11,7 @@ from aml_framework.cases.aggregator import aggregate_investigations
 from aml_framework.cases.sla import apply_escalation, compute_sla_status
 from aml_framework.cases.str_bundle import bundle_investigation_to_str
 from aml_framework.dashboard.components import (
+    page_footer,
     citation_link,
     empty_state,
     page_header,
@@ -485,3 +486,5 @@ else:
     with col_a4:
         if st.button("Request EDD", use_container_width=True):
             _record_action(run_dir, case, "edd_requested", "edd_review")
+
+page_footer()

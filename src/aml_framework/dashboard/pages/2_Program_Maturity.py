@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     RAG_COLORS,
     kpi_card,
     page_header,
@@ -143,3 +144,5 @@ see_also_footer(
         ),
     ]
 )
+
+page_footer()

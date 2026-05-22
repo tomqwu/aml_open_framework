@@ -362,6 +362,24 @@ class TestExplainability:
         result = _inspect_context(con, [], datetime(2026, 4, 23, 12, 0, 0))
         assert result == []
 
+    def test_inspect_context_skips_alert_without_customer_id(self):
+        """Defensive: a malformed alert lacking `customer_id` must emit
+        an empty matched-rows list at that position (parallel-array
+        contract) rather than crash or query the DB with None. Pinned
+        because a future rule_logic change could regress this without
+        being caught by the happy-path tests above."""
+        import duckdb as _ddb
+
+        from aml_framework.models.scoring import _inspect_context
+
+        con = _ddb.connect(":memory:")
+        result = _inspect_context(
+            con,
+            [{"customer_id": None}, {"some_other_field": "x"}],
+            datetime(2026, 4, 23, 12, 0, 0),
+        )
+        assert result == [[], []]
+
     def test_aggregation_window_matched_rowids_replay_filter_and_include_boundary(self, tmp_path):
         """#21: matched_row_ids for a FILTERED aggregation_window rule
         must contain ONLY the rows the rule's filter actually matched

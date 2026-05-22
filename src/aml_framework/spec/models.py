@@ -115,6 +115,44 @@ class LegacyReference(_Base):
     format: LegacyReferenceFormat = "csv"
     dataset: str | None = None
     key_columns: list[str] = Field(min_length=1)
+    # PR-EQ-2 (TM Gap 1 step 2): optional new→legacy rule id mapping
+    # consumed by `engine/equivalence.py` when classifying alert-level
+    # divergence. Keys are new-framework `rule_id`s, values are the
+    # corresponding legacy-system rule identifiers (e.g.
+    # {"rapid_pass_through": "MANTAS_RPT_001"}). Optional — when absent,
+    # `classify_alerts` requires the caller to supply the map at call
+    # time, preserving PR-EQ-1's additive-only spec contract.
+    rule_map: dict[str, str] | None = None
+
+
+class NonFunctionalRequirements(_Base):
+    """PR-D2 (#375): operational NFRs declared on the Program for
+    examiner/2LoD/SRE-facing transparency.
+
+    All fields optional — defaults mean "not declared" (different from
+    "declared 0", which the validator forbids via `gt=0`). Engine ignores
+    this block at runtime; downstream surfaces (regulator pack,
+    dashboard NFR card, ops runbook) consume it. Recording NFRs in the
+    spec means they're versioned, peer-reviewed, and replayed against
+    historical runs — same discipline as detection rules.
+
+    Sources mapping to backlog #375:
+    - `rto_minutes` / `rpo_minutes`: BCP / DR posture (OSFI E-21, FFIEC).
+    - `sla_p95_ms`: alert-emission latency target (relevant when
+      `Rule.evaluation_mode` is `streaming` / `both`).
+    - `throughput_per_min`: transaction-rate ceiling the program is
+      designed for (capacity planning + tuning floor).
+    - `retention_days`: alert/case/evidence retention horizon —
+      complementary to `retention_policy` (per-artifact) but operator-
+      facing rollup.
+    """
+
+    rto_minutes: int | None = Field(default=None, gt=0)
+    rpo_minutes: int | None = Field(default=None, ge=0)
+    sla_p95_ms: int | None = Field(default=None, gt=0)
+    throughput_per_min: int | None = Field(default=None, gt=0)
+    retention_days: int | None = Field(default=None, gt=0)
+    notes: str = ""
 
 
 class Program(_Base):
@@ -136,6 +174,10 @@ class Program(_Base):
     # equivalent dashboard surface in PR-EQ-3). Default `None` =
     # no legacy comparison (the common case for greenfield deployments).
     legacy_reference: LegacyReference | None = None
+    # PR-D2 (#375): optional NFR declaration block. See
+    # `NonFunctionalRequirements`. Engine ignores at runtime; surfaces
+    # consume for capacity planning, BCP/DR posture, regulator pack.
+    nfrs: NonFunctionalRequirements | None = None
 
 
 class Column(_Base):
@@ -276,6 +318,20 @@ class Rule(_Base):
     # models annually (12), medium every 18-24, low every 24-36.
     # If unset, the MRM generator picks a default by tier.
     validation_cadence_months: int | None = Field(default=None, ge=1, le=60)
+    # PR-A2: free-text rationale for why this rule exists, written for
+    # an examiner / 2LoD reviewer (not a regulation citation — those go
+    # in regulation_refs). This PR is additive-only: the field lands on
+    # the loaded spec and is exercised by the spec-diff path (so an
+    # `aml diff` reviewer sees authored-intent changes); the STR /
+    # audit-pack / MRM wire-in ships in a follow-up. Optional now;
+    # may flip to required once examples populate.
+    business_intent: str | None = None
+    # PR-A2: explicit list of activities or typologies this rule does
+    # NOT catch. Stored on the loaded spec for the regulator pack's
+    # "why didn't this fire on case X" answer in a follow-up PR. Empty
+    # list means "no known exclusions" (different from None — None
+    # means "the rule author did not document exclusions yet").
+    out_of_scope: list[str] = Field(default_factory=list)
 
 
 class Queue(_Base):
@@ -447,6 +503,22 @@ class AMLSpec(_Base):
                             f"`last_refreshed_at_column` '{ref}' which is type "
                             f"'{sibling.type}', not `timestamp` or `date`"
                         )
+
+        # PR-EQ-2 cross-ref: when the spec carries a legacy_reference
+        # with a rule_map, every new-side rule_id in the map must refer
+        # to a real rule on this spec. Catches typos at spec-load time
+        # so the equivalence engine never silently misclassifies a
+        # mistyped rule_id as LEGACY_ONLY. Keeps PR-EQ-1's additive
+        # contract — only fires when an operator opts into the map.
+        legacy_ref = self.program.legacy_reference
+        if legacy_ref is not None and legacy_ref.rule_map:
+            rule_ids = {r.id for r in self.rules}
+            for new_rule_id in legacy_ref.rule_map:
+                if new_rule_id not in rule_ids:
+                    raise ValueError(
+                        f"program.legacy_reference.rule_map references unknown "
+                        f"rule_id '{new_rule_id}'"
+                    )
 
         metric_ids = {m.id for m in self.metrics}
         for report in self.reports:

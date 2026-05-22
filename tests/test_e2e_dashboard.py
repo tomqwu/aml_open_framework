@@ -71,6 +71,8 @@ PAGES = [
     # PR-U3: the 2 deck pages (board-pack business + technical CLI).
     "Business Deck",
     "Technical Deck",
+    # PR-NS-1: north-star pillar coverage (universal, like Knowledge).
+    "North-Star Pillar Coverage",
 ]
 
 
@@ -343,6 +345,61 @@ class TestAllPagesRender:
         # Streamlit shows an error element with data-testid="stException" on crash.
         errors = browser_page.locator("[data-testid='stException']")
         assert errors.count() == 0, f"Page '{page_title}' has a Streamlit error"
+
+    @pytest.mark.parametrize("page_title", PAGES)
+    def test_page_footer_renders_with_breathing_room(self, browser_page, page_title):
+        """End-to-end pin on the bottom-page-clip bug systemic fix.
+
+        Every page calls `page_footer()` as its last statement. The
+        component renders a `<hr>` divider + an "End of page · …"
+        caption. The `.block-container::after` pseudo-element then
+        reserves ≥10rem (~160px at default rem) of physical space
+        below that caption.
+
+        This test asserts (a) the footer caption is in the DOM, and
+        (b) the page CAN scroll to a position where the last visible
+        block sits at least 80px above the viewport bottom. Anything
+        less means the spacer was overridden / collapsed. 80px is
+        comfortable headroom that survives small Streamlit chrome
+        changes; 10rem of CSS-declared space + the caption itself
+        easily clears it on a passing run.
+        """
+        _navigate(browser_page, page_title)
+        # (a) Footer caption present anywhere in the body.
+        body_text = browser_page.inner_text("body")
+        assert "End of page" in body_text, (
+            f"[{page_title}] page_footer() did not render the 'End of page' "
+            "caption — the bottom-of-page affordance is missing."
+        )
+        # (b) Read the actual computed height of `.block-container::after`
+        # directly. The earlier approach (last-child-bottom vs container-
+        # bottom) included the pre-existing `padding-bottom: 8rem` and so
+        # passed even when the new pseudo-element was removed — exactly
+        # the regression scenario the systemic fix is supposed to catch.
+        # Codex P3 on the systemic fix.
+        spacer_px = browser_page.evaluate(
+            """() => {
+                const c = document.querySelector('.block-container');
+                if (!c) return -1;
+                const cs = window.getComputedStyle(c, '::after');
+                // `content` must be set (we use empty string ''), and
+                // `display: block` so the pseudo actually contributes
+                // to the document flow. Browsers report `'none'` when
+                // the pseudo wasn't generated.
+                if (cs.content === 'none') return -2;
+                return Math.round(parseFloat(cs.height));
+            }"""
+        )
+        # 10rem (160px) is the spec'd spacer height. Require at least
+        # 9rem to allow for ±1rem rounding without false-positive
+        # passing on a 4–8rem fallback (which is what the legacy
+        # `padding-bottom` would provide if the ::after were dropped).
+        assert spacer_px >= 144, (
+            f"[{page_title}] computed `.block-container::after` height = "
+            f"{spacer_px}px (expected >= 144px / 9rem). The systemic "
+            "pseudo-element spacer is missing or shrunk. Bottom-clip "
+            "bug regression — see PR #398."
+        )
 
     @pytest.mark.parametrize("page_title", PAGES)
     def test_no_html_leak_in_visible_text(self, browser_page, page_title):

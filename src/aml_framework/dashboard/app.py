@@ -7,6 +7,7 @@ import streamlit as st
 from aml_framework.dashboard.audience import (
     AUDIENCE_PAGES,
     KNOWLEDGE_PAGES,
+    NORTH_STAR_PAGES,
     PERSONA_LABELS,
     persona_description,
 )
@@ -180,6 +181,20 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             title="Typology Catalogue",
             icon=":material/library_books:",
         ),
+        # PR-NS-1 — north-star pillar coverage. Sits in Strategy &
+        # Reporting because it's the strategic "are we honoring the
+        # 8 pillars?" surface, even though it's universally routed
+        # (every persona sees it via NORTH_STAR_PAGES, same idiom as
+        # Today / Executive Dashboard / KNOWLEDGE_PAGES).
+        st.Page(
+            "pages/43_North_Star_Coverage.py",
+            title="North-Star Pillar Coverage",
+            icon=":material/explore:",
+            # Pin URL to match title-derived slug (`replace(' ', '_')`)
+            # so direct/bookmarked nav stays consistent with the rest of
+            # the dashboard. Same idiom as the Knowledge pages above.
+            url_path="North-Star_Pillar_Coverage",
+        ),
     ],
     "Audit & Reference": [
         # Auditor lane + GenAI provenance surface.
@@ -311,6 +326,10 @@ if selected_audience:
     # persona keeps access to the merged knowledge site regardless of
     # the operational filter.
     relevant_titles.update(KNOWLEDGE_PAGES)
+    # PR-NS-1: the North-Star pillar coverage page is the cross-cutting
+    # "are we honoring the 8 pillars?" surface — pitch reviewers,
+    # examiners, every persona needs it. Universal same as Knowledge.
+    relevant_titles.update(NORTH_STAR_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()

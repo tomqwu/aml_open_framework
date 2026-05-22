@@ -13,6 +13,7 @@ import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     empty_state,
     kpi_card_rag,
@@ -347,3 +348,5 @@ if alerted_ids:
                     "  → Walk lineage chain",
                     case_id=_case_id,
                 )
+
+page_footer()

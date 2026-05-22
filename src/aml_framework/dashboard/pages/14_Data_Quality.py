@@ -7,6 +7,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     empty_state,
     kpi_card,
@@ -267,3 +268,5 @@ for cr in contract_results:
 
         # Freshness detail.
         st.markdown(f"**Freshness:** {cr['freshness_detail']}")
+
+page_footer()

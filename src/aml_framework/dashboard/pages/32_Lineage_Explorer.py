@@ -37,6 +37,7 @@ import streamlit.components.v1 as _components
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     empty_state,
     page_header,
@@ -316,3 +317,5 @@ st.download_button(
     mime="application/json",
     key="lineage_explorer_download",
 )
+
+page_footer()

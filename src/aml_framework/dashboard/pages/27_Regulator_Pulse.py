@@ -28,6 +28,7 @@ from datetime import date, datetime
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     glossary_legend,
     kpi_card_rag,
     page_header,
@@ -198,3 +199,5 @@ st.markdown(
     glossary_legend(["MLRO", "STR", "SAR", "MRM", "FCA", "FinCEN", "AMLA", "FATF"]),
     unsafe_allow_html=True,
 )
+
+page_footer()

@@ -72,6 +72,9 @@ _EXPECTED_PAGE_LEVEL = {
     # category.
     "41_Knowledge_Business_Deck.py",
     "42_Knowledge_Technical_Deck.py",
+    # PR-NS-1: universally-routed north-star pillar coverage page,
+    # same explainer contract as the Knowledge category above.
+    "43_North_Star_Coverage.py",
     "4_Case_Investigation.py",
     "5_Rule_Performance.py",
     "6_Risk_Assessment.py",

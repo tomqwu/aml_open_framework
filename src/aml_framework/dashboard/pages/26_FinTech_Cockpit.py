@@ -38,6 +38,7 @@ from pathlib import Path
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     glossary_legend,
     kpi_card_rag,
     link_to_page,
@@ -372,3 +373,5 @@ st.markdown(
     glossary_legend(["MLRO", "STR", "SAR", "SLA", "MRM", "FCA", "BSA"]),
     unsafe_allow_html=True,
 )
+
+page_footer()

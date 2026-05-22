@@ -20,6 +20,7 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     empty_state,
     page_header,
@@ -236,3 +237,5 @@ see_also_footer(
         ),
     ]
 )
+
+page_footer()

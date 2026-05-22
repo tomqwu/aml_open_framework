@@ -33,6 +33,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     KPI_NEUTRAL_BORDER,
     RAG_COLORS,
     empty_state,
@@ -382,3 +383,5 @@ st.markdown(
     glossary_legend(["CCO", "MLRO", "FinCEN", "AMLA", "RAG"]),
     unsafe_allow_html=True,
 )
+
+page_footer()

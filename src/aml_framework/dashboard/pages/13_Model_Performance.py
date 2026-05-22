@@ -7,6 +7,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     data_grid,
     kpi_card,
@@ -59,6 +60,7 @@ if st.session_state.get("guided_demo"):
 
 if not ml_rules:
     st.warning("No python_ref models in this spec.")
+    page_footer()
     st.stop()
 
 # --- Model inventory ---
@@ -270,3 +272,5 @@ for rule in ml_rules:
 | **Evidence** | {", ".join(rule.evidence)} |
 | **Tags** | {", ".join(rule.tags)} |
 """)
+
+page_footer()

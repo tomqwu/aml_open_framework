@@ -5,7 +5,13 @@ from __future__ import annotations
 import streamlit as st
 import yaml
 
-from aml_framework.dashboard.components import empty_state, kpi_card, page_header, section_explainer
+from aml_framework.dashboard.components import (
+    empty_state,
+    kpi_card,
+    page_header,
+    section_explainer,
+    page_footer,
+)
 
 from aml_framework.dashboard.state import ensure_initialized
 
@@ -260,3 +266,5 @@ if edited_yaml != current_yaml:
             tofile="edited",
         )
         st.code("".join(diff), language="diff")
+
+page_footer()

@@ -24,6 +24,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     empty_state,
     page_header,
@@ -183,3 +184,5 @@ The framework ships the *reference surface* — the policy boundary
 its own production transport.
         """
     )
+
+page_footer()

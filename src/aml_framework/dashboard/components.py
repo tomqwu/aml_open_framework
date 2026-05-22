@@ -314,19 +314,34 @@ section[data-testid="stSidebar"] {
     padding-bottom: 8rem;
     min-height: calc(100vh - var(--dna-topbar-h));
 }
-/* `padding-bottom: 8rem` (was 4rem in #305) gives the page-level
- * section_explainer + any trailing content generous room to breathe
- * above the viewport edge. The earlier 4rem was enough when pages
- * ended with charts/tables whose own margins absorbed the gap, but
- * short empty-state pages (e.g. My Queue with no resolution data)
- * had their final caption sitting flush against the viewport — felt
- * cut off.
+/* Bottom-page bug (#305 → #310 → this PR): `padding-bottom` alone is
+ * fragile because Streamlit components with negative margins, fixed
+ * positioning, or transforms can break out of the reserved space.
+ * History: every prior fix incrementally bumped padding-bottom
+ * (1.5rem → 4rem → 8rem) and the bug regressed each time.
+ *
+ * Systemic fix: a `::after` pseudo-element forces a real block-level
+ * child as the last item under the container. It's immune to margin
+ * collapse, can't be overridden by trailing-content margins, and
+ * gives a guaranteed 10rem floor below the last authored element
+ * regardless of what that element is (table / chart / download
+ * button / custom HTML iframe). Combined with `page_footer()` (the
+ * visible "you've reached the bottom" affordance) and the
+ * source-guard test that pins every page calls it, the bug is
+ * contractually closed instead of patched.
+ *
+ * The numeric padding-bottom stays as a belt for the suspenders —
+ * pages that haven't yet been updated to call `page_footer()` still
+ * get *some* room. The `::after` is the enforcement.
  *
  * `min-height: calc(100vh - var(--dna-topbar-h))` ensures every page
- * fills the viewport vertically even when its content is short. Short
- * pages get whitespace BELOW their content; long pages still scroll.
- * Either way the content sits above a clear, consistent bottom edge
- * instead of floating mid-viewport on cold empty-state paths. */
+ * fills the viewport vertically even when its content is short. */
+.block-container::after {
+    content: "";
+    display: block;
+    height: 10rem;
+    pointer-events: none;
+}
 /* Apply Inter narrowly. Two hard constraints learned the wrong way
  * (PR-M iteration):
  *  1. Don't touch the sidebar — Streamlit's nav uses Material Symbols
@@ -973,6 +988,59 @@ def page_header(title: str, description: str | None = None) -> None:
         render_explainer_poller()
     except Exception:  # noqa: BLE001 — poller must NEVER crash a page render
         pass
+
+
+def page_footer() -> None:
+    """Visible end-of-page affordance + guaranteed bottom breathing room.
+
+    Closes the bottom-page-clip bug systemically (history: #305, #310,
+    this PR). Every `pages/*.py` calls `page_footer()` as its LAST
+    statement; the source-guard test
+    `test_all_pages_call_page_footer` (tests/test_dashboard_page_footer.py)
+    pins the contract so a future page can't ship without it.
+
+    Renders:
+      • a thin horizontal divider
+      • a small caption with persona context + page title + framework
+        version (so the user sees a positive "you've reached the end"
+        cue rather than wondering whether content was clipped)
+      • the CSS ``.block-container::after`` pseudo-element separately
+        guarantees ≥10rem of physical space below this band — pure CSS,
+        immune to margin collapse, so even if a future page somehow
+        omits this call the spacer still fires.
+    """
+    # Pull the same eyebrow signal as `page_header()` so the footer
+    # mirrors the top of the page. Done defensively because the footer
+    # must NEVER crash a page render — that would be worse than the
+    # original clip bug.
+    persona = ""
+    try:
+        sel = st.session_state.get("selected_audience", "")
+        if sel:
+            persona = sel.replace("_", " ").title()
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        from aml_framework import __version__ as _v
+    except Exception:  # noqa: BLE001
+        _v = "dev"
+
+    # Page title is the last `# Heading` the script emitted; fetching
+    # that reliably from session state would require coordination with
+    # `page_header()`. Just say "End of page" — the user reads this as
+    # the bottom marker, the persona/version line gives context.
+    parts = ["End of page"]
+    if persona:
+        parts.append(persona)
+    parts.append(f"v{_v}")
+    footer_text = " · ".join(parts)
+
+    st.markdown(
+        '<hr style="border:none; border-top:1px solid var(--dna-rule); margin:2.5rem 0 0.5rem 0;">',
+        unsafe_allow_html=True,
+    )
+    st.caption(footer_text)
 
 
 def research_link(label: str, doc_path: str, anchor: str | None = None) -> str:
@@ -1658,6 +1726,11 @@ def empty_state(
         body += f"\n\n{detail}"
     st.info(body)
     if stop:
+        # Render the bottom-page affordance BEFORE stopping so this
+        # helper-driven empty-state path doesn't skip it (same
+        # contract the source-guard enforces on bare `st.stop()`
+        # call sites). See PR #398 + codex pass 2.
+        page_footer()
         st.stop()
 
 
