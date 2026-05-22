@@ -252,19 +252,74 @@ for contract in spec.data_contracts:
     if freshness_ok:
         total_freshness_ok += 1
 
-    # Quality-check pass count (per-check, not per-field).
+    # Quality-check pass count (per-check, not per-field). PR-B1 (#366):
+    # `enum` / `regex` / `range` join `not_null` / `unique` so the
+    # integration scorecard reflects all five validity shapes the
+    # engine evaluates, not just the original two.
     contract_passed = 0
     contract_total = 0
     for qc in contract.quality_checks:
         for check_type, fields in qc.items():
-            for field in fields:
-                if field not in df.columns:
+            if check_type in ("not_null", "unique"):
+                if not isinstance(fields, list):
                     continue
-                contract_total += 1
-                if check_type == "not_null" and int(df[field].isna().sum()) == 0:
-                    contract_passed += 1
-                elif check_type == "unique" and int(df[field].duplicated().sum()) == 0:
-                    contract_passed += 1
+                for field in fields:
+                    if field not in df.columns:
+                        continue
+                    contract_total += 1
+                    if check_type == "not_null" and int(df[field].isna().sum()) == 0:
+                        contract_passed += 1
+                    elif check_type == "unique" and int(df[field].duplicated().sum()) == 0:
+                        contract_passed += 1
+            elif check_type in ("enum", "regex", "range") and isinstance(fields, dict):
+                for field, spec in fields.items():
+                    if field not in df.columns:
+                        continue
+                    contract_total += 1
+                    present = df[field].dropna()
+                    if check_type == "enum":
+                        allowed = list(spec) if isinstance(spec, (list, tuple)) else []
+                        if allowed and int((~present.isin(allowed)).sum()) == 0:
+                            contract_passed += 1
+                    elif check_type == "regex":
+                        import re as _re
+
+                        if isinstance(spec, str):
+                            try:
+                                pat = _re.compile(spec)
+                                if all(
+                                    isinstance(v, str) and pat.fullmatch(v) is not None
+                                    for v in present
+                                ):
+                                    contract_passed += 1
+                            except _re.error:
+                                pass
+                    else:  # range
+                        lo = spec.get("min") if isinstance(spec, dict) else None
+                        hi = spec.get("max") if isinstance(spec, dict) else None
+
+                        def _to_num(v):
+                            try:
+                                return float(v) if v is not None else None
+                            except (TypeError, ValueError):
+                                return None
+
+                        lo_n = _to_num(lo)
+                        hi_n = _to_num(hi)
+                        ok = True
+                        for v in present:
+                            nv = _to_num(v)
+                            if nv is None:
+                                ok = False
+                                break
+                            if lo_n is not None and nv < lo_n:
+                                ok = False
+                                break
+                            if hi_n is not None and nv > hi_n:
+                                ok = False
+                                break
+                        if ok:
+                            contract_passed += 1
     total_checks += contract_total
     total_passed += contract_passed
 

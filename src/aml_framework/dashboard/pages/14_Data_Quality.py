@@ -54,8 +54,8 @@ if st.session_state.get("guided_demo"):
     st.info(
         "**Guided Demo -- Data Quality**\n\n"
         "Each data contract declares columns, types, freshness SLAs, and quality "
-        "checks (not_null, unique). This page executes those checks against the "
-        "actual data and reports violations."
+        "checks (not_null, unique, enum, regex, range). This page executes those checks "
+        "against the actual data and reports violations."
     )
 
 # --- Empty-state guard: no contracts means there's nothing to assess ---
@@ -102,43 +102,105 @@ for contract in spec.data_contracts:
                         freshness_ok = False
                     break
 
-    # Quality checks.
+    # Quality checks. PR-B1 (#366) extends the engine with `enum` /
+    # `regex` / `range` validity checks alongside `not_null` / `unique`;
+    # this page now scores all five so the KPI denominator and the
+    # per-contract table stay aligned with what the engine emits.
     check_results: list[dict] = []
     for qc in contract.quality_checks:
         for check_type, fields in qc.items():
-            total_checks += 1
-            if check_type == "not_null":
+            if check_type in ("not_null", "unique"):
+                if not isinstance(fields, list):
+                    continue
                 for field in fields:
-                    if field in df.columns:
+                    if field not in df.columns:
+                        continue
+                    total_checks += 1
+                    if check_type == "not_null":
                         nulls = int(df[field].isna().sum())
                         passed = nulls == 0
-                        if passed:
-                            total_passed += 1
-                        else:
-                            total_violations += 1
-                        check_results.append(
-                            {
-                                "Check": f"not_null({field})",
-                                "Status": "PASS" if passed else "FAIL",
-                                "Detail": f"{nulls} nulls" if nulls else "0 nulls",
-                            }
-                        )
-            elif check_type == "unique":
-                for field in fields:
-                    if field in df.columns:
+                        detail = f"{nulls} nulls" if nulls else "0 nulls"
+                    else:
                         dupes = int(df[field].duplicated().sum())
                         passed = dupes == 0
-                        if passed:
-                            total_passed += 1
+                        detail = f"{dupes} duplicates" if dupes else "0 duplicates"
+                    if passed:
+                        total_passed += 1
+                    else:
+                        total_violations += 1
+                    check_results.append(
+                        {
+                            "Check": f"{check_type}({field})",
+                            "Status": "PASS" if passed else "FAIL",
+                            "Detail": detail,
+                        }
+                    )
+            elif check_type in ("enum", "regex", "range") and isinstance(fields, dict):
+                for field, spec in fields.items():
+                    if field not in df.columns:
+                        continue
+                    total_checks += 1
+                    series = df[field]
+                    present = series.dropna()
+                    if check_type == "enum":
+                        allowed = list(spec) if isinstance(spec, (list, tuple)) else []
+                        bad = int((~present.isin(allowed)).sum()) if allowed else 0
+                        passed = bad == 0
+                        detail = f"{bad} out-of-set" if bad else "0 out-of-set"
+                    elif check_type == "regex":
+                        import re as _re
+
+                        if isinstance(spec, str):
+                            try:
+                                pat = _re.compile(spec)
+                                bad = int(
+                                    sum(
+                                        1
+                                        for v in present
+                                        if not isinstance(v, str) or pat.fullmatch(v) is None
+                                    )
+                                )
+                            except _re.error:
+                                bad = 0
                         else:
-                            total_violations += 1
-                        check_results.append(
-                            {
-                                "Check": f"unique({field})",
-                                "Status": "PASS" if passed else "FAIL",
-                                "Detail": f"{dupes} duplicates" if dupes else "0 duplicates",
-                            }
-                        )
+                            bad = 0
+                        passed = bad == 0
+                        detail = f"{bad} pattern misses" if bad else "0 pattern misses"
+                    else:  # range
+                        lo = spec.get("min") if isinstance(spec, dict) else None
+                        hi = spec.get("max") if isinstance(spec, dict) else None
+
+                        def _to_num(v):
+                            try:
+                                return float(v) if v is not None else None
+                            except (TypeError, ValueError):
+                                return None
+
+                        lo_n = _to_num(lo)
+                        hi_n = _to_num(hi)
+                        bad = 0
+                        for v in present:
+                            nv = _to_num(v)
+                            if nv is None:
+                                bad += 1
+                                continue
+                            if lo_n is not None and nv < lo_n:
+                                bad += 1
+                            elif hi_n is not None and nv > hi_n:
+                                bad += 1
+                        passed = bad == 0
+                        detail = f"{bad} out-of-range" if bad else "0 out-of-range"
+                    if passed:
+                        total_passed += 1
+                    else:
+                        total_violations += 1
+                    check_results.append(
+                        {
+                            "Check": f"{check_type}({field})",
+                            "Status": "PASS" if passed else "FAIL",
+                            "Detail": detail,
+                        }
+                    )
 
     contract_results.append(
         {

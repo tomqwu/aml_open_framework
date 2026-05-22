@@ -349,6 +349,28 @@ class TestEvaluateContractChecksPure:
         assert "999999.42" not in excs[0].reason
         assert excs[0].failing_value == "999999.42"
 
+    def test_range_handles_nan_and_infinity_without_crashing(self):
+        # `float('nan')` and `Decimal('NaN')` pass the type guard but
+        # raise `decimal.InvalidOperation` on `<`/`>` — that would abort
+        # the whole DQ scan and `aml run`. Codex review (B1 pass 2).
+        # Treat non-finite as a range violation, never an exception.
+        from decimal import Decimal
+
+        rows = [
+            {"amount": float("nan")},
+            {"amount": Decimal("NaN")},
+            {"amount": float("inf")},
+            {"amount": 50.0},  # clean baseline
+        ]
+        checks = [{"range": {"amount": {"min": 0, "max": 100}}}]
+        # Must not raise.
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        # Three non-finite values → three range violations; clean row
+        # produces nothing.
+        assert len(excs) == 3
+        reasons = {e.reason for e in excs}
+        assert reasons == {"non-finite value cannot be range-checked"}
+
 
 # ---------------------------------------------------------------------------
 # `_build_warehouse` is unchanged: row counts match input

@@ -406,6 +406,27 @@ def _eval_range(
             value_dec = value
         else:
             value_dec = Decimal(str(value))
+        # Non-finite values (`float('nan')` / `Decimal('NaN')` / `Inf`)
+        # pass the numeric type check but raise `decimal.InvalidOperation`
+        # on `<`/`>` for NaN — aborting the whole DQ scan and `aml run`.
+        # Treat them as a range violation: clearly the row carries no
+        # comparable numeric, so the spec author should see it in the
+        # exception table rather than have the run crash. Codex review
+        # (B1 pass 2).
+        if not value_dec.is_finite():
+            out.append(
+                DQException(
+                    contract_id=contract_id,
+                    check_id=f"range:{column}",
+                    check_type="range",
+                    column=column,
+                    failing_value=_format_value(value),
+                    row_index=idx,
+                    reason="non-finite value cannot be range-checked",
+                    at=at,
+                )
+            )
+            continue
         # PII-safety: do NOT embed raw `value` in `reason` — runner
         # masks `failing_value` for `pii: true` columns. Bounds are
         # config, safe to include.
