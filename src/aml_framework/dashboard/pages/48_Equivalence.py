@@ -134,6 +134,87 @@ st.caption(
     f"(format={legacy_reference.format}, dataset={legacy_reference.dataset or '—'})"
 )
 
+# Codex pass 1 (P1): without a `rule_map`, every new-side alert would
+# bucket as NEW_ONLY and every legacy-side alert as LEGACY_ONLY — a
+# misleading "100% divergence" picture that's worse than no surface
+# at all under SR 11-7 / OSFI E-23 scrutiny. Stop the render with a
+# clear config message instead. Operators who legitimately want
+# identity mapping (new rule_id == legacy rule_id) must declare it
+# explicitly in the spec — the absence of that declaration here means
+# the operator hasn't yet committed to the mapping, and the
+# divergence report would mislead.
+if not legacy_reference.rule_map:
+    st.warning(
+        "**`legacy_reference.rule_map` is empty.**\n\n"
+        "Without a new-rule-id → legacy-rule-id map, the classifier "
+        "cannot join cells across the two systems, and the resulting "
+        "report would bucket every new alert as `NEW_ONLY` and every "
+        "legacy alert as `LEGACY_ONLY` — misleading audit evidence.\n\n"
+        "Add a `rule_map` to `program.legacy_reference` so the "
+        "classifier knows which new rules align with which legacy "
+        "rules. If the rule ids are identical across systems, declare "
+        "that explicitly (e.g. `rule_map: {rapid_pass_through: "
+        "rapid_pass_through}`)."
+    )
+    st.code(
+        """program:
+  legacy_reference:
+    path: data/legacy/legacy_alerts.csv
+    format: csv
+    key_columns: [customer_id, period_start, rule_id_legacy]
+    rule_map:
+      rapid_pass_through: MANTAS_RPT_001
+      structuring_below_10k: MANTAS_STR_002
+""",
+        language="yaml",
+    )
+    st.markdown("---")
+    st.markdown("**Related surfaces**")
+    link_to_page("pages/20_Spec_Editor.py", "Spec Editor — edit `program.legacy_reference`")
+    link_to_page(
+        "pages/43_North_Star_Coverage.py",
+        "North-Star Pillar Coverage — Pillar 1 (Equivalence before optimization)",
+    )
+    page_footer()
+    st.stop()
+
+
+# Codex pass 2 (P2): the spec's `key_columns` carries the legacy
+# export's native column names (e.g. the CA example declares
+# `[rule_id, customer_id, window_start]`). The loader's canonical
+# names are `customer_id` / `period_start` / `period_end` /
+# `rule_id_legacy`. Build a translation map so the loader can read
+# the export verbatim without forcing the operator to rename columns
+# in the legacy system. Operators whose export already uses the
+# canonical names (i.e. they renamed at export time) see an empty
+# mapping and fall through unchanged. Conservative — only translates
+# the well-known synonyms documented in `engine/equivalence.py` +
+# `test_column_mapping_supports_spec_native_legacy_columns`.
+_LEGACY_SYNONYMS: dict[str, str] = {
+    # legacy-system column name → canonical loader name
+    "rule_id": "rule_id_legacy",
+    "window_start": "period_start",
+    "window_end": "period_end",
+}
+
+
+def _derive_column_mapping(key_columns: list[str]) -> dict[str, str]:
+    """Build `{canonical: csv_column}` from the spec's key_columns.
+
+    Only acts on the well-known synonyms above; unknown column names
+    are left alone (the loader's missing-column error then surfaces
+    the gap explicitly rather than silently swallowing it).
+    """
+    mapping: dict[str, str] = {}
+    for col in key_columns:
+        canonical = _LEGACY_SYNONYMS.get(col)
+        if canonical is not None:
+            mapping[canonical] = col
+    return mapping
+
+
+column_mapping = _derive_column_mapping(legacy_reference.key_columns)
+
 legacy_alerts: list = []
 load_error: str | None = None
 legacy_path = Path(legacy_reference.path)
@@ -153,7 +234,10 @@ try:
             "the export to CSV, or wait for the parquet/jsonl loader."
         )
     else:
-        legacy_alerts = load_legacy_alerts_csv(legacy_path)
+        legacy_alerts = load_legacy_alerts_csv(
+            legacy_path,
+            column_mapping=column_mapping or None,
+        )
 except ValueError as exc:
     # Loader raises ValueError on missing header / missing required
     # column / malformed datetime. Surface verbatim — the messages are
@@ -177,7 +261,7 @@ rule_severities = {r.id: r.severity for r in spec.rules}
 report = classify_alerts(
     new_alerts=result.alerts,
     legacy_alerts=legacy_alerts,
-    rule_map=legacy_reference.rule_map or {},
+    rule_map=legacy_reference.rule_map,
     rule_severities=rule_severities,
 )
 

@@ -164,10 +164,13 @@ def _render_pillar(
 # deterministic-replay guarantee — that's same-engine reproducibility,
 # not legacy-equivalence.)"
 #
-# Classification: GAP. The framework ships deterministic replay
-# (same-engine reproducibility) but has no legacy-equivalence engine
-# yet. Naming the gap honestly per the user instruction ("don't paper
-# over").
+# Classification: PARTIAL (PR-EQ-3 wire-in). PR-EQ-2 shipped the
+# parallel-run divergence classifier (`engine/equivalence.py`) and
+# PR-EQ-3 surfaced it as the Equivalence dashboard page. What's still
+# missing for COVERED: golden-record fixtures + a CLI wrapper +
+# defect classification (data vs rule vs mapping defect) on each DIFF
+# cell. Today's surface classifies into MATCH/NEW_ONLY/LEGACY_ONLY/
+# DIFF but doesn't yet auto-attribute the *cause* of a divergence.
 # ---------------------------------------------------------------------------
 _render_pillar(
     number=1,
@@ -179,18 +182,26 @@ _render_pillar(
         "data / rule / mapping defect. Distinct from same-engine "
         "deterministic replay."
     ),
-    status="GAP",
+    status="PARTIAL",
     evidence=[
         "**In:** deterministic replay — same spec + same data + same seed "
         "produces identical output hashes (`test_run_is_reproducible`).",
-        "**Missing:** a dedicated legacy-equivalence engine — parallel-run "
-        "harness, golden-record fixtures, field-level diff, defect "
-        "classifier (data vs rule vs mapping). Ships in PR-EQ-2 — see "
-        "`engine/equivalence.py` (forthcoming).",
-        "**Net:** the framework can prove it replays itself; it cannot "
-        "yet prove it replays a legacy SAS / Oracle / IMS rule one-for-one.",
+        "**In:** parallel-run divergence classifier — "
+        "`engine/equivalence.py` (PR-EQ-2) joins the new run's alerts "
+        "against a legacy TM export declared via `program.legacy_reference` "
+        "and classifies every (customer, period, rule) cell as "
+        "MATCH / NEW_ONLY / LEGACY_ONLY / DIFF.",
+        "**In:** Equivalence dashboard page (PR-EQ-3) surfaces the "
+        "classification with a 4-class roll-up, by-rule breakdown, and "
+        "cell-level table — see-through audit evidence for examiners.",
+        "**Missing:** golden-record fixtures + a CLI wrapper + "
+        "auto-attribution of each DIFF cell's *cause* (data defect vs "
+        "rule-logic change vs rule-id mapping defect). Today's surface "
+        "classifies divergence but the operator still classifies the "
+        "*cause* manually.",
     ],
     links=[
+        ("Equivalence — legacy↔new divergence classifier", "pages/48_Equivalence.py"),
         ("Run History — same-engine determinism trail", "pages/15_Run_History.py"),
         ("Audit & Evidence — hash-chain replay verifier", "pages/7_Audit_Evidence.py"),
     ],
@@ -498,9 +509,12 @@ col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.metric("Covered", "1", help="Pillar 8")
 with col_b:
-    st.metric("Partial", "6", help="Pillars 2, 3, 4, 5, 6, 7")
+    # PR-EQ-3 moved Pillar 1 from GAP → PARTIAL (parallel-run
+    # classifier shipped + dashboard surface wired in; defect-cause
+    # auto-attribution still pending).
+    st.metric("Partial", "7", help="Pillars 1, 2, 3, 4, 5, 6, 7")
 with col_c:
-    st.metric("Gap", "1", help="Pillar 1 — equivalence engine ships in PR-EQ-2")
+    st.metric("Gap", "0", help="All 8 pillars carry at least partial coverage.")
 
 st.caption(
     "Coverage is asserted, not aspirational — every COVERED claim above "
