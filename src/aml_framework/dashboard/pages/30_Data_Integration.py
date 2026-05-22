@@ -277,14 +277,20 @@ for contract in spec.data_contracts:
                 # shadow the page-level `spec` object loaded from
                 # `st.session_state`, breaking later `spec.data_contracts`
                 # access. Codex review (B1 pass 5).
+                #
+                # We iterate the raw `rows` list (not the pandas DF) so
+                # NaN / pd.NA / non-string values are treated the way
+                # the engine evaluator treats them — `df.dropna()` would
+                # silently filter NaN values that the engine flags as
+                # violations. Codex review (B1 pass 6).
                 for field, check_spec in fields.items():
                     if field not in df.columns:
                         continue
                     contract_total += 1
-                    present = df[field].dropna()
+                    field_values = [r[field] for r in rows if field in r and r[field] is not None]
                     if check_type == "enum":
                         allowed = list(check_spec) if isinstance(check_spec, (list, tuple)) else []
-                        if allowed and int((~present.isin(allowed)).sum()) == 0:
+                        if allowed and all(v in allowed for v in field_values):
                             contract_passed += 1
                     elif check_type == "regex":
                         import re as _re
@@ -294,7 +300,7 @@ for contract in spec.data_contracts:
                                 pat = _re.compile(check_spec)
                                 if all(
                                     isinstance(v, str) and pat.fullmatch(v) is not None
-                                    for v in present
+                                    for v in field_values
                                 ):
                                     contract_passed += 1
                             except _re.error:
@@ -325,7 +331,7 @@ for contract in spec.data_contracts:
                         lo_n = _to_num(lo)
                         hi_n = _to_num(hi)
                         ok = True
-                        for v in present:
+                        for v in field_values:
                             nv = _to_num(v)
                             if nv is None:
                                 ok = False
