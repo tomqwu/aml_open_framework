@@ -369,14 +369,21 @@ class TestEvaluateContractChecksPure:
 
     def test_range_rejects_infinity_bound_without_crashing(self):
         # `Inf` / `-Inf` bounds are uncomparable too — also treat as
-        # unusable. Codex review (B1 pass 3).
+        # unusable. Codex review (B1 pass 3 + pass 9): the run must
+        # not crash, AND it must surface the all-uncoerceable bounds
+        # as a `malformed_check` event so the silent disablement
+        # lands in the audit ledger.
         from decimal import Decimal
 
         rows = [{"amount": 50.0}, {"amount": -100.0}]
         checks = [{"range": {"amount": {"min": Decimal("-Infinity"), "max": Decimal("Infinity")}}}]
-        # Both bounds non-finite → the whole check degenerates to a
-        # no-op (lo and hi both None after coercion).
-        assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        # Both bounds were DECLARED (raw_lo/raw_hi non-None) but
+        # neither coerces — that's a spec bug, not a no-op. Engine
+        # emits one malformed_check event for the column.
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:range:amount"
 
     def test_malformed_enum_shape_emits_dq_exception(self):
         # `quality_checks: [{enum: [currency]}]` is a real footgun:
@@ -423,6 +430,61 @@ class TestEvaluateContractChecksPure:
         rows = [{"x": 1}]
         checks = [{"some_future_check": ["x"]}]
         assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
+
+    def test_malformed_check_surfaces_even_on_empty_feed(self):
+        # An empty feed must NOT silently disable malformed-spec
+        # detection — the spec bug is in the spec, not the data, and
+        # a regulator-facing compliance check that silently does
+        # nothing is the worst kind of false assurance. Codex review
+        # (B1 pass 9).
+        rows = []  # zero rows
+        # Outer-shape malformed (list where dict expected):
+        checks = [{"enum": ["currency"]}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:enum"
+
+    def test_inner_malformed_enum_spec_emits_event(self):
+        # Inner-spec malformed: `enum: {currency: "USD"}` — the value
+        # should be a list, not a string. Without the codex pass-9
+        # fix the engine would silently emit no exceptions and the
+        # dashboard would show PASS for a disabled check. Now we get
+        # a malformed_check event that surfaces in the audit ledger
+        # and gives the dashboard something to render as FAIL.
+        rows = [{"currency": "USD"}]
+        checks = [{"enum": {"currency": "USD"}}]  # string, not list
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:enum:currency"
+
+    def test_inner_malformed_regex_pattern_emits_event(self):
+        # Non-string pattern.
+        rows = [{"email": "a@example.com"}]
+        checks = [{"regex": {"email": 42}}]  # int, not str
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:regex:email"
+
+    def test_inner_malformed_regex_invalid_pattern_emits_event(self):
+        # Syntactically invalid regex.
+        rows = [{"email": "a@example.com"}]
+        checks = [{"regex": {"email": "[unclosed"}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:regex:email"
+
+    def test_inner_malformed_range_bounds_emits_event(self):
+        # Non-dict bounds.
+        rows = [{"amount": 50}]
+        checks = [{"range": {"amount": "0-100"}}]  # string, not dict
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:range:amount"
 
     def test_range_handles_nan_and_infinity_without_crashing(self):
         # `float('nan')` and `Decimal('NaN')` pass the type guard but

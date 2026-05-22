@@ -164,12 +164,16 @@ for contract in spec.data_contracts:
                         if isinstance(check_spec, (list, tuple)):
                             allowed = list(check_spec)
                             bad = int(sum(1 for v in field_values if v not in allowed))
+                            passed = bad == 0
+                            detail = f"{bad} out-of-set" if bad else "0 out-of-set"
                         else:
-                            # Non-list allow-list = malformed spec; the
-                            # engine returns [] for this shape too.
+                            # Non-list allow-list = malformed spec. The
+                            # engine emits a `malformed_check` event for
+                            # this shape; the dashboard must NOT report
+                            # PASS for a disabled check (codex B1 pass 9).
+                            passed = False
                             bad = 0
-                        passed = bad == 0
-                        detail = f"{bad} out-of-set" if bad else "0 out-of-set"
+                            detail = "malformed enum spec (expected list)"
                     elif check_type == "regex":
                         import re as _re
 
@@ -183,16 +187,19 @@ for contract in spec.data_contracts:
                                         if not isinstance(v, str) or pat.fullmatch(v) is None
                                     )
                                 )
+                                passed = bad == 0
+                                detail = f"{bad} pattern misses" if bad else "0 pattern misses"
                             except _re.error:
+                                # Engine emits malformed_check for this.
+                                passed = False
                                 bad = 0
+                                detail = "malformed regex pattern"
                         else:
+                            # Engine emits malformed_check for this.
+                            passed = False
                             bad = 0
-                        passed = bad == 0
-                        detail = f"{bad} pattern misses" if bad else "0 pattern misses"
+                            detail = "malformed regex spec (expected str)"
                     else:  # range
-                        lo = check_spec.get("min") if isinstance(check_spec, dict) else None
-                        hi = check_spec.get("max") if isinstance(check_spec, dict) else None
-
                         import math as _m
 
                         def _coerce_bound(v):
@@ -230,20 +237,41 @@ for contract in spec.data_contracts:
                                 return None
                             return f
 
-                        lo_n = _coerce_bound(lo)
-                        hi_n = _coerce_bound(hi)
-                        bad = 0
-                        for v in field_values:
-                            nv = _coerce_value(v)
-                            if nv is None:
-                                bad += 1
-                                continue
-                            if lo_n is not None and nv < lo_n:
-                                bad += 1
-                            elif hi_n is not None and nv > hi_n:
-                                bad += 1
-                        passed = bad == 0
-                        detail = f"{bad} out-of-range" if bad else "0 out-of-range"
+                        if not isinstance(check_spec, dict):
+                            # Engine emits malformed_check for this.
+                            # Codex (B1 pass 9).
+                            passed = False
+                            bad = 0
+                            detail = "malformed range spec (expected dict)"
+                        else:
+                            raw_lo = check_spec.get("min")
+                            raw_hi = check_spec.get("max")
+                            lo_n = _coerce_bound(raw_lo)
+                            hi_n = _coerce_bound(raw_hi)
+                            if (
+                                lo_n is None
+                                and hi_n is None
+                                and (raw_lo is not None or raw_hi is not None)
+                            ):
+                                # At least one bound was declared but
+                                # neither coerces — engine emits
+                                # malformed_check; dashboard must FAIL.
+                                passed = False
+                                bad = 0
+                                detail = "malformed range bounds (uncoerceable)"
+                            else:
+                                bad = 0
+                                for v in field_values:
+                                    nv = _coerce_value(v)
+                                    if nv is None:
+                                        bad += 1
+                                        continue
+                                    if lo_n is not None and nv < lo_n:
+                                        bad += 1
+                                    elif hi_n is not None and nv > hi_n:
+                                        bad += 1
+                                passed = bad == 0
+                                detail = f"{bad} out-of-range" if bad else "0 out-of-range"
                     if passed:
                         total_passed += 1
                     else:

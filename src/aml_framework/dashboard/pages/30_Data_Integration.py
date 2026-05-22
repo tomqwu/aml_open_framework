@@ -291,15 +291,22 @@ for contract in spec.data_contracts:
                     if check_type == "enum":
                         # Mirror engine: empty allow-list = nothing
                         # allowed → every present value violates →
-                        # check FAILs. Codex (B1 pass 7).
+                        # check FAILs. Codex (B1 pass 7). Non-list
+                        # check_spec is malformed — engine emits a
+                        # `malformed_check` event for it (codex B1
+                        # pass 9); we leave `contract_passed`
+                        # unincremented so the failing-check ratio
+                        # reflects the silent disablement.
                         if isinstance(check_spec, (list, tuple)):
                             allowed = list(check_spec)
                             if all(v in allowed for v in field_values):
                                 contract_passed += 1
-                        # Non-list spec is malformed; the engine returns
-                        # [] (no violations, no awards). Leave passed
-                        # unchanged so the dashboard stays consistent.
                     elif check_type == "regex":
+                        # Engine emits `malformed_check` for a non-str
+                        # pattern OR an uncompilable pattern. Both cases
+                        # fall through without incrementing
+                        # `contract_passed`, matching the engine's
+                        # fail-closed posture. Codex (B1 pass 9).
                         import re as _re
 
                         if isinstance(check_spec, str):
@@ -313,9 +320,6 @@ for contract in spec.data_contracts:
                             except _re.error:
                                 pass
                     else:  # range
-                        lo = check_spec.get("min") if isinstance(check_spec, dict) else None
-                        hi = check_spec.get("max") if isinstance(check_spec, dict) else None
-
                         import math as _m
 
                         def _coerce_bound(v):
@@ -349,20 +353,37 @@ for contract in spec.data_contracts:
                                 return None
                             return f
 
-                        lo_n = _coerce_bound(lo)
-                        hi_n = _coerce_bound(hi)
-                        ok = True
-                        for v in field_values:
-                            nv = _coerce_value(v)
-                            if nv is None:
+                        # Malformed-spec posture mirrors engine
+                        # `_eval_range`: non-dict spec → malformed
+                        # (no pass award). Codex (B1 pass 9).
+                        if not isinstance(check_spec, dict):
+                            ok = False
+                        else:
+                            raw_lo = check_spec.get("min")
+                            raw_hi = check_spec.get("max")
+                            lo_n = _coerce_bound(raw_lo)
+                            hi_n = _coerce_bound(raw_hi)
+                            if (
+                                lo_n is None
+                                and hi_n is None
+                                and (raw_lo is not None or raw_hi is not None)
+                            ):
+                                # At least one bound declared but neither
+                                # coerces — malformed; no pass award.
                                 ok = False
-                                break
-                            if lo_n is not None and nv < lo_n:
-                                ok = False
-                                break
-                            if hi_n is not None and nv > hi_n:
-                                ok = False
-                                break
+                            else:
+                                ok = True
+                                for v in field_values:
+                                    nv = _coerce_value(v)
+                                    if nv is None:
+                                        ok = False
+                                        break
+                                    if lo_n is not None and nv < lo_n:
+                                        ok = False
+                                        break
+                                    if hi_n is not None and nv > hi_n:
+                                        ok = False
+                                        break
                         if ok:
                             contract_passed += 1
     total_checks += contract_total

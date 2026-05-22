@@ -116,7 +116,10 @@ def evaluate_contract_checks(
     so the JSONL artifact + audit ledger entries are reproducible across
     runs. Defaults to "now" for ad-hoc callers (tests, dashboard).
     """
-    if not rows or not checks:
+    if not checks:
+        # No declared checks → nothing to evaluate at all. Empty `rows`
+        # alone is NOT a short-circuit: a malformed spec must surface
+        # even on an empty feed (codex review B1 pass 9).
         return []
 
     timestamp = at if at is not None else datetime.now(tz=timezone.utc)
@@ -303,11 +306,20 @@ def _eval_enum(
     """Flag any row whose value for `column` is not in `allowed`.
 
     Missing keys / None are SKIPPED — absence is `not_null`'s job, not
-    enum's. `allowed` must be a list/tuple; if the spec carries a
-    non-iterable, the whole check is skipped (forward-compat).
+    enum's. `allowed` must be a list/tuple; a non-list allow-list is
+    a spec typo and surfaces as a `malformed_check` event so the
+    misuse isn't a silent compliance gap (codex B1 pass 9).
     """
     if not isinstance(allowed, (list, tuple)):
-        return []
+        return [
+            _malformed_check_exception(
+                contract_id,
+                f"enum:{column}",
+                allowed,
+                at,
+                expected="list of allowed values",
+            )
+        ]
     allowed_set = list(allowed)  # preserve list semantics for reason text
     out: list[DQException] = []
     for idx, row in enumerate(rows):
@@ -356,13 +368,31 @@ def _eval_regex(
     a stray int in a regex-checked column is a defect worth surfacing).
     """
     if not isinstance(pattern, str):
-        return []
+        return [
+            _malformed_check_exception(
+                contract_id,
+                f"regex:{column}",
+                pattern,
+                at,
+                expected="regex pattern string",
+            )
+        ]
     try:
         compiled = re.compile(pattern)
     except re.error:
-        # Malformed pattern in spec — skip silently rather than crash the
-        # whole run. Spec-loader-side validation is a separate concern.
-        return []
+        # Malformed pattern in spec — surface as a `malformed_check`
+        # event rather than crash the whole run. Spec-loader-side
+        # validation is a separate concern, but the audit ledger must
+        # at least record the silent disablement (codex B1 pass 9).
+        return [
+            _malformed_check_exception(
+                contract_id,
+                f"regex:{column}",
+                pattern,
+                at,
+                expected="valid Python regex pattern",
+            )
+        ]
     out: list[DQException] = []
     for idx, row in enumerate(rows):
         if column not in row:
@@ -461,12 +491,35 @@ def _eval_range(
     monetary amount as `non-numeric` in real runs.
     """
     if not isinstance(bounds, dict):
-        return []
-    lo = _coerce_bound(bounds.get("min"))
-    hi = _coerce_bound(bounds.get("max"))
-    # If neither bound resolves to a usable number the check is a no-op.
+        return [
+            _malformed_check_exception(
+                contract_id,
+                f"range:{column}",
+                bounds,
+                at,
+                expected="dict with optional 'min' / 'max' numeric bounds",
+            )
+        ]
+    raw_lo = bounds.get("min")
+    raw_hi = bounds.get("max")
+    lo = _coerce_bound(raw_lo)
+    hi = _coerce_bound(raw_hi)
+    # Surface the inner-spec malformed case: at least one bound was
+    # declared but neither coerces. A truly bound-less `range: {}`
+    # (`raw_lo is None and raw_hi is None`) is still a silent no-op
+    # — there's nothing to check (codex B1 pass 9).
     if lo is None and hi is None:
-        return []
+        if raw_lo is None and raw_hi is None:
+            return []
+        return [
+            _malformed_check_exception(
+                contract_id,
+                f"range:{column}",
+                bounds,
+                at,
+                expected="at least one finite numeric bound (min and/or max)",
+            )
+        ]
     out: list[DQException] = []
     for idx, row in enumerate(rows):
         if column not in row:
