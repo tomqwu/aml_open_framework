@@ -147,6 +147,12 @@ Interactive threshold what-if analysis. Select an `aggregation_window` rule, adj
 
 ![Rule Tuning](screenshots/16_rule_tuning.png)
 
+### Anomaly Discovery
+
+Unsupervised population z-score surface (PR-E5). Per customer, scores five simple transaction features (count, sum amount, average amount, distinct counterparties, cross-border ratio) against the run population; the anomaly score is the max absolute z across available features. The top-20 table flags whether each customer is already caught by a spec rule — the "no" rows are the discovery candidates the deterministic rules don't catch yet. Deliberately a simple baseline (numpy + pandas only); richer methods (Isolation Forest, LOF, autoencoder) are deferred to a future ML model with its own model-risk lifecycle. Pillar-7 (DS as governed augmentation) — the governed rules stay the baseline, this surface only suggests candidates for a detection author to triage. Routed universally — every persona sees it, same idiom as the Knowledge shelf.
+
+_Screenshot: pending — see follow-up._
+
 ### Spec Editor & Rule Builder
 
 Edit the AML spec YAML in-browser with live validation. The interactive **Rule Builder** generates YAML snippets for all 4 rule types (`aggregation_window`, `custom_sql`, `list_match`, `python_ref`) — configure fields, thresholds, and escalation targets through a form UI.
@@ -305,7 +311,11 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
+<<<<<<< HEAD
 The 45 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
+=======
+The 44 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
+>>>>>>> ea42e35 (feat(dashboard): PR-E5 — anomaly discovery surface (closes #382))
 
 | Persona | Primary pages |
 |---|---|

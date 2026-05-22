@@ -150,21 +150,19 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             # with the rest of the dashboard.
             url_path="FP_Analysis",
         ),
-        # PR-A4 (#365) — rule lifecycle dashboard + approval-workflow
-        # placeholder. Lives in Detection & Tuning because the closest
-        # sibling pages (Rule Performance, Spec Editor, Tuning Lab) are
-        # the surfaces a reviewer crosses-back-and-forth with, even
-        # though governance is cross-cutting. Universally routed via
-        # LIFECYCLE_PAGES (same idiom as North-Star / Knowledge / FP
-        # Analysis) so every persona keeps visibility without burning a
-        # slot in AUDIENCE_PAGES (MAX_PAGES_PER_PERSONA=9 preserved).
-        # URL slug pinned to match the title-derived form the e2e
-        # helper uses.
+        # PR-A4 (#365) — rule lifecycle dashboard.
         st.Page(
             "pages/51_Rule_Lifecycle.py",
             title="Rule Lifecycle",
             icon=":material/account_tree:",
             url_path="Rule_Lifecycle",
+        ),
+        # PR-E5 (closes #382): anomaly discovery surface.
+        st.Page(
+            "pages/49_Anomaly_Discovery.py",
+            title="Anomaly Discovery",
+            icon=":material/troubleshoot:",
+            url_path="Anomaly_Discovery",
         ),
     ],
     "Data": [
@@ -362,9 +360,11 @@ if selected_audience:
     # "are we honoring the 8 pillars?" surface — pitch reviewers,
     # examiners, every persona needs it. Universal same as Knowledge.
     relevant_titles.update(NORTH_STAR_PAGES)
-    # PR-E1 (#378): FP Analysis is cross-persona — analysts, MLROs,
-    # engineers, examiners, and CCOs all need to see which rules are
-    # noisiest. Universal same as North-Star / Knowledge.
+    # PR-E1 / PR-E5 (#378, #382): detection-author "discovery + tuning"
+    # surfaces — FP Analysis + Anomaly Discovery — are cross-persona;
+    # universally routed via TUNING_PAGES the same way North-Star /
+    # Knowledge are. Sibling future PRs (E-2 threshold sensitivity,
+    # E-3 drift monitor) extend the same constant.
     relevant_titles.update(TUNING_PAGES)
     # PR-A4 (#365): the Rule Lifecycle page surfaces lifecycle state
     # + the approval-workflow placeholder. Governance is cross-cutting

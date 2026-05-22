@@ -383,17 +383,19 @@ NORTH_STAR_PAGES = [
 ]
 
 
-# PR-E1 (closes #378). False-Positive Analysis is the Pillar 7
-# "DS as governed augmentation" surface — per-rule FP rate so the
-# operator can see which rules to tune first. Cross-persona: analysts,
-# MLROs, engineers, examiners, and CCOs all need it. Routed
-# UNIVERSALLY via the same idiom as NORTH_STAR_PAGES / KNOWLEDGE_PAGES
-# so the per-persona operational cap (MAX_PAGES_PER_PERSONA=9) is
-# untouched. Kept as its own constant rather than folded into an
-# existing list because it's an FP-rate synthesis page, not a static
-# knowledge brief or pillar-coverage map.
+# Detection-author "discovery + tuning" surfaces that every persona
+# benefits from regardless of the operational filter — a CCO reading
+# the board pack, an MLRO reading the program report, and the
+# detection-author all want the same view of "what's the spec missing
+# and where are we over/under-firing?". Routed UNIVERSALLY via the same
+# idiom as Today / Executive Dashboard / KNOWLEDGE_PAGES (app.py adds
+# these titles to every persona's visible set), NOT via AUDIENCE_PAGES
+# — that preserves MAX_PAGES_PER_PERSONA=9.
+# - PR-E1 (#378) added "FP Analysis"
+# - PR-E5 (#382) added "Anomaly Discovery"
 TUNING_PAGES = [
     "FP Analysis",
+    "Anomaly Discovery",
 ]
 
 
