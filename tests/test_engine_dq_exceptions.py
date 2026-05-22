@@ -111,9 +111,17 @@ class TestEvaluateContractChecksPure:
 
     def test_unknown_check_type_is_skipped_silently(self):
         # Forward-compat: spec dialect may grow new check shapes; the
-        # evaluator should not crash on `enum`/`range`/etc.
+        # evaluator should not crash on unknown keys. After PR-B1
+        # (#366) `enum` and `range` are known shapes, so we use a
+        # truly unknown key here. The inputs to the known checks are
+        # valid (value `1` is in `[1, 2]` and >= `0`) and would emit
+        # no exceptions anyway.
         rows = [{"x": 1}]
-        checks = [{"enum": {"x": [1, 2]}}, {"range": {"x": {"min": 0}}}]
+        checks = [
+            {"future_check_type_we_dont_know_yet": ["x"]},
+            {"enum": {"x": [1, 2]}},
+            {"range": {"x": {"min": 0}}},
+        ]
         assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
 
     def test_unique_ignores_nulls(self):
@@ -138,6 +146,123 @@ class TestEvaluateContractChecksPure:
         checks = [{"not_null": ["email"]}]
         excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
         assert [(e.row_index, e.failing_value) for e in excs] == [(1, None), (2, None)]
+
+    # -----------------------------------------------------------------
+    # PR-B1 (#366) — enum / regex / range validity checks
+    # -----------------------------------------------------------------
+
+    def test_enum_flags_value_not_in_list(self):
+        rows = [
+            {"currency": "USD"},
+            {"currency": "XYZ"},  # not allowed
+            {"currency": "CAD"},
+        ]
+        checks = [{"enum": {"currency": ["USD", "CAD", "EUR"]}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "enum"
+        assert exc.column == "currency"
+        assert exc.row_index == 1
+        assert exc.failing_value == "XYZ"
+        assert exc.check_id == "enum:currency"
+
+    def test_enum_passes_when_value_in_list(self):
+        rows = [{"currency": "USD"}, {"currency": "CAD"}, {"currency": "EUR"}]
+        checks = [{"enum": {"currency": ["USD", "CAD", "EUR"]}}]
+        assert evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF) == []
+
+    def test_enum_skips_missing_key(self):
+        # Missing key is NOT an enum violation — that's `not_null`'s job.
+        # Same posture for an explicit `None`.
+        rows = [
+            {"currency": "USD"},
+            {},  # missing entirely
+            {"currency": None},  # explicit None
+        ]
+        checks = [{"enum": {"currency": ["USD", "CAD"]}}]
+        assert evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF) == []
+
+    def test_regex_flags_pattern_mismatch(self):
+        rows = [
+            {"email": "ok@example.com"},
+            {"email": "not-an-email"},
+        ]
+        checks = [{"regex": {"email": r"^[^@]+@[^@]+\.[^@]+$"}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="customer", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "regex"
+        assert exc.column == "email"
+        assert exc.row_index == 1
+        assert exc.failing_value == "not-an-email"
+        assert exc.check_id == "regex:email"
+
+    def test_regex_uses_fullmatch_semantics(self):
+        # Partial match must FAIL — a value that satisfies `re.search`
+        # but not `re.fullmatch` is a violation. Pattern is "must be 3
+        # lowercase letters"; the second row has trailing junk that
+        # `search` would let through but `fullmatch` rejects.
+        rows = [
+            {"code": "abc"},
+            {"code": "abc-trailing-junk"},
+        ]
+        checks = [{"regex": {"code": r"[a-z]{3}"}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].row_index == 1
+        assert excs[0].failing_value == "abc-trailing-junk"
+
+    def test_range_flags_below_min(self):
+        rows = [{"amount": 50.0}, {"amount": -1.0}]
+        checks = [{"range": {"amount": {"min": 0, "max": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "range"
+        assert exc.column == "amount"
+        assert exc.row_index == 1
+        assert exc.failing_value == "-1.0"
+        assert "below min" in exc.reason
+        assert exc.check_id == "range:amount"
+
+    def test_range_flags_above_max(self):
+        rows = [{"amount": 50.0}, {"amount": 2_000_000.0}]
+        checks = [{"range": {"amount": {"min": 0, "max": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.row_index == 1
+        assert "above max" in exc.reason
+
+    def test_range_min_only_allows_above(self):
+        # `{min: 0}` means "value >= 0, no upper bound" — a very large
+        # value must pass.
+        rows = [{"amount": -5.0}, {"amount": 10.0}, {"amount": 10_000_000_000.0}]
+        checks = [{"range": {"amount": {"min": 0}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].row_index == 0  # only the negative violates
+
+    def test_range_max_only_allows_below(self):
+        # `{max: 100}` means "value <= 100, no lower bound" — a very
+        # negative value must pass.
+        rows = [{"amount": -1_000_000.0}, {"amount": 50.0}, {"amount": 1000.0}]
+        checks = [{"range": {"amount": {"max": 100}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].row_index == 2  # only the 1000.0 > 100 violates
+
+    def test_range_flags_non_numeric_value(self):
+        rows = [{"amount": 50.0}, {"amount": "not-a-number"}]
+        checks = [{"range": {"amount": {"min": 0, "max": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "range"
+        assert exc.row_index == 1
+        assert exc.failing_value == "not-a-number"
+        assert exc.reason == "non-numeric value cannot be range-checked"
 
 
 # ---------------------------------------------------------------------------
@@ -560,6 +685,170 @@ class TestEngineEmitsDQExceptions:
         ]
         for ln in dq_lines:
             assert plaintext not in ln, f"dq_exception ledger entry leaked plaintext PII: {ln}"
+
+    def test_all_five_check_types_emit_and_pin(self, tmp_path: Path):
+        """PR-B1 (#366) integration: a contract carrying all five quality_checks
+        kinds (not_null, unique, enum, regex, range) fires the expected
+        exceptions, writes them to `dq_exceptions.jsonl`, records a
+        `dq_exception` event for each in `decisions.jsonl`, and the
+        artifact digest is pinned in `manifest.json` so the new shapes
+        inherit tamper detection from PR-B4.
+        """
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="T",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="currency", type="string", nullable=False),
+                        Column(name="email", type="string", nullable=True),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                    quality_checks=[
+                        {"not_null": ["customer_id"]},
+                        {"unique": ["txn_id"]},
+                        {"enum": {"currency": ["USD", "CAD", "EUR"]}},
+                        {"regex": {"email": r"^[^@]+@[^@]+\.[^@]+$"}},
+                        {"range": {"amount": {"min": 0, "max": 1000000}}},
+                    ],
+                ),
+            ],
+            rules=[
+                Rule(
+                    id="r",
+                    name="R",
+                    severity="low",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=AggregationWindowLogic(
+                        type="aggregation_window",
+                        source="txn",
+                        group_by=["customer_id"],
+                        window="365d",
+                        having={"count": {"gte": 1}},
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        # Plant exactly one violation per check type:
+        #   row 0: clean baseline
+        #   row 1: txn_id duplicates row 0  → unique
+        #   row 2: currency "XYZ"           → enum
+        #   row 3: email "bad-email"        → regex
+        #   row 4: amount -10               → range (below min)
+        # Note: keep customer_id non-null on every row so we don't
+        # crash the warehouse build before the integration check; the
+        # not_null shape is still exercised by other tests in this file.
+        data = {
+            "txn": [
+                {
+                    "txn_id": "T1",
+                    "customer_id": "C1",
+                    "amount": 10.0,
+                    "currency": "USD",
+                    "email": "a@example.com",
+                    "booked_at": _AS_OF,
+                },
+                {
+                    "txn_id": "T1",  # duplicate → unique violation
+                    "customer_id": "C2",
+                    "amount": 20.0,
+                    "currency": "USD",
+                    "email": "b@example.com",
+                    "booked_at": _AS_OF,
+                },
+                {
+                    "txn_id": "T2",
+                    "customer_id": "C3",
+                    "amount": 30.0,
+                    "currency": "XYZ",  # enum violation
+                    "email": "c@example.com",
+                    "booked_at": _AS_OF,
+                },
+                {
+                    "txn_id": "T3",
+                    "customer_id": "C4",
+                    "amount": 40.0,
+                    "currency": "CAD",
+                    "email": "bad-email",  # regex violation
+                    "booked_at": _AS_OF,
+                },
+                {
+                    "txn_id": "T4",
+                    "customer_id": "C5",
+                    "amount": -10.0,  # range violation
+                    "currency": "EUR",
+                    "email": "e@example.com",
+                    "booked_at": _AS_OF,
+                },
+            ],
+        }
+
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        run_spec(
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=_AS_OF,
+            artifacts_root=tmp_path,
+        )
+
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+        dq_path = run_dir / "dq_exceptions.jsonl"
+        assert dq_path.exists()
+
+        lines = [ln for ln in dq_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        recs = [json.loads(ln) for ln in lines]
+        by_type = {r["check_type"] for r in recs}
+        # All four planted shapes must have fired (we deliberately kept
+        # customer_id populated so not_null wouldn't crash the warehouse;
+        # the other 4 shapes must fire).
+        assert {"unique", "enum", "regex", "range"} <= by_type, (
+            f"missing one of the planted check_type violations: got {by_type!r}"
+        )
+        # And we planted exactly one violation each.
+        assert sum(1 for r in recs if r["check_type"] == "unique") == 1
+        assert sum(1 for r in recs if r["check_type"] == "enum") == 1
+        assert sum(1 for r in recs if r["check_type"] == "regex") == 1
+        assert sum(1 for r in recs if r["check_type"] == "range") == 1
+
+        # Each emitted exception must surface as a `dq_exception` event
+        # in decisions.jsonl with matching check_type.
+        decisions = (run_dir / "decisions.jsonl").read_text(encoding="utf-8")
+        dq_events = [
+            json.loads(ln)
+            for ln in decisions.splitlines()
+            if ln.strip() and json.loads(ln).get("event") == "dq_exception"
+        ]
+        assert len(dq_events) == len(recs)
+        assert {ev["check_type"] for ev in dq_events} == by_type
+
+        # The manifest digest must pin the new artifact contents so
+        # enum/regex/range exceptions inherit tamper detection from B4.
+        import hashlib
+
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        expected = hashlib.sha256(dq_path.read_bytes()).hexdigest()
+        assert manifest["dq_exceptions_hash"] == expected
+
+        # Hash chain still valid with the new event types in the mix.
+        ok, msg = AuditLedger.verify_decisions(run_dir)
+        assert ok, f"hash chain broken with B1 check-type events: {msg}"
 
     def test_dq_exception_artifact_is_empty_for_clean_canadian_spec(self, tmp_path: Path):
         """End-to-end smoke test on the canonical demo spec: the canned

@@ -14,7 +14,7 @@ join the existing hash-chain integrity guarantee. Crucially the evaluator
 does **NOT** mutate the input rows — observability only. Warehouse row
 counts are unchanged.
 
-Supported check types in v1:
+Supported check types:
 - `not_null`: per declared column, one exception per row whose value is
   `None`. `failing_value` is `None`; `row_index` is the position of the
   offending row in the input list.
@@ -22,20 +22,34 @@ Supported check types in v1:
   (the second and later sightings of the same non-null value).
   `failing_value` is the duplicated value; `row_index` is the position
   of the duplicate occurrence.
+- `enum` (PR-B1 / #366): per declared column, one exception per row
+  whose value is present but NOT in the declared allowed-values list.
+  Missing keys / None values are skipped — `not_null` is the right check
+  for absence; enum is a validity check on values that *are* present.
+- `regex` (PR-B1 / #366): per declared column, one exception per row
+  whose value is present but does not `re.fullmatch` the declared
+  pattern. Full-match semantics so a partial match like "abc" against
+  "[a-z]" + " junk" trailing fails. Callers embed inline flags
+  (`(?i)`, `(?s)`, etc.) — no separate flag option.
+- `range` (PR-B1 / #366): per declared column, one exception per row
+  whose numeric value is outside `[min, max]`. Both bounds are
+  optional. Non-numeric values produce a `range` violation with reason
+  "non-numeric value cannot be range-checked".
 
-Other check shapes the spec allows (e.g. `enum`, `range`) are left for
-follow-up; unknown keys are silently skipped here so this evaluator stays
+Unknown check shapes are silently skipped so this evaluator stays
 forward-compatible with future quality_checks dialects.
 """
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
+from numbers import Real
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-DQCheckType = Literal["not_null", "unique"]
+DQCheckType = Literal["not_null", "unique", "enum", "regex", "range"]
 
 
 class DQException(BaseModel):
@@ -49,7 +63,7 @@ class DQException(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     contract_id: str
-    check_id: str  # synthesized: "not_null:<col>" or "unique:<col>"
+    check_id: str  # synthesized: "<check_type>:<col>" (e.g. "not_null:email")
     check_type: DQCheckType
     column: str
     failing_value: str | None = None
@@ -96,16 +110,33 @@ def evaluate_contract_checks(
 
     for qc in checks:
         for check_type, fields in qc.items():
-            if check_type not in ("not_null", "unique"):
+            if check_type in ("not_null", "unique"):
+                # Existing shape: list of column names.
+                if not isinstance(fields, list):
+                    continue
+                for column in fields:
+                    if check_type == "not_null":
+                        exceptions.extend(_eval_not_null(rows, contract_id, column, timestamp))
+                    else:
+                        exceptions.extend(_eval_unique(rows, contract_id, column, timestamp))
+            elif check_type in ("enum", "regex", "range"):
+                # PR-B1 (#366): dict-shaped checks — `{col: spec}` per
+                # declared column. `spec` is the allowed-values list
+                # (enum), the pattern string (regex), or the bounds dict
+                # (range). Anything else is skipped silently for
+                # forward-compat.
+                if not isinstance(fields, dict):
+                    continue
+                for column, spec in fields.items():
+                    if check_type == "enum":
+                        exceptions.extend(_eval_enum(rows, contract_id, column, spec, timestamp))
+                    elif check_type == "regex":
+                        exceptions.extend(_eval_regex(rows, contract_id, column, spec, timestamp))
+                    else:
+                        exceptions.extend(_eval_range(rows, contract_id, column, spec, timestamp))
+            else:
                 # Forward-compat: unknown check shape, skip silently.
                 continue
-            if not isinstance(fields, list):
-                continue
-            for column in fields:
-                if check_type == "not_null":
-                    exceptions.extend(_eval_not_null(rows, contract_id, column, timestamp))
-                elif check_type == "unique":
-                    exceptions.extend(_eval_unique(rows, contract_id, column, timestamp))
 
     return exceptions
 
@@ -174,4 +205,173 @@ def _eval_unique(
             )
         else:
             seen[value] = idx
+    return out
+
+
+def _eval_enum(
+    rows: list[dict[str, Any]],
+    contract_id: str,
+    column: str,
+    allowed: Any,
+    at: datetime,
+) -> list[DQException]:
+    """Flag any row whose value for `column` is not in `allowed`.
+
+    Missing keys / None are SKIPPED — absence is `not_null`'s job, not
+    enum's. `allowed` must be a list/tuple; if the spec carries a
+    non-iterable, the whole check is skipped (forward-compat).
+    """
+    if not isinstance(allowed, (list, tuple)):
+        return []
+    allowed_set = list(allowed)  # preserve list semantics for reason text
+    out: list[DQException] = []
+    for idx, row in enumerate(rows):
+        if column not in row:
+            continue
+        value = row[column]
+        if value is None:
+            continue
+        if value not in allowed_set:
+            out.append(
+                DQException(
+                    contract_id=contract_id,
+                    check_id=f"enum:{column}",
+                    check_type="enum",
+                    column=column,
+                    failing_value=_format_value(value),
+                    row_index=idx,
+                    reason=(
+                        f"column '{column}' value {value!r} not in allowed set "
+                        f"{allowed_set!r} at row {idx}"
+                    ),
+                    at=at,
+                )
+            )
+    return out
+
+
+def _eval_regex(
+    rows: list[dict[str, Any]],
+    contract_id: str,
+    column: str,
+    pattern: Any,
+    at: datetime,
+) -> list[DQException]:
+    """Flag any row whose value for `column` does not `re.fullmatch(pattern)`.
+
+    Missing keys / None are SKIPPED — `not_null` covers absence. A
+    non-string pattern, or a value that isn't a string, is treated as
+    "cannot be regex-checked" and produces a violation only when the
+    value is present and non-string (the regex check applies to strings;
+    a stray int in a regex-checked column is a defect worth surfacing).
+    """
+    if not isinstance(pattern, str):
+        return []
+    try:
+        compiled = re.compile(pattern)
+    except re.error:
+        # Malformed pattern in spec — skip silently rather than crash the
+        # whole run. Spec-loader-side validation is a separate concern.
+        return []
+    out: list[DQException] = []
+    for idx, row in enumerate(rows):
+        if column not in row:
+            continue
+        value = row[column]
+        if value is None:
+            continue
+        if not isinstance(value, str) or compiled.fullmatch(value) is None:
+            out.append(
+                DQException(
+                    contract_id=contract_id,
+                    check_id=f"regex:{column}",
+                    check_type="regex",
+                    column=column,
+                    failing_value=_format_value(value),
+                    row_index=idx,
+                    reason=(
+                        f"column '{column}' value {value!r} does not fullmatch "
+                        f"pattern {pattern!r} at row {idx}"
+                    ),
+                    at=at,
+                )
+            )
+    return out
+
+
+def _eval_range(
+    rows: list[dict[str, Any]],
+    contract_id: str,
+    column: str,
+    bounds: Any,
+    at: datetime,
+) -> list[DQException]:
+    """Flag any row whose numeric value for `column` is outside [min, max].
+
+    Both `min` and `max` are optional — omitted means "no bound that
+    side". Missing keys / None are SKIPPED. Non-numeric values produce
+    a range violation with a "non-numeric" reason — the spec author
+    declared the column numeric-checkable, so a string there is a
+    defect worth surfacing as a DQ event.
+
+    `bool` is excluded from the numeric path on purpose: Python's
+    `isinstance(True, int)` is True, but a True/False in a numeric
+    column is almost always a contract defect, not a 1/0 to be range-
+    checked. Treat it as non-numeric so it surfaces as a violation.
+    """
+    if not isinstance(bounds, dict):
+        return []
+    lo = bounds.get("min")
+    hi = bounds.get("max")
+    # If neither bound is provided the check is a no-op; emit nothing.
+    if lo is None and hi is None:
+        return []
+    out: list[DQException] = []
+    for idx, row in enumerate(rows):
+        if column not in row:
+            continue
+        value = row[column]
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, Real):
+            out.append(
+                DQException(
+                    contract_id=contract_id,
+                    check_id=f"range:{column}",
+                    check_type="range",
+                    column=column,
+                    failing_value=_format_value(value),
+                    row_index=idx,
+                    reason="non-numeric value cannot be range-checked",
+                    at=at,
+                )
+            )
+            continue
+        if lo is not None and value < lo:
+            out.append(
+                DQException(
+                    contract_id=contract_id,
+                    check_id=f"range:{column}",
+                    check_type="range",
+                    column=column,
+                    failing_value=_format_value(value),
+                    row_index=idx,
+                    reason=(f"column '{column}' value {value!r} below min {lo!r} at row {idx}"),
+                    at=at,
+                )
+            )
+            continue
+        if hi is not None and value > hi:
+            out.append(
+                DQException(
+                    contract_id=contract_id,
+                    check_id=f"range:{column}",
+                    check_type="range",
+                    column=column,
+                    failing_value=_format_value(value),
+                    row_index=idx,
+                    reason=(f"column '{column}' value {value!r} above max {hi!r} at row {idx}"),
+                    at=at,
+                )
+            )
     return out
