@@ -289,9 +289,16 @@ for contract in spec.data_contracts:
                     contract_total += 1
                     field_values = [r[field] for r in rows if field in r and r[field] is not None]
                     if check_type == "enum":
-                        allowed = list(check_spec) if isinstance(check_spec, (list, tuple)) else []
-                        if allowed and all(v in allowed for v in field_values):
-                            contract_passed += 1
+                        # Mirror engine: empty allow-list = nothing
+                        # allowed → every present value violates →
+                        # check FAILs. Codex (B1 pass 7).
+                        if isinstance(check_spec, (list, tuple)):
+                            allowed = list(check_spec)
+                            if all(v in allowed for v in field_values):
+                                contract_passed += 1
+                        # Non-list spec is malformed; the engine returns
+                        # [] (no violations, no awards). Leave passed
+                        # unchanged so the dashboard stays consistent.
                     elif check_type == "regex":
                         import re as _re
 
@@ -309,15 +316,11 @@ for contract in spec.data_contracts:
                         lo = check_spec.get("min") if isinstance(check_spec, dict) else None
                         hi = check_spec.get("max") if isinstance(check_spec, dict) else None
 
-                        def _to_num(v):
-                            # Mirror engine `_eval_range` / `_coerce_bound`
-                            # so the integration scorecard agrees with
-                            # `dq_exceptions.jsonl`: reject bools
-                            # (a True/False in a numeric column is a
-                            # defect, not 1/0), and reject non-finite
-                            # values (NaN/Inf can't be compared).
-                            import math as _m
+                        import math as _m
 
+                        def _coerce_bound(v):
+                            # Bounds: numeric strings OK (`min: "0"`),
+                            # mirroring engine `_coerce_bound`.
                             if v is None or isinstance(v, bool):
                                 return None
                             try:
@@ -328,11 +331,29 @@ for contract in spec.data_contracts:
                                 return None
                             return f
 
-                        lo_n = _to_num(lo)
-                        hi_n = _to_num(hi)
+                        def _coerce_value(v):
+                            # Row values: strings are NOT acceptable —
+                            # engine flags them as non-numeric. Codex
+                            # (B1 pass 7).
+                            from decimal import Decimal as _Dec
+
+                            if v is None or isinstance(v, bool):
+                                return None
+                            if not isinstance(v, (int, float, _Dec)):
+                                return None
+                            try:
+                                f = float(v)
+                            except (TypeError, ValueError):
+                                return None
+                            if not _m.isfinite(f):
+                                return None
+                            return f
+
+                        lo_n = _coerce_bound(lo)
+                        hi_n = _coerce_bound(hi)
                         ok = True
                         for v in field_values:
-                            nv = _to_num(v)
+                            nv = _coerce_value(v)
                             if nv is None:
                                 ok = False
                                 break
