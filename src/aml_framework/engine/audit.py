@@ -168,6 +168,12 @@ def rule_version_hash(rule: Any) -> str:
     historical lineage diffs). Once the fields are populated, they
     are included — an authored-rationale change IS a rule_version
     change.
+
+    PR-RISK-1: same discipline for the new `risk_tier` field — excluded
+    from the hash when at its default (None) so the schema bump alone
+    doesn't churn rule_versions. Once authored, an explicit risk-tier
+    change IS a rule_version change (the alert population it implies
+    is different).
     """
     if hasattr(rule, "model_dump_json"):
         exclude_fields: set[str] = set()
@@ -175,6 +181,8 @@ def rule_version_hash(rule: Any) -> str:
             exclude_fields.add("business_intent")
         if getattr(rule, "out_of_scope", None) in (None, []):
             exclude_fields.add("out_of_scope")
+        if getattr(rule, "risk_tier", None) is None:
+            exclude_fields.add("risk_tier")
         body = rule.model_dump_json(exclude=exclude_fields).encode("utf-8")
     else:
         # Same normalization for the plain-dict path so callers that
@@ -185,6 +193,8 @@ def rule_version_hash(rule: Any) -> str:
             normalized.pop("business_intent", None)
         if normalized.get("out_of_scope") in (None, []):
             normalized.pop("out_of_scope", None)
+        if normalized.get("risk_tier") is None:
+            normalized.pop("risk_tier", None)
         body = _canonical_json(normalized)
     return _sha256(body)[:16]
 
@@ -202,6 +212,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # PR #396 (B4 / #369) — DQ exception artifact must freeze too so
     # exported DQ tables can't diverge from the hash-chained evidence.
     "dq_exceptions.jsonl",
+    # PR-A3 (#364) — field lineage artifact must freeze too so a
+    # regulator can verify the alert→source-column map hasn't been
+    # tampered with post-finalization.
+    "field_lineage.jsonl",
 )
 
 
@@ -479,6 +493,14 @@ class AuditLedger:
         dq_path = self.run_dir / "dq_exceptions.jsonl"
         dq_exceptions_hash = _sha256(dq_path.read_bytes()) if dq_path.exists() else None
 
+        # PR-A3 (#364): same posture for `field_lineage.jsonl` — the
+        # alert→source-column mapping is regulator-facing evidence; the
+        # hash pinned here is what `verify_decisions()`-style callers
+        # compare against to detect post-finalize tampering. File always
+        # exists post-runner (possibly empty); guarded for older runs.
+        lineage_path = self.run_dir / "field_lineage.jsonl"
+        field_lineage_hash = _sha256(lineage_path.read_bytes()) if lineage_path.exists() else None
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -489,6 +511,7 @@ class AuditLedger:
             "rule_outputs": self.rule_outputs,
             "decisions_hash": decisions_hash,
             "dq_exceptions_hash": dq_exceptions_hash,
+            "field_lineage_hash": field_lineage_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         (self.run_dir / "manifest.json").write_bytes(
