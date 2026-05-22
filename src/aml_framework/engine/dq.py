@@ -36,8 +36,14 @@ Supported check types:
   optional. Non-numeric values produce a `range` violation with reason
   "non-numeric value cannot be range-checked".
 
-Unknown check shapes are silently skipped so this evaluator stays
-forward-compatible with future quality_checks dialects.
+A `malformed_check` synthetic check_type fires when a KNOWN check
+type carries the wrong value shape (e.g. `enum: ["currency"]` instead
+of `enum: {currency: [...]}`). `quality_checks` is currently untyped
+in both the JSON Schema and the Pydantic model, so the misuse passes
+`aml validate` cleanly — without this signal a typo would silently
+disable a compliance check. Codex review (B1 pass 8). Truly unknown
+check_types stay a silent skip for forward-compat with future
+dialects.
 """
 
 from __future__ import annotations
@@ -57,7 +63,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # a numeric column is almost certainly a defect.
 _NUMERIC_TYPES = (int, float, Decimal)
 
-DQCheckType = Literal["not_null", "unique", "enum", "regex", "range"]
+DQCheckType = Literal["not_null", "unique", "enum", "regex", "range", "malformed_check"]
 
 
 class DQException(BaseModel):
@@ -121,6 +127,20 @@ def evaluate_contract_checks(
             if check_type in ("not_null", "unique"):
                 # Existing shape: list of column names.
                 if not isinstance(fields, list):
+                    # Fail closed (B1 codex pass 8): a known check_type
+                    # with a wrong-shaped value would otherwise be a
+                    # silently-ignored compliance check. Emit a
+                    # malformed-spec DQ exception so the audit ledger
+                    # records the missed coverage.
+                    exceptions.append(
+                        _malformed_check_exception(
+                            contract_id,
+                            check_type,
+                            fields,
+                            timestamp,
+                            expected="list of column names",
+                        )
+                    )
                     continue
                 for column in fields:
                     if check_type == "not_null":
@@ -131,9 +151,20 @@ def evaluate_contract_checks(
                 # PR-B1 (#366): dict-shaped checks — `{col: spec}` per
                 # declared column. `spec` is the allowed-values list
                 # (enum), the pattern string (regex), or the bounds dict
-                # (range). Anything else is skipped silently for
-                # forward-compat.
+                # (range).
                 if not isinstance(fields, dict):
+                    # Same fail-closed posture: a spec carrying
+                    # `enum: [currency]` (list, not dict) would silently
+                    # do nothing. Surface it as a malformed-spec event.
+                    exceptions.append(
+                        _malformed_check_exception(
+                            contract_id,
+                            check_type,
+                            fields,
+                            timestamp,
+                            expected="dict of {column: check_spec}",
+                        )
+                    )
                     continue
                 for column, spec in fields.items():
                     if check_type == "enum":
@@ -143,10 +174,56 @@ def evaluate_contract_checks(
                     else:
                         exceptions.extend(_eval_range(rows, contract_id, column, spec, timestamp))
             else:
-                # Forward-compat: unknown check shape, skip silently.
+                # Forward-compat: unknown check shape (a future dialect)
+                # stays a silent skip — only KNOWN types fail closed.
                 continue
 
     return exceptions
+
+
+def _malformed_check_exception(
+    contract_id: str,
+    check_type: str,
+    fields: Any,
+    at: datetime,
+    *,
+    expected: str,
+) -> DQException:
+    """Build a DQ exception for a known check_type with a wrong-shaped value.
+
+    Codex review (B1 pass 8): `quality_checks` is untyped in the JSON
+    Schema and Pydantic, so a spec like `quality_checks: [{enum: [currency]}]`
+    (list where the engine expects a dict) survives `aml validate`. Without
+    this signal the misuse silently disables a compliance check. Emitting a
+    `dq_exception` with `check_type="malformed_check"` and a synthetic
+    `check_id` keeps the malfeasance visible in `dq_exceptions.jsonl`,
+    `decisions.jsonl`, and the manifest hash chain.
+
+    `row_index` is `None` because the violation is about the spec, not a row.
+    The actual `check_type` (enum/regex/range/etc.) is encoded into `column`
+    and `reason` so consumers can attribute it without us having to widen
+    the `DQCheckType` Literal.
+    """
+    # `failing_value` summarises the offending shape — class name + length
+    # hint where it helps. Do NOT include the raw `fields` value: it may
+    # contain plaintext that hasn't been masked (column names declared
+    # `pii: true` would still surface here).
+    shape_hint = type(fields).__name__
+    if isinstance(fields, (list, tuple, dict, set)):
+        shape_hint = f"{shape_hint}(len={len(fields)})"
+    return DQException(
+        contract_id=contract_id,
+        check_id=f"malformed_check:{check_type}",
+        check_type="malformed_check",
+        column=check_type,
+        failing_value=shape_hint,
+        row_index=None,
+        reason=(
+            f"malformed quality_check: '{check_type}' expects {expected}, "
+            f"got {shape_hint} — check is silently disabled until fixed"
+        ),
+        at=at,
+    )
 
 
 def _eval_not_null(

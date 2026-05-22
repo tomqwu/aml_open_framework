@@ -378,6 +378,52 @@ class TestEvaluateContractChecksPure:
         # no-op (lo and hi both None after coercion).
         assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
 
+    def test_malformed_enum_shape_emits_dq_exception(self):
+        # `quality_checks: [{enum: [currency]}]` is a real footgun:
+        # spec author meant `{enum: {currency: [...]}}`. The list shape
+        # would silently disable the enum check. Engine must surface it
+        # as a `malformed_check` DQ exception so the audit ledger
+        # records the missed coverage. Codex review (B1 pass 8).
+        rows = [{"currency": "USD"}, {"currency": "XYZ"}]
+        # WRONG: enum value is a list (should be a dict).
+        checks = [{"enum": ["currency"]}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "malformed_check"
+        assert exc.check_id == "malformed_check:enum"
+        assert exc.column == "enum"
+        assert exc.row_index is None
+        assert "malformed" in exc.reason
+        assert "enum" in exc.reason
+
+    def test_malformed_not_null_shape_emits_dq_exception(self):
+        # `quality_checks: [{not_null: {email: True}}]` — meant a list.
+        rows = [{"email": None}, {"email": "a@example.com"}]
+        checks = [{"not_null": {"email": True}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "malformed_check"
+        assert exc.check_id == "malformed_check:not_null"
+
+    def test_malformed_range_shape_emits_dq_exception(self):
+        # `quality_checks: [{range: ["amount"]}]` — meant a dict.
+        rows = [{"amount": -5}, {"amount": 1_000_000_000}]
+        checks = [{"range": ["amount"]}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:range"
+
+    def test_truly_unknown_check_type_still_silently_skipped(self):
+        # A check_type the engine doesn't recognise (future dialect)
+        # stays a silent skip — only KNOWN-but-malformed shapes fail
+        # closed. Codex review (B1 pass 8) confirms this posture.
+        rows = [{"x": 1}]
+        checks = [{"some_future_check": ["x"]}]
+        assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
+
     def test_range_handles_nan_and_infinity_without_crashing(self):
         # `float('nan')` and `Decimal('NaN')` pass the type guard but
         # raise `decimal.InvalidOperation` on `<`/`>` — that would abort
