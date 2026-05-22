@@ -147,6 +147,12 @@ Interactive threshold what-if analysis. Select an `aggregation_window` rule, adj
 
 ![Rule Tuning](screenshots/16_rule_tuning.png)
 
+### Threshold Sensitivity
+
+Per-rule sweep curves at a glance — every `aggregation_window` rule with a numeric `having` threshold gets a small chart showing alert volume at {0.5, 0.75, 1.0, 1.25, 1.5, 2.0} × the spec value (PR-E2). The KPI strip flags **high-sensitivity** rules (≥50% alert-volume change at ±25% of spec). Complements Tuning Lab (interactive sweep + scoring) and Rule Tuning (slider what-if) by answering "which rules should I tune first?" across the full spec in one view. Read-only synthesis — no engine call beyond the inline sweep, no spec write, no audit-ledger event. Routed universally — every persona sees it, same idiom as the North-Star and Knowledge surfaces.
+
+_Screenshot: pending — see follow-up._
+
 ### Spec Editor & Rule Builder
 
 Edit the AML spec YAML in-browser with live validation. The interactive **Rule Builder** generates YAML snippets for all 4 rule types (`aggregation_window`, `custom_sql`, `list_match`, `python_ref`) — configure fields, thresholds, and escalation targets through a form UI.

@@ -383,17 +383,22 @@ NORTH_STAR_PAGES = [
 ]
 
 
-# PR-E1 (closes #378). False-Positive Analysis is the Pillar 7
-# "DS as governed augmentation" surface — per-rule FP rate so the
-# operator can see which rules to tune first. Cross-persona: analysts,
-# MLROs, engineers, examiners, and CCOs all need it. Routed
-# UNIVERSALLY via the same idiom as NORTH_STAR_PAGES / KNOWLEDGE_PAGES
-# so the per-persona operational cap (MAX_PAGES_PER_PERSONA=9) is
-# untouched. Kept as its own constant rather than folded into an
-# existing list because it's an FP-rate synthesis page, not a static
-# knowledge brief or pillar-coverage map.
+# PR-E1 (closes #378) + PR-E2 (closes #379). Cross-persona tuning
+# surfaces under the Pillar 7 ("DS as governed augmentation") theme:
+#   - False-Positive Analysis (PR-E1) — per-rule FP rate so the
+#     operator can see which rules to tune first.
+#   - Threshold Sensitivity (PR-E2) — per-rule sweep curves at a
+#     glance, with the spec value pinned and high-sensitivity rules
+#     flagged.
+# Both are cross-persona (analysts, MLROs, engineers, examiners,
+# CCOs all consult them). Routed UNIVERSALLY via the same idiom as
+# NORTH_STAR_PAGES / KNOWLEDGE_PAGES so the per-persona operational
+# cap (MAX_PAGES_PER_PERSONA=9) is untouched. Kept as their own
+# constant rather than folded into an existing list because they're
+# live-run tuning surfaces, not static knowledge briefs.
 TUNING_PAGES = [
     "FP Analysis",
+    "Threshold Sensitivity",
 ]
 
 
