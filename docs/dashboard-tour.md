@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **43 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **44 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 The final ten pages form the **Knowledge** reference shelf — the merged GitHub-Pages knowledge site, ported native (PR-U2 ported 8 Research whitepapers; PR-U3 added the Business + Technical decks with their walkthrough videos — both PRs of the unified-product epic). They carry no engine coupling; every persona keeps access to them regardless of the audience filter.
 
@@ -192,6 +192,10 @@ Network-pattern alerts get an explainability surface: the matched subgraph rende
 ### Tuning Lab
 
 Pareto-frontier exploration of rule threshold combinations. Loads labelled historical alerts, sweeps thresholds across the spec's `tuning_grid`, and plots true-positive rate × false-positive rate. Used to defend threshold choices in model risk management reviews.
+
+### FP Analysis
+
+Per-rule false-positive rate (`closed_no_action ÷ total cases`) derived at render time from the cached `df_cases`. High-FP rules above 70% surface as a coloured callout at the top with a Tuning Lab cross-link; the per-rule table is sortable on the numeric `fp_rate_pct` column so AG Grid orders worst-offenders first. Filing queues are derived from the live spec workflow (any `regulator_form`-bearing queue counts as escalated), so custom STR/SAR/CTR queue ids classify correctly. The Pillar 7 ("DS as governed augmentation") surface that the North-Star coverage page flags as missing. PR-E1 (closes #378). Universally routed — every persona sees it.
 
 ---
 

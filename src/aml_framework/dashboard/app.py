@@ -9,6 +9,7 @@ from aml_framework.dashboard.audience import (
     KNOWLEDGE_PAGES,
     NORTH_STAR_PAGES,
     PERSONA_LABELS,
+    TUNING_PAGES,
     persona_description,
 )
 from aml_framework.dashboard.components import apply_theme
@@ -134,6 +135,20 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             icon=":material/science:",
         ),
         st.Page("pages/20_Spec_Editor.py", title="Spec Editor", icon=":material/edit_note:"),
+        # PR-E1 (closes #378): false-positive analysis surface. Sits
+        # in Detection & Tuning next to Rule Tuning / Tuning Lab /
+        # Rule Performance — the engineer's tuning lane — even though
+        # it's universally routed (every persona sees it via
+        # TUNING_PAGES, same idiom as NORTH_STAR_PAGES / KNOWLEDGE).
+        st.Page(
+            "pages/45_FP_Analysis.py",
+            title="FP Analysis",
+            icon=":material/troubleshoot:",
+            # Pin URL to the title-derived slug (replace spaces with
+            # underscore) so direct/bookmarked nav stays consistent
+            # with the rest of the dashboard.
+            url_path="FP_Analysis",
+        ),
     ],
     "Data": [
         # Data engineer + auditor lane (introduced in PR-DATAVIZ-1
@@ -330,6 +345,10 @@ if selected_audience:
     # "are we honoring the 8 pillars?" surface — pitch reviewers,
     # examiners, every persona needs it. Universal same as Knowledge.
     relevant_titles.update(NORTH_STAR_PAGES)
+    # PR-E1 (#378): FP Analysis is cross-persona — analysts, MLROs,
+    # engineers, examiners, and CCOs all need to see which rules are
+    # noisiest. Universal same as North-Star / Knowledge.
+    relevant_titles.update(TUNING_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()

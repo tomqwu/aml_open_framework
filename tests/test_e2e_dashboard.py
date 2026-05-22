@@ -73,6 +73,8 @@ PAGES = [
     "Technical Deck",
     # PR-NS-1: north-star pillar coverage (universal, like Knowledge).
     "North-Star Pillar Coverage",
+    # PR-E1: false-positive analysis (universal, like Knowledge).
+    "FP Analysis",
 ]
 
 
@@ -198,6 +200,7 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Model Performance": "Detection & Tuning",
     "Tuning Lab": "Detection & Tuning",
     "Spec Editor": "Detection & Tuning",
+    "FP Analysis": "Detection & Tuning",
     "Data Integration": "Data",
     "Data Quality": "Data",
     "Customer 360": "Data",
