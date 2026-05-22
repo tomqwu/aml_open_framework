@@ -18,10 +18,19 @@ relevant existing surfaces but does NOT claim coverage we don't have.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header, section_explainer
+from aml_framework.dashboard.audience import MAX_PAGES_PER_PERSONA, PERSONA_LABELS
+from aml_framework.dashboard.components import link_to_page, page_header, section_explainer
 from aml_framework.dashboard.state import ensure_initialized
+
+# Derive surface counts from the live registry so the pillar-5 evidence
+# card never drifts when a persona is added or a page is registered.
+_PERSONA_COUNT = len(PERSONA_LABELS)
+_APP_PY = Path(__file__).resolve().parents[1] / "app.py"
+_PAGE_COUNT = _APP_PY.read_text().count("st.Page(")
 
 ensure_initialized()
 
@@ -132,16 +141,13 @@ def _render_pillar(
         if links:
             st.markdown("**See it in action**")
             for title, path in links:
-                # `st.page_link` renders a real nav link inside Streamlit
-                # so the user lands on the page with all routing /
-                # session-state intact (no full-reload, no slug guessing).
-                try:
-                    st.page_link(path, label=title, icon=":material/arrow_forward:")
-                except Exception:
-                    # Defensive fallback — if Streamlit ever rejects the
-                    # page path (e.g. page renamed), don't crash the
-                    # coverage page, just render a caption.
-                    st.caption(f"→ {title} (`{path}`)")
+                # Route through the shared helper so persona-filtered
+                # targets (e.g. Run History, Data Integration, Lineage
+                # Explorer that aren't in every persona's AUDIENCE_PAGES
+                # set) degrade to a "switch persona" caption instead of
+                # raising StreamlitPageNotFoundError. See issue #69 +
+                # `link_to_page` in `components.py`.
+                link_to_page(path, title)
 
 
 # ---------------------------------------------------------------------------
@@ -192,8 +198,11 @@ _render_pillar(
 # reconciliation, run logs, defect tickets, approvals, rule-version
 # history, supporting records by design."
 #
-# Classification: COVERED. The audit ledger + regulator pack are first-
-# class artefacts in every run.
+# Classification: PARTIAL. The audit ledger + regulator pack are first-
+# class artefacts in every run. The definition also names defect tickets
+# + approvals — those are not yet a first-class spec concept (see the
+# pillar-4 "Missing" line below), so this pillar is honestly PARTIAL,
+# not COVERED.
 # ---------------------------------------------------------------------------
 _render_pillar(
     number=2,
@@ -204,18 +213,22 @@ _render_pillar(
         "run logs, defect tickets, approvals, rule-version history, and "
         "supporting records by design."
     ),
-    status="COVERED",
+    status="PARTIAL",
     evidence=[
-        f"**Audit ledger** — {_decision_count} decisions on this run's "
+        f"**In:** audit ledger — {_decision_count} decisions on this run's "
         "append-only `decisions.jsonl` hash chain (SHA-256, tamper-detected "
         "by `AuditLedger.verify_decisions()`).",
-        "**Regulator-ready ZIP bundle** — `export.py` ships every run as a "
-        "single examiner artefact (spec snapshot, alerts, cases, metrics, "
+        "**In:** regulator-ready ZIP bundle — `export.py` ships every run as "
+        "a single examiner artefact (spec snapshot, alerts, cases, metrics, "
         "decisions ledger, run manifest).",
-        f"**Run manifest** — {_rule_count} rules + {_metric_count} metrics "
+        f"**In:** run manifest — {_rule_count} rules + {_metric_count} metrics "
         "captured with spec hash, seed, as-of timestamp, data source "
         "fingerprint — surfaced on the Audit & Evidence and Lineage "
         "Explorer pages.",
+        "**Missing:** defect tickets + approvals as first-class spec "
+        "artefacts (severity model, owner, aging, lifecycle). Today, DQ "
+        "and rule failures surface as gauges/alerts rather than tracked "
+        "defects — overlaps with the pillar-4 defect-model gap below.",
     ],
     links=[
         ("Audit & Evidence — replay + chain verification", "pages/7_Audit_Evidence.py"),
@@ -304,8 +317,13 @@ _render_pillar(
 # Memory: "risk attributes drive scenario eligibility, thresholds,
 # alert priority, case routing — not decorative metadata."
 #
-# Classification: COVERED. Risk Assessment page + the per-rule risk
-# tags in the spec drive case routing and alert priority.
+# Classification: PARTIAL. Risk Assessment page + per-rule severity/
+# escalate_to drive priority + case routing, and tags are present.
+# What's still missing: a first-class `risk_tier` / `risk_rating` Rule
+# attribute that the engine consults (today the priority signal is
+# `severity` and the routing target is `escalate_to`, not a risk
+# attribute), and customer-segment risk attributes driving scenario
+# eligibility at engine time.
 # ---------------------------------------------------------------------------
 _render_pillar(
     number=5,
@@ -314,15 +332,19 @@ _render_pillar(
         "Risk attributes drive scenario eligibility, thresholds, alert "
         "priority, and case routing — not decorative metadata."
     ),
-    status="COVERED",
+    status="PARTIAL",
     evidence=[
-        f"**In:** {_rule_count} rules carry risk tags driving alert "
-        "priority on the Alert Queue and routing on My Queue / Analyst "
-        "Review Queue.",
-        "**In:** Risk Assessment page maps customer-segment exposure to "
-        "scenario eligibility per the spec's risk attributes.",
+        f"**In:** {_rule_count} rules each declare `severity` + "
+        "`escalate_to` — Alert Queue orders by severity, cases route to "
+        "the named queue via `_build_case()`.",
+        "**In:** Risk Assessment page surfaces customer-segment exposure "
+        "and the typology-vs-rule coverage matrix.",
         "**In:** Typology Catalogue cross-references each typology to its "
-        "risk-rated detection rule(s).",
+        "detection rule(s).",
+        "**Missing:** a first-class `risk_tier` / `risk_rating` Rule "
+        "attribute (today the priority signal is `severity` and routing "
+        "is `escalate_to`, not a risk attribute), and customer-segment "
+        "risk attributes driving scenario eligibility at engine time.",
     ],
     links=[
         ("Risk Assessment — exposure → scenario eligibility", "pages/6_Risk_Assessment.py"),
@@ -337,10 +359,12 @@ _render_pillar(
 # explain the trigger (window, threshold, segment, rule version,
 # reference-data version, supporting txns)."
 #
-# Classification: COVERED. The Case Investigation page's "Why this
-# fired" panel + the Lineage Explorer walk-back provide
-# rule-version + window + supporting-txns explanation; Investigations
-# carries case routing through escalation.
+# Classification: PARTIAL. Lineage Explorer + Investigations carry
+# strong rule-version + escalation evidence per alert; aggregation_window
+# alerts carry their window + aggregate values. What's not yet first-
+# class on the alert payload itself: a uniform `threshold` +
+# `reference_data_version` schema across all 4 rule shapes (custom_sql /
+# python_ref produce arbitrary payloads today).
 # ---------------------------------------------------------------------------
 _render_pillar(
     number=6,
@@ -350,18 +374,23 @@ _render_pillar(
         "the trigger (window, threshold, segment, rule version, "
         "reference-data version, supporting transactions)."
     ),
-    status="COVERED",
+    status="PARTIAL",
     evidence=[
         f"**In:** every alert on this run ({_alert_count} total) carries "
-        "its rule_id, threshold, window, and supporting-txn references "
-        "from the engine — visible on Case Investigation's 'Why this "
-        "fired' panel.",
+        "its `rule_id`; the run-manifest pins the `spec_content_hash` so "
+        "the rule version is reproducible audit-side. "
+        "`aggregation_window` alerts also carry window bounds + aggregate "
+        "values on the payload itself.",
         "**In:** Lineage Explorer (PR-LIN) walks source row → SQL query → "
-        f"alert → case, with rule version + spec hash pinned. {_case_count} "
-        "cases in scope on this run.",
+        f"alert → case. {_case_count} cases in scope on this run.",
         "**In:** Investigations page carries the L1 → L2 → MLRO escalation "
         "lifecycle; STR narrative generator pre-attaches the trigger "
         "evidence.",
+        "**Missing:** a uniform `threshold` + `reference_data_version` "
+        "schema on every alert payload across all 4 rule shapes — "
+        "`custom_sql` and `python_ref` rules emit arbitrary payloads "
+        "today, so the 'why this fired' panel reads them best-effort "
+        "rather than from a typed contract.",
     ],
     links=[
         ("Case Investigation — 'Why this fired' panel", "pages/4_Case_Investigation.py"),
@@ -435,13 +464,13 @@ _render_pillar(
     ),
     status="COVERED",
     evidence=[
-        "**In:** `audience.py` carries 14 personas with curated page "
-        "arcs — all five north-star roles plus operational personas "
+        f"**In:** `audience.py` carries {_PERSONA_COUNT} personas with curated "
+        "page arcs — all five north-star roles plus operational personas "
         "(analyst / manager / director / CCO / VP / SVP / CTO / PM / "
-        "auditor / business / FinTech MLRO).",
-        "**In:** per-persona cap of 9 pages enforced "
+        "auditor / business / FinTech MLRO / Data Engineer).",
+        f"**In:** per-persona cap of {MAX_PAGES_PER_PERSONA} pages enforced "
         "(`MAX_PAGES_PER_PERSONA`) — the sidebar self-curates so no role "
-        "sees the full 40-page surface.",
+        f"sees the full {_PAGE_COUNT}-page surface.",
         "**In:** persona selector + one-line role description in the "
         "sidebar lets a leader self-identify by title (CCO / MLRO / "
         "Director of Financial Crime / Data Engineer / Head of Data) "
@@ -463,9 +492,9 @@ st.markdown("### Coverage roll-up")
 
 col_a, col_b, col_c = st.columns(3)
 with col_a:
-    st.metric("Covered", "4", help="Pillars 2, 5, 6, 8")
+    st.metric("Covered", "1", help="Pillar 8")
 with col_b:
-    st.metric("Partial", "3", help="Pillars 3, 4, 7")
+    st.metric("Partial", "6", help="Pillars 2, 3, 4, 5, 6, 7")
 with col_c:
     st.metric("Gap", "1", help="Pillar 1 — equivalence engine ships in PR-EQ-2")
 

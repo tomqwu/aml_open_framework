@@ -190,6 +190,10 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             "pages/43_North_Star_Coverage.py",
             title="North-Star Pillar Coverage",
             icon=":material/explore:",
+            # Pin URL to match title-derived slug (`replace(' ', '_')`)
+            # so direct/bookmarked nav stays consistent with the rest of
+            # the dashboard. Same idiom as the Knowledge pages above.
+            url_path="North-Star_Pillar_Coverage",
         ),
     ],
     "Audit & Reference": [

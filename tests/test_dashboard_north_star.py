@@ -149,7 +149,6 @@ class TestPillarCoverage:
             f"expected 8 `_render_pillar(number=...)` call sites "
             f"(one per pillar), got {len(slices) - 1}"
         )
-        page_link_re = re.compile(r"st\.page_link\(")
         for idx, segment in enumerate(slices[1:], start=1):
             # Each card defines its links inline as a `links=[...]`
             # list of (title, "pages/...") tuples. Check the segment
@@ -159,10 +158,16 @@ class TestPillarCoverage:
                 f"pillar #{idx} ({PILLAR_NAMES[idx - 1]}) card has no "
                 f"pages/<N>_...py link — prose-only cards are not allowed"
             )
-        # Belt-and-suspenders: the page calls `st.page_link` at least
-        # once (the rendering call site) to actually render the links.
-        assert page_link_re.search(body), (
-            "page declares pages/ link literals but never calls st.page_link — links won't render"
+        # Belt-and-suspenders: the page invokes a Streamlit link
+        # renderer at least once. Either the bare `st.page_link(` or
+        # the shared `link_to_page(` helper (which wraps `st.page_link`
+        # and gracefully degrades when a target is persona-hidden) is
+        # acceptable — the latter is preferred for cross-page navigation
+        # on universal pages.
+        link_call_re = re.compile(r"st\.page_link\(|link_to_page\(")
+        assert link_call_re.search(body), (
+            "page declares pages/ link literals but never calls a link "
+            "renderer (`st.page_link` or `link_to_page`) — links won't render"
         )
 
     def test_status_classifications_named_explicitly(self):

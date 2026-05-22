@@ -71,6 +71,8 @@ PAGES = [
     # PR-U3: the 2 deck pages (board-pack business + technical CLI).
     "Business Deck",
     "Technical Deck",
+    # PR-NS-1: north-star pillar coverage (universal, like Knowledge).
+    "North-Star Pillar Coverage",
 ]
 
 
