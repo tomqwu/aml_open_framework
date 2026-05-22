@@ -201,6 +201,64 @@ def test_st_stop_is_preceded_by_page_footer(page_file: Path) -> None:
     )
 
 
+def test_empty_state_helper_renders_footer_before_stop() -> None:
+    """`empty_state(stop=True)` must call `page_footer()` before
+    `st.stop()` so helper-driven empty-state paths (e.g. Lineage
+    Explorer / Information Sharing on direct visit without
+    `case_id`) don't skip the bottom-page affordance.
+
+    Codex pass 2 on PR #398. The bare `st.stop()` guard above
+    misses this because the stop call lives inside the helper,
+    not the page.
+    """
+    components_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "aml_framework"
+        / "dashboard"
+        / "components.py"
+    )
+    src = components_path.read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    target: ast.FunctionDef | None = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "empty_state":
+            target = node
+            break
+    assert target is not None, "expected to find `empty_state` in components.py"
+    # Walk the function body, find the `if stop:` block and assert
+    # that inside it, `page_footer()` appears before `st.stop()`.
+    if_blocks = [n for n in target.body if isinstance(n, ast.If)]
+    stop_branch: list[ast.stmt] | None = None
+    for if_node in if_blocks:
+        # `if stop:` test is a bare Name reference.
+        if isinstance(if_node.test, ast.Name) and if_node.test.id == "stop":
+            stop_branch = if_node.body
+            break
+    assert stop_branch is not None, "expected `if stop:` branch in empty_state"
+    # Find page_footer + st.stop indices in the branch.
+    pf_idx: int | None = None
+    stop_idx: int | None = None
+    for i, stmt in enumerate(stop_branch):
+        if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+            func = stmt.value.func
+            if isinstance(func, ast.Name) and func.id == "page_footer":
+                pf_idx = i
+            elif (
+                isinstance(func, ast.Attribute)
+                and func.attr == "stop"
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "st"
+            ):
+                stop_idx = i
+    assert pf_idx is not None, "empty_state(stop=True) branch must call page_footer()"
+    assert stop_idx is not None, "empty_state(stop=True) branch must call st.stop()"
+    assert pf_idx < stop_idx, (
+        "page_footer() must appear BEFORE st.stop() in empty_state(stop=True), "
+        f"got page_footer at idx {pf_idx}, st.stop at idx {stop_idx}"
+    )
+
+
 @pytest.mark.parametrize(
     "page_file",
     _page_files(),

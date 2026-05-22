@@ -1726,6 +1726,11 @@ def empty_state(
         body += f"\n\n{detail}"
     st.info(body)
     if stop:
+        # Render the bottom-page affordance BEFORE stopping so this
+        # helper-driven empty-state path doesn't skip it (same
+        # contract the source-guard enforces on bare `st.stop()`
+        # call sites). See PR #398 + codex pass 2.
+        page_footer()
         st.stop()
 
 

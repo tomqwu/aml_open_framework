@@ -371,34 +371,34 @@ class TestAllPagesRender:
             f"[{page_title}] page_footer() did not render the 'End of page' "
             "caption — the bottom-of-page affordance is missing."
         )
-        # (b) Scroll to bottom, then measure the gap between the last
-        # block-container child's bottom and the viewport bottom.
-        browser_page.evaluate(
-            "() => { const el = document.querySelector('.block-container');"
-            " if (el) el.scrollIntoView({block:'end'}); }"
-        )
-        browser_page.wait_for_timeout(300)
-        gap_px = browser_page.evaluate(
+        # (b) Read the actual computed height of `.block-container::after`
+        # directly. The earlier approach (last-child-bottom vs container-
+        # bottom) included the pre-existing `padding-bottom: 8rem` and so
+        # passed even when the new pseudo-element was removed — exactly
+        # the regression scenario the systemic fix is supposed to catch.
+        # Codex P3 on the systemic fix.
+        spacer_px = browser_page.evaluate(
             """() => {
                 const c = document.querySelector('.block-container');
                 if (!c) return -1;
-                const rect = c.getBoundingClientRect();
-                // .block-container's own height includes the ::after
-                // pseudo. We want the gap between the LAST authored
-                // child (the page_footer caption) and the bottom of
-                // the container — i.e. the spacer the ::after creates.
-                const kids = c.children;
-                if (!kids.length) return -1;
-                const last = kids[kids.length - 1];
-                const lastRect = last.getBoundingClientRect();
-                return Math.round(rect.bottom - lastRect.bottom);
+                const cs = window.getComputedStyle(c, '::after');
+                // `content` must be set (we use empty string ''), and
+                // `display: block` so the pseudo actually contributes
+                // to the document flow. Browsers report `'none'` when
+                // the pseudo wasn't generated.
+                if (cs.content === 'none') return -2;
+                return Math.round(parseFloat(cs.height));
             }"""
         )
-        assert gap_px >= 80, (
-            f"[{page_title}] last block-container child sits only "
-            f"{gap_px}px above the container bottom — the `::after` "
-            "spacer or page_footer() breathing room was overridden. "
-            "Bottom-clip bug regressed."
+        # 10rem (160px) is the spec'd spacer height. Require at least
+        # 9rem to allow for ±1rem rounding without false-positive
+        # passing on a 4–8rem fallback (which is what the legacy
+        # `padding-bottom` would provide if the ::after were dropped).
+        assert spacer_px >= 144, (
+            f"[{page_title}] computed `.block-container::after` height = "
+            f"{spacer_px}px (expected >= 144px / 9rem). The systemic "
+            "pseudo-element spacer is missing or shrunk. Bottom-clip "
+            "bug regression — see PR #398."
         )
 
     @pytest.mark.parametrize("page_title", PAGES)
