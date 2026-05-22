@@ -383,6 +383,20 @@ NORTH_STAR_PAGES = [
 ]
 
 
+# PR-E1 (closes #378). False-Positive Analysis is the Pillar 7
+# "DS as governed augmentation" surface — per-rule FP rate so the
+# operator can see which rules to tune first. Cross-persona: analysts,
+# MLROs, engineers, examiners, and CCOs all need it. Routed
+# UNIVERSALLY via the same idiom as NORTH_STAR_PAGES / KNOWLEDGE_PAGES
+# so the per-persona operational cap (MAX_PAGES_PER_PERSONA=9) is
+# untouched. Kept as its own constant rather than folded into an
+# existing list because it's an FP-rate synthesis page, not a static
+# knowledge brief or pillar-coverage map.
+TUNING_PAGES = [
+    "FP Analysis",
+]
+
+
 def show_audience_context(page_title: str) -> None:
     """Show a subtle context line if an audience is selected."""
     import streamlit as st
