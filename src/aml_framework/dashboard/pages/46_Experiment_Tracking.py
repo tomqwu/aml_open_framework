@@ -40,8 +40,10 @@ ensure_initialized()
 
 page_header(
     "Experiment Tracking",
-    "Every persisted run as an MLflow-style experiment row — sortable by "
-    "`spec_content_hash`, `seed`, `as_of`, alerts, and hash-chain digests.",
+    "Recent persisted runs as MLflow-style experiment rows — sortable by "
+    "`spec_content_hash`, `seed`, `as_of`, alerts, and hash-chain digests. "
+    "Capped at the latest 50 stored runs (the API's `list_runs()` window) "
+    "plus the current session.",
 )
 
 section_explainer(
@@ -154,21 +156,45 @@ except Exception:
 all_rows = [session_row] + stored_rows
 
 # ---------------------------------------------------------------------------
-# Roll-up KPIs — total experiments, distinct spec variants, total alerts
-# observed across the corpus. Counted from the same `all_rows` the table
-# renders so the headline numbers match exactly what the reviewer sees
-# below.
+# Roll-up KPIs — counted from the same `all_rows` the table renders, so
+# headline numbers match exactly what the reviewer sees below. NOTE:
+# `list_runs()` is hard-capped at the latest 50 persisted rows by
+# design (see `api/db.py`), so on deployments with deeper history the
+# KPIs reflect the recent-50 window plus the current session, NOT the
+# all-time corpus. We label them "(shown)" and surface the cap caption
+# below so an operator never reads the numbers as all-time totals.
+# Codex pass on PR-E4 caught this exact mislabelling risk.
 # ---------------------------------------------------------------------------
+# `list_runs()` projection cap — pinned to the SQL `LIMIT 50` / Cosmos
+# `SELECT TOP 50` in `aml_framework.api.db.list_runs()`. If that cap
+# ever changes, update this constant + the caption below in lock-step.
+_LIST_RUNS_PAGE_SIZE = 50
+
 _distinct_specs = {row["spec_content_hash"] for row in all_rows if row.get("spec_content_hash")}
-_total_alerts_corpus = sum(int(row.get("total_alerts") or 0) for row in all_rows)
+_total_alerts_shown = sum(int(row.get("total_alerts") or 0) for row in all_rows)
+_window_capped = len(stored_rows) >= _LIST_RUNS_PAGE_SIZE
 
 c1, c2, c3 = st.columns(3)
 with c1:
-    kpi_card("Total experiments", len(all_rows), "#2563eb")
+    kpi_card("Experiments shown", len(all_rows), "#2563eb")
 with c2:
     kpi_card("Distinct spec variants", len(_distinct_specs), "#7c3aed")
 with c3:
-    kpi_card("Total alerts (corpus)", _total_alerts_corpus, "#dc2626")
+    kpi_card("Total alerts (shown)", _total_alerts_shown, "#dc2626")
+
+if _window_capped:
+    # Honest-labelling: the API's `list_runs()` returns at most 50
+    # rows by design. When the persisted history exceeds that, the
+    # KPIs above and the table below are a recent-window view, not
+    # an all-time corpus. Make that explicit so a reviewer can't
+    # misread the headline numbers as all-time totals.
+    st.warning(
+        f"Showing the latest {_LIST_RUNS_PAGE_SIZE} persisted runs "
+        "plus the current session. The API persistence layer's "
+        "`list_runs()` is capped at 50 rows by design — older runs are "
+        "not summed into the KPIs above. For deeper history, query "
+        "`aml_framework.api.db` directly or extend the projection."
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -230,7 +256,8 @@ st.caption(
     "Sorted newest first. Click a column header to re-sort by spec hash, "
     "seed, alert count, etc. `current_session` is the in-memory run from "
     "this dashboard session — it doesn't require the API persistence "
-    "layer to be wired."
+    f"layer to be wired. Persisted rows are capped at the latest "
+    f"{_LIST_RUNS_PAGE_SIZE} (the API's `list_runs()` projection)."
 )
 
 # ---------------------------------------------------------------------------
