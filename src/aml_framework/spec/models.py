@@ -41,6 +41,14 @@ AmlPriority = Literal[
 # Interagency Statement validation cadence is risk-proportional.
 ModelTier = Literal["high", "medium", "low"]
 
+# PR-RISK-1: first-class risk tier for a rule. Closes the Pillar 5
+# "risk-based controls" gap on the North-Star Coverage page — today the
+# priority signal is `severity` and routing is `escalate_to`, neither of
+# which is a risk attribute. This is a separate axis from `severity`
+# (alert urgency) and `model_tier` (model-risk validation cadence) so
+# institutions can declare risk-based posture independently of either.
+RiskTier = Literal["low", "medium", "high"]
+
 
 class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -332,6 +340,16 @@ class Rule(_Base):
     # list means "no known exclusions" (different from None — None
     # means "the rule author did not document exclusions yet").
     out_of_scope: list[str] = Field(default_factory=list)
+    # PR-RISK-1: first-class risk tier (low/medium/high). Closes the
+    # Pillar 5 "risk-based controls" gap on the North-Star Coverage page
+    # — until now the priority signal was `severity` (alert urgency)
+    # and routing was `escalate_to` (queue name), neither of which is a
+    # risk attribute. Independent axis from `severity` and `model_tier`.
+    # This PR is additive-only: the field lands on the loaded spec and
+    # surfaces in the diff path; engine-time wire-in (alert priority +
+    # queue routing) ships in a follow-up PR. Defaults to None — rules
+    # without an explicit tier carry no risk-tier signal.
+    risk_tier: RiskTier | None = None
 
 
 class Queue(_Base):
