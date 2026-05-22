@@ -260,6 +260,20 @@ for contract in spec.data_contracts:
     contract_total = 0
     for qc in contract.quality_checks:
         for check_type, fields in qc.items():
+            # Outer-shape malformed-check posture (codex B1 pass 10):
+            # the engine emits a `malformed_check` event for these
+            # shapes — the scorecard counts the check but does NOT
+            # award a pass, so the failing-check ratio reflects the
+            # disablement.
+            outer_shape_ok = (
+                check_type in ("not_null", "unique") and isinstance(fields, list)
+            ) or (check_type in ("enum", "regex", "range") and isinstance(fields, dict))
+            if (
+                check_type in ("not_null", "unique", "enum", "regex", "range")
+                and not outer_shape_ok
+            ):
+                contract_total += 1
+                continue
             if check_type in ("not_null", "unique"):
                 if not isinstance(fields, list):
                     continue

@@ -109,6 +109,27 @@ for contract in spec.data_contracts:
     check_results: list[dict] = []
     for qc in contract.quality_checks:
         for check_type, fields in qc.items():
+            # Outer-shape malformed-check posture (codex B1 pass 10):
+            # if the engine would emit a `malformed_check` event for
+            # this shape, the dashboard must show a FAIL row too —
+            # never silently drop the check, never count it as PASS.
+            outer_shape_ok = (
+                check_type in ("not_null", "unique") and isinstance(fields, list)
+            ) or (check_type in ("enum", "regex", "range") and isinstance(fields, dict))
+            if (
+                check_type in ("not_null", "unique", "enum", "regex", "range")
+                and not outer_shape_ok
+            ):
+                total_checks += 1
+                total_violations += 1
+                check_results.append(
+                    {
+                        "Check": f"{check_type}(...)",
+                        "Status": "FAIL",
+                        "Detail": f"malformed {check_type} spec (wrong outer shape)",
+                    }
+                )
+                continue
             if check_type in ("not_null", "unique"):
                 if not isinstance(fields, list):
                     continue
