@@ -28,7 +28,12 @@ from __future__ import annotations
 import streamlit as st
 
 from aml_framework.dashboard.audience import persona_description
-from aml_framework.dashboard.components import glossary_legend, page_header, section_explainer
+from aml_framework.dashboard.components import (
+    glossary_legend,
+    page_header,
+    section_explainer,
+    page_footer,
+)
 
 from aml_framework.dashboard.state import ensure_initialized
 
@@ -369,3 +374,5 @@ st.markdown(
     glossary_legend(["1LoD", "2LoD", "KYC", "STR", "SLA"]),
     unsafe_allow_html=True,
 )
+
+page_footer()

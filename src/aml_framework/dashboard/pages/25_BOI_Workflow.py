@@ -31,6 +31,7 @@ from aml_framework.compliance.boi import (
     synthesise_owners_from_customer,
 )
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     empty_state,
     page_header,
@@ -84,6 +85,7 @@ data_as_of = st.session_state.get("as_of") or datetime.now(tz=timezone.utc).repl
 
 if spec is None or df_customers.empty:
     st.warning("No customers loaded. Run the engine first.")
+    page_footer()
     st.stop()
 
 with st.sidebar:
@@ -204,3 +206,5 @@ st.download_button(
     help="FinCEN-shaped payload. Wrap with the institution's filing transmission "
     "envelope before submitting.",
 )
+
+page_footer()

@@ -15,6 +15,7 @@ from typing import Any
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     empty_state,
     line_chart,
@@ -385,3 +386,5 @@ elif not st.session_state.get("monitoring_active", False):
         f"</div>",
         unsafe_allow_html=True,
     )
+
+page_footer()

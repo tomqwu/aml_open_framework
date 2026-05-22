@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     data_grid,
     empty_state,
@@ -173,6 +174,7 @@ for rule in spec.rules:
 
 if not rule_data:
     st.info("No rules match the current filters.")
+    page_footer()
     st.stop()
 
 df_rules = pd.DataFrame(rule_data)
@@ -239,3 +241,5 @@ except Exception:
             "FastAPI service that persists each `aml run` for trend analysis."
         ),
     )
+
+page_footer()

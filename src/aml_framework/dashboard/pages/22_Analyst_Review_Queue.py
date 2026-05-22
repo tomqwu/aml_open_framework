@@ -19,7 +19,7 @@ from __future__ import annotations
 import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import kpi_card, page_header, section_explainer
+from aml_framework.dashboard.components import kpi_card, page_header, section_explainer, page_footer
 from aml_framework.dashboard.queue_state import (
     NARRATIVE_ACCEPT,
     NARRATIVE_AMEND,
@@ -70,6 +70,7 @@ as_of = st.session_state.as_of
 
 if df_cases.empty:
     st.warning("No cases in this run.")
+    page_footer()
     st.stop()
 
 # --- Sidebar controls ---
@@ -282,3 +283,5 @@ for row in visible_rows[:50]:  # cap render to keep page responsive
 
 if len(visible_rows) > 50:
     st.caption(f"… {len(visible_rows) - 50} more cases not shown (filter to narrow).")
+
+page_footer()

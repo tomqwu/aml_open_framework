@@ -15,6 +15,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     kpi_card_rag,
     link_to_page,
     section_explainer,
@@ -200,3 +201,5 @@ else:
         "First run on record — no delta to show. Run history accumulates as "
         "the engine is invoked across days."
     )
+
+page_footer()

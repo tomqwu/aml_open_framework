@@ -21,6 +21,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     glossary_legend,
     kpi_card,
@@ -81,6 +82,7 @@ if not tunable_rules:
         "rule (e.g. `tuning_grid: { logic.having.count: [{gte: 2}, "
         "{gte: 5}] }`) to enable threshold sweeps for it."
     )
+    page_footer()
     st.stop()
 
 # --- Selectors ---
@@ -371,3 +373,5 @@ st.markdown(
     glossary_legend(["MRM", "2LoD", "RAG"]),
     unsafe_allow_html=True,
 )
+
+page_footer()

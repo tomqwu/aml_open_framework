@@ -7,6 +7,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     data_grid,
     empty_state,
     kpi_card,
@@ -168,3 +169,5 @@ see_also_footer(
         "[Audit & Evidence — hash-chain provenance per run](./7_Audit_Evidence)",
     ]
 )
+
+page_footer()

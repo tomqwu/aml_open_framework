@@ -46,6 +46,7 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     citation_link,
     data_grid,
@@ -632,3 +633,5 @@ see_also_footer(
         citation_link("docs/spec-reference.md", "../../docs/spec-reference.md"),
     ]
 )
+
+page_footer()

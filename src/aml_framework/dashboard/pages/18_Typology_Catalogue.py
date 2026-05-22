@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     kpi_card,
     page_header,
     section_explainer,
@@ -250,3 +251,5 @@ st.caption(
     "rule to your aml.yaml spec with institution-specific thresholds and "
     "regulation citations."
 )
+
+page_footer()

@@ -8,6 +8,7 @@ import streamlit as st
 from aml_framework.dashboard.audience import show_audience_context
 from aml_framework.engine.audit import rule_version_hash
 from aml_framework.dashboard.components import (
+    page_footer,
     bar_chart,
     citation_link,
     data_grid,
@@ -246,3 +247,5 @@ st.caption(
     " · [SR 26-2 effective 2026-04-17 in the Regulator Pulse]"
     "(https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-regulator-pulse.md)"
 )
+
+page_footer()

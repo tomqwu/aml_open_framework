@@ -16,7 +16,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header, section_explainer
+from aml_framework.dashboard.components import page_header, section_explainer, page_footer
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
@@ -89,3 +89,5 @@ if _PDF_PATH.exists():
     )
 else:
     st.caption("PDF not bundled. Source: `docs/pitch/deck-v2/aml-open-framework-v2.pdf`.")
+
+page_footer()

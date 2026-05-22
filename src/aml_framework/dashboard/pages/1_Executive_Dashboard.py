@@ -23,6 +23,7 @@ from pathlib import Path
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     RAG_COLORS,
     bar_chart,
     data_grid,
@@ -639,3 +640,5 @@ try:
     )
 except Exception as _e:  # noqa: BLE001 — funnel must never crash the dashboard
     st.caption(f"Funnel unavailable: {_e}")
+
+page_footer()

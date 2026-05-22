@@ -5,7 +5,13 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from aml_framework.dashboard.components import data_grid, kpi_card, page_header, section_explainer
+from aml_framework.dashboard.components import (
+    data_grid,
+    kpi_card,
+    page_header,
+    section_explainer,
+    page_footer,
+)
 from aml_framework.dashboard.audience import show_audience_context
 
 from aml_framework.dashboard.state import ensure_initialized
@@ -227,3 +233,5 @@ else:
     # Show the table in case operators want to see counts for non-canonical
     # outcome values (e.g. "not_set" or institution-specific extensions).
     data_grid(_vop_counts, key="vop_counts", height=200)
+
+page_footer()

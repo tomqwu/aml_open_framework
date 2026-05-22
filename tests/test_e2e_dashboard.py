@@ -347,6 +347,61 @@ class TestAllPagesRender:
         assert errors.count() == 0, f"Page '{page_title}' has a Streamlit error"
 
     @pytest.mark.parametrize("page_title", PAGES)
+    def test_page_footer_renders_with_breathing_room(self, browser_page, page_title):
+        """End-to-end pin on the bottom-page-clip bug systemic fix.
+
+        Every page calls `page_footer()` as its last statement. The
+        component renders a `<hr>` divider + an "End of page · …"
+        caption. The `.block-container::after` pseudo-element then
+        reserves ≥10rem (~160px at default rem) of physical space
+        below that caption.
+
+        This test asserts (a) the footer caption is in the DOM, and
+        (b) the page CAN scroll to a position where the last visible
+        block sits at least 80px above the viewport bottom. Anything
+        less means the spacer was overridden / collapsed. 80px is
+        comfortable headroom that survives small Streamlit chrome
+        changes; 10rem of CSS-declared space + the caption itself
+        easily clears it on a passing run.
+        """
+        _navigate(browser_page, page_title)
+        # (a) Footer caption present anywhere in the body.
+        body_text = browser_page.inner_text("body")
+        assert "End of page" in body_text, (
+            f"[{page_title}] page_footer() did not render the 'End of page' "
+            "caption — the bottom-of-page affordance is missing."
+        )
+        # (b) Scroll to bottom, then measure the gap between the last
+        # block-container child's bottom and the viewport bottom.
+        browser_page.evaluate(
+            "() => { const el = document.querySelector('.block-container');"
+            " if (el) el.scrollIntoView({block:'end'}); }"
+        )
+        browser_page.wait_for_timeout(300)
+        gap_px = browser_page.evaluate(
+            """() => {
+                const c = document.querySelector('.block-container');
+                if (!c) return -1;
+                const rect = c.getBoundingClientRect();
+                // .block-container's own height includes the ::after
+                // pseudo. We want the gap between the LAST authored
+                // child (the page_footer caption) and the bottom of
+                // the container — i.e. the spacer the ::after creates.
+                const kids = c.children;
+                if (!kids.length) return -1;
+                const last = kids[kids.length - 1];
+                const lastRect = last.getBoundingClientRect();
+                return Math.round(rect.bottom - lastRect.bottom);
+            }"""
+        )
+        assert gap_px >= 80, (
+            f"[{page_title}] last block-container child sits only "
+            f"{gap_px}px above the container bottom — the `::after` "
+            "spacer or page_footer() breathing room was overridden. "
+            "Bottom-clip bug regressed."
+        )
+
+    @pytest.mark.parametrize("page_title", PAGES)
     def test_no_html_leak_in_visible_text(self, browser_page, page_title):
         """Catch unsafe_allow_html mishaps: card markup escapes the DOM
         and shows up as literal `</div>` / `<div ...>` text inside the

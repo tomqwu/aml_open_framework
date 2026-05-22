@@ -20,7 +20,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from aml_framework.dashboard.components import page_header, section_explainer
+from aml_framework.dashboard.components import page_header, section_explainer, page_footer
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
@@ -101,3 +101,5 @@ else:
         "PDF not bundled in this install. Source: "
         "`docs/pitch/deck-v2/business-slides/aml-open-framework-business.pdf`."
     )
+
+page_footer()

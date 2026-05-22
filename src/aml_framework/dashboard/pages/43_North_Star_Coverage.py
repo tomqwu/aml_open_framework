@@ -23,7 +23,12 @@ from pathlib import Path
 import streamlit as st
 
 from aml_framework.dashboard.audience import MAX_PAGES_PER_PERSONA, PERSONA_LABELS
-from aml_framework.dashboard.components import link_to_page, page_header, section_explainer
+from aml_framework.dashboard.components import (
+    link_to_page,
+    page_header,
+    section_explainer,
+    page_footer,
+)
 from aml_framework.dashboard.state import ensure_initialized
 
 # Derive surface counts from the live registry so the pillar-5 evidence
@@ -504,3 +509,5 @@ st.caption(
     "truth for the 8 pillars: the user's `project_aml_north_star` "
     "memory."
 )
+
+page_footer()

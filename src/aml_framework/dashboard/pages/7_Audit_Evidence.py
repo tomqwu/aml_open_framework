@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 import streamlit as st
 
 from aml_framework.dashboard.components import (
+    page_footer,
     citation_link,
     data_grid,
     glossary_legend,
@@ -542,3 +543,5 @@ st.markdown(
     glossary_legend(["STR", "SAR", "FINTRAC", "OSFI", "FCA", "AMLA", "FinCEN", "MRM"]),
     unsafe_allow_html=True,
 )
+
+page_footer()
