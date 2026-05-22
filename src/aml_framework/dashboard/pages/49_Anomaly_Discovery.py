@@ -243,7 +243,13 @@ st.caption(
 # collapses into the last bucket (six-sigma anything is rare enough
 # that the tail doesn't deserve its own bin). `st.bar_chart` is the
 # fancier-helper-free path the brief asks for.
-score_series = df_features["anomaly_score"].clip(lower=0.0, upper=6.0)
+#
+# Codex P2: `pd.cut(..., right=False)` excludes the right edge, so a
+# score clipped to exactly 6.0 would land outside every bin (NaN) and
+# silently disappear from the chart. Nudge clipped-tail values just
+# below the upper boundary so they fold into the final bin where they
+# belong.
+score_series = df_features["anomaly_score"].clip(lower=0.0, upper=6.0 - 1e-9)
 bins = np.arange(0.0, 6.5, 0.5)
 labels = [f"{bins[i]:.1f}–{bins[i + 1]:.1f}" for i in range(len(bins) - 1)]
 hist = pd.cut(score_series, bins=bins, labels=labels, include_lowest=True, right=False)
