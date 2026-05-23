@@ -7,6 +7,7 @@ import streamlit as st
 from aml_framework.dashboard.audience import (
     AUDIENCE_PAGES,
     KNOWLEDGE_PAGES,
+    LIFECYCLE_PAGES,
     NORTH_STAR_PAGES,
     PERSONA_LABELS,
     TUNING_PAGES,
@@ -148,6 +149,22 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             # underscore) so direct/bookmarked nav stays consistent
             # with the rest of the dashboard.
             url_path="FP_Analysis",
+        ),
+        # PR-A4 (#365) — rule lifecycle dashboard + approval-workflow
+        # placeholder. Lives in Detection & Tuning because the closest
+        # sibling pages (Rule Performance, Spec Editor, Tuning Lab) are
+        # the surfaces a reviewer crosses-back-and-forth with, even
+        # though governance is cross-cutting. Universally routed via
+        # LIFECYCLE_PAGES (same idiom as North-Star / Knowledge / FP
+        # Analysis) so every persona keeps visibility without burning a
+        # slot in AUDIENCE_PAGES (MAX_PAGES_PER_PERSONA=9 preserved).
+        # URL slug pinned to match the title-derived form the e2e
+        # helper uses.
+        st.Page(
+            "pages/51_Rule_Lifecycle.py",
+            title="Rule Lifecycle",
+            icon=":material/account_tree:",
+            url_path="Rule_Lifecycle",
         ),
     ],
     "Data": [
@@ -349,6 +366,11 @@ if selected_audience:
     # engineers, examiners, and CCOs all need to see which rules are
     # noisiest. Universal same as North-Star / Knowledge.
     relevant_titles.update(TUNING_PAGES)
+    # PR-A4 (#365): the Rule Lifecycle page surfaces lifecycle state
+    # + the approval-workflow placeholder. Governance is cross-cutting
+    # so every persona needs visibility. Universal same as North-Star
+    # / FP Analysis.
+    relevant_titles.update(LIFECYCLE_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()

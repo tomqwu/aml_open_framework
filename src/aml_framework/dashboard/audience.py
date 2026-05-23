@@ -397,6 +397,22 @@ TUNING_PAGES = [
 ]
 
 
+# PR-A4 (#365). Rule Lifecycle is a governance-adjacent surface —
+# every persona benefits from being able to see "which rules are
+# active vs experimental vs deprecated, with the approval-workflow
+# placeholder per rule." It's NOT tuning (Tuning Lab owns that, via
+# the FP-rate analysis sibling above) and NOT alert-volume analytics
+# (Rule Performance owns that), so it sits in its own constant rather
+# than being folded into TUNING_PAGES. Routed UNIVERSALLY via the
+# same idiom as KNOWLEDGE_PAGES / NORTH_STAR_PAGES / TUNING_PAGES
+# (app.py adds these titles to the visible set for every persona),
+# NOT via AUDIENCE_PAGES — that preserves MAX_PAGES_PER_PERSONA=9
+# for the operational arcs.
+LIFECYCLE_PAGES = [
+    "Rule Lifecycle",
+]
+
+
 def show_audience_context(page_title: str) -> None:
     """Show a subtle context line if an audience is selected."""
     import streamlit as st
