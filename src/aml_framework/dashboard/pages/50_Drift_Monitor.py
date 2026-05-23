@@ -156,8 +156,16 @@ def _spec_key(p: str) -> str:
     rule was right for the canonical `examples/` shape but dropped
     runs whose spec lives at a different depth (e.g. top-level
     `specs/foo.yaml`).
+
+    Codex pass 14 on PR-413: API callers may post a spec path with a
+    leading `./` (accepted by `_safe_spec_path` and stored verbatim).
+    Strip any leading `./` segments so they normalize to the same
+    suffix as an absolute path.
     """
-    return (p or "").replace("\\", "/").lstrip("/")
+    norm = (p or "").replace("\\", "/").lstrip("/")
+    while norm.startswith("./"):
+        norm = norm[2:]
+    return norm
 
 
 def _specs_match(a: str, b: str) -> bool:
