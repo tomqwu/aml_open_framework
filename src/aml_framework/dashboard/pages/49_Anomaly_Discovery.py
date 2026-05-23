@@ -127,7 +127,19 @@ if has_txn_country and has_cust_country:
     # per-customer cross-border ratio. `pd.isna` guards so NaN home
     # countries (which can happen on partial CSV ingest) don't fabricate
     # cross-border hits.
-    home_country = df_customers.set_index("customer_id")["country"]
+    # Collapse duplicates before indexing. A customer feed with
+    # repeated `customer_id` rows (data-quality issue) would produce a
+    # non-unique index here, and `.map(home_country)` raises
+    # `InvalidIndexError`. Keep the first non-null country per
+    # customer instead — the cross-border feature is intentionally
+    # tolerant of imperfect data, and we'd rather degrade quietly
+    # than crash the page. Codex pass 12 P2 on PR-413.
+    home_country = (
+        df_customers[["customer_id", "country"]]
+        .dropna(subset=["country"])
+        .drop_duplicates(subset=["customer_id"], keep="first")
+        .set_index("customer_id")["country"]
+    )
     txn_home = df_txns["customer_id"].map(home_country)
     txn_cp = df_txns["counterparty_country"].astype(object)
     # A txn is "cross-border" only when both sides are known AND differ.
