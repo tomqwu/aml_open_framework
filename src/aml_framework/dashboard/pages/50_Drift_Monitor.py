@@ -122,28 +122,42 @@ def _spec_key(p: str) -> str:
     """Normalize a spec_path for cross-source equality.
 
     The dashboard launches with an absolute path
-    (`/.../examples/canadian_schedule_i_bank/aml.yaml`) but API-persisted
-    runs store the request's `spec_path` which `_safe_spec_path` rejects
-    when absolute — so those rows look like
-    `examples/canadian_schedule_i_bank/aml.yaml`. Without normalization,
-    the strict-equality filter dropped every persisted run and the
-    drift history appeared empty even after data was stored. Codex
-    pass 3 on PR-413.
+    (`/.../aml_open_framework/examples/foo/aml.yaml`) but API-persisted
+    runs store the request's relative `spec_path`
+    (`examples/foo/aml.yaml`). Both share the SAME suffix relative to
+    the repo root, so a tail-match comparison works for arbitrary
+    layouts — `examples/<dir>/aml.yaml`, `specs/foo.yaml`, anywhere.
+
+    Codex passes 3+5 on PR-413: the previous fixed last-3-segments
+    rule was right for the canonical `examples/` shape but dropped
+    runs whose spec lives at a different depth (e.g. top-level
+    `specs/foo.yaml`).
     """
-    # Match on the basename's two-deep suffix (`examples/<dir>/aml.yaml`)
-    # which is what `req.spec_path` stores and what an absolute path's
-    # tail also resolves to. Falls back to the raw string when there's
-    # no recognizable suffix.
-    s = (p or "").replace("\\", "/")
-    parts = [seg for seg in s.split("/") if seg]
-    if len(parts) >= 3:
-        return "/".join(parts[-3:])
-    return s
+    return (p or "").replace("\\", "/").lstrip("/")
 
 
-_current_spec_key = _spec_key(str(st.session_state.spec_path))
+def _specs_match(a: str, b: str) -> bool:
+    """True when two spec_path strings refer to the same file.
+
+    Either one may be absolute or relative; suffix-equal under
+    normalized slashes counts as a match. Symmetric: `endswith` either
+    direction so absolute-vs-relative and absolute-vs-absolute both
+    work.
+    """
+    a_norm = _spec_key(a)
+    b_norm = _spec_key(b)
+    if not a_norm or not b_norm:
+        return False
+    if a_norm == b_norm:
+        return True
+    # One side is absolute, the other relative — the absolute one
+    # ends with the relative one.
+    return a_norm.endswith("/" + b_norm) or b_norm.endswith("/" + a_norm)
+
+
+_current_spec_path_raw = str(st.session_state.spec_path)
 _scoped_runs = [
-    r for r in stored_runs if _spec_key(str(r.get("spec_path", ""))) == _current_spec_key
+    r for r in stored_runs if _specs_match(str(r.get("spec_path", "")), _current_spec_path_raw)
 ]
 
 # Cap at last 10 runs to keep the page snappy. `list_runs()` returns
