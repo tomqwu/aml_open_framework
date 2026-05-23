@@ -15,6 +15,12 @@ import duckdb
 
 from aml_framework.engine.audit import AuditLedger, rule_version_hash
 from aml_framework.engine.constants import Event, Queue
+from aml_framework.engine.cost_volume import (
+    CostVolumeTimer,
+    build_report as build_cost_volume_report,
+    summarise_tables,
+    write_report as write_cost_volume_report,
+)
 from aml_framework.engine.dq import DQException, evaluate_contract_checks
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
@@ -868,6 +874,12 @@ def run_spec(
     generator. None entries are recorded as None — backward-compatible
     with callers (tests, older API surfaces) that don't track source.
     """
+    # PR-LF2 (#384) — Pillar-6 run cost + data volume artefact. Timer
+    # is created BEFORE the ledger so `wall_clock_seconds` covers the
+    # full runner cost, including ledger directory setup and warehouse
+    # build. The timer is intentionally non-deterministic (wall clock,
+    # memory) — see `engine/cost_volume.py` for the determinism caveat.
+    cost_timer = CostVolumeTimer()
     ledger = AuditLedger.create(
         artifacts_root=artifacts_root,
         spec_path=spec_path,
@@ -1004,7 +1016,13 @@ def run_spec(
             try:
                 mod = importlib.import_module(module_path)
                 scorer = getattr(mod, func_name)
-                alerts = scorer(con, as_of)
+                with cost_timer.rule(rule.id):
+                    alerts = scorer(con, as_of)
+                # python_ref scorers may issue arbitrary numbers of
+                # DuckDB queries internally; count the call as 1 since
+                # we can't introspect without wrapping the connection.
+                # Captures *that* a scorer ran, not how chatty it was.
+                cost_timer.increment_queries()
                 # Opt-in matched-row lineage hook: if the scorer module
                 # exposes `_inspect_context(con, alerts, as_of)`, call
                 # it for richer audit attribution. Returns a list of
@@ -1070,7 +1088,9 @@ def run_spec(
 
         # --- list_match: screen against a reference list ---
         if rule.logic.type == "list_match":
-            alerts = _execute_list_match(rule, con, as_of)
+            with cost_timer.rule(rule.id):
+                alerts = _execute_list_match(rule, con, as_of)
+            cost_timer.increment_queries()
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1085,7 +1105,9 @@ def run_spec(
 
         # --- network_pattern: walk resolved_entity_link via recursive CTE ---
         if rule.logic.type == "network_pattern":
-            alerts = _execute_network_pattern(rule, con, as_of)
+            with cost_timer.rule(rule.id):
+                alerts = _execute_network_pattern(rule, con, as_of)
+            cost_timer.increment_queries()
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1113,7 +1135,12 @@ def run_spec(
         sql = compile_rule_sql(rule, as_of=as_of, source_table=source_table)
         ledger.record_rule_sql(rule.id, sql)
 
-        rows = con.execute(sql).fetchall()
+        # PR-LF2: time the rule's SQL execution + count the query. The
+        # follow-up matched-row-id replay queries are counted below
+        # (one per alert).
+        with cost_timer.rule(rule.id):
+            rows = con.execute(sql).fetchall()
+        cost_timer.increment_queries()
         cols = [d[0] for d in con.description] if con.description else []
         alerts = [dict(zip(cols, r)) for r in rows]
         # PR-LIN-4: for each alert produced by an aggregation_window /
@@ -1149,12 +1176,14 @@ def run_spec(
                 alert["matched_row_ids"] = []
                 if cid and w_start and w_end:
                     try:
-                        rid_rows = con.execute(
-                            f"SELECT rowid FROM {source_table} "
-                            f"WHERE customer_id = ? AND booked_at >= ? "
-                            f"AND booked_at <= ?{extra_where}",
-                            [cid, w_start, w_end],
-                        ).fetchall()
+                        with cost_timer.rule(rule.id):
+                            rid_rows = con.execute(
+                                f"SELECT rowid FROM {source_table} "
+                                f"WHERE customer_id = ? AND booked_at >= ? "
+                                f"AND booked_at <= ?{extra_where}",
+                                [cid, w_start, w_end],
+                            ).fetchall()
+                        cost_timer.increment_queries()
                         alert["matched_row_ids"] = [int(r[0]) for r in rid_rows]
                     except Exception:
                         pass
@@ -1168,7 +1197,9 @@ def run_spec(
     # decision events, resolution times, and SLA compliance data.
     _simulate_case_resolution(spec, case_ids, ledger, as_of)
 
-    return _finalize_run(spec, ledger, alerts_by_rule, case_ids, data, python_ref_failures)
+    return _finalize_run(
+        spec, ledger, alerts_by_rule, case_ids, data, python_ref_failures, cost_timer
+    )
 
 
 def _finalize_run(
@@ -1178,8 +1209,15 @@ def _finalize_run(
     case_ids: list[str],
     data: dict[str, list[dict[str, Any]]],
     python_ref_failures: dict[str, str] | None = None,
+    cost_timer: CostVolumeTimer | None = None,
 ) -> RunResult:
-    """Evaluate metrics, render reports, and write the final manifest."""
+    """Evaluate metrics, render reports, and write the final manifest.
+
+    `cost_timer` (PR-LF2) is optional so existing tests / callers that
+    invoke `_finalize_run` directly don't break. When provided, a
+    `run_cost_volume.json` artifact is written BEFORE `ledger.finalize()`
+    so its SHA-256 can be pinned in the manifest by the audit module.
+    """
     cases_rows: list[dict[str, Any]] = []
     for case_file in sorted((ledger.run_dir / "cases").glob("*.json")):
         cases_rows.append(json.loads(case_file.read_bytes()))
@@ -1220,6 +1258,21 @@ def _finalize_run(
     reports_dir.mkdir(parents=True, exist_ok=True)
     for report_id, markdown in reports.items():
         (reports_dir / f"{report_id}.md").write_text(markdown, encoding="utf-8")
+
+    # PR-LF2 (#384) — write `run_cost_volume.json` BEFORE finalize so
+    # `AuditLedger.finalize()` can pin its SHA-256 in the manifest.
+    # `cost_timer` is None for legacy callers that bypass `run_spec`;
+    # in that case we still emit an artifact with zero seconds and an
+    # empty per-rule map so the always-present contract holds.
+    if cost_timer is None:
+        cost_timer = CostVolumeTimer()
+    cost_report = build_cost_volume_report(
+        wall_clock_seconds=cost_timer.wall_clock(),
+        tables=summarise_tables(data),
+        total_sql_queries=cost_timer.total_sql_queries,
+        per_rule_seconds=dict(cost_timer.per_rule_seconds),
+    )
+    write_cost_volume_report(ledger.run_dir, cost_report)
 
     manifest = ledger.finalize()
     manifest["metrics"] = [m.to_dict() for m in metric_results]

@@ -23,7 +23,10 @@ Every `aml run` produces an evidence bundle containing:
 | `alerts/<rule_id>.hash`     | SHA-256 of the JSONL; the "output hash"                         |
 | `cases/<case_id>.json`      | case file: triggering txns, KYC snapshot, prior-alert history   |
 | `decisions.jsonl`           | reviewer decisions appended over time, never mutated            |
+| `dq_exceptions.jsonl`       | per-run data-quality violations (always present, may be empty)  |
+| `field_lineage.jsonl`       | alert-field → (source contract, column, transform) mapping      |
 | `sla_report.json`           | Pillar-6 SLA-monitor report: alert-disposition breaches + batch-lateness signal (always written; empty when `program.sla` is unset) |
+| `run_cost_volume.json`      | row counts per table + wall-clock / peak-memory / per-rule timing|
 | `signatures/manifest.sig`   | detached signature over `manifest.json` (if signing key set)    |
 
 ## Determinism properties

@@ -220,6 +220,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # so the breach inventory + batch-lateness signal can't be edited
     # after the run is sealed (same posture as field_lineage / dq).
     "sla_report.json",
+    # PR-LF2 (#384) — run cost + data volume artifact freezes for the
+    # same reason: a regulator should see the row counts / wall-clock
+    # the engine actually measured, not an edited rewrite.
+    "run_cost_volume.json",
 )
 
 
@@ -512,6 +516,14 @@ class AuditLedger:
         sla_path = self.run_dir / "sla_report.json"
         sla_report_hash = _sha256(sla_path.read_bytes()) if sla_path.exists() else None
 
+        # PR-LF2 (#384): same posture for `run_cost_volume.json` — the
+        # row counts and wall-clock are regulator-facing evidence ("this
+        # run scanned N rows in T seconds"). Pinning the hash means an
+        # edit post-finalize is detectable. File written by the runner
+        # before this call; guarded for older runs that predate LF2.
+        cost_path = self.run_dir / "run_cost_volume.json"
+        run_cost_volume_hash = _sha256(cost_path.read_bytes()) if cost_path.exists() else None
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -524,6 +536,7 @@ class AuditLedger:
             "dq_exceptions_hash": dq_exceptions_hash,
             "field_lineage_hash": field_lineage_hash,
             "sla_report_hash": sla_report_hash,
+            "run_cost_volume_hash": run_cost_volume_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         (self.run_dir / "manifest.json").write_bytes(
