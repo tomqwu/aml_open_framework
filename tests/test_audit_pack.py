@@ -220,7 +220,38 @@ class TestDeterminism:
         # Reverse order should not change bundle bytes (alerts_summary
         # aggregates by rule, so order doesn't matter).
         b = build_audit_pack(spec, cases=list(reversed(cases)), decisions=[])
-        assert a == b
+        if a != b:
+            # Diagnostic — comparing two ZIPs by raw bytes can fail under
+            # Linux Python 3.12 + zlib version differences. Surface the
+            # actual entry-level diff so we can tell whether it's a real
+            # content divergence or a compression-byte quirk.
+            import io as _io
+            import zipfile as _zf
+
+            za = _zf.ZipFile(_io.BytesIO(a))
+            zb = _zf.ZipFile(_io.BytesIO(b))
+            names_a = sorted(za.namelist())
+            names_b = sorted(zb.namelist())
+            diff_msg = [f"namelist diff: {set(names_a) ^ set(names_b)}"]
+            for name in sorted(set(names_a) & set(names_b)):
+                ca, cb = za.read(name), zb.read(name)
+                if ca != cb:
+                    # Try JSON-decode for human-readable diff
+                    try:
+                        import json as _json
+
+                        ja, jb = _json.loads(ca), _json.loads(cb)
+                        if ja != jb:
+                            diff_msg.append(f"{name}: JSON differs")
+                            diff_msg.append(f"  a: {_json.dumps(ja, sort_keys=True)[:300]}")
+                            diff_msg.append(f"  b: {_json.dumps(jb, sort_keys=True)[:300]}")
+                        else:
+                            diff_msg.append(
+                                f"{name}: bytes differ but JSON equal ({len(ca)} vs {len(cb)} bytes)"
+                            )
+                    except Exception:
+                        diff_msg.append(f"{name}: bytes differ ({len(ca)} vs {len(cb)} bytes)")
+            raise AssertionError("audit-pack determinism failed:\n" + "\n".join(diff_msg))
 
 
 # ---------------------------------------------------------------------------
