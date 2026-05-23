@@ -74,6 +74,17 @@ rules:
       - customer_kyc_profile
       - wallet_chain_history
     tags: [stablecoin, layering, velocity]
+    business_intent: >
+      Flag the post-2024 stablecoin-layering signature TRM Labs identified —
+      three or more USDT/USDC/DAI swaps inside a 48-hour window summing to
+      $20,000+ for a single customer. Stablecoins now carry ~84% of fraud
+      inflows with sub-48-hour hold times, replacing the cash-structuring
+      shape on fiat rails.
+    out_of_scope:
+      - non-stablecoin swaps (BTC/ETH-only velocity uses different baselines)
+      - inbound deposits and outbound withdrawals (the rule targets swap-channel only)
+      - longer-horizon layering (covered by separate multi-hop network rules)
+      - single high-value swaps even above $20,000 (handled by large_single_swap)
 
   # --- SANCTIONED WALLET SCREENING ---
   - id: sanctioned_wallet_screening
@@ -95,6 +106,17 @@ rules:
       - sanctions_list_snapshot
       - customer_wallet_history
     tags: [sanctions, vasp, critical]
+    business_intent: >
+      Exact-match every customer's wallet_address against the curated
+      sanctioned-wallets list (OFAC SDN virtual-currency addenda plus
+      domestic equivalents). A hit must route straight to STR filing — no
+      L1/L2 hand-off — because dealing in a sanctioned wallet is itself
+      a regulatory breach.
+    out_of_scope:
+      - counterparty wallets that appear in transaction metadata but aren't on the customer record
+      - fuzzy-match approximations of wallet addresses (exact only; chain hashing precludes fuzzy)
+      - name-based sanctions screening (different attribute, different control)
+      - downstream wallets reached via hop analysis (handled by chain-tracing tooling)
 
   # --- NESTED WALLET RING (uses entity resolution + network pattern) ---
   # Multiple customer accounts sharing wallet_address or device_id form a
@@ -117,6 +139,18 @@ rules:
       - resolved_entity_link
       - customer_kyc_profile
     tags: [nested_service, network, layering]
+    business_intent: >
+      Use the entity-resolution graph to find clusters of three or more
+      customers within two hops sharing a linking attribute (wallet_address
+      or device_id). The pattern signals a customer acting as an
+      unregistered nested VASP — multiple identities behind a shared
+      operational fingerprint, the canonical mule/nested-service shape
+      called out in FATF R.16 guidance.
+    out_of_scope:
+      - rings of size two (the having floor is component_size ≥ 3)
+      - clusters spanning more than two hops (max_hops bounds the search)
+      - clusters identified solely by transactional co-occurrence without shared identifiers
+      - legitimate joint-account or shared-device family relationships (require EDD review post-alert)
 
   # --- LARGE SINGLE-SWAP THRESHOLD ---
   # Mirrors LCTR / CTR for crypto. Set at $10k USD-equivalent.
@@ -139,6 +173,17 @@ rules:
     evidence:
       - all_matching_transactions
     tags: [lvctr, threshold]
+    business_intent: >
+      Trigger the LVCTR reporting surface for any single-day virtual-asset
+      swap aggregate at or above $10,000 USD-equivalent per customer — the
+      crypto analogue of CTR/LCTR on fiat rails. This produces the
+      reporting record, not a suspicion signal, so it routes to the L1
+      analyst queue rather than to investigations.
+    out_of_scope:
+      - deposit/withdrawal channels (rule is swap-only)
+      - sub-threshold structured swaps (covered by stablecoin_velocity_48h for the stablecoin variant)
+      - swaps below the per-currency conversion floor (e.g. very-low-value memecoin swaps)
+      - off-chain custodian movements that bypass the txn contract
 
 workflow:
   queues:
