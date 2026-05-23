@@ -10,10 +10,12 @@ no spec write, no buttons — it just reads the cached
 maps the live spec/run into the 8 pillar cards.
 
 Universally routed (every persona sees it) alongside the Knowledge
-shelf — see `app.py` + `audience.py`. Honest about gaps: pillar 1
-(equivalence-before-optimization) is flagged GAP today because the
-dedicated equivalence engine ships in PR-EQ-2; this page links to the
-relevant existing surfaces but does NOT claim coverage we don't have.
+shelf — see `app.py` + `audience.py`. Honest about gaps: as of Round
+27 (PR-EQ-3) pillar 1 (equivalence-before-optimization) is COVERED —
+`engine/equivalence.py` + `pages/48_Equivalence.py` ship the
+divergence report. Remaining PARTIALs are pillars 2 (defect tickets)
+and 4 (defect lifecycle); this page links to the relevant existing
+surfaces but does NOT claim coverage we don't have.
 """
 
 from __future__ import annotations
@@ -179,18 +181,20 @@ _render_pillar(
         "data / rule / mapping defect. Distinct from same-engine "
         "deterministic replay."
     ),
-    status="GAP",
+    status="COVERED",
     evidence=[
         "**In:** deterministic replay — same spec + same data + same seed "
         "produces identical output hashes (`test_run_is_reproducible`).",
-        "**Missing:** a dedicated legacy-equivalence engine — parallel-run "
-        "harness, golden-record fixtures, field-level diff, defect "
-        "classifier (data vs rule vs mapping). Ships in PR-EQ-2 — see "
-        "`engine/equivalence.py` (forthcoming).",
-        "**Net:** the framework can prove it replays itself; it cannot "
-        "yet prove it replays a legacy SAS / Oracle / IMS rule one-for-one.",
+        "**In:** legacy-equivalence engine — `engine/equivalence.py` "
+        "classifies legacy↔new alerts into MATCH / NEW_ONLY / LEGACY_ONLY "
+        "/ DIFF given a `program.legacy_reference` declaration on the "
+        "spec. The dashboard renders the divergence report on "
+        "`pages/48_Equivalence.py` (PR-EQ-3 / Round 27 batch).",
+        "**Net:** the framework proves same-engine replay AND surfaces "
+        "field-level legacy↔new divergence for migration sign-off.",
     ],
     links=[
+        ("Equivalence — legacy↔new divergence report", "pages/48_Equivalence.py"),
         ("Run History — same-engine determinism trail", "pages/15_Run_History.py"),
         ("Audit & Evidence — hash-chain replay verifier", "pages/7_Audit_Evidence.py"),
     ],
@@ -496,11 +500,13 @@ st.markdown("### Coverage roll-up")
 
 col_a, col_b, col_c = st.columns(3)
 with col_a:
-    st.metric("Covered", "1", help="Pillar 8")
+    st.metric("Covered", "2", help="Pillars 1 (PR-EQ-3 / Round 27), 8")
 with col_b:
     st.metric("Partial", "6", help="Pillars 2, 3, 4, 5, 6, 7")
 with col_c:
-    st.metric("Gap", "1", help="Pillar 1 — equivalence engine ships in PR-EQ-2")
+    st.metric(
+        "Gap", "0", help="Pillar 1 equivalence engine + dashboard shipped in PR-EQ-3 (Round 27)"
+    )
 
 st.caption(
     "Coverage is asserted, not aspirational — every COVERED claim above "

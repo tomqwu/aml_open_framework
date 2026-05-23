@@ -45,7 +45,7 @@ from aml_framework.dashboard.components import (
     section_explainer,
 )
 from aml_framework.dashboard.state import ensure_initialized
-from aml_framework.engine.runner import _build_warehouse
+from aml_framework.engine.runner import _build_warehouse, _harden_duckdb
 from aml_framework.generators.sql import compile_rule_sql
 from aml_framework.spec.models import AggregationWindowLogic, Rule
 
@@ -179,6 +179,10 @@ if not _tunable:
 # Tuning page builds twice for the same reason — once would be enough).
 # ---------------------------------------------------------------------------
 con = duckdb.connect(":memory:")
+# Match `run_spec()`: lock extensions + external access OFF before we
+# interpolate spec-derived filter/group expressions into SQL. Codex
+# pass 9 P2 on PR-413.
+_harden_duckdb(con)
 _build_warehouse(con, spec, data)
 
 

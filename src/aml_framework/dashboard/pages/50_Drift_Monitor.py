@@ -25,6 +25,7 @@ preserved.
 
 from __future__ import annotations
 
+import os
 from statistics import median
 
 import pandas as pd
@@ -104,6 +105,7 @@ ml_rules = [r for r in spec.rules if r.logic.type == "python_ref" and r.status =
 _active_tenant = st.session_state.get("active_tenant")
 _active_tenant_id = _active_tenant.id if _active_tenant is not None else None
 
+_persistence_error: str | None = None
 try:
     from aml_framework.api.db import get_run_alerts as _get_run_alerts_fn
     from aml_framework.api.db import init_db, list_runs
@@ -113,9 +115,24 @@ try:
 
     def get_run_alerts(run_id: str):
         return _get_run_alerts_fn(run_id, tenant_id=_active_tenant_id)
-except Exception:
+except Exception as _exc:
+    # Two distinct failure modes: persistence is not configured at all
+    # (sqlite default, no rows yet) vs. configured backend is
+    # misconfigured / unreachable (Postgres DSN typo, network blip).
+    # Codex pass 9 P2 on PR-413: surface the second case explicitly so
+    # operators don't confuse an outage with "no stored history yet".
     stored_runs = []
     get_run_alerts = None  # type: ignore[assignment]
+    if os.environ.get("DATABASE_URL"):
+        _persistence_error = f"{type(_exc).__name__}: {_exc}"
+
+if _persistence_error:
+    st.error(
+        "⚠️  Drift-history backend is unavailable — falling back to "
+        "current-session only. Stored baselines and historical drift "
+        "ratios will appear empty until persistence is restored.\n\n"
+        f"`{_persistence_error}`"
+    )
 
 
 def _spec_key(p: str) -> str:
@@ -143,6 +160,11 @@ def _specs_match(a: str, b: str) -> bool:
     normalized slashes counts as a match. Symmetric: `endswith` either
     direction so absolute-vs-relative and absolute-vs-absolute both
     work.
+
+    Codex pass 9 P2: refuse to match when one side is a bare basename
+    (`aml.yaml`) — that would collide with every spec sharing the
+    filename. Require the SHORT side to contain at least one path
+    separator so the suffix carries actual directory context.
     """
     a_norm = _spec_key(a)
     b_norm = _spec_key(b)
@@ -150,8 +172,11 @@ def _specs_match(a: str, b: str) -> bool:
         return False
     if a_norm == b_norm:
         return True
-    # One side is absolute, the other relative — the absolute one
-    # ends with the relative one.
+    # The shorter side must carry directory context — a bare filename
+    # would suffix-match unrelated specs sharing the same basename.
+    short = a_norm if len(a_norm) <= len(b_norm) else b_norm
+    if "/" not in short:
+        return False
     return a_norm.endswith("/" + b_norm) or b_norm.endswith("/" + a_norm)
 
 
