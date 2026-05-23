@@ -252,19 +252,159 @@ for contract in spec.data_contracts:
     if freshness_ok:
         total_freshness_ok += 1
 
-    # Quality-check pass count (per-check, not per-field).
+    # Quality-check pass count (per-check, not per-field). PR-B1 (#366):
+    # `enum` / `regex` / `range` join `not_null` / `unique` so the
+    # integration scorecard reflects all five validity shapes the
+    # engine evaluates, not just the original two.
     contract_passed = 0
     contract_total = 0
     for qc in contract.quality_checks:
         for check_type, fields in qc.items():
-            for field in fields:
-                if field not in df.columns:
-                    continue
+            # Outer-shape malformed-check posture (codex B1 pass 10):
+            # the engine emits a `malformed_check` event for these
+            # shapes — the scorecard counts the check but does NOT
+            # award a pass, so the failing-check ratio reflects the
+            # disablement.
+            outer_shape_ok = (
+                check_type in ("not_null", "unique") and isinstance(fields, list)
+            ) or (check_type in ("enum", "regex", "range") and isinstance(fields, dict))
+            if (
+                check_type in ("not_null", "unique", "enum", "regex", "range")
+                and not outer_shape_ok
+            ):
                 contract_total += 1
-                if check_type == "not_null" and int(df[field].isna().sum()) == 0:
-                    contract_passed += 1
-                elif check_type == "unique" and int(df[field].duplicated().sum()) == 0:
-                    contract_passed += 1
+                continue
+            if check_type in ("not_null", "unique"):
+                if not isinstance(fields, list):
+                    continue
+                for field in fields:
+                    if field not in df.columns:
+                        continue
+                    contract_total += 1
+                    if check_type == "not_null" and int(df[field].isna().sum()) == 0:
+                        contract_passed += 1
+                    elif check_type == "unique" and int(df[field].duplicated().sum()) == 0:
+                        contract_passed += 1
+            elif check_type in ("enum", "regex", "range") and isinstance(fields, dict):
+                # NOTE: iterate as `check_spec`, NOT `spec` — this page
+                # runs at module scope so binding `spec` here would
+                # shadow the page-level `spec` object loaded from
+                # `st.session_state`, breaking later `spec.data_contracts`
+                # access. Codex review (B1 pass 5).
+                #
+                # We iterate the raw `rows` list (not the pandas DF) so
+                # NaN / pd.NA / non-string values are treated the way
+                # the engine evaluator treats them — `df.dropna()` would
+                # silently filter NaN values that the engine flags as
+                # violations. Codex review (B1 pass 6).
+                for field, check_spec in fields.items():
+                    # Do NOT skip on `field not in df.columns`: a
+                    # malformed inner check_spec must still surface
+                    # even on an empty / column-absent feed (engine
+                    # emits `malformed_check`). For a well-formed spec
+                    # on an absent column, `field_values` is empty →
+                    # the well-formed branches naturally award a pass.
+                    # Codex (B1 pass 11).
+                    contract_total += 1
+                    field_values = [r[field] for r in rows if field in r and r[field] is not None]
+                    if check_type == "enum":
+                        # Mirror engine: empty allow-list = nothing
+                        # allowed → every present value violates →
+                        # check FAILs. Codex (B1 pass 7). Non-list
+                        # check_spec is malformed — engine emits a
+                        # `malformed_check` event for it (codex B1
+                        # pass 9); we leave `contract_passed`
+                        # unincremented so the failing-check ratio
+                        # reflects the silent disablement.
+                        if isinstance(check_spec, (list, tuple)):
+                            allowed = list(check_spec)
+                            if all(v in allowed for v in field_values):
+                                contract_passed += 1
+                    elif check_type == "regex":
+                        # Engine emits `malformed_check` for a non-str
+                        # pattern OR an uncompilable pattern. Both cases
+                        # fall through without incrementing
+                        # `contract_passed`, matching the engine's
+                        # fail-closed posture. Codex (B1 pass 9).
+                        import re as _re
+
+                        if isinstance(check_spec, str):
+                            try:
+                                pat = _re.compile(check_spec)
+                                if all(
+                                    isinstance(v, str) and pat.fullmatch(v) is not None
+                                    for v in field_values
+                                ):
+                                    contract_passed += 1
+                            except _re.error:
+                                pass
+                    else:  # range
+                        import math as _m
+
+                        def _coerce_bound(v):
+                            # Bounds: numeric strings OK (`min: "0"`),
+                            # mirroring engine `_coerce_bound`.
+                            if v is None or isinstance(v, bool):
+                                return None
+                            try:
+                                f = float(v)
+                            except (TypeError, ValueError):
+                                return None
+                            if not _m.isfinite(f):
+                                return None
+                            return f
+
+                        def _coerce_value(v):
+                            # Row values: strings are NOT acceptable —
+                            # engine flags them as non-numeric. Codex
+                            # (B1 pass 7).
+                            from decimal import Decimal as _Dec
+
+                            if v is None or isinstance(v, bool):
+                                return None
+                            if not isinstance(v, (int, float, _Dec)):
+                                return None
+                            try:
+                                f = float(v)
+                            except (TypeError, ValueError):
+                                return None
+                            if not _m.isfinite(f):
+                                return None
+                            return f
+
+                        # Malformed-spec posture mirrors engine
+                        # `_eval_range`: non-dict spec → malformed
+                        # (no pass award). Codex (B1 pass 9).
+                        if not isinstance(check_spec, dict):
+                            ok = False
+                        else:
+                            raw_lo = check_spec.get("min")
+                            raw_hi = check_spec.get("max")
+                            lo_n = _coerce_bound(raw_lo)
+                            hi_n = _coerce_bound(raw_hi)
+                            if (
+                                lo_n is None
+                                and hi_n is None
+                                and (raw_lo is not None or raw_hi is not None)
+                            ):
+                                # At least one bound declared but neither
+                                # coerces — malformed; no pass award.
+                                ok = False
+                            else:
+                                ok = True
+                                for v in field_values:
+                                    nv = _coerce_value(v)
+                                    if nv is None:
+                                        ok = False
+                                        break
+                                    if lo_n is not None and nv < lo_n:
+                                        ok = False
+                                        break
+                                    if hi_n is not None and nv > hi_n:
+                                        ok = False
+                                        break
+                        if ok:
+                            contract_passed += 1
     total_checks += contract_total
     total_passed += contract_passed
 
