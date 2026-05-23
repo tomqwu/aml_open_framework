@@ -368,6 +368,7 @@ def _execute_list_match(
     rule: Rule,
     con: duckdb.DuckDBPyConnection,
     as_of: datetime,
+    cost_timer: CostVolumeTimer | None = None,
 ) -> list[dict[str, Any]]:
     """Screen a data source field against a reference list (sanctions, PEP, etc.)."""
     logic = rule.logic
@@ -386,6 +387,8 @@ def _execute_list_match(
     source_table = logic.source
     try:
         rows = con.execute(f"SELECT rowid AS __row_id, * FROM {source_table}").fetchall()
+        if cost_timer is not None:
+            cost_timer.increment_queries()
         cols = [d[0] for d in con.description] if con.description else []
     except Exception:
         logger.warning("list_match: table '%s' not found for rule '%s'", source_table, rule.id)
@@ -1098,9 +1101,12 @@ def run_spec(
 
         # --- list_match: screen against a reference list ---
         if rule.logic.type == "list_match":
+            # `_execute_list_match` increments the SQL counter only
+            # after the SELECT against the source table runs, so the
+            # missing-reference-list path returns 0 queries instead
+            # of phantom-1 (codex pass-2 P3 on PR-LF2).
             with cost_timer.rule(rule.id):
-                alerts = _execute_list_match(rule, con, as_of)
-            cost_timer.increment_queries()
+                alerts = _execute_list_match(rule, con, as_of, cost_timer)
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
