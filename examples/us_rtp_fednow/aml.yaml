@@ -124,6 +124,18 @@ rules:
     tags: [push_fraud, rtp, fednow, first_use_payee]
     tuning_grid:
       logic.filter.amount: [{gte: 500}, {gte: 1000}, {gte: 5000}]
+    business_intent: >
+      Detect outbound RTP/FedNow payments of $1,000+ to a counterparty the
+      customer has not previously paid — the textbook pig-butchering "drain
+      transfer" on instant rails. Because RTP/FedNow are irrevocable on
+      settlement, the value is in opening a pre-investigated case at
+      payment time so the CSR has every artefact attached when the
+      customer calls.
+    out_of_scope:
+      - non-RTP/FedNow channels (fedwire/ACH/cash separated by rail)
+      - payments to known counterparties (the first-use signal is required)
+      - inbound first-use credits (handled by velocity_spike_on_receive_rtp)
+      - sub-$1,000 first-use payments (commercial intent dominates below the floor)
 
   # ---------- 2. Velocity spike on receive ---------------------------------
   # A receiving account suddenly takes in many small RTP credits in a short
@@ -152,6 +164,17 @@ rules:
       - customer_kyc_profile
       - account_age_check
     tags: [push_fraud, rtp, fednow, mule_indicator, velocity]
+    business_intent: >
+      Flag customers receiving five or more inbound RTP/FedNow credits inside
+      one hour — the canonical mule-account signature on instant rails per
+      the FinCEN-FBI joint advisory. Velocity is the dominant signal: each
+      individual credit may be small but the aggregate accumulation is the
+      mule's earning shape.
+    out_of_scope:
+      - outbound velocity bursts (different mule role — the receiver is the focus here)
+      - non-RTP/FedNow inbound (ACH velocity has different baselines)
+      - credit bursts spread over longer than one hour (use ramp_up_then_drain_rtp instead)
+      - one-off large inbound credits without the burst shape (handled by EDD review)
 
   # ---------- 3. Ramp-up then drain (RTP variant) --------------------------
   # Same shape as the cyber_enabled_fraud spec's ramp_up_then_drain but
@@ -184,6 +207,16 @@ rules:
       - beneficiary_history
       - customer_kyc_profile
     tags: [push_fraud, rtp, fednow, ramp_up, fincen_alert005]
+    business_intent: >
+      RTP/FedNow variant of the ramp-up-then-drain pattern — three or more
+      outbound priming transfers under $500 to the same counterparty inside
+      14 days summing to $1,000+. Captures the instant-rail flavour of the
+      pig-butchering grooming signature FinCEN FIN-2023-Alert005 documents.
+    out_of_scope:
+      - the eventual drain transfer itself (handled by first_use_payee_large_amount_rtp)
+      - non-RTP/FedNow rails (the channel filter restricts to instant payments)
+      - priming patterns to multiple distinct counterparties (covered by mule_receiver_fan_out_rtp)
+      - priming amounts above $500 (different shape — typically commercial)
 
   # ---------- 4. Mule-receiver fan-out (network) ---------------------------
   # network_pattern detects receiving accounts whose outbound neighbourhood
@@ -209,6 +242,17 @@ rules:
       - all_inbound_outbound_30d
       - customer_kyc_profile
     tags: [push_fraud, rtp, fednow, mule_network]
+    business_intent: >
+      Use the entity-resolution graph to find clusters of four or more
+      receiving accounts within two hops sharing a linking attribute
+      (device_id). The fan-out shape signals a mule herd — multiple
+      accounts opened from the same device to receive distributed
+      victim payouts before consolidating.
+    out_of_scope:
+      - clusters of size three (the having floor is component_size ≥ 4)
+      - clusters spanning more than two hops
+      - shared-device family relationships that survive EDD review (require post-alert filtering)
+      - outbound mule fan-out (different shape — handled by ramp_up_then_drain_rtp)
 
   # ---------- 5. Unusual hour for customer ---------------------------------
   # Real-time rails are 24/7. A customer who has a settled "typical send
@@ -246,6 +290,17 @@ rules:
       - customer_typical_send_window
       - customer_kyc_profile
     tags: [push_fraud, rtp, fednow, time_anomaly]
+    business_intent: >
+      Flag outbound RTP/FedNow sends of $500+ posted outside the customer's
+      personal typical_send_window. Real-time rails operate 24/7 and
+      victims often send under duress (scam call, threat) outside their
+      normal payment hours — a behavioural anomaly that complements the
+      payee- and counterparty-based signals.
+    out_of_scope:
+      - customers without a populated typical_send_window (cannot evaluate the anomaly)
+      - sub-$500 sends inside or outside the window (volume noise dominates the signal)
+      - inbound credits outside the window (different role — receiver, not sender)
+      - sends inside the window even if other risk signals are present (covered by other rules)
 
 workflow:
   queues:
