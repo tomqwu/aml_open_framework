@@ -75,12 +75,12 @@ _EXPECTED_PAGE_LEVEL = {
     # PR-NS-1: universally-routed north-star pillar coverage page,
     # same explainer contract as the Knowledge category above.
     "43_North_Star_Coverage.py",
+    # PR-F3 (#385): universally-routed decision-trail audit surface,
+    # same explainer contract as the universally-routed pages above.
+    "44_Decision_Trail.py",
     # PR-E1: universally-routed false-positive analysis page, same
     # explainer contract as the universally-routed pages above.
     "45_FP_Analysis.py",
-    # PR-A4 (#365): universally-routed rule lifecycle dashboard, same
-    # explainer contract as the rest of the Detection & Tuning family.
-    "51_Rule_Lifecycle.py",
     "4_Case_Investigation.py",
     "5_Rule_Performance.py",
     "6_Risk_Assessment.py",

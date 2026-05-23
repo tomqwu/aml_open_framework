@@ -75,9 +75,8 @@ PAGES = [
     "North-Star Pillar Coverage",
     # PR-E1: false-positive analysis (universal, like Knowledge).
     "FP Analysis",
-    # PR-A4 (#365): rule lifecycle dashboard + approval-workflow
-    # placeholder (universally routed, same idiom as North-Star).
-    "Rule Lifecycle",
+    # PR-F3 (#385): investigator decision trail surface.
+    "Decision Trail",
 ]
 
 
@@ -204,7 +203,6 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Tuning Lab": "Detection & Tuning",
     "Spec Editor": "Detection & Tuning",
     "FP Analysis": "Detection & Tuning",
-    "Rule Lifecycle": "Detection & Tuning",
     "Data Integration": "Data",
     "Data Quality": "Data",
     "Customer 360": "Data",
@@ -218,6 +216,8 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Audit & Evidence": "Audit & Reference",
     "Run History": "Audit & Reference",
     "AI Assistant": "Audit & Reference",
+    "Lineage Explorer": "Audit & Reference",
+    "Decision Trail": "Audit & Reference",
     "FinTech Cockpit": "FinTech",
     # PR-U2: the Knowledge reference shelf (universal — visible to
     # every persona regardless of the audience filter).

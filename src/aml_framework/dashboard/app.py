@@ -6,8 +6,8 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import (
     AUDIENCE_PAGES,
+    AUDIT_TRAIL_PAGES,
     KNOWLEDGE_PAGES,
-    LIFECYCLE_PAGES,
     NORTH_STAR_PAGES,
     PERSONA_LABELS,
     TUNING_PAGES,
@@ -150,22 +150,6 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             # with the rest of the dashboard.
             url_path="FP_Analysis",
         ),
-        # PR-A4 (#365) — rule lifecycle dashboard + approval-workflow
-        # placeholder. Lives in Detection & Tuning because the closest
-        # sibling pages (Rule Performance, Spec Editor, Tuning Lab) are
-        # the surfaces a reviewer crosses-back-and-forth with, even
-        # though governance is cross-cutting. Universally routed via
-        # LIFECYCLE_PAGES (same idiom as North-Star / Knowledge / FP
-        # Analysis) so every persona keeps visibility without burning a
-        # slot in AUDIENCE_PAGES (MAX_PAGES_PER_PERSONA=9 preserved).
-        # URL slug pinned to match the title-derived form the e2e
-        # helper uses.
-        st.Page(
-            "pages/51_Rule_Lifecycle.py",
-            title="Rule Lifecycle",
-            icon=":material/account_tree:",
-            url_path="Rule_Lifecycle",
-        ),
     ],
     "Data": [
         # Data engineer + auditor lane (introduced in PR-DATAVIZ-1
@@ -234,6 +218,16 @@ ALL_PAGES: dict[str, list[st.Page]] = {
         st.Page(
             "pages/32_Lineage_Explorer.py",
             title="Lineage Explorer",
+            icon=":material/account_tree:",
+        ),
+        # PR-F3 (closes #385): per-case event chain walking case_opened
+        # → disposition events → STR/SAR escalation. Sits in Audit &
+        # Reference because it's the examiner-facing "show me the
+        # audit trail" surface — adjacent to Audit & Evidence and
+        # Lineage Explorer (the run-level + alert-level audit surfaces).
+        st.Page(
+            "pages/44_Decision_Trail.py",
+            title="Decision Trail",
             icon=":material/account_tree:",
         ),
         st.Page("pages/15_Run_History.py", title="Run History", icon=":material/history:"),
@@ -362,15 +356,14 @@ if selected_audience:
     # "are we honoring the 8 pillars?" surface — pitch reviewers,
     # examiners, every persona needs it. Universal same as Knowledge.
     relevant_titles.update(NORTH_STAR_PAGES)
+    # PR-F3 (#385): Decision Trail is the cross-cutting "show me the
+    # audit trail for case X" surface. Universal so an examiner can
+    # always reach it regardless of the active operational persona.
+    relevant_titles.update(AUDIT_TRAIL_PAGES)
     # PR-E1 (#378): FP Analysis is cross-persona — analysts, MLROs,
     # engineers, examiners, and CCOs all need to see which rules are
     # noisiest. Universal same as North-Star / Knowledge.
     relevant_titles.update(TUNING_PAGES)
-    # PR-A4 (#365): the Rule Lifecycle page surfaces lifecycle state
-    # + the approval-workflow placeholder. Governance is cross-cutting
-    # so every persona needs visibility. Universal same as North-Star
-    # / FP Analysis.
-    relevant_titles.update(LIFECYCLE_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()

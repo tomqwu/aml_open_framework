@@ -382,6 +382,17 @@ NORTH_STAR_PAGES = [
     "North-Star Pillar Coverage",
 ]
 
+# PR-F3 (closes #385). Decision Trail is the cross-cutting "show me
+# the audit trail for case X" surface — an examiner-facing answer
+# that every persona (auditor, MLRO, analyst, CCO, FinTech MLRO,
+# director, etc.) may need on demand. Same universal-routing idiom
+# as NORTH_STAR_PAGES so the per-persona operational cap of 9 stays
+# untouched. Distinct constant because it's an event-chain surface,
+# not a pillar synthesis or a static knowledge brief.
+AUDIT_TRAIL_PAGES = [
+    "Decision Trail",
+]
+
 
 # PR-E1 (closes #378). False-Positive Analysis is the Pillar 7
 # "DS as governed augmentation" surface — per-rule FP rate so the
@@ -394,22 +405,6 @@ NORTH_STAR_PAGES = [
 # knowledge brief or pillar-coverage map.
 TUNING_PAGES = [
     "FP Analysis",
-]
-
-
-# PR-A4 (#365). Rule Lifecycle is a governance-adjacent surface —
-# every persona benefits from being able to see "which rules are
-# active vs experimental vs deprecated, with the approval-workflow
-# placeholder per rule." It's NOT tuning (Tuning Lab owns that, via
-# the FP-rate analysis sibling above) and NOT alert-volume analytics
-# (Rule Performance owns that), so it sits in its own constant rather
-# than being folded into TUNING_PAGES. Routed UNIVERSALLY via the
-# same idiom as KNOWLEDGE_PAGES / NORTH_STAR_PAGES / TUNING_PAGES
-# (app.py adds these titles to the visible set for every persona),
-# NOT via AUDIENCE_PAGES — that preserves MAX_PAGES_PER_PERSONA=9
-# for the operational arcs.
-LIFECYCLE_PAGES = [
-    "Rule Lifecycle",
 ]
 
 
