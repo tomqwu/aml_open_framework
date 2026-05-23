@@ -94,6 +94,17 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
     tags: [structuring, cash, poca]
+    business_intent: >
+      Detect customers depositing cash in the £5,000–£9,999 band three or
+      more times within 30 days summing to £20,000+. The pattern is the
+      UK analogue of CTR/LCTR structuring — splitting deposits to evade
+      the threshold-based reporting trigger and avoid a single reportable
+      transaction visible to NCA.
+    out_of_scope:
+      - single cash deposits at or above £10,000 (already trigger CDD/EDD via reg. 28)
+      - cash withdrawals (rule is inbound-only)
+      - third-party deposits where the depositor is not the account holder
+      - structuring across related-party accounts (requires entity resolution beyond this rule)
 
   - id: high_risk_jurisdiction
     name: Transactions with FATF high-risk jurisdictions
@@ -124,6 +135,17 @@ rules:
       - all_matching_transactions
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, edd]
+    business_intent: >
+      Surface customers domiciled in FATF call-for-action jurisdictions
+      (RU, IR, KP, MM, SY, AF) whose activity exceeds a low £5,000
+      aggregate floor. MLR 2017 reg. 33 requires EDD on customers
+      established in such jurisdictions; this rule provides the
+      transactional trigger that drives the EDD review.
+    out_of_scope:
+      - counterparty-side high-risk geography (the join is on customer.country)
+      - customers from FATF grey-list countries outside the hard-coded set
+      - sanctioned-name matches against an individual (handled by sanctions_ofsi)
+      - cross-border activity that doesn't involve a customer domiciled in the high-risk set
 
   - id: sanctions_ofsi
     name: OFSI sanctions screening
@@ -145,6 +167,16 @@ rules:
       - customer_kyc_profile
       - sanctions_match_details
     tags: [sanctions, ofsi, samla]
+    business_intent: >
+      Fuzzy-match every customer's full_name against the OFSI consolidated
+      list (HM Treasury) at threshold 0.8. A hit obligates immediate
+      freeze, OFSI reporting, and NCA SAR filing — these are SAMLA 2018
+      compliance gates, not suspicion signals.
+    out_of_scope:
+      - counterparty (non-customer) names appearing in inbound wire metadata
+      - beneficial-owner / control-person screening of corporate customers (different attribute)
+      - PEP screening (the UK MLRO handles PEP risk via EDD rather than this list)
+      - sanctions screening against transaction narrative or freeform fields
 
   - id: unusual_volume_spike
     name: Unusual volume spike
@@ -187,6 +219,17 @@ rules:
     evidence:
       - all_matching_transactions
     tags: [unusual_activity, behavioral]
+    business_intent: >
+      Behavioural baseline rule — flag a customer whose recent-window
+      total exceeds five times their own prior weekly average with a
+      £5,000 floor. Surfaces activity inconsistent with the customer's
+      profile, which underpins the suspicious-activity reporting
+      obligation in POCA 2002 s.330.
+    out_of_scope:
+      - new customers with no baseline (require ≥2 baseline transactions)
+      - dormant-then-active patterns where prior activity is zero (different shape)
+      - absolute-large transactions that aren't anomalous against the customer's own baseline
+      - pacs.004 return-burst signatures (handled by mule_return_burst_scorer)
 
   # PR-ML-2: mule-return-burst python_ref scorer.
   # Reads the txn_return contract declared above. Goes beyond the
@@ -218,6 +261,17 @@ rules:
     tags: [mule, pacs004, return_reasons, ml_governed]
     model_tier: medium
     validation_cadence_months: 18
+    business_intent: >
+      Score originators emitting bursts of pacs.004 returns by combining
+      return count, beneficiary-country fan-out, and shell-name density.
+      Mule recruiters probe receiving accounts with small returns to
+      discover which beneficiary accounts are still alive; this scorer
+      surfaces the probe signature before the next victim payment lands.
+    out_of_scope:
+      - originators with a single return (no burst signal — relies on count ≥ 2)
+      - returns on rails other than pacs.004 (e.g. SWIFT MT103 N99 messages)
+      - the deterministic high_risk_return_burst custom_sql snippet (the python_ref adds cross-signal lift on the same data)
+      - beneficiary-side behavioural analysis (separate inbound mule rules cover that)
 
 workflow:
   queues:

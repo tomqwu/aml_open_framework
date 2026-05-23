@@ -67,8 +67,16 @@ rules:
       - customer_kyc_profile
       - prior_alerts_90d
     tags: [structuring, cash, lctr]
-
-  # --- Rapid movement: cash in followed by outgoing EFT/wire ---
+    business_intent: >
+      Detect customers depositing cash in the $5,000–$9,999 band three or more
+      times within 30 days summing to $20,000+ — the canonical pattern of
+      splitting deposits to stay below the $10,000 CAD LCTR filing trigger
+      and avoid a single reportable transaction.
+    out_of_scope:
+      - single cash deposits at or above $10,000 (already captured by large_cash_lctr)
+      - cash withdrawals (this rule is inbound-only)
+      - non-cash structuring such as repeated wire credits below an EFTR threshold
+      - third-party deposits where the depositor is a different person from the account holder
   - id: rapid_movement_cash_to_eft
     name: Rapid movement — cash in followed by outgoing EFT
     severity: medium
@@ -92,6 +100,15 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
     tags: [rapid_movement, layering, eft]
+    business_intent: >
+      Catch the classic layering signature of value entering as cash and
+      leaving via wire/EFT within a 7-day window — four or more transactions
+      across these channels summing to $50,000+ for a single customer indicates
+      a pass-through pattern inconsistent with normal retail behaviour.
+    out_of_scope:
+      - intra-channel velocity (e.g. cash-only or wire-only bursts handled by structuring/EFTR rules)
+      - cross-channel movement spread over more than seven days
+      - inbound-only wire activity from a shell counterparty (covered by EDD/EFTR controls)
 
   # --- High-risk jurisdiction: FATF grey/black list countries ---
   - id: high_risk_jurisdiction
@@ -128,6 +145,15 @@ rules:
       - customer_kyc_profile
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, geographic_risk]
+    business_intent: >
+      Surface customers domiciled in FATF call-for-action or sanctioned
+      jurisdictions (RU, IR, KP, MM, SY) whose transaction activity exceeds a
+      low $5,000 aggregate floor — geographic risk drives EDD obligations and
+      this rule provides the trigger for review.
+    out_of_scope:
+      - counterparty-side high-risk geography (the join is on customer country, not counterparty)
+      - customers from FATF grey-list countries not in the hard-coded high-risk set
+      - sanctions-list name matches (handled by sanctions screening)
 
   # --- Large Cash Transaction (LCTR threshold: CAD $10,000/day) ---
   - id: large_cash_lctr
@@ -152,6 +178,15 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
     tags: [lctr, cash, regulatory_reporting]
+    business_intent: >
+      Provide the regulator-facing trigger for any single-day cash aggregate at
+      or above $10,000 CAD per customer — this is the LCTR filing surface
+      itself (per PCMLTFR s.132's 24-hour aggregation rule), not a suspicion
+      signal, so it routes to L1 for ordinary filing rather than to L2.
+    out_of_scope:
+      - cash aggregated across windows longer than one calendar day
+      - sub-threshold structuring (covered by structuring_cash_deposits)
+      - non-cash channels even when individually above $10,000
 
   # --- Unusual volume spike ---
   - id: unusual_volume_spike
@@ -199,6 +234,15 @@ rules:
       - customer_kyc_profile
       - historical_transaction_profile
     tags: [unusual_activity, behavioral]
+    business_intent: >
+      Behavioural baseline rule — flag a customer whose recent-window volume
+      exceeds five times their own prior weekly average (with a $5,000 floor
+      so noise on dormant low-volume accounts doesn't dominate). Surfaces
+      activity inconsistent with the customer's profile per PCMLTFR s.123.1.
+    out_of_scope:
+      - first-month onboarded customers with no baseline (require ≥2 baseline transactions)
+      - dormant-then-active patterns where prior activity is zero (covered by dormant_account_activity)
+      - absolute-large transactions that aren't anomalous against the customer's own baseline
 
   # --- Dormant account reactivation ---
   - id: dormant_account_activity
@@ -245,6 +289,15 @@ rules:
       - customer_kyc_profile
       - account_activity_history
     tags: [dormant_account, behavioral]
+    business_intent: >
+      Detect accounts inactive prior to the dormant cutoff that suddenly book a
+      transaction of $10,000+ inside the post-cutoff window. A dormant account
+      coming alive with a single large transfer is a textbook nominee/shell
+      indicator in FINTRAC's ML/TF Indicators guidance.
+    out_of_scope:
+      - continuously active accounts where the new transaction is large but not preceded by dormancy
+      - small reactivation activity below the $10,000 individual-transaction floor
+      - new customers (no prior history means no dormancy concept)
 
 workflow:
   queues:
