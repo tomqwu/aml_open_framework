@@ -117,8 +117,34 @@ except Exception:
     stored_runs = []
     get_run_alerts = None  # type: ignore[assignment]
 
-_current_spec_path = str(st.session_state.spec_path)
-_scoped_runs = [r for r in stored_runs if str(r.get("spec_path", "")) == _current_spec_path]
+
+def _spec_key(p: str) -> str:
+    """Normalize a spec_path for cross-source equality.
+
+    The dashboard launches with an absolute path
+    (`/.../examples/canadian_schedule_i_bank/aml.yaml`) but API-persisted
+    runs store the request's `spec_path` which `_safe_spec_path` rejects
+    when absolute — so those rows look like
+    `examples/canadian_schedule_i_bank/aml.yaml`. Without normalization,
+    the strict-equality filter dropped every persisted run and the
+    drift history appeared empty even after data was stored. Codex
+    pass 3 on PR-413.
+    """
+    # Match on the basename's two-deep suffix (`examples/<dir>/aml.yaml`)
+    # which is what `req.spec_path` stores and what an absolute path's
+    # tail also resolves to. Falls back to the raw string when there's
+    # no recognizable suffix.
+    s = (p or "").replace("\\", "/")
+    parts = [seg for seg in s.split("/") if seg]
+    if len(parts) >= 3:
+        return "/".join(parts[-3:])
+    return s
+
+
+_current_spec_key = _spec_key(str(st.session_state.spec_path))
+_scoped_runs = [
+    r for r in stored_runs if _spec_key(str(r.get("spec_path", ""))) == _current_spec_key
+]
 
 # Cap at last 10 runs to keep the page snappy. `list_runs()` returns
 # DESC by created_at; reverse for chronological X-axis on the line chart.
