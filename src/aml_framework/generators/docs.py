@@ -25,6 +25,25 @@ def render_control_matrix(spec: AMLSpec) -> str:
             f"| {refs} | `{rule.escalate_to}` |"
         )
 
+    # PR-A2 follow-up: per-rule "Program intent" block — surfaces
+    # `business_intent` + `out_of_scope` so the MRM / 2LoD reviewer sees
+    # the rule author's stated scope boundary directly in the control
+    # matrix. Section is skipped entirely when no rule on the spec has
+    # populated either field, so legacy specs render unchanged.
+    rules_with_intent = [rule for rule in spec.rules if rule.business_intent or rule.out_of_scope]
+    if rules_with_intent:
+        lines += ["", "## Program intent (per rule)", ""]
+        for rule in rules_with_intent:
+            lines.append(f"### `{rule.id}` — {rule.name}")
+            lines.append("")
+            if rule.business_intent:
+                lines.append(f"- **Intent:** {rule.business_intent.strip()}")
+            if rule.out_of_scope:
+                lines.append("- **Out-of-scope:**")
+                for item in rule.out_of_scope:
+                    lines.append(f"  - {item}")
+            lines.append("")
+
     lines += [
         "",
         "## Reviewer queues",

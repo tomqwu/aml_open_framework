@@ -94,10 +94,62 @@ def _inventory(spec: AMLSpec) -> dict[str, Any]:
                 "tier": r.model_tier or "unclassified",
                 "validation_cadence_months": r.validation_cadence_months,
                 "tags": list(r.tags),
+                # PR-A2 follow-up: surface the rule author's stated
+                # intent + explicit exclusions in the inventory so a
+                # FINTRAC examiner reading the pack sees the scope
+                # boundary alongside the citations. `business_intent`
+                # stays None when undocumented; `out_of_scope` is always
+                # a list (possibly empty).
+                "business_intent": r.business_intent,
+                "out_of_scope": list(r.out_of_scope),
             }
             for r in spec.rules
         ],
     }
+
+
+def _program_intent_md(spec: AMLSpec) -> str:
+    """PR-A2 follow-up: top-level rule-author scope-declarations digest.
+
+    Surfaces every rule's `business_intent` + `out_of_scope` so an
+    examiner answering "why didn't this fire on case X?" can scan the
+    declared exclusions without opening the YAML. Skipped rules (those
+    with neither field populated) get a one-line undocumented marker so
+    the reviewer can see coverage gaps at a glance.
+    """
+    lines = [
+        "# Program intent — rule-author scope declarations",
+        "",
+        f"Program: **{spec.program.name}** "
+        f"(jurisdiction: {spec.program.jurisdiction}, "
+        f"regulator: {spec.program.regulator})",
+        "",
+        (
+            "Each rule's author may declare a `business_intent` (free-text "
+            "rationale aimed at examiners / 2LoD) and `out_of_scope` "
+            "(activities the rule deliberately does not catch). Both are "
+            "optional — rules without either field are flagged below so "
+            "reviewers can see documentation gaps."
+        ),
+        "",
+    ]
+    for rule in spec.rules:
+        lines.append(f"## `{rule.id}` — {rule.name}")
+        lines.append("")
+        if rule.business_intent:
+            lines.append(f"- **Intent:** {rule.business_intent.strip()}")
+        if rule.out_of_scope:
+            lines.append("- **Out-of-scope:**")
+            for item in rule.out_of_scope:
+                lines.append(f"  - {item}")
+        if not rule.business_intent and not rule.out_of_scope:
+            lines.append(
+                "- _No `business_intent` or `out_of_scope` declared on this "
+                "rule. Rule author should populate the spec to close this "
+                "documentation gap._"
+            )
+        lines.append("")
+    return "\n".join(lines)
 
 
 def _alerts_summary(
@@ -380,6 +432,10 @@ def build_audit_pack(
         # source file fed it?" from the bundle alone — no need to
         # request the run dir.
         "case_lineage_summary.json": _dump_json(_case_lineage_summary(cases)),
+        # PR-A2 follow-up: rule-author scope declarations digest
+        # (`business_intent` + `out_of_scope` per rule). Answers
+        # "why didn't this rule fire on case X" from the bundle alone.
+        "program_intent.md": _program_intent_md(spec).encode("utf-8"),
     }
     if jurisdiction == "CA-FINTRAC":
         files["pcmltfa_section_map.md"] = _pcmltfa_section_map_md(spec).encode("utf-8")

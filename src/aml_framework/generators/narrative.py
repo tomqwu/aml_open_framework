@@ -7,7 +7,35 @@ data, customer profile, and rule regulation references.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from aml_framework.spec.models import Rule
+
+
+def _format_program_scope(rule: Rule | None) -> str:
+    """Render `business_intent` + `out_of_scope` (PR-A2 follow-up) as a
+    "Program scope" preamble so an examiner sees the rule author's stated
+    intent + explicit exclusions alongside the narrative.
+
+    Returns an empty string when no rule is supplied or both fields are
+    unset, so the section collapses cleanly on legacy callers and on
+    rules that haven't documented intent yet.
+    """
+    if rule is None:
+        return ""
+    intent = (rule.business_intent or "").strip()
+    out_of_scope = list(rule.out_of_scope or [])
+    if not intent and not out_of_scope:
+        return ""
+    lines: list[str] = ["", "Program scope (rule author's declared intent)"]
+    if intent:
+        lines.append(f"   Intent: {intent}")
+    if out_of_scope:
+        lines.append("   Out-of-scope exclusions:")
+        for item in out_of_scope:
+            lines.append(f"     - {item}")
+    return "\n".join(lines) + "\n"
 
 
 def _format_explainability(alert: dict[str, Any]) -> str:
@@ -44,8 +72,17 @@ def generate_str_narrative(
     customer: dict[str, Any] | None,
     transactions: list[dict[str, Any]],
     jurisdiction: str = "CA",
+    rule: Rule | None = None,
 ) -> str:
-    """Generate a structured STR/SAR narrative from case data."""
+    """Generate a structured STR/SAR narrative from case data.
+
+    The optional `rule` arg is the PR-A2 follow-up wire-in: when supplied,
+    `rule.business_intent` and `rule.out_of_scope` are rendered as a
+    "Program scope" preamble (between section 5 and section 6) so an
+    examiner reading the STR draft sees the rule author's stated intent
+    and explicit exclusions alongside the standard who/what/when/where
+    /why/how block. Omitted by default so legacy callers stay byte-stable.
+    """
     alert = case.get("alert", {})
     rule_name = case.get("rule_name", case.get("rule_id", "Unknown"))
     severity = case.get("severity", "unknown")
@@ -118,7 +155,7 @@ Filing to: {regulator}
    (severity: {severity}). The pattern is consistent with indicators described
    in {ref_text}.
 {_format_explainability(alert)}
-
+{_format_program_scope(rule)}
 6. HOW (Method)
    The subject conducted {txn_count} transaction(s) totalling ${float(amount):,.2f}
    during the period {window_start} to {window_end}. The activity triggered
