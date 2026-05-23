@@ -157,6 +157,11 @@ def bundle_investigation_to_str(
     # One narrative document covering every constituent case, joined by
     # rule. Auditors complained that per-case narratives lost the link
     # between the alerts that fired together; this ties them back.
+    # PR-A2 follow-up: pass the matching Rule so the narrative renders
+    # the rule author's `business_intent` + `out_of_scope` preamble. The
+    # lookup is by `rule_id` from the case; rules not on the spec (e.g.
+    # decommissioned) fall back to None and the section collapses.
+    rule_by_id = {r.id: r for r in spec.rules}
     narrative_sections: list[str] = []
     for case in constituent:
         cust_id = (case.get("alert") or {}).get("customer_id")
@@ -168,6 +173,7 @@ def bundle_investigation_to_str(
                 customer=customer,
                 transactions=case_txns,
                 jurisdiction=spec.program.jurisdiction,
+                rule=rule_by_id.get(case.get("rule_id", "")),
             )
         )
     files["narrative.txt"] = (

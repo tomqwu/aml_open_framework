@@ -67,7 +67,7 @@ A live multi-audience pitch deck walking the framework slide by slide is at [`do
 One versioned document — the **Compliance Manifest** (an `aml.yaml` file, for engineers) — drives four layers:
 
 - **Policy** — program metadata, data contracts, detection rules, workflow, reporting · *authored by CCO / MLRO, verified by 2LoD*
-- **Generation** — `aml.yaml` → SQL / DAG stubs / data-quality tests / MRM dossier / control matrix · *operated by Engineering, validated by MRM under SR 26-2*
+- **Generation** — `aml.yaml` → SQL / DAG stubs / data-quality tests / MRM dossier / control matrix · *operated by Engineering, validated by MRM under SR 26-2.* Per-rule `business_intent` + `out_of_scope` declarations from the spec flow through the STR narrative preamble, MRM conceptual-soundness section, control-matrix intent block, and the audit-pack `program_intent.md` / `inventory.json` artifacts.
 - **Runtime** — detectors fire, cases route, BOI refresh, tuning lab backtests, examiner pack exports · *reviewed by 2LoD*
 - **Evidence** — immutable hash-chained audit ledger · spec / input / output / decision hashes · *replayed by Internal Audit byte-for-byte*
 

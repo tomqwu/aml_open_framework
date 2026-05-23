@@ -175,6 +175,12 @@ def _conceptual_soundness(rule: Rule) -> dict[str, Any]:
         "regulation_refs": [
             {"citation": r.citation, "description": r.description} for r in rule.regulation_refs
         ],
+        # PR-A2 follow-up: surface the rule author's stated intent and
+        # explicit exclusions so a 2LoD model-validation reviewer sees
+        # the scope boundary alongside the logic + regulation citations.
+        # `None` means "not documented yet" (different from an empty list).
+        "business_intent": rule.business_intent,
+        "out_of_scope": list(rule.out_of_scope),
     }
 
 
@@ -319,6 +325,22 @@ def render_dossier_markdown(dossier: MRMDossier) -> str:
     cs = dossier.conceptual_soundness
     lines.append(cs.get("narrative", ""))
     lines.append("")
+    # PR-A2 follow-up: the rule author's stated intent + explicit
+    # exclusions land here so the 2LoD reviewer sees the scope boundary
+    # before the logic dump. Both sections collapse when the spec hasn't
+    # been populated yet.
+    intent = cs.get("business_intent")
+    if intent:
+        lines.append("**Business intent**:")
+        lines.append("")
+        lines.append(intent)
+        lines.append("")
+    out_of_scope = cs.get("out_of_scope") or []
+    if out_of_scope:
+        lines.append("**Out-of-scope exclusions**:")
+        for item in out_of_scope:
+            lines.append(f"- {item}")
+        lines.append("")
     lines.append("**Logic**:")
     lines.append("```json")
     lines.append(json.dumps(cs.get("logic", {}), indent=2, sort_keys=True, default=str))
