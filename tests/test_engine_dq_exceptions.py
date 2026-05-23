@@ -111,9 +111,17 @@ class TestEvaluateContractChecksPure:
 
     def test_unknown_check_type_is_skipped_silently(self):
         # Forward-compat: spec dialect may grow new check shapes; the
-        # evaluator should not crash on `enum`/`range`/etc.
+        # evaluator should not crash on unknown keys. After PR-B1
+        # (#366) `enum` and `range` are known shapes, so we use a
+        # truly unknown key here. The inputs to the known checks are
+        # valid (value `1` is in `[1, 2]` and >= `0`) and would emit
+        # no exceptions anyway.
         rows = [{"x": 1}]
-        checks = [{"enum": {"x": [1, 2]}}, {"range": {"x": {"min": 0}}}]
+        checks = [
+            {"future_check_type_we_dont_know_yet": ["x"]},
+            {"enum": {"x": [1, 2]}},
+            {"range": {"x": {"min": 0}}},
+        ]
         assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
 
     def test_unique_ignores_nulls(self):
@@ -138,6 +146,390 @@ class TestEvaluateContractChecksPure:
         checks = [{"not_null": ["email"]}]
         excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
         assert [(e.row_index, e.failing_value) for e in excs] == [(1, None), (2, None)]
+
+    # -----------------------------------------------------------------
+    # PR-B1 (#366) — enum / regex / range validity checks
+    # -----------------------------------------------------------------
+
+    def test_enum_flags_value_not_in_list(self):
+        rows = [
+            {"currency": "USD"},
+            {"currency": "XYZ"},  # not allowed
+            {"currency": "CAD"},
+        ]
+        checks = [{"enum": {"currency": ["USD", "CAD", "EUR"]}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "enum"
+        assert exc.column == "currency"
+        assert exc.row_index == 1
+        assert exc.failing_value == "XYZ"
+        assert exc.check_id == "enum:currency"
+
+    def test_enum_passes_when_value_in_list(self):
+        rows = [{"currency": "USD"}, {"currency": "CAD"}, {"currency": "EUR"}]
+        checks = [{"enum": {"currency": ["USD", "CAD", "EUR"]}}]
+        assert evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF) == []
+
+    def test_enum_skips_missing_key(self):
+        # Missing key is NOT an enum violation — that's `not_null`'s job.
+        # Same posture for an explicit `None`.
+        rows = [
+            {"currency": "USD"},
+            {},  # missing entirely
+            {"currency": None},  # explicit None
+        ]
+        checks = [{"enum": {"currency": ["USD", "CAD"]}}]
+        assert evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF) == []
+
+    def test_regex_flags_pattern_mismatch(self):
+        rows = [
+            {"email": "ok@example.com"},
+            {"email": "not-an-email"},
+        ]
+        checks = [{"regex": {"email": r"^[^@]+@[^@]+\.[^@]+$"}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="customer", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "regex"
+        assert exc.column == "email"
+        assert exc.row_index == 1
+        assert exc.failing_value == "not-an-email"
+        assert exc.check_id == "regex:email"
+
+    def test_regex_uses_fullmatch_semantics(self):
+        # Partial match must FAIL — a value that satisfies `re.search`
+        # but not `re.fullmatch` is a violation. Pattern is "must be 3
+        # lowercase letters"; the second row has trailing junk that
+        # `search` would let through but `fullmatch` rejects.
+        rows = [
+            {"code": "abc"},
+            {"code": "abc-trailing-junk"},
+        ]
+        checks = [{"regex": {"code": r"[a-z]{3}"}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].row_index == 1
+        assert excs[0].failing_value == "abc-trailing-junk"
+
+    def test_range_flags_below_min(self):
+        rows = [{"amount": 50.0}, {"amount": -1.0}]
+        checks = [{"range": {"amount": {"min": 0, "max": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "range"
+        assert exc.column == "amount"
+        assert exc.row_index == 1
+        assert exc.failing_value == "-1.0"
+        assert "below min" in exc.reason
+        assert exc.check_id == "range:amount"
+
+    def test_range_flags_above_max(self):
+        rows = [{"amount": 50.0}, {"amount": 2_000_000.0}]
+        checks = [{"range": {"amount": {"min": 0, "max": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.row_index == 1
+        assert "above max" in exc.reason
+
+    def test_range_min_only_allows_above(self):
+        # `{min: 0}` means "value >= 0, no upper bound" — a very large
+        # value must pass.
+        rows = [{"amount": -5.0}, {"amount": 10.0}, {"amount": 10_000_000_000.0}]
+        checks = [{"range": {"amount": {"min": 0}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].row_index == 0  # only the negative violates
+
+    def test_range_max_only_allows_below(self):
+        # `{max: 100}` means "value <= 100, no lower bound" — a very
+        # negative value must pass.
+        rows = [{"amount": -1_000_000.0}, {"amount": 50.0}, {"amount": 1000.0}]
+        checks = [{"range": {"amount": {"max": 100}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].row_index == 2  # only the 1000.0 > 100 violates
+
+    def test_range_flags_non_numeric_value(self):
+        rows = [{"amount": 50.0}, {"amount": "not-a-number"}]
+        checks = [{"range": {"amount": {"min": 0, "max": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "range"
+        assert exc.row_index == 1
+        assert exc.failing_value == "not-a-number"
+        assert exc.reason == "non-numeric value cannot be range-checked"
+
+    def test_range_accepts_decimal_values(self):
+        # CSV-backed contract columns of `type: decimal` are loaded as
+        # `decimal.Decimal` via `data/sources.py`; the range evaluator
+        # must accept them as numeric, not mis-flag them as non-numeric.
+        # Codex review (B1 pass 1).
+        from decimal import Decimal
+
+        rows = [
+            {"amount": Decimal("50.00")},  # in range
+            {"amount": Decimal("-1.00")},  # below min
+            {"amount": Decimal("2000000.00")},  # above max
+        ]
+        checks = [{"range": {"amount": {"min": 0, "max": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        # In-range Decimal must NOT fire; below-min and above-max must.
+        types_and_indices = sorted((e.row_index, e.reason) for e in excs)
+        assert len(excs) == 2
+        assert types_and_indices[0][0] == 1
+        assert "below min" in types_and_indices[0][1]
+        assert types_and_indices[1][0] == 2
+        assert "above max" in types_and_indices[1][1]
+        # And the in-range Decimal must NOT have been mis-flagged as non-numeric.
+        for exc in excs:
+            assert exc.reason != "non-numeric value cannot be range-checked"
+
+    def test_range_string_bound_does_not_crash(self):
+        # `quality_checks` is untyped at the spec layer — a careless
+        # spec can carry a quoted bound like `{"min": "0"}`. The
+        # evaluator must coerce it (or skip the bound), never raise
+        # `TypeError` from `<`/`>` against an int row value and abort
+        # the whole `aml run`. Codex review (B1 pass 1).
+        rows = [{"amount": 5}, {"amount": -1}]
+        checks = [{"range": {"amount": {"min": "0", "max": "1000000"}}}]
+        # Must not raise.
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        # And the coerced bound must still work: -1 < 0 → below min.
+        assert len(excs) == 1
+        assert excs[0].row_index == 1
+        assert "below min" in excs[0].reason
+
+    def test_range_garbage_bound_is_treated_as_no_bound(self):
+        # An uncoerceable bound (e.g. a dict where a number was
+        # expected) is treated as "no bound that side" — the check
+        # silently becomes a no-op for that side rather than crashing.
+        rows = [{"amount": -1}, {"amount": 5}]
+        # `min` is garbage → only the `max` side is enforced; nothing
+        # exceeds 100, so no violations.
+        checks = [{"range": {"amount": {"min": {"nope": True}, "max": 100}}}]
+        assert evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF) == []
+
+    def test_enum_reason_does_not_embed_failing_value(self):
+        # PII-safety: `reason` must NOT carry the raw failing value;
+        # the runner only masks `failing_value`, not `reason`. Codex
+        # review (B1 pass 1).
+        rows = [{"currency": "SECRET-VALUE"}]
+        checks = [{"enum": {"currency": ["USD", "CAD"]}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert "SECRET-VALUE" not in excs[0].reason
+        # The masked-side carrier is `failing_value`, which is still
+        # populated (runner masks it when the column is PII).
+        assert excs[0].failing_value == "SECRET-VALUE"
+
+    def test_regex_reason_does_not_embed_failing_value(self):
+        # PII-safety: same posture as enum — pattern is config, safe;
+        # raw value must not appear in `reason`. Codex review (B1 pass 1).
+        rows = [{"email": "secret-pii-value"}]
+        checks = [{"regex": {"email": r"^[^@]+@[^@]+\.[^@]+$"}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert "secret-pii-value" not in excs[0].reason
+        assert excs[0].failing_value == "secret-pii-value"
+
+    def test_range_reason_does_not_embed_failing_value(self):
+        # PII-safety: bounds in `reason` are config, safe; the raw
+        # numeric value must not appear in `reason` so it can't slip
+        # past the runner's `failing_value`-only mask on a `pii: true`
+        # numeric column. Codex review (B1 pass 1).
+        rows = [{"amount": 999999.42}]
+        checks = [{"range": {"amount": {"min": 0, "max": 100}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert "999999.42" not in excs[0].reason
+        assert excs[0].failing_value == "999999.42"
+
+    def test_range_rejects_non_finite_bound_without_crashing(self):
+        # A spec with `min: "NaN"` or `min: .nan` (YAML) would survive
+        # the untyped quality_checks shape; the previous coercion
+        # returned `Decimal('NaN')` which then raised
+        # `decimal.InvalidOperation` against any real numeric row.
+        # Filter non-finite bounds back to None so the malformed side
+        # becomes unbounded rather than crashing the run. Codex review
+        # (B1 pass 3).
+        rows = [{"amount": 50.0}, {"amount": -100.0}, {"amount": 1_000_000.0}]
+        # String-NaN min, real max → only the max side enforces.
+        checks = [{"range": {"amount": {"min": "NaN", "max": 100}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        # Only the 1_000_000 row exceeds 100; the -100 row would have
+        # violated a real min but the NaN bound was rejected.
+        assert len(excs) == 1
+        assert excs[0].row_index == 2
+        assert "above max" in excs[0].reason
+
+    def test_range_rejects_infinity_bound_without_crashing(self):
+        # `Inf` / `-Inf` bounds are uncomparable too — also treat as
+        # unusable. Codex review (B1 pass 3 + pass 9): the run must
+        # not crash, AND it must surface the all-uncoerceable bounds
+        # as a `malformed_check` event so the silent disablement
+        # lands in the audit ledger.
+        from decimal import Decimal
+
+        rows = [{"amount": 50.0}, {"amount": -100.0}]
+        checks = [{"range": {"amount": {"min": Decimal("-Infinity"), "max": Decimal("Infinity")}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        # Both bounds were DECLARED (raw_lo/raw_hi non-None) but
+        # neither coerces — that's a spec bug, not a no-op. Engine
+        # emits one malformed_check event for the column.
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:range:amount"
+
+    def test_malformed_enum_shape_emits_dq_exception(self):
+        # `quality_checks: [{enum: [currency]}]` is a real footgun:
+        # spec author meant `{enum: {currency: [...]}}`. The list shape
+        # would silently disable the enum check. Engine must surface it
+        # as a `malformed_check` DQ exception so the audit ledger
+        # records the missed coverage. Codex review (B1 pass 8).
+        rows = [{"currency": "USD"}, {"currency": "XYZ"}]
+        # WRONG: enum value is a list (should be a dict).
+        checks = [{"enum": ["currency"]}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "malformed_check"
+        assert exc.check_id == "malformed_check:enum"
+        assert exc.column == "enum"
+        assert exc.row_index is None
+        assert "malformed" in exc.reason
+        assert "enum" in exc.reason
+
+    def test_malformed_not_null_shape_emits_dq_exception(self):
+        # `quality_checks: [{not_null: {email: True}}]` — meant a list.
+        rows = [{"email": None}, {"email": "a@example.com"}]
+        checks = [{"not_null": {"email": True}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "malformed_check"
+        assert exc.check_id == "malformed_check:not_null"
+
+    def test_malformed_range_shape_emits_dq_exception(self):
+        # `quality_checks: [{range: ["amount"]}]` — meant a dict.
+        rows = [{"amount": -5}, {"amount": 1_000_000_000}]
+        checks = [{"range": ["amount"]}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:range"
+
+    def test_truly_unknown_check_type_still_silently_skipped(self):
+        # A check_type the engine doesn't recognise (future dialect)
+        # stays a silent skip — only KNOWN-but-malformed shapes fail
+        # closed. Codex review (B1 pass 8) confirms this posture.
+        rows = [{"x": 1}]
+        checks = [{"some_future_check": ["x"]}]
+        assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
+
+    def test_malformed_check_surfaces_even_on_empty_feed(self):
+        # An empty feed must NOT silently disable malformed-spec
+        # detection — the spec bug is in the spec, not the data, and
+        # a regulator-facing compliance check that silently does
+        # nothing is the worst kind of false assurance. Codex review
+        # (B1 pass 9).
+        rows = []  # zero rows
+        # Outer-shape malformed (list where dict expected):
+        checks = [{"enum": ["currency"]}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:enum"
+
+    def test_inner_malformed_enum_spec_emits_event(self):
+        # Inner-spec malformed: `enum: {currency: "USD"}` — the value
+        # should be a list, not a string. Without the codex pass-9
+        # fix the engine would silently emit no exceptions and the
+        # dashboard would show PASS for a disabled check. Now we get
+        # a malformed_check event that surfaces in the audit ledger
+        # and gives the dashboard something to render as FAIL.
+        rows = [{"currency": "USD"}]
+        checks = [{"enum": {"currency": "USD"}}]  # string, not list
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:enum:currency"
+
+    def test_inner_malformed_regex_pattern_emits_event(self):
+        # Non-string pattern.
+        rows = [{"email": "a@example.com"}]
+        checks = [{"regex": {"email": 42}}]  # int, not str
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:regex:email"
+
+    def test_inner_malformed_regex_invalid_pattern_emits_event(self):
+        # Syntactically invalid regex.
+        rows = [{"email": "a@example.com"}]
+        checks = [{"regex": {"email": "[unclosed"}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:regex:email"
+
+    def test_inner_malformed_range_bounds_emits_event(self):
+        # Non-dict bounds.
+        rows = [{"amount": 50}]
+        checks = [{"range": {"amount": "0-100"}}]  # string, not dict
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:range:amount"
+
+    def test_inner_malformed_range_typoed_bound_keys_emits_event(self):
+        # Typoed bound keys like `minimum`/`maximum` would silently
+        # disable a range check before pass 11 — bounds dict has no
+        # recognised key so both raw_lo/raw_hi are None and the path
+        # exited as a no-op. Surface the typo via `malformed_check`.
+        # Codex review (B1 pass 11).
+        rows = [{"amount": 50}, {"amount": -100}]
+        checks = [{"range": {"amount": {"minimum": 0, "maximum": 1000000}}}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:range:amount"
+        # Reason mentions the unknown keys so operators see the typo.
+        assert "minimum" in excs[0].reason and "maximum" in excs[0].reason
+
+    def test_inner_range_empty_bounds_dict_is_silent_noop(self):
+        # `range: {amount: {}}` carries NO bound at all — this is the
+        # "intentional no-op" path, not a typo. No malformed_check
+        # event, no row violations.
+        rows = [{"amount": 50}, {"amount": -100}]
+        checks = [{"range": {"amount": {}}}]
+        assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
+
+    def test_range_handles_nan_and_infinity_without_crashing(self):
+        # `float('nan')` and `Decimal('NaN')` pass the type guard but
+        # raise `decimal.InvalidOperation` on `<`/`>` — that would abort
+        # the whole DQ scan and `aml run`. Codex review (B1 pass 2).
+        # Treat non-finite as a range violation, never an exception.
+        from decimal import Decimal
+
+        rows = [
+            {"amount": float("nan")},
+            {"amount": Decimal("NaN")},
+            {"amount": float("inf")},
+            {"amount": 50.0},  # clean baseline
+        ]
+        checks = [{"range": {"amount": {"min": 0, "max": 100}}}]
+        # Must not raise.
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        # Three non-finite values → three range violations; clean row
+        # produces nothing.
+        assert len(excs) == 3
+        reasons = {e.reason for e in excs}
+        assert reasons == {"non-finite value cannot be range-checked"}
 
 
 # ---------------------------------------------------------------------------
@@ -560,6 +952,170 @@ class TestEngineEmitsDQExceptions:
         ]
         for ln in dq_lines:
             assert plaintext not in ln, f"dq_exception ledger entry leaked plaintext PII: {ln}"
+
+    def test_all_five_check_types_emit_and_pin(self, tmp_path: Path):
+        """PR-B1 (#366) integration: a contract carrying all five quality_checks
+        kinds (not_null, unique, enum, regex, range) fires the expected
+        exceptions, writes them to `dq_exceptions.jsonl`, records a
+        `dq_exception` event for each in `decisions.jsonl`, and the
+        artifact digest is pinned in `manifest.json` so the new shapes
+        inherit tamper detection from PR-B4.
+        """
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="T",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="currency", type="string", nullable=False),
+                        Column(name="email", type="string", nullable=True),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                    quality_checks=[
+                        {"not_null": ["customer_id"]},
+                        {"unique": ["txn_id"]},
+                        {"enum": {"currency": ["USD", "CAD", "EUR"]}},
+                        {"regex": {"email": r"^[^@]+@[^@]+\.[^@]+$"}},
+                        {"range": {"amount": {"min": 0, "max": 1000000}}},
+                    ],
+                ),
+            ],
+            rules=[
+                Rule(
+                    id="r",
+                    name="R",
+                    severity="low",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=AggregationWindowLogic(
+                        type="aggregation_window",
+                        source="txn",
+                        group_by=["customer_id"],
+                        window="365d",
+                        having={"count": {"gte": 1}},
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        # Plant exactly one violation per check type:
+        #   row 0: clean baseline
+        #   row 1: txn_id duplicates row 0  → unique
+        #   row 2: currency "XYZ"           → enum
+        #   row 3: email "bad-email"        → regex
+        #   row 4: amount -10               → range (below min)
+        # Note: keep customer_id non-null on every row so we don't
+        # crash the warehouse build before the integration check; the
+        # not_null shape is still exercised by other tests in this file.
+        data = {
+            "txn": [
+                {
+                    "txn_id": "T1",
+                    "customer_id": "C1",
+                    "amount": 10.0,
+                    "currency": "USD",
+                    "email": "a@example.com",
+                    "booked_at": _AS_OF,
+                },
+                {
+                    "txn_id": "T1",  # duplicate → unique violation
+                    "customer_id": "C2",
+                    "amount": 20.0,
+                    "currency": "USD",
+                    "email": "b@example.com",
+                    "booked_at": _AS_OF,
+                },
+                {
+                    "txn_id": "T2",
+                    "customer_id": "C3",
+                    "amount": 30.0,
+                    "currency": "XYZ",  # enum violation
+                    "email": "c@example.com",
+                    "booked_at": _AS_OF,
+                },
+                {
+                    "txn_id": "T3",
+                    "customer_id": "C4",
+                    "amount": 40.0,
+                    "currency": "CAD",
+                    "email": "bad-email",  # regex violation
+                    "booked_at": _AS_OF,
+                },
+                {
+                    "txn_id": "T4",
+                    "customer_id": "C5",
+                    "amount": -10.0,  # range violation
+                    "currency": "EUR",
+                    "email": "e@example.com",
+                    "booked_at": _AS_OF,
+                },
+            ],
+        }
+
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        run_spec(
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=_AS_OF,
+            artifacts_root=tmp_path,
+        )
+
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+        dq_path = run_dir / "dq_exceptions.jsonl"
+        assert dq_path.exists()
+
+        lines = [ln for ln in dq_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        recs = [json.loads(ln) for ln in lines]
+        by_type = {r["check_type"] for r in recs}
+        # All four planted shapes must have fired (we deliberately kept
+        # customer_id populated so not_null wouldn't crash the warehouse;
+        # the other 4 shapes must fire).
+        assert {"unique", "enum", "regex", "range"} <= by_type, (
+            f"missing one of the planted check_type violations: got {by_type!r}"
+        )
+        # And we planted exactly one violation each.
+        assert sum(1 for r in recs if r["check_type"] == "unique") == 1
+        assert sum(1 for r in recs if r["check_type"] == "enum") == 1
+        assert sum(1 for r in recs if r["check_type"] == "regex") == 1
+        assert sum(1 for r in recs if r["check_type"] == "range") == 1
+
+        # Each emitted exception must surface as a `dq_exception` event
+        # in decisions.jsonl with matching check_type.
+        decisions = (run_dir / "decisions.jsonl").read_text(encoding="utf-8")
+        dq_events = [
+            json.loads(ln)
+            for ln in decisions.splitlines()
+            if ln.strip() and json.loads(ln).get("event") == "dq_exception"
+        ]
+        assert len(dq_events) == len(recs)
+        assert {ev["check_type"] for ev in dq_events} == by_type
+
+        # The manifest digest must pin the new artifact contents so
+        # enum/regex/range exceptions inherit tamper detection from B4.
+        import hashlib
+
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        expected = hashlib.sha256(dq_path.read_bytes()).hexdigest()
+        assert manifest["dq_exceptions_hash"] == expected
+
+        # Hash chain still valid with the new event types in the mix.
+        ok, msg = AuditLedger.verify_decisions(run_dir)
+        assert ok, f"hash chain broken with B1 check-type events: {msg}"
 
     def test_dq_exception_artifact_is_empty_for_clean_canadian_spec(self, tmp_path: Path):
         """End-to-end smoke test on the canonical demo spec: the canned
