@@ -295,12 +295,60 @@ if load_error is not None:
 # the alert payload (see equivalence.py docstring for the rationale).
 rule_severities = {r.id: r.severity for r in spec.rules}
 
-report = classify_alerts(
-    new_alerts=result.alerts,
-    legacy_alerts=legacy_alerts,
-    rule_map=legacy_reference.rule_map,
-    rule_severities=rule_severities,
-)
+# Filter alerts to those that carry the comparison-required fields.
+# `classify_alerts` validates every alert before applying the rule_map,
+# so an unmapped `custom_sql` / `python_ref` payload missing
+# `customer_id` / `window_start` / `window_end` would raise and crash
+# the page. Codex pass 8 on PR-413.
+_REQUIRED_FIELDS = ("customer_id", "window_start", "window_end")
+_dropped_per_rule: dict[str, int] = {}
+filtered_alerts: dict[str, list[dict]] = {}
+for rule_id, alerts in (result.alerts or {}).items():
+    keep: list[dict] = []
+    dropped = 0
+    for a in alerts:
+        if all(a.get(k) is not None for k in _REQUIRED_FIELDS):
+            keep.append(a)
+        else:
+            dropped += 1
+    if keep:
+        filtered_alerts[rule_id] = keep
+    if dropped:
+        _dropped_per_rule[rule_id] = dropped
+
+if _dropped_per_rule:
+    total_dropped = sum(_dropped_per_rule.values())
+    st.warning(
+        f"⚠️  {total_dropped} alert(s) across "
+        f"{len(_dropped_per_rule)} rule(s) lack the equivalence-required "
+        "fields (customer_id / window_start / window_end). These are "
+        "excluded from the divergence report — they're typically "
+        "`custom_sql` or `python_ref` rules whose payload doesn't carry "
+        "the canonical cell key. See the per-rule breakdown."
+    )
+    with st.expander(f"Show {len(_dropped_per_rule)} excluded rule(s)", expanded=False):
+        for rid, n in sorted(_dropped_per_rule.items(), key=lambda kv: -kv[1]):
+            st.caption(f"• `{rid}` — {n} alert(s) excluded")
+
+try:
+    report = classify_alerts(
+        new_alerts=filtered_alerts,
+        legacy_alerts=legacy_alerts,
+        rule_map=legacy_reference.rule_map,
+        rule_severities=rule_severities,
+    )
+except ValueError as _classify_exc:
+    # Belt-and-suspenders — the filter above should have caught any
+    # malformed alert, but if the classifier still raises (e.g. legacy
+    # CSV has a row missing required fields), surface a clear page
+    # rather than a Streamlit traceback.
+    st.error(
+        "Cannot classify equivalence: "
+        f"`{type(_classify_exc).__name__}: {_classify_exc}`. Check the "
+        "legacy CSV and the spec's `program.legacy_reference` declaration."
+    )
+    page_footer()
+    st.stop()
 
 # ---------------------------------------------------------------------------
 # Roll-up KPIs — one column per EquivalenceClass. report.counts always
