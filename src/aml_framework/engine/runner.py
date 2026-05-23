@@ -441,6 +441,7 @@ def _execute_network_pattern(
     rule: Rule,
     con: duckdb.DuckDBPyConnection,
     as_of: datetime,
+    cost_timer: CostVolumeTimer | None = None,
 ) -> list[dict[str, Any]]:
     """Walk `resolved_entity_link` to find customers whose ego-network
     satisfies a `having` condition.
@@ -487,6 +488,8 @@ def _execute_network_pattern(
     """
     try:
         rows = con.execute(walk_sql).fetchall()
+        if cost_timer is not None:
+            cost_timer.increment_queries()
         cols = [d[0] for d in con.description] if con.description else []
     except Exception as e:
         logger.warning("network_pattern '%s' failed: %s", rule.id, e)
@@ -522,7 +525,7 @@ def _execute_network_pattern(
             if not passes:
                 break
         if passes:
-            subgraph = _capture_subgraph(con, record["customer_id"], max_hops)
+            subgraph = _capture_subgraph(con, record["customer_id"], max_hops, cost_timer)
             # PR-LIN-4: matched_row_ids for network_pattern is the
             # customer-table rowid of every entity in the reached
             # subgraph (the "evidence" rows for component_size /
@@ -537,6 +540,8 @@ def _execute_network_pattern(
                         f"SELECT rowid FROM customer WHERE customer_id IN ({placeholders})",
                         customer_ids,
                     ).fetchall()
+                    if cost_timer is not None:
+                        cost_timer.increment_queries()
                     matched_row_ids = [int(r[0]) for r in rid_rows]
                 except Exception:
                     matched_row_ids = []
@@ -561,6 +566,7 @@ def _capture_subgraph(
     con: duckdb.DuckDBPyConnection,
     seed_id: str,
     max_hops: int,
+    cost_timer: CostVolumeTimer | None = None,
 ) -> dict[str, Any]:
     """Re-walk the link table for one seed and return the matched subgraph.
 
@@ -610,6 +616,8 @@ def _capture_subgraph(
     """
     try:
         rows = con.execute(edge_walk_sql, [seed_id]).fetchall()
+        if cost_timer is not None:
+            cost_timer.increment_queries()
         cols = [d[0] for d in con.description] if con.description else []
     except Exception as e:
         logger.warning("subgraph capture failed for seed '%s': %s", seed_id, e)
@@ -640,6 +648,8 @@ def _capture_subgraph(
         """
         try:
             erows = con.execute(edge_sql, node_ids + node_ids).fetchall()
+            if cost_timer is not None:
+                cost_timer.increment_queries()
             ecols = [d[0] for d in con.description] if con.description else []
         except Exception as e:
             logger.warning("edge query failed for subgraph '%s': %s", seed_id, e)
@@ -1105,9 +1115,12 @@ def run_spec(
 
         # --- network_pattern: walk resolved_entity_link via recursive CTE ---
         if rule.logic.type == "network_pattern":
+            # `_execute_network_pattern` + `_capture_subgraph` increment
+            # the SQL counter internally — the main CTE + per-alert
+            # rowid lookup + per-alert subgraph walk + per-alert edge
+            # query are all counted (codex pass-1 P2 on PR-LF2).
             with cost_timer.rule(rule.id):
-                alerts = _execute_network_pattern(rule, con, as_of)
-            cost_timer.increment_queries()
+                alerts = _execute_network_pattern(rule, con, as_of, cost_timer)
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
