@@ -201,11 +201,19 @@ _LEGACY_SYNONYMS: dict[str, str] = {
 def _derive_column_mapping(key_columns: list[str]) -> dict[str, str]:
     """Build `{canonical: csv_column}` from the spec's key_columns.
 
-    Only acts on the well-known synonyms above; unknown column names
-    are left alone (the loader's missing-column error then surfaces
-    the gap explicitly rather than silently swallowing it).
+    Codex pass 4: an operator's spec may declare `key_columns` as the
+    join-key subset (e.g. CA example: `[rule_id, customer_id,
+    window_start]` — only 3 of the 4 canonical cells) while the CSV
+    still carries `window_end` natively. A strict per-key_column loop
+    would never add `period_end -> window_end`, and the loader's
+    missing-column error would surface on a CSV the loader is fully
+    capable of reading. Seed the mapping with ALL well-known synonyms
+    first, then let `key_columns` override (so an operator that
+    explicitly declared a different name for the same canonical wins).
     """
-    mapping: dict[str, str] = {}
+    mapping: dict[str, str] = {
+        canonical: legacy_name for legacy_name, canonical in _LEGACY_SYNONYMS.items()
+    }
     for col in key_columns:
         canonical = _LEGACY_SYNONYMS.get(col)
         if canonical is not None:
