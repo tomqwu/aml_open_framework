@@ -111,7 +111,11 @@ try:
     from aml_framework.api.db import init_db, list_runs
 
     init_db()
-    stored_runs = list_runs(tenant_id=_active_tenant_id)
+    # Pull a larger window so cross-spec runs in the tenant's history
+    # don't crowd the current spec out of the default cap of 50. The
+    # spec-suffix filter below narrows back to this spec. Codex pass
+    # 13 P2 on PR-413.
+    stored_runs = list_runs(tenant_id=_active_tenant_id, limit=500)
 
     def get_run_alerts(run_id: str):
         return _get_run_alerts_fn(run_id, tenant_id=_active_tenant_id)

@@ -427,18 +427,30 @@ def store_run(
         )
 
 
-def list_runs(tenant_id: str | None = None) -> list[dict[str, Any]]:
-    """List recent runs. When `tenant_id` is given, only that tenant's runs."""
+def list_runs(
+    tenant_id: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """List recent runs. When `tenant_id` is given, only that tenant's runs.
+
+    `limit` caps the number of rows returned (default 50, same as
+    before). Surfaces that need to scan a tenant's history for one
+    specific spec (Drift Monitor, Experiment Tracking) can pass a
+    larger limit so cross-spec runs don't crowd their target spec out
+    of the result window. Codex pass 13 P2 on PR-413.
+    """
+    if limit <= 0:
+        return []
     if _active_backend() == "cosmos":
         runs = _cosmos_container("runs")
         if tenant_id is None:
-            query = "SELECT TOP 50 c.run_id, c.spec_path, c.seed, c.created_at FROM c ORDER BY c.created_at DESC"
+            query = f"SELECT TOP {int(limit)} c.run_id, c.spec_path, c.seed, c.created_at FROM c ORDER BY c.created_at DESC"
             params: list[dict[str, Any]] = []
             items = runs.query_items(
                 query=query, parameters=params, enable_cross_partition_query=True
             )
         else:
-            query = "SELECT TOP 50 c.run_id, c.spec_path, c.seed, c.created_at FROM c WHERE c.tenant_id = @t ORDER BY c.created_at DESC"
+            query = f"SELECT TOP {int(limit)} c.run_id, c.spec_path, c.seed, c.created_at FROM c WHERE c.tenant_id = @t ORDER BY c.created_at DESC"
             params = [{"name": "@t", "value": tenant_id}]
             items = runs.query_items(query=query, parameters=params, partition_key=tenant_id)
         return [
@@ -454,13 +466,14 @@ def list_runs(tenant_id: str | None = None) -> list[dict[str, Any]]:
         if tenant_id is None:
             cur.execute(
                 "SELECT run_id, spec_path, seed, created_at FROM runs"
-                " ORDER BY created_at DESC LIMIT 50"
+                " ORDER BY created_at DESC LIMIT ?",
+                (int(limit),),
             )
         else:
             cur.execute(
                 "SELECT run_id, spec_path, seed, created_at FROM runs"
-                " WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 50",
-                (tenant_id,),
+                " WHERE tenant_id = ? ORDER BY created_at DESC LIMIT ?",
+                (tenant_id, int(limit)),
             )
         return [
             {
