@@ -68,7 +68,18 @@
         "effective_date": { "type": "string", "format": "date" },
         "ai_audit_log":   { "type": "string", "enum": ["hash_only", "full_text"], "default": "hash_only" },
         "legacy_reference": { "$ref": "#/$defs/legacy_reference" },
-        "nfrs":             { "$ref": "#/$defs/nfrs" }
+        "nfrs":             { "$ref": "#/$defs/nfrs" },
+        "sla":              { "$ref": "#/$defs/program_sla" }
+      }
+    },
+    "program_sla": {
+      "type": "object",
+      "description": "PR-LF1 (#383): Pillar-6 SLA-breach + batch-lateness monitor. Engine evaluates per-run and emits `sla_report.json` in the run dir. All fields optional with defaults; omit the block to disable the monitor.",
+      "additionalProperties": false,
+      "properties": {
+        "alert_disposition_days":     { "type": "integer", "minimum": 0, "default": 30, "description": "Max age (days) before an open alert is considered breached. Counted from `case_opened` ts until a terminal decision (`closed`/`escalated_to_str`)." },
+        "batch_cadence_days":         { "type": "integer", "minimum": 0, "default": 1,  "description": "Expected cadence of the data extract in days (e.g. 1 = daily, 7 = weekly)." },
+        "batch_lateness_grace_days":  { "type": "integer", "minimum": 0, "default": 1,  "description": "Grace window in days before a late batch is flagged. Lateness fires when `as_of - max(transaction_date) > cadence + grace`." }
       }
     },
     "nfrs": {

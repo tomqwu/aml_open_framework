@@ -162,6 +162,7 @@ The framework's mechanics — for engineers and 2LoD model-validation teams — 
 - **JSON Schema + Pydantic two-layer validation** catches structural and cross-reference errors before the engine starts.
 - **DuckDB in-memory engine** runs detectors deterministically — same spec + same data + same seed = identical output hashes (covered by `test_run_is_reproducible`).
 - **SHA-256 hash-chained `decisions.jsonl`** makes the audit ledger tamper-evident.
+- **Pillar-6 SLA monitor** (optional `program.sla` block) emits a `sla_report.json` artifact per run with alert-disposition breaches and batch-lateness signal; engine evaluates, surfaces consume.
 - **FastAPI** REST layer with JWT/OIDC auth + multi-tenant isolation for institutions that want API access alongside the dashboard.
 
 ```

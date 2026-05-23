@@ -169,6 +169,32 @@ class NonFunctionalRequirements(_Base):
     notes: str = ""
 
 
+class ProgramSLA(_Base):
+    """PR-LF1 (#383): Pillar-6 SLA-breach + batch-lateness monitor.
+
+    Two operational SLAs the engine evaluates per run:
+
+    - `alert_disposition_days`: max age (days) before an open alert is
+      considered a breach. The evaluator counts cases that have a
+      `case_opened` event older than this threshold and no terminal
+      decision (`closed` / `escalated_to_str`) in the audit ledger.
+    - `batch_cadence_days` + `batch_lateness_grace_days`: the data
+      extract's expected cadence and the grace window before a late
+      batch is flagged. The evaluator compares `run.as_of` to the
+      most-recent transaction timestamp across all contracts; a gap
+      larger than `cadence + grace` flags the run as a lateness breach.
+
+    All fields optional with sensible defaults — the block itself is
+    optional on `Program`, so omitting it disables the monitor (the
+    runner emits an empty report). Engine never raises on SLA breach;
+    it records the breach in `sla_report.json` for downstream surfaces.
+    """
+
+    alert_disposition_days: int = Field(default=30, ge=0)
+    batch_cadence_days: int = Field(default=1, ge=0)
+    batch_lateness_grace_days: int = Field(default=1, ge=0)
+
+
 class Program(_Base):
     name: str
     jurisdiction: str
@@ -192,6 +218,11 @@ class Program(_Base):
     # `NonFunctionalRequirements`. Engine ignores at runtime; surfaces
     # consume for capacity planning, BCP/DR posture, regulator pack.
     nfrs: NonFunctionalRequirements | None = None
+    # PR-LF1 (#383): optional Pillar-6 SLA monitor declaration. See
+    # `ProgramSLA`. Engine evaluates per-run and emits `sla_report.json`
+    # in the run dir; absent block means the monitor is disabled (empty
+    # report). Backward-compatible: every existing spec validates unchanged.
+    sla: ProgramSLA | None = None
 
 
 class Column(_Base):

@@ -19,6 +19,7 @@ from aml_framework.engine.dq import DQException, evaluate_contract_checks
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
 from aml_framework.engine.lineage import FieldLineageEntry, derive_field_lineage
+from aml_framework.engine.sla import SLAReport, evaluate_sla
 from aml_framework.generators.sql import _compile_filter, compile_rule_sql
 from aml_framework.metrics.engine import MetricResult, evaluate_metrics
 from aml_framework.metrics.reports import render_all_reports
@@ -811,6 +812,22 @@ def _write_dq_exceptions(run_dir: Path, exceptions: list[DQException]) -> None:
     path.write_bytes(b"\n".join(lines) + b"\n")
 
 
+def _write_sla_report(run_dir: Path, report: SLAReport) -> None:
+    """Persist the Pillar-6 SLA-monitor report as `sla_report.json`.
+
+    Always writes the file (possibly an empty / disabled report) so
+    downstream consumers — audit-bundle exporter, dashboard follow-up
+    surface — can rely on its presence rather than guarding on
+    `exists()`. Same audit-integrity posture as `dq_exceptions.jsonl`
+    and `field_lineage.jsonl`. JSON shape is byte-stable
+    (`sort_keys=True`) so the run reproducibility contract holds:
+    same spec + same data + same as_of = identical artifact hash.
+    """
+    path = run_dir / "sla_report.json"
+    payload = report.model_dump(mode="json")
+    path.write_bytes(json.dumps(payload, indent=2, sort_keys=True, default=str).encode("utf-8"))
+
+
 def _write_field_lineage(run_dir: Path, entries: list[FieldLineageEntry]) -> None:
     """Persist field lineage entries as one JSON object per line under the run dir.
 
@@ -1172,6 +1189,17 @@ def _finalize_run(
         for line in decisions_path.read_text(encoding="utf-8").splitlines():
             if line.strip():
                 decisions_rows.append(json.loads(line))
+
+    # PR-LF1 (#383): emit `sla_report.json` before metrics so the report
+    # is available to downstream readers even if metric rendering fails.
+    # The report is pure — no I/O beyond writing this one file — and
+    # always written (possibly disabled/empty when `program.sla` is
+    # absent), matching the artifact-always-present posture set by
+    # `dq_exceptions.jsonl` and `field_lineage.jsonl`.
+    _write_sla_report(
+        ledger.run_dir,
+        evaluate_sla(spec, decisions_rows, data, ledger.as_of),
+    )
 
     metric_results = evaluate_metrics(
         spec=spec,

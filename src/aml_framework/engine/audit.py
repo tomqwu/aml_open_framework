@@ -216,6 +216,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # regulator can verify the alert→source-column map hasn't been
     # tampered with post-finalization.
     "field_lineage.jsonl",
+    # PR-LF1 (#383) — Pillar-6 SLA-monitor report. Frozen post-finalize
+    # so the breach inventory + batch-lateness signal can't be edited
+    # after the run is sealed (same posture as field_lineage / dq).
+    "sla_report.json",
 )
 
 

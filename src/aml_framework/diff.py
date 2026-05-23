@@ -178,6 +178,27 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
                 program_changes.append(
                     FieldChange(field=f"nfrs.{field}", before=before, after=after)
                 )
+        # PR-LF1 (#383): same posture for `program.sla` — an SLA-only
+        # change (e.g. alert_disposition_days 30 → 15) is regulator-
+        # facing and must land in `program_changes` so the audit diff
+        # reflects it. Mirrors the NFRs handling above.
+        sla_a = spec_a.program.sla
+        sla_b = spec_b.program.sla
+        if sla_a != sla_b:
+            for field in (
+                "alert_disposition_days",
+                "batch_cadence_days",
+                "batch_lateness_grace_days",
+            ):
+                va = getattr(sla_a, field, None) if sla_a is not None else None
+                vb = getattr(sla_b, field, None) if sla_b is not None else None
+                before = "" if va is None else str(va)
+                after = "" if vb is None else str(vb)
+                if before == after:
+                    continue
+                program_changes.append(
+                    FieldChange(field=f"sla.{field}", before=before, after=after)
+                )
 
     rules_a = {r.id: r for r in spec_a.rules}
     rules_b = {r.id: r for r in spec_b.rules}
