@@ -265,13 +265,20 @@ per_rule_timeline: dict[str, list[dict]] = {r.id: [] for r in ml_rules}
 # `engine/runner.py` populates `result.alerts[rule.id] = []` and the
 # API store_run() persists every key in that dict). So presence in
 # `by_rule` is the right "did this rule run" signal. Codex P1.
+_lookup_failures: list[str] = []
 if get_run_alerts is not None:
     for run in recent_runs:
         run_id = run.get("run_id", "")
         try:
             run_alert_rows = get_run_alerts(run_id)
-        except Exception:
-            run_alert_rows = []
+        except Exception as _alert_exc:
+            # Track the failure so it's surfaced to the operator
+            # instead of silently degrading the baseline. Skip THIS
+            # run entirely — don't include it in any rule's timeline,
+            # so `runs_analyzed` reflects what actually contributed
+            # data. Codex pass 7 on PR-413.
+            _lookup_failures.append(f"{run_id[:12]}: {type(_alert_exc).__name__}")
+            continue
         # `get_run_alerts` returns [{rule_id, alerts}, ...]; index by rule.
         by_rule: dict[str, list[dict]] = {}
         for row in run_alert_rows:
@@ -369,7 +376,10 @@ high_drift = [r for r in drift_rows if r["status"] == "high"]
 # -----------------------------------------------------------------------
 # Roll-up KPIs
 # -----------------------------------------------------------------------
-runs_analyzed = len(recent_runs) + 1  # stored + current
+# runs_analyzed counts what actually contributed — recent_runs already
+# excludes runs whose alert lookup failed (see `_lookup_failures` above).
+# +1 for the current in-memory session. Codex pass 7 on PR-413.
+runs_analyzed = len(recent_runs) - len(_lookup_failures) + 1
 c1, c2, c3 = st.columns(3)
 with c1:
     kpi_card("python_ref scorers", len(ml_rules), "#2563eb")
@@ -378,6 +388,16 @@ with c2:
     kpi_card("High-drift scorers", len(high_drift), "#dc2626" if high_drift else "#16a34a")
 with c3:
     kpi_card("Runs analyzed", runs_analyzed, "#7c3aed")
+
+if _lookup_failures:
+    st.warning(
+        f"⚠️  {len(_lookup_failures)} stored run(s) failed alert lookup and "
+        "were excluded from the drift baseline. Showing details below; "
+        "the drift status reflects only runs whose data could be read."
+    )
+    with st.expander(f"Show {len(_lookup_failures)} excluded run(s)", expanded=False):
+        for failure in _lookup_failures:
+            st.caption(f"• {failure}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
