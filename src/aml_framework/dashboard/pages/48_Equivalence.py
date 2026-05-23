@@ -198,34 +198,53 @@ _LEGACY_SYNONYMS: dict[str, str] = {
 }
 
 
-def _derive_column_mapping(key_columns: list[str]) -> dict[str, str]:
-    """Build `{canonical: csv_column}` from the spec's key_columns.
+def _derive_column_mapping(key_columns: list[str], csv_header: list[str]) -> dict[str, str]:
+    """Build `{canonical: csv_column}` for the loader.
 
-    Codex pass 4: an operator's spec may declare `key_columns` as the
-    join-key subset (e.g. CA example: `[rule_id, customer_id,
-    window_start]` — only 3 of the 4 canonical cells) while the CSV
-    still carries `window_end` natively. A strict per-key_column loop
-    would never add `period_end -> window_end`, and the loader's
-    missing-column error would surface on a CSV the loader is fully
-    capable of reading. Seed the mapping with ALL well-known synonyms
-    first, then let `key_columns` override (so an operator that
-    explicitly declared a different name for the same canonical wins).
+    Strategy (after codex passes 2/4/6 on PR-413):
+
+    1. Honor explicit `key_columns` synonyms first — when the operator
+       wrote `key_columns: [rule_id, customer_id, window_start]`, those
+       are their declared legacy-system names.
+    2. For any canonical column not yet mapped AND not present in the
+       CSV header, fall back to the well-known synonym IF that synonym
+       exists in the CSV. This catches the case where `key_columns`
+       only lists 3 of the 4 canonical cells but the CSV carries the
+       4th under its legacy name (e.g. CA's `key_columns` omits
+       `window_end` but the CSV has it).
+    3. If the canonical column is already in the CSV header, do
+       nothing — the loader's default mapping reads it directly.
+
+    This avoids both failure modes codex flagged:
+    - Forcing a synonym lookup when the CSV uses canonical names.
+    - Missing a synonym when `key_columns` doesn't enumerate all 4.
     """
-    mapping: dict[str, str] = {
-        canonical: legacy_name for legacy_name, canonical in _LEGACY_SYNONYMS.items()
-    }
+    canonical_cols = ("customer_id", "period_start", "period_end", "rule_id_legacy")
+    mapping: dict[str, str] = {}
+    header_set = set(csv_header)
+    # Step 1: explicit operator declarations from key_columns.
     for col in key_columns:
         canonical = _LEGACY_SYNONYMS.get(col)
         if canonical is not None:
             mapping[canonical] = col
+    # Step 2: fill gaps with well-known synonyms when the canonical
+    # name is absent from the CSV and the synonym is present.
+    legacy_for_canonical = {v: k for k, v in _LEGACY_SYNONYMS.items()}
+    for canonical in canonical_cols:
+        if canonical in mapping:
+            continue
+        if canonical in header_set:
+            continue
+        synonym = legacy_for_canonical.get(canonical)
+        if synonym is not None and synonym in header_set:
+            mapping[canonical] = synonym
     return mapping
 
-
-column_mapping = _derive_column_mapping(legacy_reference.key_columns)
 
 legacy_alerts: list = []
 load_error: str | None = None
 legacy_path = Path(legacy_reference.path)
+column_mapping: dict[str, str] = {}
 
 try:
     if not legacy_path.exists():
@@ -242,6 +261,16 @@ try:
             "the export to CSV, or wait for the parquet/jsonl loader."
         )
     else:
+        # Peek the CSV header so the column-mapping derivation can
+        # tell whether the CSV already uses canonical names (no
+        # synonym mapping needed) vs. legacy names (synonym mapping
+        # required). Codex passes 4 + 6 on PR-413.
+        import csv as _csv
+
+        with legacy_path.open(newline="", encoding="utf-8") as _fh:
+            _reader = _csv.reader(_fh)
+            _csv_header = next(_reader, []) or []
+        column_mapping = _derive_column_mapping(legacy_reference.key_columns, _csv_header)
         legacy_alerts = load_legacy_alerts_csv(
             legacy_path,
             column_mapping=column_mapping or None,
