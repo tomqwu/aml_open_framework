@@ -280,6 +280,18 @@ except ValueError as exc:
     # column / malformed datetime. Surface verbatim — the messages are
     # already human-readable and tell the operator exactly what to fix.
     load_error = f"Could not parse legacy alert CSV: {exc}"
+except OSError as exc:
+    # `open()` raises `OSError` for permission-denied, directory-not-
+    # file, or other I/O failures that the `legacy_path.exists()` /
+    # `.is_file()` check above missed (e.g. a mount that disappears
+    # between the check and the open). Surface as a configuration
+    # error so the page degrades like the missing-file path instead
+    # of rendering a Streamlit traceback. Codex pass 10 P3 on PR-413.
+    load_error = (
+        f"Could not read legacy alert CSV at `{legacy_path}`: "
+        f"{type(exc).__name__}: {exc}. Verify the path resolves to a "
+        "readable file and the dashboard process has permissions."
+    )
 
 if load_error is not None:
     st.error(load_error)

@@ -118,12 +118,15 @@ try:
 except Exception as _exc:
     # Two distinct failure modes: persistence is not configured at all
     # (sqlite default, no rows yet) vs. configured backend is
-    # misconfigured / unreachable (Postgres DSN typo, network blip).
-    # Codex pass 9 P2 on PR-413: surface the second case explicitly so
-    # operators don't confuse an outage with "no stored history yet".
+    # misconfigured / unreachable (Postgres DSN typo, Cosmos endpoint
+    # down, network blip). Codex passes 9+10 P2 on PR-413: surface
+    # the second case explicitly so operators don't confuse an outage
+    # with "no stored history yet". Both Postgres (`DATABASE_URL`)
+    # and Cosmos (`COSMOS_ENDPOINT`) backends are supported by the
+    # API layer — gate on either being set.
     stored_runs = []
     get_run_alerts = None  # type: ignore[assignment]
-    if os.environ.get("DATABASE_URL"):
+    if os.environ.get("DATABASE_URL") or os.environ.get("COSMOS_ENDPOINT"):
         _persistence_error = f"{type(_exc).__name__}: {_exc}"
 
 if _persistence_error:
