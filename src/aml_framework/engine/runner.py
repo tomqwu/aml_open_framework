@@ -13,6 +13,7 @@ from typing import Any, TypedDict
 
 import duckdb
 
+from aml_framework import __version__ as ENGINE_VERSION
 from aml_framework.engine.audit import AuditLedger, rule_version_hash
 from aml_framework.engine.constants import Event, Queue
 from aml_framework.engine.cost_volume import (
@@ -25,6 +26,11 @@ from aml_framework.engine.dq import DQException, evaluate_contract_checks
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
 from aml_framework.engine.lineage import FieldLineageEntry, derive_field_lineage
+from aml_framework.engine.monitoring_digest import (
+    build_monitoring_digest,
+    lookup_prior_run,
+    write_monitoring_digest,
+)
 from aml_framework.engine.sla import SLAReport, evaluate_sla
 from aml_framework.generators.sql import _compile_filter, compile_rule_sql
 from aml_framework.metrics.engine import MetricResult, evaluate_metrics
@@ -1217,7 +1223,14 @@ def run_spec(
     _simulate_case_resolution(spec, case_ids, ledger, as_of)
 
     return _finalize_run(
-        spec, ledger, alerts_by_rule, case_ids, data, python_ref_failures, cost_timer
+        spec,
+        ledger,
+        alerts_by_rule,
+        case_ids,
+        data,
+        python_ref_failures,
+        cost_timer=cost_timer,
+        dq_exceptions=dq_exceptions,
     )
 
 
@@ -1228,7 +1241,9 @@ def _finalize_run(
     case_ids: list[str],
     data: dict[str, list[dict[str, Any]]],
     python_ref_failures: dict[str, str] | None = None,
+    *,
     cost_timer: CostVolumeTimer | None = None,
+    dq_exceptions: list[DQException] | None = None,
 ) -> RunResult:
     """Evaluate metrics, render reports, and write the final manifest.
 
@@ -1293,9 +1308,41 @@ def _finalize_run(
     )
     write_cost_volume_report(ledger.run_dir, cost_report)
 
+    # PR-LF4 (#386): write the post-run monitoring digest BEFORE
+    # `ledger.finalize()` so the manifest can pin its SHA-256 — the
+    # finalize() step hashes whichever artifacts already exist on disk.
+    # The prior-run lookup is best-effort: missing persistence layer or
+    # any exception below returns None and the diff degrades gracefully
+    # to an empty dict.
+    prior_run = lookup_prior_run(
+        str(ledger.spec_path),
+        current_run_dir=str(ledger.run_dir),
+    )
+    digest = build_monitoring_digest(
+        spec,
+        run_dir=ledger.run_dir,
+        spec_path=ledger.spec_path,
+        spec_content_hash=ledger.spec_content_hash,
+        engine_version=ENGINE_VERSION,
+        as_of=ledger.as_of,
+        alerts_by_rule=alerts_by_rule,
+        dq_exceptions=dq_exceptions or [],
+        prior_run=prior_run,
+    )
+    write_monitoring_digest(ledger.run_dir, digest)
+
     manifest = ledger.finalize()
     manifest["metrics"] = [m.to_dict() for m in metric_results]
     manifest["reports"] = sorted(reports.keys())
+    # PR-LF4 (#386) codex pass-1 P2: persist `alerts_per_rule` + the
+    # prior_run_id on the manifest so a future run loading THIS one
+    # via `db.get_run()` can compute a real diff instead of falling
+    # back to a zero-count baseline. Counts only — full digest body
+    # stays on disk to keep the manifest small.
+    manifest["monitoring_digest"] = {
+        "alerts_per_rule": dict(digest.alerts_per_rule),
+        "prior_run_id": digest.prior_run_id,
+    }
     if python_ref_failures:
         manifest["python_ref_failures"] = python_ref_failures
     (ledger.run_dir / "manifest.json").write_bytes(

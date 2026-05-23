@@ -224,6 +224,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # same reason: a regulator should see the row counts / wall-clock
     # the engine actually measured, not an edited rewrite.
     "run_cost_volume.json",
+    # PR-LF4 (#386) — post-run monitoring digest. Frozen for the
+    # same tamper-detection reason: an on-call digest that disagrees
+    # with the underlying alerts is worse than no digest.
+    "monitoring_digest.json",
 )
 
 
@@ -524,6 +528,14 @@ class AuditLedger:
         cost_path = self.run_dir / "run_cost_volume.json"
         run_cost_volume_hash = _sha256(cost_path.read_bytes()) if cost_path.exists() else None
 
+        # PR-LF4 (#386): pin the SHA-256 of `monitoring_digest.json` so a
+        # tampered post-run digest is detectable the same way the lineage
+        # / DQ artifacts are. The digest is written by the runner before
+        # `finalize()`; older runs (pre-LF4) won't have the file and
+        # the hash stays None.
+        digest_path = self.run_dir / "monitoring_digest.json"
+        monitoring_digest_hash = _sha256(digest_path.read_bytes()) if digest_path.exists() else None
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -537,6 +549,7 @@ class AuditLedger:
             "field_lineage_hash": field_lineage_hash,
             "sla_report_hash": sla_report_hash,
             "run_cost_volume_hash": run_cost_volume_hash,
+            "monitoring_digest_hash": monitoring_digest_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         (self.run_dir / "manifest.json").write_bytes(
