@@ -477,6 +477,45 @@ class TestRunnerEmitsSLAReport:
         assert body["batch_late"] is True
         assert body["batch_lateness_days"] == 10
 
+    def test_manifest_pins_sla_report_hash(self, tmp_path):
+        """Codex P2 on PR-LF1: the manifest must carry a SHA-256 of
+        `sla_report.json` so post-finalize edits are detectable on
+        Windows (chmod 0o444 is a no-op there) or any environment
+        where the freeze can be undone."""
+        import hashlib
+
+        spec = _make_spec(sla=ProgramSLA(), rules=[])
+        result = run_spec(
+            spec=spec,
+            spec_path=self._spec_path(spec, tmp_path),
+            data={"txn": []},
+            as_of=_AS_OF,
+            artifacts_root=tmp_path / "artifacts",
+        )
+        run_dir = Path(result.manifest["run_dir"])
+        sla_bytes = (run_dir / "sla_report.json").read_bytes()
+        expected = hashlib.sha256(sla_bytes).hexdigest()
+        assert result.manifest["sla_report_hash"] == expected, (
+            "manifest must pin SHA-256 of sla_report.json for tamper detection"
+        )
+
+    def test_coerce_datetime_accepts_z_suffix(self):
+        """Codex P2 on PR-LF1: `datetime.fromisoformat` on Python 3.10
+        rejects the `Z` UTC suffix; the evaluator must normalise so that
+        warehouse exports / JSON ingest with `...Z` timestamps don't
+        silently get skipped."""
+        spec = _make_spec(sla=ProgramSLA(batch_cadence_days=1, batch_lateness_grace_days=1))
+        # Stale txn supplied as an ISO 8601 string with Z suffix.
+        stale_iso = (_AS_OF - timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        data = {"txn": [{"booked_at": stale_iso}]}
+        report = evaluate_sla(spec, [], data, _AS_OF)
+        # If `Z` were silently dropped, `latest_transaction_at` would be
+        # None and batch_late would be False — the assertion below would
+        # fail. With normalisation, the row latches and batch is late.
+        assert report.latest_transaction_at is not None
+        assert report.batch_late is True
+        assert report.batch_lateness_days == 10
+
     def test_sla_report_in_frozen_targets(self):
         """Audit-integrity posture: the artifact must be in the frozen
         list so a post-finalize chmod 0o444 lands on it."""

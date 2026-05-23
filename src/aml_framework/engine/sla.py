@@ -96,8 +96,16 @@ def _coerce_datetime(value: Any) -> datetime | None:
             return datetime(value.year, value.month, value.day, tzinfo=timezone.utc)
     except Exception:  # pragma: no cover - defensive
         pass
+    # Python 3.10's `datetime.fromisoformat` rejects the `Z` UTC suffix
+    # (3.11+ accepts it). The framework supports 3.10, and ISO 8601
+    # timestamps from external sources (warehouse exports, JSON ingest)
+    # commonly carry `Z` — normalise to `+00:00` so they parse on every
+    # supported runtime. Codex P2 finding on PR-LF1.
+    raw = str(value).replace(" ", "T", 1)
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
     try:
-        return datetime.fromisoformat(str(value).replace(" ", "T", 1))
+        return datetime.fromisoformat(raw)
     except (TypeError, ValueError):
         return None
 
