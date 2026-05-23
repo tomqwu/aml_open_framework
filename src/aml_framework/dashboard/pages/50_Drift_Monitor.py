@@ -97,11 +97,22 @@ ml_rules = [r for r in spec.rules if r.logic.type == "python_ref" and r.status =
 # returned by `list_runs()`); a strict spec_content_hash filter would
 # need a per-run `get_run()` lookup that's not worth the round trip.
 # Codex P1.
+# Multi-tenant safety: same posture as Experiment Tracking (PR-E4).
+# Without `tenant_id` scoping, Bank A's drift baseline could evict
+# (or be polluted by) Bank B's runs — `list_runs()` returns the 50 most
+# recent across tenants. Codex pass 2 on PR-413.
+_active_tenant = st.session_state.get("active_tenant")
+_active_tenant_id = _active_tenant.id if _active_tenant is not None else None
+
 try:
-    from aml_framework.api.db import get_run_alerts, init_db, list_runs
+    from aml_framework.api.db import get_run_alerts as _get_run_alerts_fn
+    from aml_framework.api.db import init_db, list_runs
 
     init_db()
-    stored_runs = list_runs()
+    stored_runs = list_runs(tenant_id=_active_tenant_id)
+
+    def get_run_alerts(run_id: str):
+        return _get_run_alerts_fn(run_id, tenant_id=_active_tenant_id)
 except Exception:
     stored_runs = []
     get_run_alerts = None  # type: ignore[assignment]
