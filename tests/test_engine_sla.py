@@ -244,14 +244,34 @@ class TestEvaluateSLAPure:
         assert report.batch_lateness_days == 4
 
     def test_lateness_at_exact_budget_not_flagged(self):
-        """Boundary: gap == cadence + grace must NOT trip lateness.
-        Only `gap > budget` flags, matching the SLA spec's strictly-later
-        semantics."""
+        """Boundary: gap == cadence + grace (no sub-day overshoot) must
+        NOT trip lateness. Only `elapsed > budget_td` flags — the
+        strictly-later semantics carry through the full-timedelta
+        comparison (codex P2 pass-2)."""
         spec = _make_spec(sla=ProgramSLA(batch_cadence_days=1, batch_lateness_grace_days=1))
         data = {"txn": [{"booked_at": _AS_OF - timedelta(days=2)}]}
         report = evaluate_sla(spec, [], data, _AS_OF)
         assert report.batch_late is False
         assert report.batch_lateness_days == 2
+
+    def test_sub_day_overshoot_flags_alert_breach(self):
+        """Codex P2 pass-2: a case 10 days + 1 hour old with threshold
+        `alert_disposition_days=10` must flag — `.days` would have floored
+        the gap to 10 and `10 > 10` is False, suppressing the breach."""
+        spec = _make_spec(sla=ProgramSLA(alert_disposition_days=10))
+        decisions = _decisions(opened=[("c1", "r1", _AS_OF - timedelta(days=10, hours=1))])
+        report = evaluate_sla(spec, decisions, {}, _AS_OF)
+        assert report.total_breaches == 1
+        assert report.breaches[0].age_days == 10  # floored display
+
+    def test_sub_day_overshoot_flags_batch_late(self):
+        """Codex P2 pass-2: a batch 2 days + 1 hour stale with budget=2d
+        must flag — floored `.days` would suppress."""
+        spec = _make_spec(sla=ProgramSLA(batch_cadence_days=1, batch_lateness_grace_days=1))
+        data = {"txn": [{"booked_at": _AS_OF - timedelta(days=2, hours=1)}]}
+        report = evaluate_sla(spec, [], data, _AS_OF)
+        assert report.batch_late is True
+        assert report.batch_lateness_days == 2  # floored display
 
     def test_age_at_exact_threshold_not_flagged(self):
         """Boundary on alert age — `age > threshold` flags. Day-equal stays

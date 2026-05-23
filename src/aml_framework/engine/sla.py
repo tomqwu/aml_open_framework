@@ -27,7 +27,7 @@ presence — same posture as `dq_exceptions.jsonl` and
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -188,20 +188,26 @@ def evaluate_sla(
         elif event_kind in _TERMINAL_EVENTS:
             terminal.add(case_id)
 
+    # Compare on the full elapsed timedelta, not the floored day count
+    # — otherwise a case 10 days + 1 hour old with threshold=10d slips
+    # past `.days > 10` (10 > 10 is False). The displayed `age_days` is
+    # still the floored integer day count for human-friendly read-out.
+    # Codex P2 pass-2 finding on PR-LF1.
     threshold_days = sla.alert_disposition_days
+    threshold_td = timedelta(days=threshold_days)
     breaches: list[AlertSLABreach] = []
     breaches_by_rule: dict[str, int] = {}
     for case_id, (opened_at, rule_id) in opened.items():
         if case_id in terminal:
             continue
-        age = (as_of_naive - _naive(opened_at)).days
-        if age > threshold_days:
+        elapsed = as_of_naive - _naive(opened_at)
+        if elapsed > threshold_td:
             breaches.append(
                 AlertSLABreach(
                     case_id=case_id,
                     rule_id=rule_id,
                     opened_at=opened_at,
-                    age_days=age,
+                    age_days=elapsed.days,
                 )
             )
             breaches_by_rule[rule_id] = breaches_by_rule.get(rule_id, 0) + 1
@@ -211,15 +217,19 @@ def evaluate_sla(
     breaches.sort(key=lambda b: (-b.age_days, b.case_id))
 
     # ----- Batch lateness: as_of vs latest transaction timestamp --------
+    # Same full-timedelta posture as the alert SLA — sub-day overshoots
+    # past `cadence + grace` must flag, even though the reported
+    # `batch_lateness_days` is still the floored integer day count.
     latest_ts = _max_transaction_timestamp(data)
     lateness_days = 0
     batch_late = False
-    lateness_budget = sla.batch_cadence_days + sla.batch_lateness_grace_days
+    lateness_budget_days = sla.batch_cadence_days + sla.batch_lateness_grace_days
+    lateness_budget_td = timedelta(days=lateness_budget_days)
     if latest_ts is not None:
-        gap = (as_of_naive - latest_ts).days
-        if gap > 0:
-            lateness_days = gap
-        if gap > lateness_budget:
+        gap = as_of_naive - latest_ts
+        if gap.total_seconds() > 0:
+            lateness_days = gap.days
+        if gap > lateness_budget_td:
             batch_late = True
 
     return SLAReport(
