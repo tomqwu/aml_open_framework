@@ -78,6 +78,18 @@ PAGES = [
     # PR-A4 (#365): rule lifecycle dashboard + approval-workflow
     # placeholder (universally routed, same idiom as North-Star).
     "Rule Lifecycle",
+    # PR-F3 (#385): investigator decision trail (universal).
+    "Decision Trail",
+    # PR-E4 (#381): MLflow-style experiment tracking (universal).
+    "Experiment Tracking",
+    # PR-E2 (#379): threshold-sensitivity sweep (universal).
+    "Threshold Sensitivity",
+    # PR-EQ-3: legacy↔new equivalence dashboard (universal).
+    "Equivalence",
+    # PR-E5 (#382): unsupervised anomaly discovery (universal).
+    "Anomaly Discovery",
+    # PR-E3 (#380): per-scorer drift monitor (universal).
+    "Drift Monitor",
 ]
 
 
@@ -205,6 +217,10 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Spec Editor": "Detection & Tuning",
     "FP Analysis": "Detection & Tuning",
     "Rule Lifecycle": "Detection & Tuning",
+    "Experiment Tracking": "Detection & Tuning",
+    "Threshold Sensitivity": "Detection & Tuning",
+    "Anomaly Discovery": "Detection & Tuning",
+    "Drift Monitor": "Detection & Tuning",
     "Data Integration": "Data",
     "Data Quality": "Data",
     "Customer 360": "Data",
@@ -217,6 +233,9 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Typology Catalogue": "Strategy & Reporting",
     "Audit & Evidence": "Audit & Reference",
     "Run History": "Audit & Reference",
+    "Lineage Explorer": "Audit & Reference",
+    "Decision Trail": "Audit & Reference",
+    "Equivalence": "Audit & Reference",
     "AI Assistant": "Audit & Reference",
     "FinTech Cockpit": "FinTech",
     # PR-U2: the Knowledge reference shelf (universal — visible to

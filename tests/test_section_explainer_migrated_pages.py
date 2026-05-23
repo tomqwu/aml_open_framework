@@ -81,6 +81,13 @@ _EXPECTED_PAGE_LEVEL = {
     # PR-A4 (#365): universally-routed rule lifecycle dashboard, same
     # explainer contract as the rest of the Detection & Tuning family.
     "51_Rule_Lifecycle.py",
+    # Round 27 batch — six universally-routed pages added together.
+    "44_Decision_Trail.py",  # PR-F3 (#385)
+    "46_Experiment_Tracking.py",  # PR-E4 (#381)
+    "47_Threshold_Sensitivity.py",  # PR-E2 (#379)
+    "48_Equivalence.py",  # PR-EQ-3
+    "49_Anomaly_Discovery.py",  # PR-E5 (#382)
+    "50_Drift_Monitor.py",  # PR-E3 (#380)
     "4_Case_Investigation.py",
     "5_Rule_Performance.py",
     "6_Risk_Assessment.py",

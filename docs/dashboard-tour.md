@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **45 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **51 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 The final ten pages form the **Knowledge** reference shelf — the merged GitHub-Pages knowledge site, ported native (PR-U2 ported 8 Research whitepapers; PR-U3 added the Business + Technical decks with their walkthrough videos — both PRs of the unified-product epic). They carry no engine coupling; every persona keeps access to them regardless of the audience filter.
 
@@ -295,6 +295,34 @@ The 18-slide engineer/MLRO companion deck — spec validation, the audit hash-ch
 
 ---
 
+## Round 27 batch — six universally-routed dashboard surfaces
+
+### Decision Trail
+
+Investigator-facing per-case event chain: case_opened → escalated → STR/SAR filing. Pure read of cached `df_cases` + `df_decisions`. Universal-routed via `AUDIT_TRAIL_PAGES`. PR-F3 (#385).
+
+### Experiment Tracking
+
+MLflow-style overview of every persisted run — spec_content_hash, seed, as_of, total_alerts, total_cases sortable. Universal-routed via `TRACKING_PAGES`. PR-E4 (#381).
+
+### Threshold Sensitivity
+
+Per-rule alert-volume curve across {0.5×, 0.75×, 1.0×, 1.25×, 1.5×, 2.0×} the spec threshold — every tunable `aggregation_window` rule's sensitivity at a glance. Universal-routed via `TUNING_PAGES`. PR-E2 (#379).
+
+### Equivalence
+
+Legacy↔new parallel-run divergence: loads the legacy CSV declared in `program.legacy_reference` and classifies every cell as MATCH / NEW_ONLY / LEGACY_ONLY / DIFF (via `engine/equivalence.py` shipped in PR-EQ-2). Universal-routed via `EQUIVALENCE_PAGES`. PR-EQ-3 (closes pillar 1 gap on the north-star page).
+
+### Anomaly Discovery
+
+Unsupervised z-score outlier detection on per-customer transaction features. Surfaces customers the spec's deterministic rules don't catch — discovery candidates for new rule typologies. Universal-routed via `TUNING_PAGES`. PR-E5 (#382).
+
+### Drift Monitor
+
+Per-scorer alert-volume drift across recent runs. Last-run vs median-of-priors with ≥2× / ≤0.5× thresholds flagged as "high drift". Universal-routed via `TUNING_PAGES`. PR-E3 (#380).
+
+---
+
 ## Export Surface
 
 ### Board PDF Export
@@ -305,7 +333,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The 45 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
+The 51 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|

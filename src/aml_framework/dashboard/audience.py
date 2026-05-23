@@ -394,6 +394,37 @@ NORTH_STAR_PAGES = [
 # knowledge brief or pillar-coverage map.
 TUNING_PAGES = [
     "FP Analysis",
+    # PR-E2 (#379) — threshold-sensitivity sweep roll-up.
+    "Threshold Sensitivity",
+    # PR-E5 (#382) — unsupervised z-score anomaly discovery.
+    "Anomaly Discovery",
+    # PR-E3 (#380) — per-scorer alert-volume drift monitor.
+    "Drift Monitor",
+]
+
+
+# PR-F3 (#385). Decision Trail is the cross-cutting "show me the audit
+# trail for case X" surface — examiner-facing event chain. Universal
+# so every persona can reach it regardless of operational filter.
+AUDIT_TRAIL_PAGES = [
+    "Decision Trail",
+]
+
+
+# PR-E4 (#381). Experiment Tracking is the MLflow-style aggregate
+# overview of every persisted run. Universal so every persona scanning
+# the corpus of runs can reach it on demand.
+TRACKING_PAGES = [
+    "Experiment Tracking",
+]
+
+
+# PR-EQ-3. Equivalence is the legacy↔new parallel-run divergence
+# surface (uses `engine/equivalence.py` shipped in PR-EQ-2). Universal
+# so examiners, MLROs, and engineers can reach the migration-evidence
+# view regardless of persona filter.
+EQUIVALENCE_PAGES = [
+    "Equivalence",
 ]
 
 

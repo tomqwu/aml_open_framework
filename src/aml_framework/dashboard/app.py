@@ -6,10 +6,13 @@ import streamlit as st
 
 from aml_framework.dashboard.audience import (
     AUDIENCE_PAGES,
+    AUDIT_TRAIL_PAGES,
+    EQUIVALENCE_PAGES,
     KNOWLEDGE_PAGES,
     LIFECYCLE_PAGES,
     NORTH_STAR_PAGES,
     PERSONA_LABELS,
+    TRACKING_PAGES,
     TUNING_PAGES,
     persona_description,
 )
@@ -166,6 +169,34 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             icon=":material/account_tree:",
             url_path="Rule_Lifecycle",
         ),
+        # PR-E4 (#381) — MLflow-style experiment tracking.
+        st.Page(
+            "pages/46_Experiment_Tracking.py",
+            title="Experiment Tracking",
+            icon=":material/science:",
+            url_path="Experiment_Tracking",
+        ),
+        # PR-E2 (#379) — threshold sensitivity sweep.
+        st.Page(
+            "pages/47_Threshold_Sensitivity.py",
+            title="Threshold Sensitivity",
+            icon=":material/insights:",
+            url_path="Threshold_Sensitivity",
+        ),
+        # PR-E5 (#382) — anomaly discovery surface.
+        st.Page(
+            "pages/49_Anomaly_Discovery.py",
+            title="Anomaly Discovery",
+            icon=":material/troubleshoot:",
+            url_path="Anomaly_Discovery",
+        ),
+        # PR-E3 (#380) — drift monitor.
+        st.Page(
+            "pages/50_Drift_Monitor.py",
+            title="Drift Monitor",
+            icon=":material/show_chart:",
+            url_path="Drift_Monitor",
+        ),
     ],
     "Data": [
         # Data engineer + auditor lane (introduced in PR-DATAVIZ-1
@@ -241,6 +272,22 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             "pages/29_AI_Assistant.py",
             title="AI Assistant",
             icon=":material/smart_toy:",
+        ),
+        # PR-F3 (#385) — investigator decision trail. Examiner-facing
+        # case-level event chain; universally routed via AUDIT_TRAIL_PAGES.
+        st.Page(
+            "pages/44_Decision_Trail.py",
+            title="Decision Trail",
+            icon=":material/timeline:",
+            url_path="Decision_Trail",
+        ),
+        # PR-EQ-3 — legacy↔new parallel-run divergence surface.
+        # Universally routed via EQUIVALENCE_PAGES.
+        st.Page(
+            "pages/48_Equivalence.py",
+            title="Equivalence",
+            icon=":material/compare_arrows:",
+            url_path="Equivalence",
         ),
     ],
     "FinTech": [
@@ -371,6 +418,12 @@ if selected_audience:
     # so every persona needs visibility. Universal same as North-Star
     # / FP Analysis.
     relevant_titles.update(LIFECYCLE_PAGES)
+    # PR-F3 (#385) — Decision Trail audit surface.
+    relevant_titles.update(AUDIT_TRAIL_PAGES)
+    # PR-E4 (#381) — Experiment Tracking aggregate.
+    relevant_titles.update(TRACKING_PAGES)
+    # PR-EQ-3 — Equivalence (legacy↔new divergence) surface.
+    relevant_titles.update(EQUIVALENCE_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()
