@@ -170,7 +170,11 @@ def evaluate_sla(
     # Build two indexes from the decisions stream so the breach query is
     # O(n) over events plus O(c) over cases:
     #   - `opened`: case_id -> (opened_at, rule_id) from CASE_OPENED.
-    #   - `terminal`: set of case_ids with any terminal event.
+    #   - `terminal`: case_ids whose terminal event happened ON OR
+    #     BEFORE `as_of`. A close/STR stamped AFTER the report cutoff
+    #     (simulation or out-of-order analyst action) means the case
+    #     was still open at report time and must remain in the breach
+    #     candidate pool. Codex pass-3 P2 on PR-LF1.
     opened: dict[str, tuple[datetime, str]] = {}
     terminal: set[str] = set()
     for event in decisions:
@@ -186,7 +190,12 @@ def evaluate_sla(
             # well-formed run only opens each case once.
             opened.setdefault(case_id, (ts, str(event.get("rule_id", ""))))
         elif event_kind in _TERMINAL_EVENTS:
-            terminal.add(case_id)
+            terminal_ts = _coerce_datetime(event.get("ts"))
+            # Missing or unparseable timestamp → treat as terminal
+            # (preserve the original behavior for legacy events that
+            # predate the ts field).
+            if terminal_ts is None or _naive(terminal_ts) <= as_of_naive:
+                terminal.add(case_id)
 
     # Compare on the full elapsed timedelta, not the floored day count
     # — otherwise a case 10 days + 1 hour old with threshold=10d slips
