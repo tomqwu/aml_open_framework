@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date as _date, datetime, timezone
+from datetime import date as _date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -494,10 +494,15 @@ class TestWriteMonitoringDigest:
 
 
 def _txn_data() -> dict:
+    # Use timestamps strictly INSIDE the 365d window (not at the
+    # `as_of` boundary). Python 3.12 + DuckDB treats boundary-equal
+    # tz-aware timestamps differently than 3.14, so a row booked at
+    # exactly `as_of` may be excluded by the window predicate on CI.
+    inside_window = _AS_OF - timedelta(days=1)
     return {
         "txn": [
-            {"txn_id": "T1", "customer_id": "C1", "amount": 10.0, "booked_at": _AS_OF},
-            {"txn_id": "T2", "customer_id": "C1", "amount": 20.0, "booked_at": _AS_OF},
+            {"txn_id": "T1", "customer_id": "C1", "amount": 10.0, "booked_at": inside_window},
+            {"txn_id": "T2", "customer_id": "C1", "amount": 20.0, "booked_at": inside_window},
         ],
     }
 
