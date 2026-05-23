@@ -273,7 +273,10 @@ for col in ("anomaly_score", "sum_amount", "avg_amount", "cross_border_ratio"):
 
 st.dataframe(
     df_top,
-    width="stretch",
+    # `use_container_width` is the Streamlit ≥1.39 spelling that this
+    # project's `[dashboard]` extra declares. The newer `width="stretch"`
+    # only landed in a later release. Codex pass on PR-413.
+    use_container_width=True,
     hide_index=True,
     column_config={
         "customer_id": st.column_config.TextColumn("Customer", help="Customer ID"),
