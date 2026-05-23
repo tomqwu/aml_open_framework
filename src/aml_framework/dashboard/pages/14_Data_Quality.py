@@ -54,8 +54,8 @@ if st.session_state.get("guided_demo"):
     st.info(
         "**Guided Demo -- Data Quality**\n\n"
         "Each data contract declares columns, types, freshness SLAs, and quality "
-        "checks (not_null, unique). This page executes those checks against the "
-        "actual data and reports violations."
+        "checks (not_null, unique, enum, regex, range). This page executes those checks "
+        "against the actual data and reports violations."
     )
 
 # --- Empty-state guard: no contracts means there's nothing to assess ---
@@ -102,43 +102,217 @@ for contract in spec.data_contracts:
                         freshness_ok = False
                     break
 
-    # Quality checks.
+    # Quality checks. PR-B1 (#366) extends the engine with `enum` /
+    # `regex` / `range` validity checks alongside `not_null` / `unique`;
+    # this page now scores all five so the KPI denominator and the
+    # per-contract table stay aligned with what the engine emits.
     check_results: list[dict] = []
     for qc in contract.quality_checks:
         for check_type, fields in qc.items():
-            total_checks += 1
-            if check_type == "not_null":
+            # Outer-shape malformed-check posture (codex B1 pass 10):
+            # if the engine would emit a `malformed_check` event for
+            # this shape, the dashboard must show a FAIL row too —
+            # never silently drop the check, never count it as PASS.
+            outer_shape_ok = (
+                check_type in ("not_null", "unique") and isinstance(fields, list)
+            ) or (check_type in ("enum", "regex", "range") and isinstance(fields, dict))
+            if (
+                check_type in ("not_null", "unique", "enum", "regex", "range")
+                and not outer_shape_ok
+            ):
+                total_checks += 1
+                total_violations += 1
+                check_results.append(
+                    {
+                        "Check": f"{check_type}(...)",
+                        "Status": "FAIL",
+                        "Detail": f"malformed {check_type} spec (wrong outer shape)",
+                    }
+                )
+                continue
+            if check_type in ("not_null", "unique"):
+                if not isinstance(fields, list):
+                    continue
                 for field in fields:
-                    if field in df.columns:
+                    if field not in df.columns:
+                        continue
+                    total_checks += 1
+                    if check_type == "not_null":
                         nulls = int(df[field].isna().sum())
                         passed = nulls == 0
-                        if passed:
-                            total_passed += 1
-                        else:
-                            total_violations += 1
-                        check_results.append(
-                            {
-                                "Check": f"not_null({field})",
-                                "Status": "PASS" if passed else "FAIL",
-                                "Detail": f"{nulls} nulls" if nulls else "0 nulls",
-                            }
-                        )
-            elif check_type == "unique":
-                for field in fields:
-                    if field in df.columns:
+                        detail = f"{nulls} nulls" if nulls else "0 nulls"
+                    else:
                         dupes = int(df[field].duplicated().sum())
                         passed = dupes == 0
-                        if passed:
-                            total_passed += 1
+                        detail = f"{dupes} duplicates" if dupes else "0 duplicates"
+                    if passed:
+                        total_passed += 1
+                    else:
+                        total_violations += 1
+                    check_results.append(
+                        {
+                            "Check": f"{check_type}({field})",
+                            "Status": "PASS" if passed else "FAIL",
+                            "Detail": detail,
+                        }
+                    )
+            elif check_type in ("enum", "regex", "range") and isinstance(fields, dict):
+                # NOTE: iterate as `check_spec`, NOT `spec` — this page
+                # runs at module scope so binding `spec` here would
+                # shadow the page-level `spec` object loaded from
+                # `st.session_state`, breaking later `spec.data_contracts`
+                # access. Codex review (B1 pass 5).
+                #
+                # We iterate the raw `rows` list (not the pandas DF) so
+                # NaN / pd.NA / non-string values are treated the way
+                # the engine evaluator treats them. `df.dropna()` would
+                # silently filter NaN values that the engine flags as
+                # violations (NaN is non-finite for range; not-a-string
+                # for regex; not-in-list for enum). Codex review (B1
+                # pass 6).
+                for field, check_spec in fields.items():
+                    # Do NOT skip on `field not in df.columns` here:
+                    # the inner check_spec may still be malformed (the
+                    # engine emits `malformed_check` for those shapes
+                    # even on empty / column-absent feeds), and the
+                    # dashboard must surface that as a FAIL row. Codex
+                    # review (B1 pass 11). For a well-formed spec on
+                    # an absent column, `field_values` will be empty
+                    # → 0 violations → PASS, matching engine behavior
+                    # (engine iterates `rows` and `column not in row:
+                    # continue`, so an absent column produces zero
+                    # exceptions).
+                    total_checks += 1
+                    # Only the engine's "missing / None = skip" rule
+                    # applies; everything else (including NaN) is a
+                    # real value to score.
+                    field_values = [r[field] for r in rows if field in r and r[field] is not None]
+                    if check_type == "enum":
+                        # An empty allow-list (`enum: {col: []}`) means
+                        # nothing is allowed — the engine flags every
+                        # present value. Mirror that. Codex (B1 pass 7).
+                        if isinstance(check_spec, (list, tuple)):
+                            allowed = list(check_spec)
+                            bad = int(sum(1 for v in field_values if v not in allowed))
+                            passed = bad == 0
+                            detail = f"{bad} out-of-set" if bad else "0 out-of-set"
                         else:
-                            total_violations += 1
-                        check_results.append(
-                            {
-                                "Check": f"unique({field})",
-                                "Status": "PASS" if passed else "FAIL",
-                                "Detail": f"{dupes} duplicates" if dupes else "0 duplicates",
-                            }
-                        )
+                            # Non-list allow-list = malformed spec. The
+                            # engine emits a `malformed_check` event for
+                            # this shape; the dashboard must NOT report
+                            # PASS for a disabled check (codex B1 pass 9).
+                            passed = False
+                            bad = 0
+                            detail = "malformed enum spec (expected list)"
+                    elif check_type == "regex":
+                        import re as _re
+
+                        if isinstance(check_spec, str):
+                            try:
+                                pat = _re.compile(check_spec)
+                                bad = int(
+                                    sum(
+                                        1
+                                        for v in field_values
+                                        if not isinstance(v, str) or pat.fullmatch(v) is None
+                                    )
+                                )
+                                passed = bad == 0
+                                detail = f"{bad} pattern misses" if bad else "0 pattern misses"
+                            except _re.error:
+                                # Engine emits malformed_check for this.
+                                passed = False
+                                bad = 0
+                                detail = "malformed regex pattern"
+                        else:
+                            # Engine emits malformed_check for this.
+                            passed = False
+                            bad = 0
+                            detail = "malformed regex spec (expected str)"
+                    else:  # range
+                        import math as _m
+
+                        def _coerce_bound(v):
+                            # Bounds may legitimately be quoted in YAML
+                            # (`min: "0"`); the engine's `_coerce_bound`
+                            # accepts numeric strings. Mirror that.
+                            if v is None or isinstance(v, bool):
+                                return None
+                            try:
+                                f = float(v)
+                            except (TypeError, ValueError):
+                                return None
+                            if not _m.isfinite(f):
+                                return None
+                            return f
+
+                        def _coerce_value(v):
+                            # Row values, in contrast, must already be
+                            # numeric. Strings (even numeric-looking
+                            # ones) are NOT `_NUMERIC_TYPES` in the
+                            # engine and surface as a non-numeric
+                            # violation — the dashboard must agree.
+                            # Codex (B1 pass 7).
+                            from decimal import Decimal as _Dec
+
+                            if v is None or isinstance(v, bool):
+                                return None
+                            if not isinstance(v, (int, float, _Dec)):
+                                return None
+                            try:
+                                f = float(v)
+                            except (TypeError, ValueError):
+                                return None
+                            if not _m.isfinite(f):
+                                return None
+                            return f
+
+                        if not isinstance(check_spec, dict):
+                            # Engine emits malformed_check for this.
+                            # Codex (B1 pass 9).
+                            passed = False
+                            bad = 0
+                            detail = "malformed range spec (expected dict)"
+                        else:
+                            raw_lo = check_spec.get("min")
+                            raw_hi = check_spec.get("max")
+                            lo_n = _coerce_bound(raw_lo)
+                            hi_n = _coerce_bound(raw_hi)
+                            if (
+                                lo_n is None
+                                and hi_n is None
+                                and (raw_lo is not None or raw_hi is not None)
+                            ):
+                                # At least one bound was declared but
+                                # neither coerces — engine emits
+                                # malformed_check; dashboard must FAIL.
+                                passed = False
+                                bad = 0
+                                detail = "malformed range bounds (uncoerceable)"
+                            else:
+                                bad = 0
+                                for v in field_values:
+                                    nv = _coerce_value(v)
+                                    if nv is None:
+                                        bad += 1
+                                        continue
+                                    if lo_n is not None and nv < lo_n:
+                                        bad += 1
+                                    elif hi_n is not None and nv > hi_n:
+                                        bad += 1
+                                passed = bad == 0
+                                detail = f"{bad} out-of-range" if bad else "0 out-of-range"
+                    if passed:
+                        total_passed += 1
+                    else:
+                        total_violations += 1
+                    check_results.append(
+                        {
+                            "Check": f"{check_type}({field})",
+                            "Status": "PASS" if passed else "FAIL",
+                            "Detail": detail,
+                        }
+                    )
 
     contract_results.append(
         {
