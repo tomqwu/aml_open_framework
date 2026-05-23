@@ -109,6 +109,17 @@ rules:
       - resolved_entity_subgraph
       - prior_alerts_90d
     tags: [cyber_enabled_fraud, pig_butchering, network_pattern, fincen_alert005]
+    business_intent: >
+      Use the entity-resolution graph to find a customer whose outbound
+      neighbourhood up to two hops away contains a cluster of three or
+      more distinct counterparts converging on one or two nodes — the
+      victim → mule → on-ramp topology described in FinCEN
+      FIN-2023-Alert005 and the FATF Feb 2026 Cyber-Enabled Fraud paper.
+    out_of_scope:
+      - one-off large transfers without a fan-out shape (covered by ramp_up_then_drain)
+      - clusters smaller than three (the component_size floor is 3)
+      - inbound-only fan-in patterns (this rule analyses outbound topology)
+      - counterparty entities the bank doesn't see linked in resolved_entity_link (require data enrichment)
 
   # --- RAMP-UP THEN DRAIN ---
   # Standard aggregation_window — but the threshold encodes the FinCEN
@@ -143,6 +154,18 @@ rules:
       - beneficiary_history
       - customer_kyc_profile
     tags: [cyber_enabled_fraud, pig_butchering, ramp_up, fincen_alert005]
+    business_intent: >
+      Flag the "build trust then drain" pattern from FIN-2023-Alert005 —
+      three or more outbound priming transfers under $500 to the same
+      counterparty inside 14 days summing to $1,000+. The shape is
+      diagnostic of a victim being walked through small test transfers
+      before a large drain, paired with the bank's CDD pKYC
+      new-beneficiary trigger.
+    out_of_scope:
+      - the single drain transfer itself (handled by first-use-payee + threshold rules in adjacent specs)
+      - non-payment-rail grooming activity such as messaging or social engineering
+      - priming transfers above $500 (different shape — investment or business funding)
+      - multi-counterparty fan-out (covered by pig_butchering_payout_fan)
     # Sweep grid for the Tuning Lab (PR #50) — operators tune count and
     # sum_amount thresholds against historical labels to balance
     # precision/recall before promotion.
@@ -175,6 +198,18 @@ rules:
       - counterparty_resolved_profile
       - section_311_designation_record
     tags: [cyber_enabled_fraud, pig_butchering, section_311, list_match]
+    business_intent: >
+      Fuzzy-match outbound transaction counterparty_name against the
+      operator-curated pig-butchering nexus list (Section-311
+      designations like Huione Group plus the bank's accumulated network
+      observations) at threshold 0.85. Catches payouts routed through
+      designated entities even when the customer doesn't recognise the
+      destination as illicit.
+    out_of_scope:
+      - inbound counterparty matches (the rule scans txn.counterparty_name on outflows)
+      - customer-name screening (different attribute, handled by sanctions/PEP rules)
+      - novel pig-butchering destinations not yet on the curated list
+      - matches below the 0.85 fuzzy threshold (require list curation rather than threshold relaxation)
 
 workflow:
   queues:
