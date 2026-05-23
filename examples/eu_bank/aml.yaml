@@ -90,6 +90,16 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
     tags: [structuring, cash, amld6]
+    business_intent: >
+      Detect customers depositing cash in the €8,000–€14,999 just-below-CDD
+      band three or more times within 30 days summing to €30,000+ — the
+      pattern targeted by AMLD6 Art. 50 STR obligations where depositors
+      split transactions to stay under the Art. 11 €15,000 CDD threshold.
+    out_of_scope:
+      - single cash deposits at or above €15,000 (already trigger CDD requirements directly)
+      - cash withdrawals (rule is inbound-only)
+      - third-party deposits where the depositor is a different person from the account holder
+      - structuring across multiple related-party accounts (requires entity resolution beyond this rule)
 
   - id: high_risk_jurisdiction
     name: Transactions with EU high-risk third countries
@@ -122,6 +132,16 @@ rules:
       - all_matching_transactions
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, edd]
+    business_intent: >
+      Surface customers domiciled in the EU's high-risk third-country list
+      (RU, IR, KP, MM, SY, AF, YE) whose activity exceeds a low €5,000
+      aggregate floor — the EDD trigger required by AMLD6 Art. 18a and the
+      Delegated Regulation 2016/1675 country list.
+    out_of_scope:
+      - counterparty-side high-risk geography (the join is on customer.country)
+      - customers from jurisdictions outside the hard-coded list even if individually risky
+      - sanctioned-name matches against an individual (handled by sanctions_screening)
+      - cross-border SEPA flows that don't involve a customer in the high-risk set
 
   - id: pep_screening
     name: Politically Exposed Person screening
@@ -155,6 +175,17 @@ rules:
       - pep_screening_results
       - source_of_wealth_documentation
     tags: [pep, edd, amld6]
+    business_intent: >
+      Flag customers carrying a populated pep_status whose transaction
+      activity exceeds €10,000 in aggregate. The AMLD6 Art. 20–23 PEP regime
+      requires senior-management approval and source-of-wealth establishment
+      before transactions are permitted; this rule surfaces the activity
+      that should have triggered that EDD path.
+    out_of_scope:
+      - PEPs with no transaction activity (handled by periodic EDD review, not transaction monitoring)
+      - non-PEP customers in the same country as a PEP (PEP status is per-customer)
+      - family-member or close-associate PEPs not flagged on pep_status (requires CDD enrichment)
+      - sanctioned PEPs (the higher-severity sanctions rule overrides this surface)
 
   - id: rapid_movement_sepa
     name: Rapid SEPA pass-through within 48h
@@ -176,6 +207,16 @@ rules:
     evidence:
       - all_matching_transactions
     tags: [rapid_movement, layering, sepa]
+    business_intent: >
+      Catch the SEPA pass-through layering signature where four or more
+      transactions on the SEPA and wire channels post in a 7-day window
+      summing to €50,000+. SEPA's same-day clearing makes the rail a
+      natural layering venue once cash-deposit controls tighten.
+    out_of_scope:
+      - intra-channel velocity (handled by structuring and pep_screening rules)
+      - non-SEPA / non-wire pass-through (cash and card channels excluded)
+      - cross-channel movement spread over more than seven days
+      - travel-rule data-quality issues (covered by travel_rule_completeness)
 
   - id: sanctions_screening
     name: EU sanctions list screening
@@ -197,6 +238,16 @@ rules:
       - customer_kyc_profile
       - sanctions_match_details
     tags: [sanctions, eu_sanctions]
+    business_intent: >
+      Fuzzy-match every customer's full_name against the consolidated EU
+      restrictive-measures list (Regulation 269/2014 Russia plus
+      2580/2001 terrorism financing) at threshold 0.8. A hit obligates
+      immediate freeze and reporting to the national FIU.
+    out_of_scope:
+      - counterparty (non-customer) names appearing in inbound wire metadata
+      - beneficial-owner / control-person screening (different attribute path)
+      - PEP screening (handled by pep_screening with a separate EDD path)
+      - matches below threshold 0.8 (require list curation rather than threshold relaxation)
 
   # --- FATF R.16 TRAVEL-RULE COMPLETENESS ---
   # Round-5 #2 — composes with the iso20022 ingestion adapter (PR #56).
@@ -224,6 +275,17 @@ rules:
       - originator_kyc_record
       - beneficiary_lookup
     tags: [travel_rule, fatf_r16, cross_border]
+    business_intent: >
+      Validate that every cross-border wire ≥ €1,000 carries the originator
+      and beneficiary information FATF R.16 + EU 2023/1113 require (name,
+      account, and address-or-identifier on each side). Surfaces specific
+      missing fields per offending row so the operator can repair the
+      ingestion pipeline rather than guess at the gap.
+    out_of_scope:
+      - domestic wires below the cross-border travel-rule threshold
+      - data already present but failing semantic validation (e.g. clearly bogus addresses)
+      - crypto travel rule on virtual-asset rails (handled by VASP specs)
+      - counterparty CDD adequacy (this rule only checks message completeness)
 
   # --- ISO 20022 PURPOSE-CODE TYPOLOGY (Round-5 #3) ---
   # Snippet copied from `spec/library/iso20022_purpose_codes.yaml` —
@@ -257,6 +319,17 @@ rules:
       - customer_kyc_profile
       - beneficiary_lookup
     tags: [iso20022, purpose_code, invs, pig_butchering, cyber_enabled_fraud]
+    business_intent: >
+      Flag outbound payments carrying ISO 20022 purpose code INVS
+      (investment) — three or more in a 14-day window summing to €5,000+.
+      The FATF Cyber-Enabled Fraud paper and FinCEN FIN-2023-Alert005 name
+      INVS misuse as a primary pig-butchering payout marker; the velocity
+      floor suppresses one-off legitimate brokerage transfers.
+    out_of_scope:
+      - inbound INVS credits (this rule is direction:out only)
+      - investment activity using purpose codes other than INVS (e.g. SECT, DIVI)
+      - broker-internal trades that don't traverse the txn contract
+      - Path-B cross-signal amplification (covered by investment_scam_scorer with the python_ref logic)
     tuning_grid:
       logic.having.count:      [{gte: 2}, {gte: 3}, {gte: 5}]
       logic.having.sum_amount: [{gte: 2500}, {gte: 5000}, {gte: 10000}]
@@ -292,6 +365,18 @@ rules:
     tags: [iso20022, purpose_code, invs, pig_butchering, ml_governed]
     model_tier: medium
     validation_cadence_months: 18
+    business_intent: >
+      Investment-scam amplifier that runs alongside the SQL INVS rule
+      (invs_velocity_investment_scam). Path A reproduces the SQL baseline
+      (≥3 outflows summing ≥ €5k). Path B is a lower-count cross-signal
+      route — 2 outflows to a single offshore counterparty with foreign-
+      destination dominance ≥80% — to catch the early pig-butchering
+      shape the SQL count-3 floor misses.
+    out_of_scope:
+      - the deterministic Path-A baseline alone (the SQL twin handles that surface)
+      - non-INVS purpose codes (the scorer keys on INVS just like the SQL rule)
+      - inbound flows (both paths analyse outbound only)
+      - explainable-AI feature attribution for individual alerts (consumed via the MRM bundle)
 
 workflow:
   queues:

@@ -18,11 +18,19 @@ EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_
 
 
 class TestRuleBusinessIntent:
-    def test_defaults_when_unset(self):
-        """Existing specs without these fields keep loading — additive
-        contract holds. `business_intent` defaults None; `out_of_scope`
-        defaults `[]` so callers can iterate without a None-check."""
-        spec = load_spec(EXAMPLE)
+    def test_defaults_when_unset(self, tmp_path):
+        """Specs that omit these fields still load — additive contract
+        holds. `business_intent` defaults None; `out_of_scope` defaults
+        `[]` so callers can iterate without a None-check. PR-A2b
+        populated every example spec's rules, so we strip the fields
+        from a copy of the canonical spec to assert the default path."""
+        raw = yaml.safe_load(EXAMPLE.read_text())
+        for rule in raw["rules"]:
+            rule.pop("business_intent", None)
+            rule.pop("out_of_scope", None)
+        f = tmp_path / "aml.yaml"
+        f.write_text(yaml.safe_dump(raw))
+        spec = load_spec(f)
         rule = spec.rules[0]
         assert rule.business_intent is None
         assert rule.out_of_scope == []

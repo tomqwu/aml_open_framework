@@ -67,6 +67,16 @@ rules:
       - customer_kyc_profile
       - prior_alerts_90d
     tags: [structuring, cash]
+    business_intent: >
+      Detect customers depositing cash in the $7,000–$9,999 just-below-CTR
+      band three or more times within 30 days summing to $25,000+ — the
+      classic anti-structuring pattern targeted by 31 CFR 1010.314, where
+      depositors split transactions to avoid the $10,000 CTR filing trigger.
+    out_of_scope:
+      - single cash deposits at or above $10,000 (already captured by large_cash_ctr)
+      - cash structuring on prepaid or stored-value rails (not declared in this spec's channel enum)
+      - cash withdrawals (this rule is inbound-only)
+      - third-party deposits where the depositor differs from the account holder
 
   - id: rapid_movement_cash_to_wire
     name: Rapid movement — cash in followed by outgoing wire
@@ -89,6 +99,16 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
     tags: [rapid_movement, layering]
+    business_intent: >
+      Catch the cash-to-wire layering signature where four or more
+      transactions on the cash and wire channels summing to $50,000+ post in a
+      7-day window. This is the community-bank scale of the FinCEN
+      FIN-2014-A005 pass-through advisory pattern.
+    out_of_scope:
+      - intra-channel velocity bursts (handled by structuring and unusual_volume_spike)
+      - cross-channel movement spread over more than seven days
+      - ACH or card-channel pass-through (not part of this rule's channel filter)
+      - inbound wire activity from a single counterparty (covered by EDD on the customer)
 
   - id: high_risk_jurisdiction
     name: Significant activity from FATF high-risk jurisdiction
@@ -122,6 +142,16 @@ rules:
       - customer_kyc_profile
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, geographic_risk]
+    business_intent: >
+      Surface customers domiciled in FATF call-for-action jurisdictions
+      (RU, IR, KP, MM, SY) whose activity exceeds a low $5,000 aggregate
+      floor. Geographic risk under 31 CFR 1010.610 drives EDD obligations
+      on correspondent and direct customer relationships.
+    out_of_scope:
+      - counterparty-side high-risk geography (the join is on customer.country)
+      - customers from FATF grey-list jurisdictions outside the hard-coded set
+      - sanctioned-name matches against an individual (different control surface)
+      - transfers passing through high-risk corridors without a customer in those countries
 
   # NOTE — PR-ML-1 deferred the community_bank wire-in of
   # `passthrough_funnel_scorer`. The shared synthetic dataset plants
@@ -159,6 +189,16 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
     tags: [ctr, cash, regulatory_reporting]
+    business_intent: >
+      Provide the regulator-facing trigger for any single-day cash aggregate
+      at or above $10,000 USD per customer per 31 CFR 1010.311 and the
+      aggregation rule at 1020.315. This rule produces the CTR filing
+      surface, not a suspicion signal, so it routes to L1 for ordinary
+      reporting rather than to investigations.
+    out_of_scope:
+      - sub-threshold structuring (handled by structuring_cash_deposits)
+      - cash aggregated across windows longer than one calendar day
+      - non-cash channels even when individually above $10,000 (different form set)
 
   - id: unusual_volume_spike
     name: Unusual volume spike — recent activity far exceeds baseline
@@ -203,6 +243,16 @@ rules:
       - customer_kyc_profile
       - historical_transaction_profile
     tags: [unusual_activity, behavioral]
+    business_intent: >
+      Behavioural baseline rule — flag a customer whose recent-window total
+      exceeds five times their own prior weekly average (with a $5,000 floor
+      so noise on low-volume accounts doesn't dominate). Surfaces activity
+      inconsistent with the customer's profile, matching the suspicious-
+      activity indicators in FinCEN advisory FIN-2006-A003.
+    out_of_scope:
+      - first-month onboarded customers with no baseline (require ≥2 baseline transactions)
+      - dormant-then-active patterns where prior activity is zero (covered by dormant_account_activity)
+      - absolute-large transactions that aren't anomalous against the customer's own baseline
 
   - id: dormant_account_activity
     name: Dormant account reactivation with large transaction
@@ -246,6 +296,16 @@ rules:
       - customer_kyc_profile
       - account_activity_history
     tags: [dormant_account, behavioral]
+    business_intent: >
+      Detect accounts inactive prior to the dormant cutoff that suddenly
+      book transactions of $10,000+ inside the post-cutoff window. A
+      dormant account coming alive with a single large transfer is a
+      textbook nominee / shell signal aligned with FIN-2006-A003.
+    out_of_scope:
+      - continuously active accounts whose new transaction is large but not preceded by dormancy
+      - small reactivation activity below the $10,000 individual-transaction floor
+      - new customers (no prior history means no dormancy concept)
+      - dormancy ending with structured small transactions (handled by structuring_cash_deposits)
 
   - id: investment_scam_invs_velocity
     name: Investment-scam (pig-butchering) — INVS payout velocity
@@ -273,6 +333,18 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
     tags: [investment_scam, cyber_enabled_fraud]
+    business_intent: >
+      Flag outbound payments carrying ISO 20022 purpose code INVS
+      (investment) — three or more in a 14-day window summing to $5,000+.
+      FinCEN's pig-butchering advisory FIN-2023-Alert005 calls out INVS
+      misuse as a primary payout marker; the rule pairs the purpose-code
+      signal with a velocity floor to suppress one-off legitimate
+      brokerage transfers.
+    out_of_scope:
+      - inbound INVS credits (this rule is direction:out only)
+      - investment activity using purpose codes other than INVS (e.g. SECT, DIVI)
+      - non-payment-rail investment moves (broker-internal trades that don't traverse the txn contract)
+      - high-volume but legitimate retail brokerage funding to a single regulated counterparty
 
 workflow:
   queues:

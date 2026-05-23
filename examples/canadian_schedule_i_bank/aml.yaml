@@ -98,6 +98,16 @@ rules:
     tuning_grid:
       logic.having.count:      [{gte: 2}, {gte: 3}, {gte: 4}, {gte: 5}]
       logic.having.sum_amount: [{gte: 15000}, {gte: 20000}, {gte: 30000}]
+    business_intent: >
+      Detect customers depositing cash in the $5,000–$9,999 just-below-LCTR
+      band three or more times within 30 days summing to $20,000+ — the
+      canonical TD-finding structuring pattern of splitting cash deposits to
+      stay below the $10,000 CAD LCTR filing trigger.
+    out_of_scope:
+      - single cash deposits at or above the $10,000 LCTR threshold (handled by large_cash_lctr)
+      - prepaid-load structuring below the $3,000 reporting floor (handled by prepaid_load_structuring)
+      - cash withdrawals (this rule is inbound-only)
+      - third-party deposits where a non-customer brings cash to an account holder's account
 
   # --- RAPID PASS-THROUGH: cash-in then e-transfer-out within 48h ---
   # TD failure: pass-through typology across $470M+ was undetected.
@@ -158,6 +168,17 @@ rules:
       - counterparty_analysis
       - prior_alerts_90d
     tags: [pass_through, layering, e_transfer, td_finding]
+    business_intent: >
+      Detect the TD-finding pass-through signature where cash-in legs are
+      followed by e-transfer-out legs to the same customer within 48 hours
+      and the combined value reaches $30,000+ — the layering pattern that
+      went undetected across $470M+ at TD because the channel pair was
+      excluded from monitoring.
+    out_of_scope:
+      - cash-in followed by cash-out within 48 hours (different layering shape, not a pass-through to e-transfer)
+      - e-transfer pass-through where the funding leg is wire/ACH (covered by passthrough_funnel_scorer)
+      - aggregations beyond 48 hours (handled by 7-day or 30-day rules)
+      - crypto off-ramping (covered by crypto_vasp_rapid_passthrough)
 
   # --- PASS-THROUGH FUNNEL (procedural python_ref, PR-ML-1) ------------
   # Channel-agnostic IN→OUT funnel detector. Sits alongside the
@@ -193,6 +214,17 @@ rules:
     tags: [pass_through, layering, funnel, ml_governed]
     model_tier: medium
     validation_cadence_months: 18
+    business_intent: >
+      Channel-agnostic pass-through funnel scorer that complements the
+      channel-specific rapid_pass_through rule — flags any in→out pattern
+      where the drain channel differs from the funding channel (cash→wire,
+      wire→ach, ach→e_transfer, etc.) with a first-out-event phase boundary
+      so it doesn't double-count benign top-ups after the drain.
+    out_of_scope:
+      - same-channel velocity (intra-channel bursts handled by structuring and burst rules)
+      - the specific cash→e_transfer 48h shape captured by rapid_pass_through
+      - patterns spanning multiple customers (no joint-account or related-party fan-in)
+      - genuine refunds or settlement reversals tied to a known counterparty
 
   # --- CRYPTO VASP RAPID PASS-THROUGH: cash-in then crypto-out within 48h ---
   # Digital-asset off-ramp layering — funds enter as cash and leave the
@@ -256,6 +288,16 @@ rules:
       - counterparty_analysis
       - prior_alerts_90d
     tags: [pass_through, layering, crypto, vasp]
+    business_intent: >
+      Detect the cash-to-crypto off-ramping pattern where fiat enters as
+      cash and exits as a virtual-asset transfer to a VASP within 48 hours,
+      both legs reaching $30,000+. Captures the layering shape that
+      precipitated FINTRAC's introduction of the LVCTR regime.
+    out_of_scope:
+      - crypto-to-fiat (inbound) flows — this rule monitors fiat-to-crypto only
+      - on-chain stablecoin layering between hosted wallets (no fiat leg)
+      - cash-to-e_transfer pass-through (covered by rapid_pass_through)
+      - large single crypto withdrawals that aren't paired with a cash funding leg
 
   # --- RTP INSTANT-PAYMENT BURST: rapid same-customer real-time sends ---
   # Real-time-rail abuse — many small instant payments fired in a tight
@@ -291,6 +333,17 @@ rules:
     tuning_grid:
       logic.having.count:      [{gte: 4}, {gte: 6}, {gte: 8}, {gte: 10}]
       logic.having.sum_amount: [{gte: 3000}, {gte: 5000}, {gte: 10000}]
+    business_intent: >
+      Flag customers firing six or more outbound RTP/instant payments inside
+      a single day summing to $5,000+ — the real-time rail's irrevocability
+      means bursts must be caught while the case is still actionable, not
+      retrospectively. Velocity is the core signal because individual
+      amounts can be small but the aggregate moves quickly.
+    out_of_scope:
+      - inbound RTP credit bursts (covered by separate mule-receiver rules in fraud specs)
+      - non-RTP channels (e-transfer/wire velocity is handled by other rules)
+      - bursts spread over multiple days
+      - high-value single RTP sends that don't form a burst
 
   # --- PREPAID-LOAD STRUCTURING: stored-value loads below reporting floor ---
   # Stored-value structuring — repeated prepaid loads kept just under the
@@ -327,6 +380,16 @@ rules:
     tuning_grid:
       logic.having.count:      [{gte: 4}, {gte: 5}, {gte: 6}, {gte: 8}]
       logic.having.sum_amount: [{gte: 10000}, {gte: 14000}, {gte: 20000}]
+    business_intent: >
+      Detect repeated prepaid-card loads in the $1,000–$2,999 band — five or
+      more per 30 days summing to $14,000+ — kept just under the $3,000 CAD
+      prepaid reporting threshold. Stored-value rails are a known evasion
+      route once large-cash and structuring rules tighten on bank accounts.
+    out_of_scope:
+      - cash structuring on deposit accounts (covered by structuring_cash_deposits)
+      - prepaid loads at or above $3,000 (caught by the standard reporting trigger)
+      - prepaid card spend or redemption (the rule is load-side only)
+      - prepaid cards issued to corporate cardholders for payroll/expense use
 
   # --- SHELL COMPANY INDICATORS ---
   # TD failure: shell companies with no declared business opened accounts.
@@ -375,6 +438,17 @@ rules:
       - beneficial_ownership_records
       - jurisdiction_analysis
     tags: [shell_company, layering, beneficial_ownership]
+    business_intent: >
+      Catch customers booked as entities but missing a declared
+      business_activity field who nonetheless receive ten or more incoming
+      wires inside the window. TD's enforcement specifically called out
+      shell-company onboarding gaps — the absence of a stated business
+      purpose combined with high wire volume is itself the suspicion.
+    out_of_scope:
+      - retail individual customers (the rule targets the entity/business population via business_activity)
+      - shell customers active on cash/e_transfer rather than wires
+      - shells with a populated but bogus business_activity string (requires NLP/EDD, not this control)
+      - low-wire-count shells (the ≥10 floor avoids one-off vendor receipts)
 
   # --- HIGH-RISK JURISDICTION ---
   - id: high_risk_jurisdiction
@@ -409,6 +483,16 @@ rules:
       - customer_kyc_profile
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, geographic_risk]
+    business_intent: >
+      Surface customers domiciled in FATF call-for-action or sanctioned
+      jurisdictions (RU, IR, KP, MM, SY) whose transaction activity exceeds a
+      low $5,000 aggregate floor — geographic risk under PCMLTFA s.9.4 drives
+      EDD obligations and this rule provides the trigger.
+    out_of_scope:
+      - counterparty-side high-risk geography (the join is on customer.country, not counterparty country)
+      - sanctioned-name matches against an individual (handled by sanctions_screening)
+      - customers in FATF grey-list jurisdictions outside the hard-coded set
+      - trade-finance flows to high-risk countries (handled separately in TBML specs)
 
   # --- LARGE CASH (LCTR) ---
   - id: large_cash_lctr
@@ -433,6 +517,16 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
     tags: [lctr, cash, regulatory_reporting]
+    business_intent: >
+      Provide the regulator-facing trigger for any single-day cash aggregate
+      at or above $10,000 CAD per customer per PCMLTFR s.7(1) and the
+      24-hour aggregation rule. This rule produces the LCTR filing surface
+      itself rather than a suspicion signal, so it routes to L1 for ordinary
+      reporting rather than to investigations.
+    out_of_scope:
+      - sub-threshold structuring (handled by structuring_cash_deposits)
+      - cash aggregated across windows longer than one calendar day
+      - non-cash channels even when individually above $10,000 (different reporting form)
 
   # --- UNUSUAL VOLUME SPIKE ---
   - id: unusual_volume_spike
@@ -480,6 +574,15 @@ rules:
       - customer_kyc_profile
       - historical_transaction_profile
     tags: [unusual_activity, behavioral]
+    business_intent: >
+      Behavioural baseline rule — flag a customer whose recent-window volume
+      exceeds five times their own prior weekly average (with a $5,000 floor
+      so noise on dormant low-volume accounts doesn't dominate). Surfaces
+      activity inconsistent with the customer's profile per PCMLTFR s.123.1.
+    out_of_scope:
+      - first-month onboarded customers with no baseline (require ≥2 baseline transactions)
+      - dormant-then-active patterns where prior activity is zero (covered by dormant_account_activity)
+      - absolute-large transactions that aren't anomalous against the customer's own baseline
 
   # --- DORMANT ACCOUNT REACTIVATION ---
   - id: dormant_account_activity
@@ -526,6 +629,16 @@ rules:
       - customer_kyc_profile
       - account_activity_history
     tags: [dormant_account, behavioral]
+    business_intent: >
+      Detect accounts inactive prior to the dormant cutoff that suddenly book
+      transactions of $10,000+ inside the post-cutoff window. A dormant
+      account coming alive with large transfers is a textbook nominee/shell
+      indicator and was a contributing pattern in the TD enforcement.
+    out_of_scope:
+      - continuously active accounts whose new transaction is large but not preceded by dormancy
+      - small reactivation activity below the $10,000 individual-transaction floor
+      - new customers (no prior history means no dormancy concept)
+      - dormancy ending with structured small transactions (covered by structuring_cash_deposits)
 
   # --- SANCTIONS SCREENING ---
   # Screen customer names against consolidated sanctions lists (SEMA, OFAC SDN).
@@ -552,6 +665,16 @@ rules:
       - sanctions_match_details
       - beneficial_ownership_records
     tags: [sanctions, terrorist_financing, sema]
+    business_intent: >
+      Fuzzy-match every customer's full_name against the consolidated SEMA
+      and OFAC SDN lists at threshold 0.8. A hit obligates immediate
+      Terrorist Property Report filing under PCMLTFA s.7.1 and triggers
+      relationship freeze under Criminal Code s.83.08 / SEMA s.4.
+    out_of_scope:
+      - counterparty (non-customer) names appearing in inbound wire metadata
+      - beneficial-owner / control-person screening of corporate customers (different attribute path)
+      - wallet-address sanctions screening (covered by VASP-specific specs)
+      - politically exposed person screening, which is risk-based not list-based
 
   # --- ADVERSE MEDIA SCREENING ---
   - id: adverse_media_screening
@@ -574,6 +697,17 @@ rules:
       - customer_kyc_profile
       - adverse_media_articles
     tags: [adverse_media, ongoing_monitoring]
+    business_intent: >
+      Fuzzy-match every customer's full_name against the curated
+      adverse-media watchlist (financial-crime reporting, regulatory
+      enforcement, ongoing investigations) at threshold 0.8. Adverse media
+      is an explicit risk indicator under OSFI Guideline B-8 and supports
+      the PCMLTFR s.123.1 ongoing-monitoring obligation.
+    out_of_scope:
+      - sanctions-list matches (handled by sanctions_screening with a higher-severity path)
+      - one-off social-media mentions that aren't in the curated adverse-media corpus
+      - reputational risk on counterparties (the join is against customer names)
+      - PEP status that doesn't carry an adverse-media reference
 
   # --- ML-DRIVEN BEHAVIORAL RISK SCORING ---
   # Demonstrates the python_ref execution pipeline. The callable is a
@@ -598,6 +732,17 @@ rules:
       - model_score_breakdown
       - historical_alert_history
     tags: [behavioral, ml_scoring]
+    business_intent: >
+      Heuristic model combining velocity, amount-deviation, and channel-mixing
+      signals into a composite risk score. Returns customers above the
+      decision threshold for L1 review — supplements the deterministic
+      typology rules with a behavioural-anomaly axis while staying within
+      OSFI E-23 model-risk governance (inventoried, validated, monitored).
+    out_of_scope:
+      - replacing the deterministic typology rules — this is an additive
+        behavioural signal, not a substitute for structuring/LCTR controls
+      - explainable-AI feature attribution for individual alerts (consumed via the MRM bundle)
+      - new-customer behavioural scoring (the model is calibrated on populations with usage history)
 
 # ---------------------------------------------------------------------------
 # Workflow — queues reflecting FINTRAC expectations
