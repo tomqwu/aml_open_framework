@@ -222,11 +222,22 @@ def _derive_column_mapping(key_columns: list[str], csv_header: list[str]) -> dic
     canonical_cols = ("customer_id", "period_start", "period_end", "rule_id_legacy")
     mapping: dict[str, str] = {}
     header_set = set(csv_header)
-    # Step 1: explicit operator declarations from key_columns.
+    # Step 1: explicit operator declarations from key_columns. Only
+    # apply a synonym mapping when (a) the legacy name from
+    # `key_columns` is actually present in the CSV header AND (b) the
+    # canonical name is NOT already present. Without this guard,
+    # canonical-header exports whose `key_columns` lists legacy names
+    # would still map canonical→missing-legacy and the loader would
+    # reject the file. Codex pass 11 P2 on PR-413.
     for col in key_columns:
         canonical = _LEGACY_SYNONYMS.get(col)
-        if canonical is not None:
-            mapping[canonical] = col
+        if canonical is None:
+            continue
+        if canonical in header_set:
+            continue
+        if col not in header_set:
+            continue
+        mapping[canonical] = col
     # Step 2: fill gaps with well-known synonyms when the canonical
     # name is absent from the CSV and the synonym is present.
     legacy_for_canonical = {v: k for k, v in _LEGACY_SYNONYMS.items()}
