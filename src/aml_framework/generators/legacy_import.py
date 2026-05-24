@@ -476,13 +476,13 @@ def _coerce_window(value: Any) -> str:
     if isinstance(value, float):
         if not math.isfinite(value) or value <= 0:
             return "30d"
-        whole = int(value)
-        # Fractional days (`0.5`) and any value that truncates to 0
-        # would produce a zero-duration window, which silently never
-        # fires while still passing the schema regex; fall back.
-        if whole <= 0:
+        # Only accept floats that represent an exact positive integer
+        # (e.g. `30.0`). Truncating `1.5` → `1d` silently shortens the
+        # detector window and changes the imported rule's semantics;
+        # fall back to `30d` so the operator notices and corrects.
+        if not value.is_integer():
             return "30d"
-        return f"{whole}d"
+        return f"{int(value)}d"
     if isinstance(value, str):
         text = value.strip()
         if re.fullmatch(r"[0-9]+[smhd]", text):
@@ -536,7 +536,14 @@ def _sanitise_rule_id(raw: str) -> str:
     prefix with `legacy_` when the result would otherwise start with
     a digit. The original ID is preserved on the stub via a tag so
     nothing is lost.
+
+    Already-valid IDs (incl. ones with trailing or repeated
+    underscores like `rule_` or `cash__struct_01`) pass through
+    untouched — collapsing `__` to `_` would create artificial
+    collisions with a different, legitimate ID.
     """
+    if _SAFE_RULE_ID_RE.match(raw):
+        return raw
     safe = re.sub(r"[^a-z0-9_]", "_", raw.lower())
     safe = re.sub(r"_+", "_", safe).strip("_")
     if not safe:

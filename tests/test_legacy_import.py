@@ -417,6 +417,23 @@ def test_cli_import_legacy_unsupported_format(tmp_path: Path, runner: CliRunner)
     assert "Unsupported" in result.output or "unsupported" in result.output.lower()
 
 
+def test_cli_import_legacy_aborts_on_empty_parse(tmp_path: Path, runner: CliRunner) -> None:
+    """`import-legacy` exits non-zero when no rows parse.
+
+    Regression for codex review P2: previously the CLI would write
+    an empty `rules: []` skeleton and exit successfully, hiding the
+    migration workload until someone noticed the "0 rule(s)" message.
+    """
+    path = tmp_path / "no_headers.csv"
+    _write_csv(path, ["foo", "bar"], [["1", "2"]])
+    out = tmp_path / "skeleton.yaml"
+    result = runner.invoke(app, ["import-legacy", str(path), "--output", str(out)])
+    assert result.exit_code == 1
+    assert "No legacy rules parsed" in result.output
+    # Must NOT have written the empty skeleton.
+    assert not out.exists()
+
+
 def test_cli_inventory_with_json_dump(tmp_path: Path, runner: CliRunner) -> None:
     path = tmp_path / "dump.json"
     path.write_text(
@@ -631,6 +648,27 @@ def test_stub_sanitises_dotted_legacy_id() -> None:
     stub = to_aml_rule_stub(row)
     assert stub["id"] == "cash_struct_01"
     assert "legacy_id:CASH.STRUCT.01" in stub["tags"]
+
+
+def test_stub_keeps_double_underscore_id_untouched() -> None:
+    """`cash__struct_01` already matches the safe pattern — preserve it.
+
+    Regression for codex review P2: previously collapsed `__` → `_`,
+    which would create an artificial collision with a different
+    legitimate ID like `cash_struct_01`.
+    """
+    row = LegacyRuleRow(rule_id="cash__struct_01", name="n", legacy_sql="SELECT 1")
+    stub = to_aml_rule_stub(row)
+    assert stub["id"] == "cash__struct_01"
+    # No `legacy_id:` tag — the ID wasn't rewritten.
+    assert not any(t.startswith("legacy_id:") for t in stub["tags"])
+
+
+def test_stub_keeps_trailing_underscore_id_untouched() -> None:
+    """`rule_` already matches the safe pattern — preserve it."""
+    row = LegacyRuleRow(rule_id="rule_", name="n", legacy_sql="SELECT 1")
+    stub = to_aml_rule_stub(row)
+    assert stub["id"] == "rule_"
 
 
 def test_stub_keeps_already_safe_id_untouched() -> None:
@@ -1045,6 +1083,32 @@ def test_threshold_window_fractional_float_falls_back() -> None:
         rule_id="r1",
         name="n",
         threshold_block={"window": 0.5, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_positive_fractional_falls_back() -> None:
+    """`window: 1.5` (positive but non-integer) falls back to `30d`.
+
+    Regression for codex review P2: previously truncated to `1d`,
+    silently shortening the detector window.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": 1.5, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_exact_integer_float_keeps_value() -> None:
+    """`window: 30.0` (exact integer float) emits `30d`."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": 30.0, "having": {"count": {"gte": 5}}},
     )
     stub = to_aml_rule_stub(row)
     assert stub["logic"]["window"] == "30d"

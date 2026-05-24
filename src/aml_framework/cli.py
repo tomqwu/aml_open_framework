@@ -986,6 +986,25 @@ def import_legacy_cmd(
 
     result = _load_legacy_inventory(legacy_path)
     summary = inventory_summary(result.rows)
+    # Abort before writing an empty `rules: []` skeleton — otherwise
+    # an unrecognised export (e.g. wrong-shape JSON or CSV with no
+    # known headers) would look "imported" while silently hiding the
+    # migration workload. Surface the warnings + exit so the operator
+    # can fix the input.
+    if not result.rows:
+        console.print(
+            "[red]No legacy rules parsed from "
+            f"{legacy_path.name}[/red] — refusing to write an empty skeleton."
+        )
+        if result.warnings:
+            console.print(f"[yellow]{len(result.warnings)} parse warning(s):[/yellow]")
+            for warning in result.warnings[:10]:
+                rid = warning.rule_id or "—"
+                console.print(f"  row {warning.row_index} ({rid}): {warning.reason}")
+            if len(result.warnings) > 10:
+                console.print(f"  …and {len(result.warnings) - 10} more")
+        console.print("Run [bold]aml inventory[/bold] for the full diagnostic.")
+        raise typer.Exit(code=1)
     skeleton = build_spec_skeleton(result.rows)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(yaml.safe_dump(skeleton, sort_keys=False), encoding="utf-8")
