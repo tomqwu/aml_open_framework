@@ -109,18 +109,23 @@ class TestDeriveFieldLineagePure:
 
         entries = derive_field_lineage(spec, _AS_OF)
 
-        # 1 group_by + 2 having metrics + 2 window fields = 5 entries.
-        assert len(entries) == 5
+        # 1 group_by + 2 having metrics + 2 window fields + 2 PR-PAY-1
+        # engine-owned (threshold + reference_data_version) = 7 entries.
+        assert len(entries) == 7
         assert {e.alert_field for e in entries} == {
             "customer_id",
             "count",
             "sum_amount",
             "window_start",
             "window_end",
+            "threshold",
+            "reference_data_version",
         }
         for e in entries:
             assert e.rule_id == "rapid_pass_through"
-            assert e.source_contract_id == "txn"
+            # The PR-PAY-1 engine-owned rows trace back to the spec, not
+            # the txn contract; allow either source_contract_id.
+            assert e.source_contract_id in {"txn", "*"}
             assert e.at == _AS_OF
 
         by_field = {e.alert_field: e for e in entries}
@@ -183,8 +188,10 @@ class TestDeriveFieldLineagePure:
         spec = _make_spec(rules=[rule])
         entries = derive_field_lineage(spec, _AS_OF)
 
-        assert len(entries) == 1
-        e = entries[0]
+        # 1 best-effort row + 2 PR-PAY-1 engine-owned (threshold +
+        # reference_data_version) = 3 entries.
+        assert len(entries) == 3
+        e = next(en for en in entries if en.alert_field == "*")
         assert e.rule_id == "r_custom"
         assert e.alert_field == "*"
         assert e.source_contract_id == "*"
@@ -209,8 +216,10 @@ class TestDeriveFieldLineagePure:
         spec = _make_spec(rules=[rule])
         entries = derive_field_lineage(spec, _AS_OF)
 
-        assert len(entries) == 1
-        e = entries[0]
+        # 1 best-effort row + 2 PR-PAY-1 engine-owned (threshold +
+        # reference_data_version) = 3 entries.
+        assert len(entries) == 3
+        e = next(en for en in entries if en.alert_field == "*")
         assert e.rule_id == "r_py"
         assert e.alert_field == "*"
         assert e.source_column == "*"
@@ -241,9 +250,17 @@ class TestDeriveFieldLineagePure:
         spec = _make_spec(rules=[rule], contracts=[_txn_contract(), _customer_contract()])
         entries = derive_field_lineage(spec, _AS_OF)
 
-        assert len(entries) == 3
+        # 3 list_match-specific rows + 2 PR-PAY-1 engine-owned
+        # (threshold + reference_data_version) = 5 entries.
+        assert len(entries) == 5
         by_field = {e.alert_field: e for e in entries}
-        assert set(by_field) == {"matched_name", "customer_id", "match_score"}
+        assert set(by_field) == {
+            "matched_name",
+            "customer_id",
+            "match_score",
+            "threshold",
+            "reference_data_version",
+        }
         assert by_field["matched_name"].source_contract_id == "customer"
         assert by_field["matched_name"].source_column == "legal_name"
         assert by_field["matched_name"].transform == "list_match"
@@ -256,6 +273,12 @@ class TestDeriveFieldLineagePure:
         assert by_field["match_score"].source_contract_id == "*"
         assert by_field["match_score"].source_column == "ofac_sdn"
         assert by_field["match_score"].transform == "list_match:exact"
+        # PR-PAY-1 engine-owned rows trace to the spec / list content.
+        assert by_field["threshold"].source_contract_id == "*"
+        assert by_field["threshold"].transform == "payload_meta:threshold_snapshot"
+        assert by_field["reference_data_version"].source_contract_id == "*"
+        assert by_field["reference_data_version"].source_column == "ofac_sdn"
+        assert by_field["reference_data_version"].transform == "payload_meta:sha256_content_hash"
         for e in entries:
             assert e.rule_id == "r_listmatch"
 
@@ -281,7 +304,16 @@ class TestDeriveFieldLineagePure:
         spec = _make_spec(rules=[rule], contracts=[_txn_contract(), _customer_contract()])
         entries = derive_field_lineage(spec, _AS_OF)
         by_field = {e.alert_field: e for e in entries}
-        assert set(by_field) == {"matched_name", "customer_id", "match_score", "list_entry"}
+        # Fuzzy adds `list_entry` to the 3 base list_match rows + 2
+        # PR-PAY-1 engine-owned rows = 6 alert_fields total.
+        assert set(by_field) == {
+            "matched_name",
+            "customer_id",
+            "match_score",
+            "list_entry",
+            "threshold",
+            "reference_data_version",
+        }
         assert by_field["match_score"].transform == "list_match:fuzzy"
         assert by_field["list_entry"].source_contract_id == "*"
         assert by_field["list_entry"].source_column == "ofac_sdn"
@@ -373,7 +405,15 @@ class TestDeriveFieldLineagePure:
         entries = derive_field_lineage(spec, _AS_OF)
 
         by_field = {e.alert_field: e for e in entries}
-        assert set(by_field) == {"customer_id", "component_size", "counterparty_count"}
+        # 3 network_pattern rows + 2 PR-PAY-1 engine-owned (threshold +
+        # reference_data_version) = 5 alert_fields.
+        assert set(by_field) == {
+            "customer_id",
+            "component_size",
+            "counterparty_count",
+            "threshold",
+            "reference_data_version",
+        }
         # Seed customer_id traces to the hardcoded customer table, NOT to
         # `logic.source` (which defaults to "customer" anyway but could
         # be overridden — the executor ignores the override).
@@ -493,8 +533,9 @@ class TestRunSpecEmitsFieldLineage:
         assert lineage_path.exists(), "field_lineage.jsonl must always be written"
 
         lines = [ln for ln in lineage_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
-        # 1 group_by + 2 having + 2 window fields = 5 entries.
-        assert len(lines) == 5, f"expected 5 entries, got {lines}"
+        # 1 group_by + 2 having + 2 window fields + 2 PR-PAY-1
+        # engine-owned (threshold + reference_data_version) = 7 entries.
+        assert len(lines) == 7, f"expected 7 entries, got {lines}"
 
         rows = [json.loads(ln) for ln in lines]
         by_field = {r["alert_field"]: r for r in rows}
@@ -508,9 +549,16 @@ class TestRunSpecEmitsFieldLineage:
         assert by_field["window_start"]["transform"] == "MIN"
         assert by_field["window_end"]["source_column"] == "booked_at"
         assert by_field["window_end"]["transform"] == "MAX"
+        # PR-PAY-1 engine-owned rows trace to the spec rather than a
+        # data contract.
+        assert by_field["threshold"]["transform"] == "payload_meta:threshold_snapshot"
+        assert by_field["threshold"]["source_contract_id"] == "*"
+        assert by_field["reference_data_version"]["transform"] == "payload_meta:not_applicable"
+        assert by_field["reference_data_version"]["source_contract_id"] == "*"
         for r in rows:
             assert r["rule_id"] == "r_agg"
-            assert r["source_contract_id"] == "txn"
+            # contract-derived rows ↦ txn; PR-PAY-1 engine-owned rows ↦ *.
+            assert r["source_contract_id"] in {"txn", "*"}
 
     def test_manifest_pins_field_lineage_hash(self, tmp_path: Path):
         """Mirror of `dq_exceptions_hash` pinning from PR-B4: the manifest

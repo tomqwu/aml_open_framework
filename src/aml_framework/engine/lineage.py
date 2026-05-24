@@ -16,6 +16,15 @@ part of the regulator-shippable evidence bundle.
 
 Rule-logic coverage:
 
+- **Every active rule (PR-PAY-1)**: traces the engine-owned
+  `threshold` + `reference_data_version` alert fields that
+  `stamp_payload_meta` stamps on every alert. `threshold` derives from
+  the spec rule's logic (no data contract); `reference_data_version`
+  derives from the reference-list content hash for `list_match` rules
+  and is "not_applicable" for the other 4 shapes. Both rows use
+  `source_contract_id="*"` because the spec itself (not a data
+  contract) is the source.
+
 - `aggregation_window`: traces each `group_by` column (transform=GROUP_BY),
   each `having` metric to its underlying source column via the
   `_HAVING_AGGREGATES` map mirrored from `generators.sql`, and the two
@@ -121,6 +130,51 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
             continue
         logic = rule.logic
         logic_type = getattr(logic, "type", None)
+
+        # PR-PAY-1: `threshold` + `reference_data_version` are
+        # engine-owned alert fields, stamped by `stamp_payload_meta` on
+        # every alert across all 5 rule shapes regardless of executor.
+        # Both trace back to the spec rule itself (not a data contract):
+        # `threshold` is `rule.logic.having` / `match`+threshold /
+        # `pattern`+`max_hops`+`having` — derived purely from the spec —
+        # and `reference_data_version` is the content-hash of the
+        # reference list for `list_match` rules (or None for everything
+        # else). Add lineage rows for them so `field_lineage.jsonl`
+        # matches the real alert shape; the spec itself is named as the
+        # source via `source_contract_id="*"` + `source_column="<spec
+        # location>"`.
+        entries.append(
+            FieldLineageEntry(
+                rule_id=rule.id,
+                alert_field="threshold",
+                source_contract_id="*",
+                source_column=f"spec.rules.{rule.id}.logic",
+                transform="payload_meta:threshold_snapshot",
+                at=at,
+            )
+        )
+        if logic_type == "list_match":
+            entries.append(
+                FieldLineageEntry(
+                    rule_id=rule.id,
+                    alert_field="reference_data_version",
+                    source_contract_id="*",
+                    source_column=logic.list,
+                    transform="payload_meta:sha256_content_hash",
+                    at=at,
+                )
+            )
+        else:
+            entries.append(
+                FieldLineageEntry(
+                    rule_id=rule.id,
+                    alert_field="reference_data_version",
+                    source_contract_id="*",
+                    source_column="*",
+                    transform="payload_meta:not_applicable",
+                    at=at,
+                )
+            )
 
         if logic_type == "aggregation_window":
             # group_by columns trace 1:1 to the source contract's column
