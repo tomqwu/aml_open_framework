@@ -22,7 +22,7 @@ from aml_framework.engine.cost_volume import (
     summarise_tables,
     write_report as write_cost_volume_report,
 )
-from aml_framework.engine.defect_log import build_defect_log, write_defect_log
+from aml_framework.engine.defect_log import build_defect_log, derive_run_id, write_defect_log
 from aml_framework.engine.dq import DQException, evaluate_contract_checks
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
@@ -1107,6 +1107,22 @@ def run_spec(
                 )
                 python_ref_failures[rule.id] = error_msg
                 if _is_strict_python_ref(strict_python_ref):
+                    # PR-C1 (#371) codex P2: strict-mode aborts before
+                    # `_finalize_run()` is reached, so without this
+                    # write the RULE_LOGIC defect for the failed
+                    # scorer would never land on disk. Emit
+                    # `defect_log.jsonl` with whatever DQ exceptions
+                    # + python_ref failures have accumulated so far so
+                    # the run directory still carries the evidence
+                    # tickets — even though `manifest.json` won't
+                    # exist (the run was never finalized).
+                    defects = build_defect_log(
+                        run_id=derive_run_id(ledger.spec_content_hash, ledger.as_of),
+                        dq_exceptions=dq_exceptions or [],
+                        python_ref_failures=python_ref_failures,
+                        created_at=ledger.as_of,
+                    )
+                    write_defect_log(ledger.run_dir, defects)
                     raise PythonRefFailure(
                         rule_id=rule.id,
                         module_path=module_path,
@@ -1348,11 +1364,13 @@ def _finalize_run(
     # PR-C1 (#371) — Pillar-2 defect log. Derived from the run's
     # existing audit substrate (DQ exceptions + python_ref failures);
     # written BEFORE `ledger.finalize()` so the manifest can pin its
-    # SHA-256. `created_at` is pinned to the run's `as_of` so the
-    # JSONL artifact stays byte-stable across re-runs (required for
-    # the manifest-hash determinism contract).
+    # SHA-256. `created_at` is pinned to the run's `as_of` AND
+    # `run_id` is derived from `spec_content_hash + as_of` (NOT the
+    # wall-clock run-directory basename) so the JSONL artifact stays
+    # byte-stable across re-runs — required for the manifest-hash
+    # determinism contract. Codex P2 on PR-C1.
     defects = build_defect_log(
-        run_id=ledger.run_dir.name,
+        run_id=derive_run_id(ledger.spec_content_hash, ledger.as_of),
         dq_exceptions=dq_exceptions or [],
         python_ref_failures=python_ref_failures or {},
         created_at=ledger.as_of,

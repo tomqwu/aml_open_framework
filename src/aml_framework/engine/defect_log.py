@@ -185,29 +185,46 @@ def _defect_id_for_dq(run_id: str, exc: DQException, position: int) -> str:
 
     ``position`` is the DQException's index in the run's exception
     stream — combined with ``check_id``, this guarantees a stable,
-    collision-free ID across re-runs (same spec + same data + same
-    as_of → same defect IDs). The ``check_id`` suffix keeps the ID
-    human-readable when surfacing in dashboards.
+    collision-free ID across re-runs that share the same ``run_id``.
+    The ``check_id`` suffix keeps the ID human-readable when surfacing
+    in dashboards.
+
+    NOTE on determinism: ``run_id`` is supplied by the caller. The
+    runner passes a SPEC-DERIVED id (not the wall-clock run-directory
+    name) so the artifact stays byte-stable across two re-runs of the
+    same (spec, data, as_of). See ``derive_run_id`` below.
     """
     return f"defect:{run_id}:{position:04d}:{exc.check_id}"
 
 
 def _defect_id_for_python_ref(run_id: str, rule_id: str, position: int) -> str:
-    """Deterministic ID for a python_ref failure defect."""
+    """Deterministic ID for a python_ref failure defect.
+
+    Same ``run_id`` discipline as ``_defect_id_for_dq``: the caller
+    provides a deterministic value (the runner derives one from
+    spec_content_hash + as_of).
+    """
     return f"defect:{run_id}:pyref:{position:04d}:{rule_id}"
 
 
-def _run_id_from_dir(run_dir: Path | str | None) -> str:
-    """Derive a stable ``source_run_id`` from a run-directory path.
+def derive_run_id(spec_content_hash: str, as_of: datetime) -> str:
+    """Deterministic ``source_run_id`` derived from inputs, not wall-clock.
 
-    Returns the directory basename when available, ``"unknown"``
-    otherwise. The runner always passes a real path; the fallback only
-    exists so unit tests that build defects in isolation don't need a
-    real directory.
+    The audit ledger's on-disk directory name is ``run-<utcnow>`` —
+    convenient for filesystem sorting but NOT a determinism-safe key
+    for hashed artifacts. Two re-runs of the same ``(spec, data,
+    as_of)`` end up in different directories, so embedding the
+    directory basename in ``defect_log.jsonl`` would defeat
+    ``defect_log_hash`` reproducibility (codex P2 on PR-C1).
+
+    Returns a 16-hex-char SHA-256 prefix over the spec content hash
+    and as_of — short enough to keep defect IDs readable, long enough
+    that the collision space (2^64) is safe for FI-scale dedupe.
     """
-    if run_dir is None:
-        return "unknown"
-    return Path(run_dir).name or "unknown"
+    import hashlib
+
+    payload = f"{spec_content_hash}|{as_of.isoformat()}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:16]
 
 
 def build_defect_log(
@@ -221,8 +238,9 @@ def build_defect_log(
 
     Pure function — no I/O. Same inputs always produce the same output
     (including ``created_at`` when callers pin it; defaults to ``now()``
-    only when omitted). The runner pins ``created_at`` to ``as_of`` so
-    the defect_log.jsonl artifact stays byte-stable across re-runs.
+    only when omitted). The runner pins ``created_at`` to ``as_of`` and
+    derives ``run_id`` from ``spec_content_hash + as_of`` so the
+    ``defect_log.jsonl`` artifact stays byte-stable across re-runs.
 
     Sources covered in this PR:
       - DQ exceptions (one defect per exception, classified via the

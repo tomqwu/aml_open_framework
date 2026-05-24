@@ -34,6 +34,7 @@ from aml_framework.engine.defect_log import (
     DefectStatus,
     build_defect_log,
     classify_defect,
+    derive_run_id,
     write_defect_log,
 )
 from aml_framework.engine.dq import DQException
@@ -576,6 +577,15 @@ class TestEngineIntegration:
         )
 
     def test_runner_writes_deterministic_defect_log_across_runs(self, tmp_path: Path):
+        # Codex P2 on PR-C1: defect IDs + source_run_id must NOT carry
+        # the wall-clock run-directory basename, else two re-runs at
+        # different seconds produce different bytes and break the
+        # `defect_log_hash` reproducibility contract. Force the second
+        # run to land in a different run directory (sleep crossing the
+        # 1-second boundary the directory name uses) so this test
+        # would catch the pre-fix regression.
+        import time
+
         spec = _spec_with_unique_check()
         spec_path = tmp_path / "spec.yaml"
         spec_path.write_text("placeholder: 1\n", encoding="utf-8")
@@ -590,6 +600,7 @@ class TestEngineIntegration:
             as_of=_AS_OF,
             artifacts_root=out_a,
         )
+        time.sleep(1.05)  # cross the second boundary used by run-{ts}
         run_spec(
             spec=spec,
             spec_path=spec_path,
@@ -597,6 +608,146 @@ class TestEngineIntegration:
             as_of=_AS_OF,
             artifacts_root=out_b,
         )
-        run_a = sorted(out_a.glob("run-*"))[-1] / "defect_log.jsonl"
-        run_b = sorted(out_b.glob("run-*"))[-1] / "defect_log.jsonl"
+        run_a_dir = sorted(out_a.glob("run-*"))[-1]
+        run_b_dir = sorted(out_b.glob("run-*"))[-1]
+        # Sanity: directory basenames must differ — else the test is
+        # vacuous and would have passed even with the run-dir-name bug.
+        assert run_a_dir.name != run_b_dir.name
+        run_a = run_a_dir / "defect_log.jsonl"
+        run_b = run_b_dir / "defect_log.jsonl"
         assert run_a.read_bytes() == run_b.read_bytes()
+        # The manifest-pinned hash should match too.
+        manifest_a = json.loads((run_a_dir / "manifest.json").read_bytes())
+        manifest_b = json.loads((run_b_dir / "manifest.json").read_bytes())
+        assert manifest_a["defect_log_hash"] == manifest_b["defect_log_hash"]
+
+
+# ---------------------------------------------------------------------------
+# derive_run_id — codex P2 on PR-C1
+# ---------------------------------------------------------------------------
+
+
+class TestDeriveRunId:
+    def test_same_inputs_same_id(self):
+        a = derive_run_id("hash-abc", _AS_OF)
+        b = derive_run_id("hash-abc", _AS_OF)
+        assert a == b
+
+    def test_different_spec_hash_different_id(self):
+        a = derive_run_id("hash-abc", _AS_OF)
+        b = derive_run_id("hash-xyz", _AS_OF)
+        assert a != b
+
+    def test_different_as_of_different_id(self):
+        a = derive_run_id("hash-abc", _AS_OF)
+        b = derive_run_id("hash-abc", datetime(2026, 6, 1, tzinfo=timezone.utc))
+        assert a != b
+
+    def test_id_is_sixteen_hex_chars(self):
+        out = derive_run_id("hash-abc", _AS_OF)
+        assert len(out) == 16
+        assert all(c in "0123456789abcdef" for c in out)
+
+
+# ---------------------------------------------------------------------------
+# Strict python_ref aborts still emit defect_log — codex P2 on PR-C1
+# ---------------------------------------------------------------------------
+
+
+class TestStrictPythonRefDefectLog:
+    """Codex P2 on PR-C1: when strict python_ref aborts the run before
+    `_finalize_run()`, the defect log must still land on disk so the
+    RULE_LOGIC ticket is observable in the run directory.
+    """
+
+    def _spec_with_python_ref_rule(self, callable_str: str) -> AMLSpec:
+        from aml_framework.spec.models import PythonRefLogic
+
+        return AMLSpec(
+            version=1,
+            program=Program(
+                name="TestProgram",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                )
+            ],
+            rules=[
+                Rule(
+                    id="r_pyref",
+                    name="R",
+                    severity="high",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=PythonRefLogic(
+                        type="python_ref",
+                        callable=callable_str,
+                        model_id="test",
+                        model_version="v0",
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+
+    def test_strict_python_ref_failure_writes_defect_log_before_raising(
+        self, tmp_path: Path, monkeypatch
+    ):
+        # Point allowed prefixes at a test scorer that raises so the
+        # strict path triggers without smuggling in real ml/model code.
+        monkeypatch.setenv("AML_PYTHON_REF_PREFIX", "tests.")
+        monkeypatch.setenv("AML_STRICT_PYTHON_REF", "1")
+        # Reference a non-existent module under the allowed prefix —
+        # the import inside the rule loop raises, which the strict
+        # branch promotes to PythonRefFailure after writing the
+        # defect log.
+        spec = self._spec_with_python_ref_rule("tests.does_not_exist:scorer")
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+        from aml_framework.engine.runner import PythonRefFailure
+
+        with pytest.raises(PythonRefFailure):
+            run_spec(
+                spec=spec,
+                spec_path=spec_path,
+                data={
+                    "txn": [
+                        {
+                            "txn_id": "T1",
+                            "customer_id": "C1",
+                            "amount": 10.0,
+                            "booked_at": _AS_OF,
+                        }
+                    ]
+                },
+                as_of=_AS_OF,
+                artifacts_root=tmp_path,
+            )
+        run_dirs = sorted(tmp_path.glob("run-*"))
+        assert run_dirs, "run directory should exist even after strict abort"
+        run_dir = run_dirs[-1]
+        defect_path = run_dir / "defect_log.jsonl"
+        assert defect_path.exists(), (
+            "defect_log.jsonl must be written before strict PythonRefFailure raises"
+        )
+        lines = [ln for ln in defect_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        # One python_ref defect for the failed rule.
+        assert len(lines) == 1
+        rec = json.loads(lines[0])
+        assert rec["category"] == "rule_logic"
+        assert rec["classification"] == "rule"
+        assert rec["severity"] == "high"
+        assert "r_pyref" in rec["summary"]
