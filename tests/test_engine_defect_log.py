@@ -908,3 +908,92 @@ class TestContractViolationDefectLog:
         recs = [json.loads(ln) for ln in lines]
         assert any(r["category"] == "data_quality" for r in recs)
         assert any(r["classification"] == "data" for r in recs)
+
+    def test_warehouse_constraint_abort_leaves_defect_log_intact(self, tmp_path: Path):
+        # Codex pass-3 P2 on PR-C1: a not_null contract column with a
+        # row carrying an explicit None passes the
+        # `_build_warehouse` pre-flight (the KEY is present) but
+        # DuckDB's NOT NULL constraint raises at INSERT time. The
+        # bare `raise` propagates a non-ContractViolation exception
+        # — but since `defect_log.jsonl` is written BEFORE the
+        # warehouse build, the artifact stays on disk for the run
+        # directory regardless.
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="TestProgram",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                    quality_checks=[{"not_null": ["amount"]}],
+                )
+            ],
+            rules=[
+                Rule(
+                    id="r1",
+                    name="R1",
+                    severity="low",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=AggregationWindowLogic(
+                        type="aggregation_window",
+                        source="txn",
+                        group_by=["customer_id"],
+                        window="365d",
+                        having={"count": {"gte": 1}},
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        # Row carries `amount=None` (key present, value None) — the
+        # not_null DQ check fires, then `_build_warehouse` hits
+        # DuckDB's NOT NULL constraint.
+        data = {
+            "txn": [
+                {
+                    "txn_id": "T1",
+                    "customer_id": "C1",
+                    "amount": None,
+                    "booked_at": _AS_OF,
+                },
+            ]
+        }
+        # The constraint raises a non-ContractViolation; the runner
+        # propagates whatever exception type DuckDB emits.
+        with pytest.raises(Exception):
+            run_spec(
+                spec=spec,
+                spec_path=spec_path,
+                data=data,
+                as_of=_AS_OF,
+                artifacts_root=tmp_path,
+            )
+
+        run_dirs = sorted(tmp_path.glob("run-*"))
+        assert run_dirs, "run dir must exist even after constraint abort"
+        run_dir = run_dirs[-1]
+        defect_path = run_dir / "defect_log.jsonl"
+        assert defect_path.exists(), (
+            "defect_log.jsonl must be written before any warehouse-build abort"
+        )
+        lines = [ln for ln in defect_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        assert len(lines) >= 1
+        recs = [json.loads(ln) for ln in lines]
+        assert any(r["category"] == "data_quality" for r in recs)
