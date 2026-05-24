@@ -228,6 +228,11 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # same tamper-detection reason: an on-call digest that disagrees
     # with the underlying alerts is worse than no digest.
     "monitoring_digest.json",
+    # PR-C1 (#371) — Pillar-2 defect log. Frozen so the regulator-
+    # facing ticket list (severity + classification + lifecycle) can't
+    # be edited after finalize; the same hash-pin posture as every
+    # other regulator-facing artifact above.
+    "defect_log.jsonl",
 )
 
 
@@ -536,6 +541,14 @@ class AuditLedger:
         digest_path = self.run_dir / "monitoring_digest.json"
         monitoring_digest_hash = _sha256(digest_path.read_bytes()) if digest_path.exists() else None
 
+        # PR-C1 (#371): pin the SHA-256 of `defect_log.jsonl` so the
+        # Pillar-2 defect-ticket list (severity + classification +
+        # lifecycle) joins the manifest's tamper-detection set. File is
+        # written by the runner before `finalize()`; older runs that
+        # predate PR-C1 won't have the file and the hash stays None.
+        defect_path = self.run_dir / "defect_log.jsonl"
+        defect_log_hash = _sha256(defect_path.read_bytes()) if defect_path.exists() else None
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -550,6 +563,7 @@ class AuditLedger:
             "sla_report_hash": sla_report_hash,
             "run_cost_volume_hash": run_cost_volume_hash,
             "monitoring_digest_hash": monitoring_digest_hash,
+            "defect_log_hash": defect_log_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         (self.run_dir / "manifest.json").write_bytes(

@@ -28,6 +28,7 @@ Every `aml run` produces an evidence bundle containing:
 | `sla_report.json`           | Pillar-6 SLA-monitor report: alert-disposition breaches + batch-lateness signal (always written; empty when `program.sla` is unset) |
 | `run_cost_volume.json`      | row counts per table + wall-clock / peak-memory / per-rule timing|
 | `monitoring_digest.json`    | post-run rollup: alerts per rule/queue/severity, top-3 firers, DQ totals, per-rule diff vs prior run (hash pinned on the manifest) |
+| `defect_log.jsonl`          | Pillar-2 defect tickets: severity + 11-category classifier + data/rule/mapping triage + lifecycle (open/acknowledged/resolved/closed/wont_fix); always written, hash pinned on the manifest |
 | `signatures/manifest.sig`   | detached signature over `manifest.json` (if signing key set)    |
 
 ## Determinism properties

@@ -22,6 +22,7 @@ from aml_framework.engine.cost_volume import (
     summarise_tables,
     write_report as write_cost_volume_report,
 )
+from aml_framework.engine.defect_log import build_defect_log, write_defect_log
 from aml_framework.engine.dq import DQException, evaluate_contract_checks
 from aml_framework.engine.entity_resolution import resolve_entities
 from aml_framework.engine.freshness import scan_contract_freshness
@@ -1343,6 +1344,20 @@ def _finalize_run(
         prior_run=prior_run,
     )
     write_monitoring_digest(ledger.run_dir, digest)
+
+    # PR-C1 (#371) — Pillar-2 defect log. Derived from the run's
+    # existing audit substrate (DQ exceptions + python_ref failures);
+    # written BEFORE `ledger.finalize()` so the manifest can pin its
+    # SHA-256. `created_at` is pinned to the run's `as_of` so the
+    # JSONL artifact stays byte-stable across re-runs (required for
+    # the manifest-hash determinism contract).
+    defects = build_defect_log(
+        run_id=ledger.run_dir.name,
+        dq_exceptions=dq_exceptions or [],
+        python_ref_failures=python_ref_failures or {},
+        created_at=ledger.as_of,
+    )
+    write_defect_log(ledger.run_dir, defects)
 
     manifest = ledger.finalize()
     manifest["metrics"] = [m.to_dict() for m in metric_results]
