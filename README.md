@@ -142,8 +142,8 @@ aml dashboard examples/community_bank/aml.yaml
 aml dashboard spec.yaml                              # launch web UI (start here)
 aml validate spec.yaml                               # check the spec is internally consistent
 aml run spec.yaml [--data-source csv --data-dir ./]  # execute detectors on data
-aml auditor-pack spec.yaml                           # one-ZIP auditor self-service bundle
-aml audit-pack spec.yaml --jurisdiction CA-FINTRAC   # regulator pre-examination ZIP (per jurisdiction)
+aml auditor-pack spec.yaml --run-dir <run-dir>       # one-ZIP auditor self-service bundle
+aml audit-pack spec.yaml --run-dir <run-dir> --jurisdiction CA-FINTRAC  # regulator pre-exam ZIP (per jurisdiction)
 aml export-case spec.yaml <run-dir> <case_id>        # single-case subset of the audit pack (PR-D4)
 aml export-batch spec.yaml <run-dir> --cases c1,c2   # multi-case subset of the audit pack (PR-D4)
 aml inventory legacy.csv                             # summary of a SAS / Actimize / Mantas rule dump
