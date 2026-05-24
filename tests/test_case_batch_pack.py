@@ -357,6 +357,97 @@ class TestCasePack:
         assert manifest["case_id"] == masked_id
         assert "C0001" not in json.dumps(manifest)
 
+    def test_compound_id_masking_is_token_level(self, tmp_path: Path) -> None:
+        """Codex P2: when the PII plaintext is short / numeric (e.g.
+        customer_id "1"), naive str.replace inside the compound case_id
+        ``rule__1__2026-01-15T110000`` would also rewrite the "1" in
+        the timestamp. Token-level masking (split on the delimiter,
+        swap whole tokens) keeps the timestamp intact."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-tok"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        raw = "rule_y__1__2026-01-15T110000"
+        case = {
+            "case_id": raw,
+            "rule_id": "rule_y",
+            "rule_name": "Y",
+            "severity": "high",
+            "queue": "q",
+            "alert": {"customer_id": "1", "matched_row_ids": [1]},
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {},
+            "status": "open",
+        }
+        (cases_dir / f"{raw}.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "HASH1", "plaintext": "1"}) + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, cases_dir / f"{raw}.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            names = set(zf.namelist())
+            manifest = json.loads(zf.read("manifest.json"))
+        # The customer slot is masked but the timestamp (which also
+        # contains "1") survives intact.
+        masked_id = "rule_y__HASH1__2026-01-15T110000"
+        assert f"cases/{masked_id}.json" in names
+        assert manifest["case_id"] == masked_id
+
+    def test_numeric_pii_does_not_rewrite_non_pii_leaves(self, tmp_path: Path) -> None:
+        """Codex P2: a numeric plaintext "1" must not rewrite unrelated
+        numeric leaves like ``matched_row_ids: [1]`` or
+        ``row_count: 1``. Field-aware masking is keyed to the parent
+        dict key, so only ``customer_id: 1`` gets hashed."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-fld"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        case = {
+            "case_id": "rule_n__1__t",
+            "rule_id": "rule_n",
+            "rule_name": "N",
+            "severity": "high",
+            "queue": "q",
+            "alert": {"customer_id": 1, "matched_row_ids": [1]},
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {
+                "txn": {
+                    "row_count": 1,
+                    "content_hash": "h",
+                    "source_path": "data/in/txn.csv",
+                    "schema_hash": "s",
+                }
+            },
+            "status": "open",
+        }
+        (cases_dir / "rule_n__1__t.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "HID", "plaintext": "1"}) + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, cases_dir / "rule_n__1__t.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            case_doc = json.loads(zf.read("cases/rule_n__HID__t.json"))
+            lineage = json.loads(zf.read("lineage/rule_n__HID__t.json"))
+        # customer_id is masked.
+        assert case_doc["alert"]["customer_id"] == "HID"
+        # Non-PII numeric leaves are untouched.
+        assert case_doc["alert"]["matched_row_ids"] == [1]
+        assert case_doc["input_hash"]["txn"]["row_count"] == 1
+        assert lineage["matched_row_ids"] == [1]
+        assert lineage["input_files"][0]["row_count"] == 1
+
     def test_pii_masking_does_not_corrupt_unrelated_strings(self, tmp_path: Path) -> None:
         """Codex P2 (substring-mask too aggressive): a short / common
         plaintext PII like ``1`` must NOT rewrite unrelated audit

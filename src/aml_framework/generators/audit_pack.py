@@ -525,20 +525,65 @@ def _load_decisions(run_dir: Path) -> list[dict[str, Any]]:
     return decisions
 
 
-def _load_pii_map(run_dir: Path) -> dict[str, str]:
-    """Plaintext → hash map from the run's ``pii_map.jsonl`` sidecar.
+class _PiiMap:
+    """Field-aware PII mapping loaded from a run's ``pii_map.jsonl``.
 
-    The engine writes one row per (field, hash, plaintext) tuple whenever
-    PII masking is enabled (``AML_PII_MASKING=1`` + spec columns flagged
-    ``pii: true``). The sidecar is the auditor's unmask path; here we use
-    it in reverse so granular evidence packs respect the masking contract
-    of the run that produced them (Codex P1). Returns an empty mapping
-    when the sidecar is absent, so unmasked runs are a no-op.
+    Carries two views of the same sidecar so the masker can reason
+    about *context*:
+
+    - ``by_field``: ``field_name → {plaintext → hash}``. Used to only
+      mask a leaf when its parent dict key matches a recorded PII
+      field (Codex P2 — prevents short numeric plaintexts like ``"1"``
+      from rewriting unrelated leaves such as ``matched_row_ids: [1]``
+      or ``row_count: 1``).
+    - ``fields``: the set of all PII field names; cheap membership test.
+
+    Compound substring masking (``case_id``, ``source_path``) is still
+    done by iterating all known plaintexts, but with token-level guards
+    that prevent partial replacement of timestamps / non-PII path
+    components (see ``_mask_compound_string``).
     """
+
+    __slots__ = ("by_field", "fields", "_all_plaintexts")
+
+    def __init__(self, by_field: dict[str, dict[str, str]]) -> None:
+        self.by_field: dict[str, dict[str, str]] = by_field
+        self.fields: frozenset[str] = frozenset(by_field.keys())
+        all_pt: dict[str, str] = {}
+        for mapping in by_field.values():
+            all_pt.update(mapping)
+        self._all_plaintexts: dict[str, str] = all_pt
+
+    def __bool__(self) -> bool:
+        return bool(self._all_plaintexts)
+
+    def lookup(self, field: str | None, value_str: str) -> str | None:
+        """Hash for ``value_str`` if the field is a known PII column."""
+        if field is None:
+            return None
+        col_map = self.by_field.get(field)
+        if not col_map:
+            return None
+        return col_map.get(value_str)
+
+    @property
+    def all_plaintexts(self) -> dict[str, str]:
+        return self._all_plaintexts
+
+
+def _load_pii_map(run_dir: Path) -> _PiiMap:
+    """Load the run's ``pii_map.jsonl`` sidecar into a field-aware map.
+
+    The engine writes one row per ``(field, hash, plaintext)`` tuple
+    whenever PII masking is enabled (``AML_PII_MASKING=1`` + spec
+    columns flagged ``pii: true``). Granular packs use the field tag to
+    restrict masking to the right column so a numeric plaintext can't
+    rewrite unrelated audit evidence (Codex P2).
+    """
+    by_field: dict[str, dict[str, str]] = {}
     sidecar = run_dir / "pii_map.jsonl"
     if not sidecar.exists():
-        return {}
-    mapping: dict[str, str] = {}
+        return _PiiMap(by_field)
     for line in sidecar.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -549,33 +594,39 @@ def _load_pii_map(run_dir: Path) -> dict[str, str]:
             continue
         plain = row.get("plaintext")
         hashed = row.get("hash")
-        if plain is None or hashed is None:
+        field = row.get("field")
+        if plain is None or hashed is None or field is None:
             continue
-        mapping[str(plain)] = str(hashed)
-    return mapping
+        by_field.setdefault(str(field), {})[str(plain)] = str(hashed)
+    return _PiiMap(by_field)
 
 
-def _mask_compound_string(value: str, pii_map: dict[str, str]) -> str:
-    """Substring-substitute every plaintext PII value with its hash.
+def _mask_compound_string(value: str, pii_map: _PiiMap, *, key: str = "case_id") -> str:
+    """Token-level substring-mask of a compound engine identifier.
 
-    The engine builds compound identifiers like
-    ``<rule_id>__<customer_id>__<window_end>`` for ``case_id`` so the
-    plaintext PII appears *inside* a longer string (Codex P1). The
-    plain-equality swap in ``_apply_pii_map`` won't touch those. We
-    iterate the pii_map (longest plaintext first to avoid prefix
-    collisions like ``C0001`` masking ``C00010``) and do simple
-    ``str.replace`` substitution. Safe because PII columns are
-    declared at the spec layer and the engine hashes them to opaque
-    16-hex strings that can never collide with the surrounding
-    rule_id / timestamp tokens.
+    The engine builds compound strings whose components are joined by a
+    fixed delimiter — ``<rule>__<customer>__<window_end>`` for
+    ``case_id`` and ``<dir>/<customer>/<file>`` for ``source_path``.
+    Codex P2: a naive ``str.replace`` would rewrite *every* occurrence
+    of a short / numeric plaintext, mangling the non-PII timestamp /
+    rule_id components (e.g. ``rule__1__2026-01-15...`` → bad).
+
+    Fix: split on the appropriate delimiter and only swap whole tokens
+    that exactly equal a recorded plaintext. The hashes the engine
+    emits are opaque 16-hex strings that can never collide with any
+    rule_id, timestamp, or filename token, so token-level equality is
+    sufficient and never causes partial corruption.
     """
     if not pii_map or not value:
         return value
-    masked = value
-    for plaintext in sorted(pii_map.keys(), key=len, reverse=True):
-        if plaintext and plaintext in masked:
-            masked = masked.replace(plaintext, pii_map[plaintext])
-    return masked
+    if key == "source_path":
+        delimiter = "/"
+    else:
+        delimiter = "__"
+    parts = value.split(delimiter)
+    all_plaintexts = pii_map.all_plaintexts
+    masked_parts = [all_plaintexts.get(p, p) for p in parts]
+    return delimiter.join(masked_parts)
 
 
 _COMPOUND_ID_KEYS = frozenset({"case_id", "source_path"})
@@ -587,18 +638,22 @@ so a short PII value like ``1`` cannot accidentally rewrite timestamps,
 hashes, or other strings (Codex P2 fix)."""
 
 
-def _apply_pii_map(payload: Any, pii_map: dict[str, str], *, key: str | None = None) -> Any:
+def _apply_pii_map(payload: Any, pii_map: _PiiMap, *, key: str | None = None) -> Any:
     """Recursively replace plaintext values with their hashes.
 
-    Walks dicts/lists. Leaf rules:
+    Walks dicts/lists with **field awareness** (Codex P2): masking is
+    keyed to the parent dict key, so a numeric plaintext like ``"1"``
+    only rewrites values under the recorded PII field name (e.g.
+    ``customer_id``) and never collateral leaves like ``row_count: 1``
+    or ``matched_row_ids: [1]``.
 
-    - String leaf, exact match in ``pii_map`` → swap for hash.
-    - String leaf under a ``_COMPOUND_ID_KEYS`` key → substring-mask
-      so PII embedded inside identifiers / paths is hashed (Codex P1).
-    - Non-string leaf whose ``str(value)`` matches a ``pii_map`` key
-      → swap for hash. ``AuditLedger._mask_alert`` records sidecar
-      keys via ``str(value)`` so an int/decimal PII column would
-      otherwise leave the case JSON unmasked (Codex P2).
+    Leaf rules:
+
+    - Leaf (string or scalar) under a recorded PII field whose
+      ``str()`` matches that field's plaintext → swap for hash.
+    - String leaf under ``_COMPOUND_ID_KEYS`` (``case_id`` /
+      ``source_path``) → token-level masking that swaps whole
+      delimited components matching a recorded plaintext.
     - Anything else → returned as-is.
     """
     if not pii_map:
@@ -608,17 +663,20 @@ def _apply_pii_map(payload: Any, pii_map: dict[str, str], *, key: str | None = N
     if isinstance(payload, list):
         return [_apply_pii_map(v, pii_map, key=key) for v in payload]
     if isinstance(payload, str):
-        if payload in pii_map:
-            return pii_map[payload]
+        # Field-keyed exact-match swap.
+        hashed = pii_map.lookup(key, payload)
+        if hashed is not None:
+            return hashed
         if key in _COMPOUND_ID_KEYS:
-            return _mask_compound_string(payload, pii_map)
+            return _mask_compound_string(payload, pii_map, key=key)
         return payload
-    # Non-string leaf — engine sidecar stringifies before hashing,
-    # so a numeric / decimal / bool PII column appears in pii_map
-    # keyed by str(value). Swap on str() equality (Codex P2 fix).
+    # Non-string leaf — coerce to str() and look up under the same
+    # field so a numeric/decimal/bool PII column gets hashed without
+    # accidentally rewriting unrelated numeric audit evidence.
     coerced = str(payload)
-    if coerced in pii_map:
-        return pii_map[coerced]
+    hashed = pii_map.lookup(key, coerced)
+    if hashed is not None:
+        return hashed
     return payload
 
 
