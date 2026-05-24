@@ -54,11 +54,22 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# The AML spec restricts `Rule.id` to `^[a-z][a-z0-9_]*$`. Legacy
+# platforms commonly emit IDs like `R001`, `scenario-1`, or
+# `CASH.STRUCT.01` that don't fit; `_sanitise_rule_id` rewrites the
+# string into a schema-safe form so `aml validate` accepts the
+# imported stub once the operator fills in the other TODO fields.
+# The original legacy ID is preserved verbatim as a tag on the stub
+# so it survives the import for traceability.
+_SAFE_RULE_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_LEGACY_ID_PREFIX = "legacy_"
 
 
 class _Base(BaseModel):
@@ -219,10 +230,23 @@ def _row_from_mapping(
         else None
     )
 
+    # SQL takes precedence over thresholds (per the documented stub
+    # behaviour). When a row has both a usable SQL string AND a
+    # malformed threshold cell, we keep the row + emit a warning
+    # instead of dropping the SQL — legacy dumps frequently ship
+    # parameter blobs alongside SQL, and a bad blob shouldn't lose
+    # the importable detector.
+    threshold_warning: ParseWarning | None = None
     try:
         threshold_block = _coerce_threshold_block(raw.get("threshold_block"))
     except ValueError as exc:
-        return None, ParseWarning(row_index, rule_id, str(exc))
+        if legacy_sql is not None:
+            threshold_block = None
+            threshold_warning = ParseWarning(
+                row_index, rule_id, f"{exc}; kept SQL, dropped threshold"
+            )
+        else:
+            return None, ParseWarning(row_index, rule_id, str(exc))
 
     narrative_raw = raw.get("narrative")
     narrative = (
@@ -242,7 +266,7 @@ def _row_from_mapping(
         )
     except Exception as exc:  # pragma: no cover — defensive, validation above is tight
         return None, ParseWarning(row_index, rule_id, f"pydantic rejected row: {exc}")
-    return row, None
+    return row, threshold_warning
 
 
 @dataclass(frozen=True)
@@ -370,6 +394,27 @@ def _regulation_refs_for(row: LegacyRuleRow) -> list[dict[str, str]]:
     ]
 
 
+def _sanitise_rule_id(raw: str) -> str:
+    """Rewrite a legacy ID into the AML spec's `^[a-z][a-z0-9_]*$` shape.
+
+    The AML spec validates `Rule.id` against `^[a-z][a-z0-9_]*$`.
+    Legacy IDs like `R001`, `scenario-1`, or `CASH.STRUCT.01` would
+    fail validation even after the operator fills in the TODOs. We
+    rewrite to lowercase, replace any non-`[a-z0-9_]` with `_`, and
+    prefix with `legacy_` when the result would otherwise start with
+    a digit. The original ID is preserved on the stub via a tag so
+    nothing is lost.
+    """
+    safe = re.sub(r"[^a-z0-9_]", "_", raw.lower())
+    safe = re.sub(r"_+", "_", safe).strip("_")
+    if not safe:
+        return f"{_LEGACY_ID_PREFIX}unknown"
+    if not _SAFE_RULE_ID_RE.match(safe):
+        # Must start with a letter — prefix with `legacy_`.
+        safe = f"{_LEGACY_ID_PREFIX}{safe}"
+    return safe
+
+
 def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
     """Produce a dict shaped like one entry of `rules:` in the AML spec.
 
@@ -381,14 +426,19 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
       placeholder with a `# TODO: convert narrative` marker and the
       narrative captured under `tags` so it survives the import.
     """
+    safe_id = _sanitise_rule_id(row.rule_id)
+    tags = ["legacy_import"]
+    if safe_id != row.rule_id:
+        # Preserve the original legacy identifier so `grep` finds it.
+        tags.append(f"legacy_id:{row.rule_id}")
     stub: dict[str, Any] = {
-        "id": row.rule_id,
+        "id": safe_id,
         "name": row.name,
         "severity": "medium",
         "regulation_refs": _regulation_refs_for(row),
         "escalate_to": "l2_review",
         "evidence": [],
-        "tags": ["legacy_import"],
+        "tags": tags,
     }
 
     if row.legacy_sql is not None:
@@ -417,12 +467,13 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         "window": "30d",
         "having": {"count": {"gte": 1}},
     }
+    # Append `needs_manual_conversion` so the operator can filter for
+    # rules that still need narrative-to-rule translation.
+    stub["tags"] = [*tags, "needs_manual_conversion"]
     if row.narrative:
-        stub["tags"] = ["legacy_import", "needs_manual_conversion"]
         # Persist the human prose so it isn't lost between formats.
         stub["business_intent"] = f"# TODO: convert narrative -> {row.narrative}"
     else:
-        stub["tags"] = ["legacy_import", "needs_manual_conversion"]
         stub["business_intent"] = "# TODO: convert narrative -> (none supplied)"
     return stub
 

@@ -80,6 +80,27 @@ A row with a broken threshold JSON or a missing `rule_id` becomes a
 still import. Use the inventory command to triage warnings before
 running the full import.
 
+When a row has both SQL and a malformed threshold block, the SQL is
+kept (legacy dumps often ship parameter blobs alongside SQL) and the
+bad threshold is logged as a warning.
+
+## Rule-ID sanitisation
+
+The AML spec requires `Rule.id` to match `^[a-z][a-z0-9_]*$`. Legacy
+IDs that don't fit (`R001`, `scenario-1`, `CASH.STRUCT.01`, `42`)
+are rewritten to lowercase + underscored so the emitted skeleton is
+validation-ready:
+
+| Legacy ID | Emitted `id` | Tag preserved on stub |
+|---|---|---|
+| `R001` | `r001` | `legacy_id:R001` |
+| `CASH.STRUCT.01` | `cash_struct_01` | `legacy_id:CASH.STRUCT.01` |
+| `scenario-1` | `scenario_1` | `legacy_id:scenario-1` |
+| `42` | `legacy_42` | `legacy_id:42` |
+
+The original ID is always preserved as a `legacy_id:` tag so `grep`
+finds it in the skeleton.
+
 ## What the skeleton is NOT
 
 The skeleton intentionally fails `aml validate` if used raw — that's

@@ -582,6 +582,83 @@ def test_json_entry_with_bad_threshold_warns_and_skips(tmp_path: Path) -> None:
     assert any("R407" == w.rule_id for w in result.warnings)
 
 
+def test_sql_row_with_bad_threshold_is_preserved(tmp_path: Path) -> None:
+    """A row with both SQL and a malformed threshold keeps the SQL.
+
+    Regression for codex review P2: previously, a bad threshold blob
+    next to a usable SQL string would drop the entire row. Legacy
+    dumps frequently ship parameters alongside SQL, so the SQL must
+    win and the bad threshold is surfaced as a warning.
+    """
+    path = tmp_path / "mixed.csv"
+    _write_csv(
+        path,
+        ["rule_id", "name", "sql", "thresholds"],
+        [["R500", "Structuring", "SELECT * FROM txn", "{not json"]],
+    )
+    result = parse_legacy_csv_with_warnings(path)
+    assert len(result.rows) == 1
+    assert result.rows[0].legacy_sql == "SELECT * FROM txn"
+    assert result.rows[0].threshold_block is None
+    assert len(result.warnings) == 1
+    assert "kept SQL" in result.warnings[0].reason
+
+
+def test_stub_sanitises_uppercase_legacy_id() -> None:
+    """`R001` → `r001` so the emitted spec passes `aml validate`.
+
+    Regression for codex review P2: AML spec requires
+    `^[a-z][a-z0-9_]*$` for `Rule.id`. `R001` lowercases cleanly to
+    `r001` which matches the pattern, but the original is preserved
+    as a `legacy_id:` tag for traceability.
+    """
+    row = LegacyRuleRow(rule_id="R001", name="n", legacy_sql="SELECT 1")
+    stub = to_aml_rule_stub(row)
+    assert stub["id"] == "r001"
+    assert "legacy_id:R001" in stub["tags"]
+
+
+def test_stub_sanitises_dotted_legacy_id() -> None:
+    """`CASH.STRUCT.01` → `cash_struct_01` with original preserved as tag."""
+    row = LegacyRuleRow(rule_id="CASH.STRUCT.01", name="n", legacy_sql="SELECT 1")
+    stub = to_aml_rule_stub(row)
+    assert stub["id"] == "cash_struct_01"
+    assert "legacy_id:CASH.STRUCT.01" in stub["tags"]
+
+
+def test_stub_keeps_already_safe_id_untouched() -> None:
+    row = LegacyRuleRow(rule_id="structuring_below_threshold", name="n", legacy_sql="SELECT 1")
+    stub = to_aml_rule_stub(row)
+    assert stub["id"] == "structuring_below_threshold"
+    # No `legacy_id:` tag when the ID wasn't rewritten.
+    assert not any(t.startswith("legacy_id:") for t in stub["tags"])
+
+
+def test_stub_sanitises_dash_separated_id() -> None:
+    """`scenario-1` (dashes + digit) sanitises and gets the `legacy_` prefix."""
+    row = LegacyRuleRow(rule_id="scenario-1", name="n", narrative="x")
+    stub = to_aml_rule_stub(row)
+    assert stub["id"] == "scenario_1"
+    # `scenario_1` already matches the safe pattern (lowercase + underscore),
+    # so no `legacy_` prefix needed — but the original had a `-` so we tag it.
+    assert "legacy_id:scenario-1" in stub["tags"]
+
+
+def test_stub_sanitises_pure_digit_id() -> None:
+    """A digit-only ID `42` becomes `legacy_42` since it can't start with a digit."""
+    row = LegacyRuleRow(rule_id="42", name="n", legacy_sql="SELECT 1")
+    stub = to_aml_rule_stub(row)
+    assert stub["id"] == "legacy_42"
+    assert "legacy_id:42" in stub["tags"]
+
+
+def test_stub_sanitises_unrecoverable_id_to_legacy_unknown() -> None:
+    """A pathological ID with nothing extractable falls back to `legacy_unknown`."""
+    row = LegacyRuleRow(rule_id="!!!!", name="n", legacy_sql="SELECT 1")
+    stub = to_aml_rule_stub(row)
+    assert stub["id"] == "legacy_unknown"
+
+
 def _row_from_mapping_via_csv(
     rule_id: str, *, regulator_refs_cell: str
 ) -> tuple[LegacyRuleRow | None, ParseWarning | None]:
