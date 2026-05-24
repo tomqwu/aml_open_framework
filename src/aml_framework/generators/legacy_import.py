@@ -71,6 +71,15 @@ from pydantic import BaseModel, ConfigDict, Field
 _SAFE_RULE_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 _LEGACY_ID_PREFIX = "legacy_"
 
+# Mirrors `generators/sql.py:_HAVING_AGGREGATES` — the engine raises
+# "unsupported having metric '<name>'" for anything outside this set
+# at compile time. Used to filter derived `having` so a vendor-blob
+# sibling like `parameters` doesn't sneak in and break the rule at
+# runtime.
+_RECOGNISED_HAVING_METRICS = frozenset(
+    {"count", "sum_amount", "max_amount", "min_amount", "avg_amount"}
+)
+
 
 class _Base(BaseModel):
     """Match the spec models' frozen/extra-forbid posture."""
@@ -527,7 +536,10 @@ def _coerce_group_by(value: Any) -> list[str]:
       - anything else → `["customer_id"]` fallback
     """
     if isinstance(value, list):
-        out = [str(item).strip() for item in value if str(item).strip()]
+        # Skip None entries (`[null]` in a JSON dump would otherwise
+        # stringify to the literal column name `"None"`, generating
+        # a runtime-invalid grouping clause).
+        out = [str(item).strip() for item in value if item is not None and str(item).strip()]
         return out if out else ["customer_id"]
     if isinstance(value, str):
         text = value.strip()
@@ -626,17 +638,15 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         # `grep` for `legacy_threshold_block:` in the skeleton to audit.
         block = row.threshold_block if isinstance(row.threshold_block, dict) else {}
         raw_having = block.get("having")
-        # An explicit `having` is only usable when every value is a
-        # real (non-empty) operator dict — empty operators like
-        # `{"count": {}}` pass schema validation but produce a
-        # dangling `WHERE` at compile time.
-        explicit_having = (
-            raw_having
-            if isinstance(raw_having, dict)
-            and raw_having
-            and all(_is_real_metric(v) for v in raw_having.values())
-            else None
-        )
+        # Keep only the entries whose value is a real (non-empty)
+        # operator dict. An all-or-nothing fallback would silently
+        # drop a valid `count >= 5` metric when an unrelated sibling
+        # like `sum_amount: {}` is also present in the legacy blob.
+        if isinstance(raw_having, dict) and raw_having:
+            kept = {k: v for k, v in raw_having.items() if _is_real_metric(v)}
+            explicit_having = kept if kept else None
+        else:
+            explicit_having = None
         # `filter` lifts straight into the logic block too (it's a
         # documented AggregationWindowLogic field). Excluding it from
         # the derived `having` set below prevents the engine from
@@ -651,8 +661,16 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         # metric 'source'". Empty operator values are also dropped so
         # they don't make it through as a fake-real metric.
         _METADATA_KEYS = {"source", "window", "group_by", "filter", "having"}
+        # Vendor-shape blobs commonly include unknown dict siblings
+        # (e.g. `parameters: {...}`) that the engine rejects at
+        # compile time with "unsupported having metric ...". Restrict
+        # the derived `having` to the engine's recognised aggregates
+        # so the stub stays runtime-valid; everything else is still
+        # preserved on the `legacy_threshold_block:` tag.
         derived_having: dict[str, Any] = {
-            k: v for k, v in block.items() if k not in _METADATA_KEYS and _is_real_metric(v)
+            k: v
+            for k, v in block.items()
+            if k not in _METADATA_KEYS and k in _RECOGNISED_HAVING_METRICS and _is_real_metric(v)
         }
         # A metric-less block (only metadata, or `having: {}` /
         # `{"count": {}}`) has no real threshold to import — flag it
@@ -763,20 +781,30 @@ def _threshold_is_metric_less(block: dict[str, Any] | None) -> bool:
     when neither `having` nor a non-metadata sibling carries a real
     metric. Centralised so `classify_row` and `inventory_summary`
     agree with the stub's `needs_manual_conversion` tagging.
+
+    A "real metric" is a non-empty operator dict — and, for the
+    sibling case, the key must also be one of the engine-recognised
+    aggregates so a vendor blob like `parameters: {...}` doesn't
+    fool the readiness check.
     """
     if not isinstance(block, dict):
         return True
     raw_having = block.get("having")
     if isinstance(raw_having, dict) and raw_having:
-        # Each value under `having` must itself be a non-empty
-        # operator dict — `{"count": {}}` is metric-less even though
-        # the metric name is present.
+        # `having` keys aren't sanity-checked against
+        # `_RECOGNISED_HAVING_METRICS` here because the operator may
+        # be importing an explicit having block that mostly works;
+        # the runtime engine will surface unsupported metrics
+        # downstream. What we care about is whether at least one
+        # value is a real operator dict.
         if any(_is_real_metric(v) for v in raw_having.values()):
             return False
     siblings = {
         k: v
         for k, v in block.items()
-        if k not in _METADATA_KEYS_FOR_CLASSIFICATION and _is_real_metric(v)
+        if k not in _METADATA_KEYS_FOR_CLASSIFICATION
+        and k in _RECOGNISED_HAVING_METRICS
+        and _is_real_metric(v)
     }
     return not siblings
 

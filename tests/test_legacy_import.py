@@ -280,9 +280,9 @@ def test_to_stub_threshold_row_uses_aggregation_window() -> None:
 
 def test_to_stub_threshold_without_having_key_falls_back() -> None:
     """A bare threshold block (no 'having' wrapper) uses the metric directly."""
-    row = LegacyRuleRow(rule_id="r3", name="n", threshold_block={"sum": {"gte": 9500}})
+    row = LegacyRuleRow(rule_id="r3", name="n", threshold_block={"sum_amount": {"gte": 9500}})
     stub = to_aml_rule_stub(row)
-    assert stub["logic"]["having"] == {"sum": {"gte": 9500}}
+    assert stub["logic"]["having"] == {"sum_amount": {"gte": 9500}}
 
 
 def test_to_stub_narrative_row_emits_todo_placeholder() -> None:
@@ -1102,6 +1102,82 @@ def test_bare_threshold_with_empty_operator_is_manual() -> None:
     row = LegacyRuleRow(rule_id="r1", name="n", threshold_block={"count": {}})
     stub = to_aml_rule_stub(row)
     assert "needs_manual_conversion" in stub["tags"]
+
+
+def test_mixed_having_keeps_real_metrics_drops_empty() -> None:
+    """`{"having": {"count": {"gte": 5}, "sum_amount": {}}}` keeps `count`.
+
+    Regression for codex review P2: previously the `all(...)` check
+    fell back to the default when ANY metric was empty, silently
+    dropping the `count >= 5` requirement.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"having": {"count": {"gte": 5}, "sum_amount": {}}},
+    )
+    stub = to_aml_rule_stub(row)
+    # Real metric kept, empty operator dropped.
+    assert stub["logic"]["having"] == {"count": {"gte": 5}}
+    # The block is NOT metric-less — at least one real metric is present.
+    assert "needs_manual_conversion" not in stub["tags"]
+
+
+def test_vendor_dict_sibling_excluded_from_derived_having() -> None:
+    """A vendor `parameters: {...}` sibling is preserved as tag, not in having.
+
+    Regression for codex review P2: previously the unknown
+    `parameters` dict was lifted into `logic.having`, and the engine
+    would later raise `unsupported having metric 'parameters'`.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={
+            "source": "txn",
+            "count": {"gte": 5},
+            "parameters": {"lookback_days": 7},
+        },
+    )
+    stub = to_aml_rule_stub(row)
+    # Only the recognised `count` metric is in having.
+    assert stub["logic"]["having"] == {"count": {"gte": 5}}
+    assert "parameters" not in stub["logic"]["having"]
+    # The vendor blob is still preserved on the legacy_threshold_block tag.
+    threshold_tags = [t for t in stub["tags"] if t.startswith("legacy_threshold_block:")]
+    assert len(threshold_tags) == 1
+    blob = json.loads(threshold_tags[0].removeprefix("legacy_threshold_block:"))
+    assert blob["parameters"] == {"lookback_days": 7}
+
+
+def test_group_by_null_entries_skipped() -> None:
+    """`group_by: [null, "customer_id"]` skips the null.
+
+    Regression for codex review P2: previously stringified `None`
+    into the literal column name `"None"`, generating a runtime-
+    invalid grouping clause.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={
+            "group_by": [None, "customer_id"],
+            "having": {"count": {"gte": 5}},
+        },
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id"]
+
+
+def test_group_by_all_nulls_falls_back() -> None:
+    """`group_by: [null, null]` falls back to the default."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"group_by": [None, None], "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id"]
 
 
 def test_threshold_source_whitespace_stripped() -> None:
