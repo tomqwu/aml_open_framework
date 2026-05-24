@@ -140,17 +140,17 @@ aml dashboard examples/community_bank/aml.yaml
 
 ```bash
 aml dashboard spec.yaml                              # launch web UI (start here)
-aml validate spec.yaml && aml run spec.yaml          # validate the spec, then execute detectors
-aml typology-list | typology-import <id> spec.yaml   # browse + install vetted, regulation-cited rules
-aml auditor-pack spec.yaml --jurisdiction CA-FINTRAC # regulator examination ZIP (full run)
-aml export-case <case_id> | export-batch --cases ... # granular subsets of the audit pack (PR-D4)
+aml validate spec.yaml                               # check the spec is internally consistent
+aml run spec.yaml [--data-source csv --data-dir ./]  # execute detectors on data
+aml auditor-pack spec.yaml                           # one-ZIP auditor self-service bundle
+aml audit-pack spec.yaml --jurisdiction CA-FINTRAC   # regulator pre-examination ZIP (per jurisdiction)
+aml export-case spec.yaml <run-dir> <case_id>        # single-case subset of the audit pack (PR-D4)
+aml export-batch spec.yaml <run-dir> --cases c1,c2   # multi-case subset of the audit pack (PR-D4)
 aml inventory legacy.csv                             # summary of a SAS / Actimize / Mantas rule dump
 aml import-legacy legacy.csv --output spec.yaml      # convert legacy rules to AML spec skeleton
-aml backtest --rule X --quarters 4 | replay run-dir/ # is rule X earning its keep / replay byte-for-byte
-aml api --port 8000                                  # launch REST API
 ```
 
-Full catalogue: [`docs/getting-started.md#cli-commands`](docs/getting-started.md). Data sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
+Full catalogue (incl. `aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md#cli-commands`](docs/getting-started.md). Data sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
 
 ---
 
