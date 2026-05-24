@@ -11,8 +11,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
 [![Ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://docs.astral.sh/ruff/)
 
-> **🚀 [Live demo](https://ca-aml-dashboard-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io/) · 📚 [Docs site](https://tomqwu.github.io/aml_open_framework_docs/docs/) · 🎥 [Deck](https://tomqwu.github.io/aml_open_framework_docs/)**
-> The Streamlit dashboard on Azure (no install), MkDocs-Material docs (searchable, dark-mode), and the board deck — all updated on every merge to `main`.
+> **🚀 [Live demo](https://ca-aml-dashboard-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io/) · 📚 [Docs site](https://tomqwu.github.io/aml_open_framework_docs/)** — one site, multiple doors: engineering docs, board deck, technical brief, research whitepapers. Auto-deploys on every merge to `main`.
 
 **An anti-money-laundering program you can show to your regulator without a six-week reconstruction.**
 

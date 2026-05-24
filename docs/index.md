@@ -2,9 +2,47 @@
 
 > **An anti-money-laundering program you can show to your regulator without a six-week reconstruction.**
 
-This is the engineering documentation site. For the executive deck and pitch materials, see the [landing page](https://tomqwu.github.io/aml_open_framework_docs/).
+One product, multiple doors. Engineering docs, executive deck, business pitch, technical brief, and research whitepapers — all on this site, all updated on every merge to `main`.
 
-## Where to start
+## Pick your door
+
+<div class="grid cards" markdown>
+
+-   :material-presentation:{ .lg .middle } **Board / business audience**
+
+    ---
+
+    Animated deck, board video, real screenshots, ~10 min to understand the value.
+
+    [:octicons-arrow-right-24: Business deck](https://tomqwu.github.io/aml_open_framework_docs/business/)
+
+-   :material-bank-outline:{ .lg .middle } **MLRO / 2LoD reviewer**
+
+    ---
+
+    Technical brief walking through architecture, audit posture, model risk.
+
+    [:octicons-arrow-right-24: Technical brief](https://tomqwu.github.io/aml_open_framework_docs/technical/)
+
+-   :material-book-open-variant:{ .lg .middle } **Researcher / regulator**
+
+    ---
+
+    Whitepapers grounding the design — process pain, data problem, regulator pulse.
+
+    [:octicons-arrow-right-24: Research](research/)
+
+-   :material-archive-outline:{ .lg .middle } **Earlier versions**
+
+    ---
+
+    v1 deck archive — historical context for comparison.
+
+    [:octicons-arrow-right-24: v1 Archive](https://tomqwu.github.io/aml_open_framework_docs/v1-archive/)
+
+</div>
+
+## Engineering docs
 
 <div class="grid cards" markdown>
 

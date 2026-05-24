@@ -1,6 +1,6 @@
 site_name: AML Open Framework
 site_description: An anti-money-laundering program you can show to your regulator without a six-week reconstruction.
-site_url: https://tomqwu.github.io/aml_open_framework_docs/docs/
+site_url: https://tomqwu.github.io/aml_open_framework_docs/
 repo_url: https://github.com/tomqwu/aml_open_framework
 repo_name: tomqwu/aml_open_framework
 edit_uri: edit/main/docs/
