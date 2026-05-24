@@ -35,6 +35,15 @@ Supported check types:
   whose numeric value is outside `[min, max]`. Both bounds are
   optional. Non-numeric values produce a `range` violation with reason
   "non-numeric value cannot be range-checked".
+- `foreign_key` (PR-B2 / #367): per declared column, one exception per
+  row whose value is not present in the referenced contract's column.
+  Shape is `{column: {contract: <id>, column: <col>}}`. NULL / missing
+  values are SKIPPED (ANSI: NULL FKs are conventionally allowed; the
+  `not_null` check is the right tool for required FKs). When the
+  referenced contract is absent from the runner's data map the check
+  becomes a `malformed_check` so the silent disablement lands in the
+  audit ledger. Reference values are loaded once per check into an
+  in-memory set — O(N+M) per check, no DuckDB roundtrip needed.
 
 A `malformed_check` synthetic check_type fires when a KNOWN check
 type carries the wrong value shape (e.g. `enum: ["currency"]` instead
@@ -65,7 +74,9 @@ from aml_framework.spec.models import DQSeverity
 # a numeric column is almost certainly a defect.
 _NUMERIC_TYPES = (int, float, Decimal)
 
-DQCheckType = Literal["not_null", "unique", "enum", "regex", "range", "malformed_check"]
+DQCheckType = Literal[
+    "not_null", "unique", "enum", "regex", "range", "foreign_key", "malformed_check"
+]
 
 # PR-B5 (#370): default tier when a `quality_checks` entry omits `severity`.
 # Matches the previous uniform posture so existing specs see no behaviour
@@ -115,6 +126,7 @@ def evaluate_contract_checks(
     *,
     contract_id: str,
     at: datetime | None = None,
+    all_data: dict[str, list[dict[str, Any]]] | None = None,
 ) -> list[DQException]:
     """Evaluate every declared check against `rows` and return exceptions.
 
@@ -126,6 +138,14 @@ def evaluate_contract_checks(
     `at` lets the runner pin a deterministic timestamp on each exception
     so the JSONL artifact + audit ledger entries are reproducible across
     runs. Defaults to "now" for ad-hoc callers (tests, dashboard).
+
+    `all_data` is the runner's full `data` mapping (`contract_id` →
+    `rows`). Only used by `foreign_key` checks — every other check is
+    self-contained on `rows`. Passing `None` (the default) means
+    `foreign_key` resolves to "referenced contract not loaded" and
+    surfaces as a `malformed_check`, so ad-hoc callers (tests of a
+    single contract's checks) still see the silent-disablement signal
+    rather than a silent pass.
     """
     if not checks:
         # No declared checks → nothing to evaluate at all. Empty `rows`
@@ -215,6 +235,29 @@ def evaluate_contract_checks(
                         exceptions.extend(
                             _eval_range(rows, contract_id, column, spec, timestamp, severity)
                         )
+            elif check_type == "foreign_key":
+                # PR-B2 (#367): dict-shaped `{column: {contract: <id>,
+                # column: <col>}}` — referential integrity. Same outer
+                # shape as enum/regex/range so we share the malformed
+                # detection: a list-shaped value would silently disable
+                # the check otherwise.
+                if not isinstance(fields, dict):
+                    exceptions.append(
+                        _malformed_check_exception(
+                            contract_id,
+                            check_type,
+                            fields,
+                            timestamp,
+                            expected=("dict of {column: {contract: <id>, column: <col>}}"),
+                        )
+                    )
+                    continue
+                for column, spec in fields.items():
+                    exceptions.extend(
+                        _eval_foreign_key(
+                            rows, contract_id, column, spec, all_data, timestamp, severity
+                        )
+                    )
             else:
                 # Forward-compat: unknown check shape (a future dialect)
                 # stays a silent skip — only KNOWN types fail closed.
@@ -677,6 +720,127 @@ def _eval_range(
                     failing_value=_format_value(value),
                     row_index=idx,
                     reason=(f"column '{column}' value above max {hi!r} at row {idx}"),
+                    severity=severity,
+                    at=at,
+                )
+            )
+    return out
+
+
+def _eval_foreign_key(
+    rows: list[dict[str, Any]],
+    contract_id: str,
+    column: str,
+    spec: Any,
+    all_data: dict[str, list[dict[str, Any]]] | None,
+    at: datetime,
+    severity: DQSeverity = _DEFAULT_DQ_SEVERITY,
+) -> list[DQException]:
+    """Flag any row whose value for `column` is not present in the referenced contract.
+
+    Shape: `{contract: <id>, column: <col>}`. NULL / missing values are
+    SKIPPED — ANSI semantics treat NULL FKs as allowed (the `not_null`
+    check is the right tool for required-FK columns; pairing the two
+    gives the spec author "required AND referential" coverage). Lookup
+    uses an in-memory set built once per check — O(N+M) per check, no
+    DuckDB roundtrip; same posture as enum's set membership.
+
+    Surfaces a `malformed_check` event (rather than a silent pass) when:
+    - `spec` is not a dict with `contract` + `column` keys;
+    - the referenced contract is not loaded in `all_data` (`all_data`
+      is None, or the contract id is missing). The audit-ledger trail
+      then records the silent disablement, matching enum/regex/range
+      malformed-shape posture.
+
+    PII-safety: `reason` carries only the referenced contract id +
+    column (config, not data); the offending value lives only in
+    `failing_value`, which the runner masks for `pii: true` columns.
+    """
+    # Outer-shape validation: must be a dict carrying both keys. A
+    # list value, a bare string, or a dict missing one key surfaces
+    # the typo via malformed_check rather than silently disabling.
+    if (
+        not isinstance(spec, dict)
+        or "contract" not in spec
+        or "column" not in spec
+        or not isinstance(spec.get("contract"), str)
+        or not isinstance(spec.get("column"), str)
+    ):
+        return [
+            _malformed_check_exception(
+                contract_id,
+                f"foreign_key:{column}",
+                spec,
+                at,
+                expected="dict with string 'contract' and 'column' keys",
+            )
+        ]
+    ref_contract = spec["contract"]
+    ref_column = spec["column"]
+    if all_data is None or ref_contract not in all_data:
+        # Reference unavailable. Surface the silent disablement —
+        # this is exactly the "compliance check that doesn't actually
+        # check" failure mode codex review B1 hardened the other
+        # shapes against. `ref_contract` is config (spec text), safe
+        # to embed in `expected`.
+        return [
+            _malformed_check_exception(
+                contract_id,
+                f"foreign_key:{column}",
+                spec,
+                at,
+                expected=(f"referenced contract '{ref_contract}' to be loaded in the run"),
+            )
+        ]
+    # Build the allowed-set from the referenced contract's rows. Skip
+    # None / missing keys on the reference side — a NULL in the parent
+    # table can't satisfy an FK anyway, so it never expands the set.
+    ref_rows = all_data[ref_contract]
+    allowed: set[Any] = set()
+    for ref_row in ref_rows:
+        if ref_column not in ref_row:
+            continue
+        ref_value = ref_row[ref_column]
+        if ref_value is None:
+            continue
+        # Wrap unhashable values defensively. The reference side
+        # should be scalar (string/int/decimal) for FK semantics; a
+        # dict/list there is a contract bug, not a row we can include
+        # in the lookup. Skip rather than crash — the child side then
+        # treats every value as missing, which is the correct
+        # fail-closed posture (every child row that referenced this
+        # parent will surface as a violation).
+        try:
+            allowed.add(ref_value)
+        except TypeError:
+            continue
+    out: list[DQException] = []
+    for idx, row in enumerate(rows):
+        if column not in row:
+            continue
+        value = row[column]
+        if value is None:
+            continue
+        try:
+            hit = value in allowed
+        except TypeError:
+            # Unhashable child value (dict/list in an FK column) —
+            # treat as a violation. Same fail-closed posture as the
+            # parent-side guard.
+            hit = False
+        if not hit:
+            out.append(
+                DQException(
+                    contract_id=contract_id,
+                    check_id=f"foreign_key:{column}",
+                    check_type="foreign_key",
+                    column=column,
+                    failing_value=_format_value(value),
+                    row_index=idx,
+                    reason=(
+                        f"column '{column}' value not found in "
+                        f"'{ref_contract}.{ref_column}' at row {idx}"
+                    ),
                     severity=severity,
                     at=at,
                 )

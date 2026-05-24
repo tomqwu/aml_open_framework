@@ -509,6 +509,230 @@ class TestEvaluateContractChecksPure:
         checks = [{"range": {"amount": {}}}]
         assert evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF) == []
 
+    # -----------------------------------------------------------------
+    # PR-B2 (#367) — foreign_key referential-integrity checks
+    # -----------------------------------------------------------------
+
+    def test_foreign_key_flags_orphan_child_row(self):
+        rows = [
+            {"customer_id": "C0001"},
+            {"customer_id": "C9999"},  # not present in parent
+            {"customer_id": "C0002"},
+        ]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        all_data = {
+            "customer": [{"customer_id": "C0001"}, {"customer_id": "C0002"}],
+        }
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "foreign_key"
+        assert exc.column == "customer_id"
+        assert exc.row_index == 1
+        assert exc.failing_value == "C9999"
+        assert exc.check_id == "foreign_key:customer_id"
+        assert "customer.customer_id" in exc.reason
+
+    def test_foreign_key_passes_when_all_values_present(self):
+        rows = [{"customer_id": "C0001"}, {"customer_id": "C0002"}]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        all_data = {
+            "customer": [
+                {"customer_id": "C0001"},
+                {"customer_id": "C0002"},
+                {"customer_id": "C0003"},  # parent rows beyond child are OK
+            ],
+        }
+        assert (
+            evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data)
+            == []
+        )
+
+    def test_foreign_key_skips_null_and_missing_child_values(self):
+        # ANSI: NULL FKs are allowed. The `not_null` check is the right
+        # tool for required-FK columns.
+        rows = [
+            {"customer_id": "C0001"},
+            {"customer_id": None},
+            {},  # key missing entirely
+            {"customer_id": "C0002"},
+        ]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        all_data = {"customer": [{"customer_id": "C0001"}, {"customer_id": "C0002"}]}
+        assert (
+            evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data)
+            == []
+        )
+
+    def test_foreign_key_skips_null_parent_values_in_allowed_set(self):
+        # A NULL on the parent side cannot satisfy any FK; it must not
+        # expand the allowed-set such that a child NULL passes via
+        # accidental equality.
+        rows = [{"customer_id": "C9999"}]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        all_data = {
+            "customer": [
+                {"customer_id": None},
+                {"customer_id": "C0001"},
+                {},  # parent row with key missing
+            ]
+        }
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        assert len(excs) == 1
+        assert excs[0].failing_value == "C9999"
+
+    def test_foreign_key_missing_reference_contract_emits_malformed_check(self):
+        # Spec references a contract that isn't loaded. This is exactly
+        # the "compliance check that doesn't actually check" failure
+        # mode — fail closed via `malformed_check`.
+        rows = [{"customer_id": "C0001"}]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        # `all_data` empty (or `customer` absent).
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF, all_data={})
+        assert len(excs) == 1
+        exc = excs[0]
+        assert exc.check_type == "malformed_check"
+        assert exc.check_id == "malformed_check:foreign_key:customer_id"
+        assert "customer" in exc.reason
+
+    def test_foreign_key_all_data_none_emits_malformed_check(self):
+        # Default `all_data=None` (e.g. ad-hoc caller without the runner
+        # context) must still surface the silent disablement rather
+        # than silently pass.
+        rows = [{"customer_id": "C0001"}]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        excs = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:foreign_key:customer_id"
+
+    def test_foreign_key_outer_shape_must_be_dict(self):
+        # `foreign_key: ["customer_id"]` — list outer shape would silently
+        # disable the check; surface as malformed_check.
+        rows = [{"customer_id": "C9999"}]
+        checks = [{"foreign_key": ["customer_id"]}]
+        all_data = {"customer": [{"customer_id": "C0001"}]}
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:foreign_key"
+
+    def test_foreign_key_inner_spec_missing_contract_key_emits_malformed_check(self):
+        # `foreign_key: {customer_id: {column: "customer_id"}}` — missing
+        # the `contract` key. Silent disablement otherwise; surface it.
+        rows = [{"customer_id": "C0001"}]
+        checks = [{"foreign_key": {"customer_id": {"column": "customer_id"}}}]
+        all_data = {"customer": [{"customer_id": "C0001"}]}
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:foreign_key:customer_id"
+
+    def test_foreign_key_inner_spec_missing_column_key_emits_malformed_check(self):
+        rows = [{"customer_id": "C0001"}]
+        checks = [{"foreign_key": {"customer_id": {"contract": "customer"}}}]
+        all_data = {"customer": [{"customer_id": "C0001"}]}
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].check_id == "malformed_check:foreign_key:customer_id"
+
+    def test_foreign_key_inner_spec_non_string_keys_emits_malformed_check(self):
+        # `contract` / `column` must both be strings — a non-string is a
+        # spec typo, not a silent pass.
+        rows = [{"customer_id": "C0001"}]
+        checks = [{"foreign_key": {"customer_id": {"contract": 42, "column": "customer_id"}}}]
+        all_data = {"customer": [{"customer_id": "C0001"}]}
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+
+    def test_foreign_key_reason_does_not_embed_failing_value(self):
+        # PII-safety: the runner masks `failing_value` for `pii: true`
+        # columns but not `reason`. Reason carries only contract.col.
+        rows = [{"customer_id": "SECRET-PII-ID"}]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        all_data = {"customer": [{"customer_id": "C0001"}]}
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        assert len(excs) == 1
+        assert "SECRET-PII-ID" not in excs[0].reason
+        assert excs[0].failing_value == "SECRET-PII-ID"
+
+    def test_foreign_key_determinism_two_evaluations_match(self):
+        rows = [{"customer_id": "C9999"}, {"customer_id": "C0001"}, {"customer_id": "C8888"}]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        all_data = {"customer": [{"customer_id": "C0001"}]}
+        a = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data)
+        b = evaluate_contract_checks(rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data)
+        assert [e.model_dump() for e in a] == [e.model_dump() for e in b]
+        # And the order is stable (row_index ascending).
+        assert [e.row_index for e in a] == [0, 2]
+
+    def test_foreign_key_unhashable_child_value_treated_as_violation(self):
+        # A dict/list slipping into an FK column is a contract bug. Don't
+        # crash on `in`; flag the row as a violation (fail-closed).
+        rows = [{"customer_id": "C0001"}, {"customer_id": {"nested": True}}]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        all_data = {"customer": [{"customer_id": "C0001"}]}
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        assert len(excs) == 1
+        assert excs[0].row_index == 1
+
+    def test_foreign_key_unhashable_parent_value_skipped_not_crash(self):
+        # An unhashable value on the parent side (contract bug) must
+        # not crash the `set.add` — skip it; the child side then
+        # correctly sees only the hashable parent rows.
+        rows = [{"customer_id": "C0001"}, {"customer_id": "C0002"}]
+        checks = [
+            {"foreign_key": {"customer_id": {"contract": "customer", "column": "customer_id"}}}
+        ]
+        all_data = {
+            "customer": [
+                {"customer_id": {"nested": True}},  # bogus, skipped
+                {"customer_id": "C0001"},
+            ]
+        }
+        excs = evaluate_contract_checks(
+            rows, checks, contract_id="txn", at=_AS_OF, all_data=all_data
+        )
+        # C0001 found; C0002 not in allowed-set.
+        assert len(excs) == 1
+        assert excs[0].failing_value == "C0002"
+
     def test_range_handles_nan_and_infinity_without_crashing(self):
         # `float('nan')` and `Decimal('NaN')` pass the type guard but
         # raise `decimal.InvalidOperation` on `<`/`>` — that would abort
@@ -853,6 +1077,109 @@ class TestEngineEmitsDQExceptions:
         for ev in dq_events:
             assert "queue" in ev, f"dq_exception event missing `queue` field: {ev}"
             assert ev["queue"] is None, f"dq_exception `queue` should be None, got {ev['queue']!r}"
+
+    def test_engine_emits_foreign_key_exception_end_to_end(self, tmp_path: Path):
+        """PR-B2 (#367): the runner must pass `all_data` through to the
+        evaluator so a `foreign_key` check resolves against the
+        referenced contract's rows. End-to-end this means:
+
+        - `dq_exceptions.jsonl` carries a `foreign_key` record;
+        - `decisions.jsonl` carries the matching `dq_exception` event;
+        - the hash chain still verifies.
+        """
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="T",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="customer",
+                    source="c",
+                    columns=[Column(name="customer_id", type="string", nullable=False)],
+                ),
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                    quality_checks=[
+                        {
+                            "foreign_key": {
+                                "customer_id": {"contract": "customer", "column": "customer_id"}
+                            }
+                        }
+                    ],
+                ),
+            ],
+            rules=[
+                Rule(
+                    id="r",
+                    name="R",
+                    severity="low",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=AggregationWindowLogic(
+                        type="aggregation_window",
+                        source="txn",
+                        group_by=["customer_id"],
+                        window="365d",
+                        having={"count": {"gte": 1}},
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        data = {
+            "customer": [{"customer_id": "C0001"}, {"customer_id": "C0002"}],
+            "txn": [
+                {"txn_id": "T1", "customer_id": "C0001", "amount": 10.0, "booked_at": _AS_OF},
+                # Orphan — references a customer that doesn't exist.
+                {"txn_id": "T2", "customer_id": "C9999", "amount": 20.0, "booked_at": _AS_OF},
+            ],
+        }
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        run_spec(spec=spec, spec_path=spec_path, data=data, as_of=_AS_OF, artifacts_root=tmp_path)
+
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+        dq_lines = [
+            json.loads(ln)
+            for ln in (run_dir / "dq_exceptions.jsonl").read_text(encoding="utf-8").splitlines()
+            if ln.strip()
+        ]
+        fk_excs = [r for r in dq_lines if r["check_type"] == "foreign_key"]
+        assert len(fk_excs) == 1
+        exc = fk_excs[0]
+        assert exc["contract_id"] == "txn"
+        assert exc["column"] == "customer_id"
+        assert exc["failing_value"] == "C9999"
+        assert exc["row_index"] == 1
+
+        # Decision-ledger event lands too.
+        decisions = (run_dir / "decisions.jsonl").read_text(encoding="utf-8")
+        fk_events = [
+            json.loads(ln)
+            for ln in decisions.splitlines()
+            if ln.strip()
+            and json.loads(ln).get("event") == "dq_exception"
+            and json.loads(ln).get("check_type") == "foreign_key"
+        ]
+        assert len(fk_events) == 1
+
+        # Hash chain still verifies.
+        ok, msg = AuditLedger.verify_decisions(run_dir)
+        assert ok, f"hash chain broken after foreign_key event: {msg}"
 
     def test_dq_failing_value_masked_when_pii_masking_enabled(self, tmp_path: Path, monkeypatch):
         """When `AML_PII_MASKING=1` and a `unique` violation fires on a
