@@ -69,7 +69,18 @@
         "ai_audit_log":   { "type": "string", "enum": ["hash_only", "full_text"], "default": "hash_only" },
         "legacy_reference": { "$ref": "#/$defs/legacy_reference" },
         "nfrs":             { "$ref": "#/$defs/nfrs" },
-        "sla":              { "$ref": "#/$defs/program_sla" }
+        "sla":              { "$ref": "#/$defs/program_sla" },
+        "environment": {
+          "type": "string",
+          "enum": ["dev", "test", "uat", "prod"],
+          "default": "dev",
+          "description": "PR-D3 (#376): environment promotion lane this spec is running in. Defaults to `dev` so existing specs validate unchanged. The engine WARNs (and, when `strict_environment_gating: true`, raises) when a rule whose `environments` list does NOT include this lane fires."
+        },
+        "strict_environment_gating": {
+          "type": "boolean",
+          "default": false,
+          "description": "PR-D3 (#376): when true, the engine raises `EnvironmentGatingError` for any rule whose `environments` list does not include `program.environment`. Defaults to false — institutions opt into strict gating once their promotion process is wired up."
+        }
       }
     },
     "program_sla": {
@@ -174,7 +185,7 @@
         "id":       { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
         "name":     { "type": "string", "minLength": 1 },
         "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
-        "status":   { "type": "string", "enum": ["active", "experimental", "deprecated"], "default": "active" },
+        "status":   { "type": "string", "enum": ["active", "experimental", "deprecated", "pending_promotion"], "default": "active" },
         "evaluation_mode": { "type": "string", "enum": ["batch", "streaming", "both"], "default": "batch" },
         "regulation_refs": {
           "type": "array",
@@ -239,6 +250,13 @@
           "type": "string",
           "description": "PR-RISK-1: first-class risk tier for this rule (low/medium/high). Closes the Pillar 5 'risk-based controls' gap on the North-Star Coverage page — today priority is signalled via `severity` and routing via `escalate_to`, neither of which is a risk attribute. Stored on the loaded spec for a follow-up PR to wire into alert-priority + queue routing. This PR is additive-only.",
           "enum": ["low", "medium", "high"]
+        },
+        "environments": {
+          "type": "array",
+          "description": "PR-D3 (#376): environment lanes this rule has been signed off for. Defaults to ['dev'] so authored-but-unpromoted rules fire in dev but not higher lanes until a sign-off event extends the list. Engine consults via `engine/promotion.py`.",
+          "items": { "type": "string", "enum": ["dev", "test", "uat", "prod"] },
+          "uniqueItems": true,
+          "default": ["dev"]
         }
       }
     },

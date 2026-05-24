@@ -146,7 +146,15 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
 
     program_changes: list[FieldChange] = []
     if spec_a.program != spec_b.program:
-        for field in ("name", "jurisdiction", "regulator", "owner", "effective_date"):
+        for field in (
+            "name",
+            "jurisdiction",
+            "regulator",
+            "owner",
+            "effective_date",
+            "environment",
+            "strict_environment_gating",
+        ):
             va = getattr(spec_a.program, field)
             vb = getattr(spec_b.program, field)
             if va != vb:
@@ -240,6 +248,11 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
         # because the field is a small enum, not free-text/list.
         if ra.risk_tier != rb.risk_tier:
             changes.append(f"risk_tier: {ra.risk_tier} -> {rb.risk_tier}")
+        # PR-D3 (#376): surface environment promotion list changes so a
+        # `aml diff` reviewer sees promotion events (dev -> [dev, test]
+        # etc.) as a first-class spec change, not silently swallowed.
+        if list(ra.environments) != list(rb.environments):
+            changes.append(f"environments: {list(ra.environments)} -> {list(rb.environments)}")
         if changes:
             rules_modified.append(RuleModified(id=rid, changes=changes))
 

@@ -176,6 +176,33 @@ The validator catches typos, broken cross-references, and structural errors befo
 
 ---
 
+## 6.1. Promote Across Environments (PR-D3)
+
+Specs run in one of four lanes — `dev` / `test` / `uat` / `prod` — declared on `program.environment` (defaults to `dev`). Each rule carries an `environments` list naming the lanes it has been signed off for (defaults to `["dev"]`):
+
+```yaml
+program:
+  environment: prod                    # this spec runs in the prod lane
+  strict_environment_gating: true      # block any rule not signed off for prod
+
+rules:
+  - id: structuring_velocity
+    # ... logic ...
+    environments: [dev, test, uat, prod]   # cleared all the way through
+  - id: experimental_layering
+    status: pending_promotion
+    environments: [dev, test]              # still in test — won't fire in prod
+```
+
+At run time the engine asks `is_rule_approved_for_environment` for every rule. When the rule's lane list does not include `program.environment`:
+
+- **Soft mode** (default): the engine emits a `WARN` log line and lets the rule fire.
+- **Strict mode** (`strict_environment_gating: true`): the engine raises `EnvironmentGatingError` and aborts the run.
+
+Either way, an `environment_gate_check` event is appended to `decisions.jsonl` for **every** rule (approved or blocked) — the audit pack proves the gate was consulted on each rule, each run.
+
+---
+
 ## 7. Generate the Audit Bundle (1 min)
 
 ```bash

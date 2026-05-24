@@ -13,7 +13,15 @@ from typing import Annotated, Any, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Severity = Literal["low", "medium", "high", "critical"]
-RuleStatus = Literal["active", "experimental", "deprecated"]
+RuleStatus = Literal["active", "experimental", "deprecated", "pending_promotion"]
+
+# PR-D3 (#376): environment promotion lanes. A `Program.environment`
+# declares which lane the spec is currently running in; `Rule.environments`
+# lists the lanes that have signed off on the rule. The engine emits a
+# WARN when a rule fires in an unapproved lane and (when
+# `Program.strict_environment_gating` is True) raises
+# `EnvironmentGatingError` to block the run.
+Environment = Literal["dev", "test", "uat", "prod"]
 EvaluationMode = Literal["batch", "streaming", "both"]
 ColumnType = Literal["string", "integer", "decimal", "boolean", "date", "timestamp"]
 
@@ -257,6 +265,16 @@ class Program(_Base):
     # in the run dir; absent block means the monitor is disabled (empty
     # report). Backward-compatible: every existing spec validates unchanged.
     sla: ProgramSLA | None = None
+    # PR-D3 (#376): environment promotion lane this spec is running in.
+    # Defaults to `dev` so existing specs validate unchanged. The engine
+    # WARNs (and, with `strict_environment_gating`, raises) when a rule
+    # whose `environments` list does NOT include this lane fires.
+    environment: Environment = "dev"
+    # PR-D3 (#376): when True, the engine raises `EnvironmentGatingError`
+    # for any rule whose `environments` list does not include
+    # `program.environment`. Defaults to False — institutions opt into
+    # strict gating once their promotion process is wired up.
+    strict_environment_gating: bool = False
 
 
 class Column(_Base):
@@ -427,6 +445,19 @@ class Rule(_Base):
     # queue routing) ships in a follow-up PR. Defaults to None — rules
     # without an explicit tier carry no risk-tier signal.
     risk_tier: RiskTier | None = None
+    # PR-D3 (#376): lanes this rule has been signed off for. Defaults to
+    # `["dev"]` so an authored-but-unpromoted rule fires in dev (the
+    # typical authoring lane) but not in higher lanes until a sign-off
+    # event adds them. The engine consults this list against
+    # `program.environment` via `engine/promotion.py`. Order is not
+    # significant; duplicates are forbidden by the validator below.
+    environments: list[Environment] = Field(default_factory=lambda: ["dev"])
+
+    @model_validator(mode="after")
+    def _check_environments_unique(self) -> "Rule":
+        if len(set(self.environments)) != len(self.environments):
+            raise ValueError(f"rule '{self.id}' has duplicate environments in {self.environments}")
+        return self
 
 
 class Queue(_Base):

@@ -32,6 +32,11 @@ from aml_framework.engine.monitoring_digest import (
     lookup_prior_run,
     write_monitoring_digest,
 )
+from aml_framework.engine.promotion import (
+    EnvironmentGatingError,
+    is_rule_approved_for_environment,
+    promotion_audit_event,
+)
 from aml_framework.engine.reconciliation import (
     build_reconciliation_report,
     write_reconciliation_report,
@@ -1077,6 +1082,31 @@ def run_spec(
     for rule in spec.rules:
         if rule.status != "active":
             continue
+
+        # PR-D3 (#376): environment promotion gate. The audit event is
+        # ALWAYS recorded — even on approval — so the regulator pack can
+        # prove the gate was consulted, not just that blocked rules
+        # existed. When the program declares `strict_environment_gating`
+        # and the rule is not approved for the current lane, raise
+        # `EnvironmentGatingError` to abort the run. Otherwise emit a
+        # WARN and let the rule fire (the WARN-only default lets
+        # institutions stage the gate before flipping it to enforce).
+        approved = is_rule_approved_for_environment(rule, spec.program)
+        ledger.append_decision(promotion_audit_event(rule, spec.program, approved=approved))
+        if not approved:
+            if spec.program.strict_environment_gating:
+                raise EnvironmentGatingError(
+                    rule_id=rule.id,
+                    environment=spec.program.environment,
+                    approved=list(rule.environments),
+                )
+            logger.warning(
+                "rule '%s' fired in environment '%s' but is only approved for %s — "
+                "WARN only (set program.strict_environment_gating: true to block)",
+                rule.id,
+                spec.program.environment,
+                list(rule.environments),
+            )
 
         # --- python_ref: dynamically load and call the scorer ---
         if rule.logic.type == "python_ref":
