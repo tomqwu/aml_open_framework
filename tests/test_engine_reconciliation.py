@@ -100,14 +100,19 @@ def _make_spec(*, contracts: list[DataContract], rules: list[Rule]) -> AMLSpec:
     )
 
 
-def _dq_exception(contract_id: str = "txn", check_id: str = "not_null:amount") -> DQException:
+def _dq_exception(
+    contract_id: str = "txn",
+    check_id: str = "not_null:amount",
+    *,
+    row_index: int | None = 0,
+) -> DQException:
     return DQException(
         contract_id=contract_id,
         check_id=check_id,
         check_type="not_null",
         column="amount",
         failing_value=None,
-        row_index=0,
+        row_index=row_index,
         reason="amount is null",
         at=_AS_OF,
     )
@@ -135,6 +140,16 @@ class TestRuleSourceToContract:
             evidence=[],
         )
         spec = _make_spec(contracts=[_txn_contract()], rules=[rule])
+        assert _rule_source_to_contract(spec) == {}
+
+    def test_inactive_rule_excluded(self):
+        # Non-active rules (experimental / deprecated / inactive) must be
+        # skipped — the runner doesn't execute them, so attributing a
+        # zero-alert count to their source contract would falsely claim
+        # the contract reached the alert surface this run.
+        rule = _agg_rule()
+        inactive = rule.model_copy(update={"status": "experimental"})
+        spec = _make_spec(contracts=[_txn_contract()], rules=[inactive])
         assert _rule_source_to_contract(spec) == {}
 
 
@@ -329,10 +344,12 @@ class TestBuildReconciliationReport:
         assert contract.stage_counts[ReconciliationStage.ALERT] == 0
 
     def test_severe_drop_recorded_in_breakdown(self):
-        # 100 rows in, 80 fail DQ → 20 survive; one alert fires.
+        # 100 rows in, 80 distinct rows fail DQ → 20 survive; one alert.
         spec = _make_spec(contracts=[_txn_contract("bronze")], rules=[_agg_rule()])
         data = {"txn": [{"txn_id": f"T{i}", "customer_id": "C1"} for i in range(100)]}
-        dq = [_dq_exception() for _ in range(80)]
+        # Use distinct row_index values so unique-row-index semantics
+        # match the "80 distinct rows failed" intent.
+        dq = [_dq_exception(row_index=i) for i in range(80)]
         report = build_reconciliation_report(spec, data, dq, {"r_agg": [{"customer_id": "C1"}]})
         contract = report.contracts[0]
         assert contract.stage_counts[ReconciliationStage.SILVER] == 20
@@ -340,6 +357,32 @@ class TestBuildReconciliationReport:
         first = contract.drop_breakdown[0]
         assert first.attribution == "dq_exceptions"
         assert first.delta == -80
+
+    def test_multiple_exceptions_per_row_dedup(self):
+        # Same row failing two checks must count as ONE removed row.
+        # Exception-count inflation would understate survival.
+        spec = _make_spec(contracts=[_txn_contract("bronze")], rules=[_agg_rule()])
+        data = {"txn": [{"txn_id": f"T{i}", "customer_id": "C1"} for i in range(10)]}
+        dq = [
+            _dq_exception(check_id="not_null:amount", row_index=0),
+            _dq_exception(check_id="range:amount", row_index=0),
+            _dq_exception(check_id="not_null:amount", row_index=1),
+        ]
+        report = build_reconciliation_report(spec, data, dq, {})
+        contract = report.contracts[0]
+        # Two distinct rows failed — silver count is 10 - 2 = 8.
+        assert contract.stage_counts[ReconciliationStage.SILVER] == 8
+
+    def test_row_index_none_does_not_drop_rows(self):
+        # `malformed_check` DQ events carry row_index=None — they
+        # surface a control gap but can't reduce a row count.
+        spec = _make_spec(contracts=[_txn_contract("bronze")], rules=[_agg_rule()])
+        data = {"txn": [{"txn_id": "T1", "customer_id": "C1"}]}
+        dq = [_dq_exception(row_index=None)]
+        report = build_reconciliation_report(spec, data, dq, {})
+        contract = report.contracts[0]
+        # Row count survives — silver still 1, no DQ drop applied.
+        assert contract.stage_counts[ReconciliationStage.SILVER] == 1
 
     def test_missing_layer_records_no_medallion_signal(self):
         spec = _make_spec(contracts=[_txn_contract(layer=None)], rules=[])

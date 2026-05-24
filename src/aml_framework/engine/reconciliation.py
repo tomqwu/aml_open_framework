@@ -13,12 +13,16 @@ For every input data contract the report records:
   ``layer`` plus the alert-stage row count for any rule that consumed
   the contract via ``rule.logic.source``;
 - ``drop_breakdown``: per-stage signed row deltas vs the prior stage,
-  with the dominant cause attribution (currently DQ-exception count
-  for bronze→silver; rule-filter survival for silver→gold; alert
-  surfacing for gold→alert). A negative drop is a survival shrinkage;
-  a positive value means the stage *amplified* (e.g. an aggregation
-  rule emitting one alert per group breaks 1:1 row equivalence — the
-  artifact records the count rather than asserting equality).
+  with a short attribution string. Attribution vocabulary:
+  ``dq_exceptions`` (rows removed because at least one row-level DQ
+  check failed on them), ``alert_surface`` (gold→alert leg — alerts
+  fire from N candidate rows), ``no_drop`` (zero delta or no causal
+  signal), ``missing_layer`` (upstream stage carries no count because
+  no contract was anchored there). A negative drop is survival
+  shrinkage; a positive value means the stage *amplified* (e.g. an
+  aggregation rule emitting one alert per group breaks 1:1 row
+  equivalence — the artifact records the count rather than asserting
+  equality).
 
 The evaluator is **pure** — no I/O, no ledger writes, no DuckDB. The
 runner is the single caller that persists the report via
@@ -71,10 +75,10 @@ class StageDrop(_ReconBase):
     """One stage-to-stage delta with attribution.
 
     `from_stage` → `to_stage` records the signed row delta plus a
-    short attribution string ("dq_exceptions", "rule_filter",
-    "alert_surface", "no_drop", "missing_layer"). Frozen so the artifact
-    shape can be relied on by dashboards reading the JSON without a
-    Pydantic schema round-trip.
+    short attribution string: one of ``"dq_exceptions"``,
+    ``"alert_surface"``, ``"no_drop"``, ``"missing_layer"``. Frozen so
+    the artifact shape can be relied on by dashboards reading the JSON
+    without a Pydantic schema round-trip.
     """
 
     from_stage: ReconciliationStage
@@ -113,17 +117,23 @@ class ReconciliationReport(_ReconBase):
 
 
 def _rule_source_to_contract(spec: AMLSpec) -> dict[str, str]:
-    """Build a {rule_id: contract_id} map for rules whose logic carries a
-    `source` field (aggregation_window / list_match / network_pattern).
+    """Build a {rule_id: contract_id} map for **active** rules whose
+    logic carries a `source` field (aggregation_window / list_match /
+    network_pattern).
 
     `custom_sql` and `python_ref` rules don't declare a single contract
-    source — they're attributed to ``None`` and excluded from the
-    contract-level alert tally. The aggregate `total_alerts` on the
-    report still counts those alerts so the run-wide total matches the
-    monitoring digest.
+    source — they're omitted from the contract-level alert tally. The
+    aggregate `total_alerts` on the report still counts those alerts so
+    the run-wide total matches the monitoring digest. Non-active rules
+    (status experimental/deprecated/inactive) are also omitted — the
+    runner skips them at `runner.py::run_spec`, so attributing a zero
+    alert count to their source contract would falsely claim the
+    contract reached the alert surface in this run.
     """
     out: dict[str, str] = {}
     for rule in spec.rules:
+        if rule.status != "active":
+            continue
         logic = rule.logic
         source = getattr(logic, "source", None)
         if isinstance(source, str) and source:
@@ -232,12 +242,14 @@ def _drop_breakdown_for_contract(
             # bronze→silver: DQ exception removal is the canonical cause.
             attribution = "dq_exceptions" if dq_drops > 0 else "no_drop"
         elif downstream == ReconciliationStage.GOLD:
-            # silver→gold: same DQ removal pathway for silver-anchored
-            # contracts; for bronze-anchored we already absorbed the DQ
-            # delta upstream so this leg is a no_drop.
-            attribution = "dq_exceptions" if dq_drops > 0 and delta < 0 else "rule_filter"
+            # silver→gold: silver-anchored contracts surface their DQ
+            # removal here. Bronze-anchored contracts already absorbed
+            # the DQ delta on the upstream leg, so this leg is a
+            # zero-delta no_drop and the branch is unreached in that
+            # path.
+            attribution = "dq_exceptions" if dq_drops > 0 and delta < 0 else "no_drop"
         else:
-            # gold→alert: anything non-zero is the rule fire surface.
+            # gold→alert: any non-zero delta is the rule-fire surface.
             attribution = "alert_surface"
         breakdown.append(
             StageDrop(
@@ -270,11 +282,23 @@ def build_reconciliation_report(
     """
     rule_to_contract = _rule_source_to_contract(spec)
 
-    # Roll DQ drops up by contract once so a single pass over the spec
-    # is enough.
-    dq_per_contract: dict[str, int] = {}
+    # Roll DQ drops up by contract. The reconciliation surface counts
+    # *rows* that failed at least one check, not the raw exception
+    # count — one row can fail multiple checks (e.g. null AND
+    # out-of-range), and inflating the DQ delta by exception count
+    # would understate silver/gold survival.
+    #
+    # Exceptions whose `row_index` is None (synthetic
+    # `malformed_check` events that don't bind to a specific row)
+    # don't contribute to row-level survival arithmetic. They still
+    # show up on `dq_exceptions.jsonl` so the regulator sees the
+    # control gap, but they can't reduce a row count.
+    dq_row_indices: dict[str, set[int]] = {}
     for exc in dq_exceptions:
-        dq_per_contract[exc.contract_id] = dq_per_contract.get(exc.contract_id, 0) + 1
+        if exc.row_index is None:
+            continue
+        dq_row_indices.setdefault(exc.contract_id, set()).add(exc.row_index)
+    dq_per_contract: dict[str, int] = {cid: len(rows) for cid, rows in dq_row_indices.items()}
 
     # Roll alert counts up by contract — every rule contributes via its
     # source-contract attribution; rules with no source are dropped from
