@@ -997,3 +997,96 @@ class TestContractViolationDefectLog:
         assert len(lines) >= 1
         recs = [json.loads(ln) for ln in lines]
         assert any(r["category"] == "data_quality" for r in recs)
+
+
+# ---------------------------------------------------------------------------
+# Permissive python_ref also writes defect log — codex pass-4 P2 on PR-C1
+# ---------------------------------------------------------------------------
+
+
+class TestPermissivePythonRefDefectLog:
+    """Codex pass-4 P2 on PR-C1: under permissive mode the failure is
+    recorded but the run continues. If a later rule aborts before
+    ``_finalize_run()``, the pre-warehouse-snapshot defect log would
+    NOT carry the python_ref failure — breaking the rule_failed
+    event ↔ RULE_LOGIC defect pairing. The fix re-emits the defect
+    log every time a python_ref failure is recorded.
+    """
+
+    def test_permissive_python_ref_failure_lands_in_defect_log(self, tmp_path: Path, monkeypatch):
+        from aml_framework.spec.models import PythonRefLogic
+
+        monkeypatch.setenv("AML_PYTHON_REF_PREFIX", "tests.")
+        monkeypatch.setenv("AML_STRICT_PYTHON_REF", "0")  # permissive
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="TestProgram",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                )
+            ],
+            rules=[
+                Rule(
+                    id="r_pyref",
+                    name="R",
+                    severity="high",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=PythonRefLogic(
+                        type="python_ref",
+                        callable="tests.does_not_exist:scorer",
+                        model_id="test",
+                        model_version="v0",
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+        # Permissive mode: the run completes past the failure rather
+        # than raising PythonRefFailure.
+        run_spec(
+            spec=spec,
+            spec_path=spec_path,
+            data={
+                "txn": [
+                    {
+                        "txn_id": "T1",
+                        "customer_id": "C1",
+                        "amount": 10.0,
+                        "booked_at": _AS_OF,
+                    }
+                ]
+            },
+            as_of=_AS_OF,
+            artifacts_root=tmp_path,
+        )
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+        defect_path = run_dir / "defect_log.jsonl"
+        assert defect_path.exists()
+        lines = [ln for ln in defect_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        recs = [json.loads(ln) for ln in lines]
+        # The permissive python_ref failure produces a RULE_LOGIC
+        # defect, even though the run continued past it. Without the
+        # codex pass-4 fix, a later abort would have left only the
+        # DQ-only pre-warehouse snapshot.
+        rule_defects = [r for r in recs if r["category"] == "rule_logic"]
+        assert len(rule_defects) == 1
+        assert rule_defects[0]["classification"] == "rule"
+        assert "r_pyref" in rule_defects[0]["summary"]

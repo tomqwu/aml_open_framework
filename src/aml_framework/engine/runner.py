@@ -1151,17 +1151,24 @@ def run_spec(
                     }
                 )
                 python_ref_failures[rule.id] = error_msg
+                # PR-C1 (#371) codex pass-4 P2: re-emit the defect
+                # log every time a python_ref failure is recorded,
+                # not just on the strict-abort path. Under permissive
+                # mode (`AML_STRICT_PYTHON_REF=0`), a later rule
+                # (e.g. an invalid `custom_sql`) or finalize step
+                # might abort before `_finalize_run()` overwrites the
+                # snapshot. Re-emitting here keeps every recorded
+                # `rule_failed` event paired with a RULE_LOGIC defect
+                # on disk.
+                _write_defect_log_snapshot(
+                    ledger,
+                    dq_exceptions=dq_exceptions or [],
+                    python_ref_failures=python_ref_failures,
+                )
                 if _is_strict_python_ref(strict_python_ref):
-                    # PR-C1 (#371): strict-mode aborts before
-                    # `_finalize_run()`. Re-emit the defect log so
-                    # the RULE_LOGIC ticket for the failed scorer
-                    # lands on disk in addition to whatever DQ
-                    # defects were already snapshot pre-warehouse.
-                    _write_defect_log_snapshot(
-                        ledger,
-                        dq_exceptions=dq_exceptions or [],
-                        python_ref_failures=python_ref_failures,
-                    )
+                    # Strict mode aborts before `_finalize_run()`;
+                    # the re-emit above already covered the artifact,
+                    # so just raise.
                     raise PythonRefFailure(
                         rule_id=rule.id,
                         module_path=module_path,
