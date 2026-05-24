@@ -302,14 +302,21 @@ def _row_from_mapping(
     try:
         threshold_block = _coerce_threshold_block(raw.get("threshold_block"))
     except ValueError as exc:
-        if legacy_sql is not None or narrative is not None:
-            threshold_block = None
-            kept = "SQL" if legacy_sql is not None else "narrative"
-            threshold_warning = ParseWarning(
-                row_index, rule_id, f"{exc}; kept {kept}, dropped threshold"
-            )
+        threshold_block = None
+        # Keep the row so migration completeness is preserved — a
+        # malformed threshold cell shouldn't make a legacy rule
+        # disappear from the skeleton. The operator sees the warning
+        # via `aml inventory` and the resulting stub is flagged
+        # `needs_manual_conversion`.
+        if legacy_sql is not None:
+            kept = "SQL"
+        elif narrative is not None:
+            kept = "narrative"
         else:
-            return None, ParseWarning(row_index, rule_id, str(exc))
+            kept = "rule_id only"
+        threshold_warning = ParseWarning(
+            row_index, rule_id, f"{exc}; kept {kept}, dropped threshold"
+        )
 
     regulator_refs = _coerce_regulator_refs(raw.get("regulator_refs"))
 

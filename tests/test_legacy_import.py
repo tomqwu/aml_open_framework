@@ -154,6 +154,7 @@ def test_parse_csv_missing_name_falls_back_to_rule_id(tmp_path: Path) -> None:
 
 
 def test_parse_csv_malformed_threshold_json_warns(tmp_path: Path) -> None:
+    """Malformed thresholds → row kept as placeholder + warning emitted."""
     path = tmp_path / "bad_json.csv"
     _write_csv(
         path,
@@ -161,7 +162,9 @@ def test_parse_csv_malformed_threshold_json_warns(tmp_path: Path) -> None:
         [["R008", "bad", "{not json"], ["R009", "good", '{"a": 1}']],
     )
     result = parse_legacy_csv_with_warnings(path)
-    assert [r.rule_id for r in result.rows] == ["R009"]
+    # Both rows present; R008's threshold is None (dropped + warned).
+    assert [r.rule_id for r in result.rows] == ["R008", "R009"]
+    assert result.rows[0].threshold_block is None
     assert len(result.warnings) == 1
     assert "JSON" in result.warnings[0].reason
     assert result.warnings[0].rule_id == "R008"
@@ -485,23 +488,26 @@ def test_threshold_empty_string_coerces_to_none(tmp_path: Path) -> None:
 
 
 def test_threshold_json_non_object_warns(tmp_path: Path) -> None:
-    """JSON list (not object) in thresholds cell → warning, no row."""
+    """JSON list (not object) in thresholds cell → placeholder row + warning."""
     path = tmp_path / "thresh_list.csv"
     _write_csv(path, ["rule_id", "name", "thresholds"], [["R401", "n", "[1, 2, 3]"]])
     result = parse_legacy_csv_with_warnings(path)
-    assert result.rows == []
+    # Row kept as a placeholder so migration completeness is preserved.
+    assert [r.rule_id for r in result.rows] == ["R401"]
+    assert result.rows[0].threshold_block is None
     assert any("JSON object" in w.reason for w in result.warnings)
 
 
 def test_threshold_unsupported_type_via_json(tmp_path: Path) -> None:
-    """A numeric thresholds field (via JSON dump) raises a type warning."""
+    """A numeric thresholds field → placeholder row + warning."""
     path = tmp_path / "thresh_num.json"
     path.write_text(
         json.dumps([{"rule_id": "R402", "name": "n", "threshold_block": 12345}]),
         encoding="utf-8",
     )
     result = parse_legacy_json_with_warnings(path)
-    assert result.rows == []
+    assert [r.rule_id for r in result.rows] == ["R402"]
+    assert result.rows[0].threshold_block is None
     assert any("unsupported type" in w.reason for w in result.warnings)
 
 
@@ -570,16 +576,17 @@ def test_json_entry_with_unknown_keys_only(tmp_path: Path) -> None:
 
 
 def test_json_entry_with_bad_threshold_warns_and_skips(tmp_path: Path) -> None:
-    """JSON entry with non-dict threshold → row warning surfaced."""
+    """JSON entry with non-dict threshold → placeholder row + warning."""
     path = tmp_path / "bad_thresh.json"
     path.write_text(
         json.dumps([{"rule_id": "R407", "name": "n", "threshold_block": "not-a-dict"}]),
         encoding="utf-8",
     )
     result = parse_legacy_json_with_warnings(path)
-    # Non-dict string that isn't JSON object → warning, no row.
-    assert result.rows == []
-    assert any("R407" == w.rule_id for w in result.warnings)
+    # Row kept as placeholder so the legacy rule_id doesn't disappear.
+    assert [r.rule_id for r in result.rows] == ["R407"]
+    assert result.rows[0].threshold_block is None
+    assert any(w.rule_id == "R407" for w in result.warnings)
 
 
 def test_sql_row_with_bad_threshold_is_preserved(tmp_path: Path) -> None:
@@ -792,6 +799,27 @@ def test_stub_threshold_filter_excluded_from_derived_having() -> None:
     stub = to_aml_rule_stub(row)
     assert stub["logic"]["having"] == {"count": {"gte": 5}}
     assert stub["logic"]["filter"] == {"channel": "cash"}
+
+
+def test_row_with_only_bad_threshold_still_imports_as_placeholder(tmp_path: Path) -> None:
+    """A row with rule_id + bad threshold (no SQL, no narrative) still imports.
+
+    Regression for codex review P2: previously a corrupted threshold
+    cell could silently delete a legacy rule from the skeleton.
+    Migration completeness requires the placeholder + a warning so
+    the operator sees every legacy rule_id in the output.
+    """
+    path = tmp_path / "only_bad.csv"
+    _write_csv(
+        path,
+        ["rule_id", "name", "thresholds"],
+        [["R_ONLY_BAD", "n", "{broken"]],
+    )
+    result = parse_legacy_csv_with_warnings(path)
+    assert len(result.rows) == 1
+    assert result.rows[0].rule_id == "R_ONLY_BAD"
+    assert result.rows[0].threshold_block is None
+    assert any("kept rule_id only" in w.reason for w in result.warnings)
 
 
 def test_narrative_row_kept_when_threshold_parsing_fails(tmp_path: Path) -> None:
