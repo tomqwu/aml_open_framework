@@ -206,13 +206,27 @@ def _pillar_control_quality(
     # signatures per rule so the metric value can be cross-walked
     # against the underlying alert population without grepping the
     # run dir.
+    #
+    # PR-PAY-1: `rule_version` lives on `case_opened` decision events
+    # (and on the case file), no longer on alerts. Build a
+    # rule_id → rule_version map from the decision ledger first; fall
+    # back to scanning alert dicts for back-compat with effectiveness
+    # packs assembled from older case-file shapes that did carry it on
+    # the alert itself.
+    rule_version_by_rule: dict[str, str] = {}
+    for d in decisions:
+        rid = d.get("rule_id")
+        rv = d.get("rule_version")
+        if rid and rv and rid not in rule_version_by_rule:
+            rule_version_by_rule[rid] = rv
+
     alerts_by_rule_lineage: dict[str, dict[str, Any]] = {}
     for rule_id, alerts in sorted(alerts_by_rule.items()):
         # rule_version is constant across alerts from the same rule
-        # in a single run (the rule didn't change mid-run). Pick the
-        # first alert's stamp; fall back to "—" for alerts that
-        # pre-date PR-LIN-3 / PR-LIN-4.
-        rule_version = next(
+        # in a single run (the rule didn't change mid-run). Prefer the
+        # decision-ledger value (current engine); fall back to an
+        # alert-level stamp for older runs.
+        rule_version = rule_version_by_rule.get(rule_id) or next(
             (
                 a.get("rule_version")
                 for a in alerts

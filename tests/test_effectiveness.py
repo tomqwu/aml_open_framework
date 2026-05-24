@@ -272,6 +272,35 @@ class TestControlQualityPillar:
         assert chain["r2"]["alert_count"] == 1
         assert chain["r2"]["rule_version"] == "ver-r2"
 
+    def test_alerts_by_rule_lineage_reads_rule_version_from_decisions(self):
+        """PR-PAY-1 codex pass-7 P1: with `rule_version` now living on
+        case-level (and on `case_opened` decisions), not alerts, the
+        effectiveness pack must derive per-rule versions from the
+        decision ledger. Pinned because the alert-only read on the
+        prior contract emitted `None` for current-engine runs."""
+        spec = load_spec(EXAMPLE_US)
+        pack = build_effectiveness_pack(
+            spec,
+            alerts_by_rule={
+                # Alerts no longer carry `rule_version` — that's PR-PAY-1.
+                "r1": [
+                    {"customer_id": "C1", "matched_row_ids": [10]},
+                ],
+            },
+            decisions=[
+                {
+                    "event": "case_opened",
+                    "rule_id": "r1",
+                    "rule_version": "ver-r1-from-decisions",
+                    "case_id": "r1__C1",
+                },
+            ],
+        )
+        pillar = next(p for p in pack["pillars"] if p["pillar"] == "control_output_quality")
+        finding = next(f for f in pillar["findings"] if f["key"] == "alerts_by_rule_with_lineage")
+        chain = finding["value"]
+        assert chain["r1"]["rule_version"] == "ver-r1-from-decisions"
+
     def test_fp_proxy_computed_from_decisions(self):
         spec = load_spec(EXAMPLE_US)
         decisions = [

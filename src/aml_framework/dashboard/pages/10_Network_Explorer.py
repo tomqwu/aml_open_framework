@@ -338,7 +338,11 @@ if alerted_ids:
                 _case_id = _row.get("case_id", "")
                 _alert_dict = _row.get("alert") or {}
                 _matched = _alert_dict.get("matched_row_ids") or []
-                _rule_v = (_alert_dict.get("rule_version") or "—")[:16]
+                # PR-PAY-1: prefer case-level `rule_version` stamped by
+                # `_build_case`; fall back to the alert-level field for
+                # back-compat with case files written by older engine
+                # versions.
+                _rule_v = (_row.get("rule_version") or _alert_dict.get("rule_version") or "—")[:16]
                 st.markdown(
                     f"- **`{_cid}`** · case `{_case_id}` · rule version `{_rule_v}` "
                     f"· `{len(_matched)}` matched rows"
