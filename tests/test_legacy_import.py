@@ -761,6 +761,90 @@ def test_stub_with_threshold_validates_through_pydantic_rule() -> None:
     Rule.model_validate(stub)
 
 
+def test_stub_threshold_with_filter_lifts_into_logic() -> None:
+    """A threshold block with a `filter` key lifts it into `logic.filter`.
+
+    Regression for codex review P2: previously the `filter` key was
+    either silently dropped (when `having` was explicit) or shoved
+    into `having` (causing the engine to crash with "unsupported
+    having metric 'filter'").
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="cash-only structuring",
+        threshold_block={
+            "filter": {"channel": "cash", "amount": {"gte": 9500}},
+            "having": {"count": {"gte": 3}},
+        },
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["filter"] == {"channel": "cash", "amount": {"gte": 9500}}
+    assert stub["logic"]["having"] == {"count": {"gte": 3}}
+
+
+def test_stub_threshold_filter_excluded_from_derived_having() -> None:
+    """A no-having blob with a `filter` key keeps it out of derived having."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"filter": {"channel": "cash"}, "count": {"gte": 5}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["having"] == {"count": {"gte": 5}}
+    assert stub["logic"]["filter"] == {"channel": "cash"}
+
+
+def test_narrative_row_kept_when_threshold_parsing_fails(tmp_path: Path) -> None:
+    """A narrative-bearing row with a bad threshold still imports.
+
+    Regression for codex review P2: previously a row with usable
+    narrative but a malformed threshold cell was dropped entirely
+    from the skeleton because the threshold-parse failure short-
+    circuited before reading the narrative.
+    """
+    path = tmp_path / "mixed.csv"
+    _write_csv(
+        path,
+        ["rule_id", "name", "description", "thresholds"],
+        [["R900", "Round-trip", "Funds in and out within 24h", "{not json"]],
+    )
+    result = parse_legacy_csv_with_warnings(path)
+    assert len(result.rows) == 1
+    assert result.rows[0].narrative.startswith("Funds in")
+    assert result.rows[0].threshold_block is None
+    assert any("kept narrative" in w.reason for w in result.warnings)
+
+
+def test_sql_row_with_narrative_preserves_rationale() -> None:
+    """A row with both SQL and narrative carries the narrative as business_intent.
+
+    Regression for codex review P3: previously the SQL-row early
+    return dropped the narrative, losing the legacy rule rationale.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        legacy_sql="SELECT 1",
+        narrative="Flags wires above $10k to high-risk countries.",
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["type"] == "custom_sql"
+    assert stub["business_intent"].startswith("Flags wires")
+
+
+def test_threshold_row_with_narrative_preserves_rationale() -> None:
+    """A threshold + narrative row carries the narrative into business_intent."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"having": {"count": {"gte": 5}}},
+        narrative="Velocity rule from SAS scenario library.",
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["type"] == "aggregation_window"
+    assert "Velocity rule" in stub["business_intent"]
+
+
 def test_stub_legacy_threshold_block_is_tag_not_extra_field() -> None:
     """The preserved blob never appears as a top-level rule extra field.
 

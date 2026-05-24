@@ -285,28 +285,31 @@ def _row_from_mapping(
         else None
     )
 
+    narrative_raw = raw.get("narrative")
+    narrative = (
+        narrative_raw.strip() if isinstance(narrative_raw, str) and narrative_raw.strip() else None
+    )
+
     # SQL takes precedence over thresholds (per the documented stub
     # behaviour). When a row has both a usable SQL string AND a
     # malformed threshold cell, we keep the row + emit a warning
     # instead of dropping the SQL — legacy dumps frequently ship
     # parameter blobs alongside SQL, and a bad blob shouldn't lose
-    # the importable detector.
+    # the importable detector. Likewise, a row with a usable
+    # narrative + bad threshold is still importable as a manual-
+    # conversion stub (we drop the threshold, keep the narrative).
     threshold_warning: ParseWarning | None = None
     try:
         threshold_block = _coerce_threshold_block(raw.get("threshold_block"))
     except ValueError as exc:
-        if legacy_sql is not None:
+        if legacy_sql is not None or narrative is not None:
             threshold_block = None
+            kept = "SQL" if legacy_sql is not None else "narrative"
             threshold_warning = ParseWarning(
-                row_index, rule_id, f"{exc}; kept SQL, dropped threshold"
+                row_index, rule_id, f"{exc}; kept {kept}, dropped threshold"
             )
         else:
             return None, ParseWarning(row_index, rule_id, str(exc))
-
-    narrative_raw = raw.get("narrative")
-    narrative = (
-        narrative_raw.strip() if isinstance(narrative_raw, str) and narrative_raw.strip() else None
-    )
 
     regulator_refs = _coerce_regulator_refs(raw.get("regulator_refs"))
 
@@ -494,26 +497,37 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
 
     if row.legacy_sql is not None:
         stub["logic"] = {"type": "custom_sql", "sql": row.legacy_sql}
+        if row.narrative:
+            # SQL + narrative is a common shape — preserve the
+            # rationale so the operator can reconcile the imported
+            # stub against the legacy export.
+            stub["business_intent"] = row.narrative
         return stub
 
     if row.threshold_block is not None:
         # Build the aggregation_window block from a permissive merge:
-        # legacy `having` / `window` / `group_by` / `source` keys (if
-        # present) override the defaults. Any remaining sibling keys
-        # are preserved as a JSON-serialised tag so the spec stays
-        # schema-valid (Rule.extra="forbid") while nothing from the
-        # source dump is silently dropped — the operator can `grep`
-        # for `legacy_threshold_block:` in the skeleton to audit.
+        # legacy `having` / `window` / `group_by` / `source` / `filter`
+        # keys (if present) override the defaults. Any remaining
+        # sibling keys are preserved as a JSON-serialised tag so the
+        # spec stays schema-valid (Rule.extra="forbid") while nothing
+        # from the source dump is silently dropped — the operator can
+        # `grep` for `legacy_threshold_block:` in the skeleton to audit.
         block = row.threshold_block if isinstance(row.threshold_block, dict) else {}
         explicit_having = block.get("having") if isinstance(block.get("having"), dict) else None
+        # `filter` lifts straight into the logic block too (it's a
+        # documented AggregationWindowLogic field). Excluding it from
+        # the derived `having` set below prevents the engine from
+        # treating it as an aggregate metric and crashing with
+        # "unsupported having metric 'filter'".
+        filter_block = block.get("filter") if isinstance(block.get("filter"), dict) else None
         # When no explicit `having` is supplied, derive one from the
         # block but exclude the documented logic-block metadata
-        # (`source` / `window` / `group_by`) — otherwise the engine
-        # treats them as aggregate metrics and `compile_rule_sql`
-        # fails at runtime with "unsupported having metric 'source'".
-        derived_having: dict[str, Any] = {
-            k: v for k, v in block.items() if k not in {"source", "window", "group_by", "having"}
-        }
+        # (`source` / `window` / `group_by` / `filter`) — otherwise
+        # the engine treats them as aggregate metrics and
+        # `compile_rule_sql` fails at runtime with "unsupported having
+        # metric 'source'".
+        _METADATA_KEYS = {"source", "window", "group_by", "filter", "having"}
+        derived_having: dict[str, Any] = {k: v for k, v in block.items() if k not in _METADATA_KEYS}
         if not derived_having:
             # Legacy block had only metadata + no metric → emit a
             # safe placeholder so the stub validates and the operator
@@ -526,6 +540,8 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
             "window": block.get("window", "30d"),
             "having": explicit_having if explicit_having is not None else derived_having,
         }
+        if filter_block is not None:
+            logic["filter"] = filter_block
         stub["logic"] = logic
         # Preserve the original blob as a tag (allowed by the Rule
         # schema) so the spec validates as-is once the TODO source/
@@ -534,6 +550,8 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
             *stub["tags"],
             f"legacy_threshold_block:{json.dumps(row.threshold_block, sort_keys=True)}",
         ]
+        if row.narrative:
+            stub["business_intent"] = row.narrative
         return stub
 
     # Narrative-only or empty — emit a placeholder so `aml validate`
