@@ -241,7 +241,11 @@ def _coerce_regulator_refs(raw: Any) -> list[str]:
     if raw is None:
         return []
     if isinstance(raw, list):
-        return [str(item).strip() for item in raw if str(item).strip()]
+        # Skip None entries (a JSON dump can encode missing citations
+        # as `[null]` — coercing those via `str(None)` would emit a
+        # literal "None" citation and hide the missing-coverage flag
+        # from `inventory_summary`).
+        return [str(item).strip() for item in raw if item is not None and str(item).strip()]
     if isinstance(raw, str):
         text = raw.strip()
         if not text:
@@ -709,8 +713,33 @@ def classify_row(row: LegacyRuleRow) -> str:
     if row.legacy_sql is not None:
         return "ready_sql"
     if row.threshold_block is not None:
+        # A threshold block with only metadata (no real metric) is a
+        # placeholder the operator must still author manually — don't
+        # let it count as ready.
+        if _threshold_is_metric_less(row.threshold_block):
+            return "needs_manual"
         return "ready_threshold"
     return "needs_manual"
+
+
+_METADATA_KEYS_FOR_CLASSIFICATION = frozenset({"source", "window", "group_by", "filter", "having"})
+
+
+def _threshold_is_metric_less(block: dict[str, Any] | None) -> bool:
+    """Return True when a threshold block has no real metric.
+
+    Mirrors the logic in `to_aml_rule_stub`: a block is metric-less
+    when neither `having` nor a non-metadata sibling carries a real
+    metric. Centralised so `classify_row` and `inventory_summary`
+    agree with the stub's `needs_manual_conversion` tagging.
+    """
+    if not isinstance(block, dict):
+        return True
+    raw_having = block.get("having")
+    if isinstance(raw_having, dict) and raw_having:
+        return False
+    siblings = {k: v for k, v in block.items() if k not in _METADATA_KEYS_FOR_CLASSIFICATION}
+    return not siblings
 
 
 def inventory_summary(rows: list[LegacyRuleRow]) -> dict[str, Any]:
@@ -742,7 +771,14 @@ def inventory_summary(rows: list[LegacyRuleRow]) -> dict[str, Any]:
             ready += 1
         elif row.threshold_block is not None:
             counts["threshold"] += 1
-            ready += 1
+            # A metric-less threshold block emits a placeholder that
+            # the importer flags `needs_manual_conversion`; the
+            # summary should agree so the operator sees the real
+            # migration workload.
+            if _threshold_is_metric_less(row.threshold_block):
+                manual += 1
+            else:
+                ready += 1
         elif row.narrative is not None:
             counts["narrative"] += 1
             manual += 1

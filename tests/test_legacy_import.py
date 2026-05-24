@@ -1082,6 +1082,81 @@ def test_threshold_metadata_only_block_flagged_as_manual() -> None:
     assert "needs_manual_conversion" in stub["tags"]
 
 
+def test_threshold_is_metric_less_helper_paths() -> None:
+    """Direct cover for `_threshold_is_metric_less` defensive branches."""
+    from aml_framework.generators.legacy_import import _threshold_is_metric_less
+
+    # Non-dict input (defensive — caller already type-checks).
+    assert _threshold_is_metric_less(None) is True
+    # Block with explicit `having` containing a real metric.
+    assert _threshold_is_metric_less({"having": {"count": {"gte": 5}}}) is False
+    # Block with only sibling metric (no `having`).
+    assert _threshold_is_metric_less({"count": {"gte": 5}}) is False
+    # Block with only metadata.
+    assert _threshold_is_metric_less({"source": "x", "window": "7d"}) is True
+
+
+def test_classify_metric_less_threshold_is_manual() -> None:
+    """A metric-less threshold block classifies as `needs_manual`.
+
+    Regression for codex review P2: previously a block like
+    `{"source":"txn","window":"7d","group_by":["customer_id"]}`
+    classified as `ready_threshold` even though the stub emitted a
+    placeholder + `needs_manual_conversion` tag, mis-reporting the
+    real migration workload.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"source": "txn", "window": "7d", "group_by": ["customer_id"]},
+    )
+    assert classify_row(row) == "needs_manual"
+
+
+def test_inventory_counts_metric_less_threshold_as_manual() -> None:
+    """`inventory_summary` counts metric-less thresholds in `needs_manual`."""
+    rows = [
+        LegacyRuleRow(
+            rule_id="a",
+            name="a",
+            threshold_block={"source": "txn", "window": "7d"},  # metric-less
+        ),
+        LegacyRuleRow(
+            rule_id="b",
+            name="b",
+            threshold_block={"count": {"gte": 10}},  # real metric
+        ),
+    ]
+    summary = inventory_summary(rows)
+    assert summary["ready_to_import"] == 1  # only `b`
+    assert summary["needs_manual"] == 1  # `a` is manual
+
+
+def test_regulator_refs_null_entries_skipped(tmp_path: Path) -> None:
+    """JSON `regulator_refs: [null]` is treated as empty, not "None".
+
+    Regression for codex review P2: previously `str(None).strip() ==
+    "None"` was kept, emitting a literal `None` citation and hiding
+    the missing-coverage flag from `inventory_summary`.
+    """
+    path = tmp_path / "null_refs.json"
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "rule_id": "R_NULL",
+                    "name": "n",
+                    "legacy_sql": "SELECT 1",
+                    "regulator_refs": [None],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    rows = parse_legacy_json(path)
+    assert rows[0].regulator_refs == []
+
+
 def test_threshold_with_real_metric_not_flagged_manual() -> None:
     """A block with a real metric is NOT flagged needs_manual_conversion."""
     row = LegacyRuleRow(
