@@ -920,6 +920,76 @@ def test_threshold_window_unrecognised_falls_back() -> None:
     assert stub["logic"]["window"] == "30d"
 
 
+def test_threshold_window_negative_int_falls_back() -> None:
+    """A negative `window: -7` falls back to `30d` (would violate spec pattern).
+
+    Regression for codex review P3: previously emitted `-7d`, which
+    fails the `^[0-9]+[smhd]$` window pattern.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": -7, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_zero_falls_back() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": 0, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_negative_float_falls_back() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": -3.5, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_non_finite_float_falls_back() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": float("inf"), "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_empty_having_falls_through_to_placeholder() -> None:
+    """An explicit but empty `having: {}` falls through to the derived/placeholder.
+
+    Regression for codex review P2: previously `having: {}` was
+    assigned to `logic.having`, violating the JSON Schema's
+    `minProperties: 1` requirement.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"having": {}, "count": {"gte": 5}},
+    )
+    stub = to_aml_rule_stub(row)
+    # Falls through to derived metrics → `count` is used.
+    assert stub["logic"]["having"] == {"count": {"gte": 5}}
+
+
+def test_threshold_only_empty_having_uses_placeholder() -> None:
+    """A blob with ONLY `having: {}` (no metrics) emits the safe placeholder."""
+    row = LegacyRuleRow(rule_id="r1", name="n", threshold_block={"having": {}})
+    stub = to_aml_rule_stub(row)
+    # Empty having + no other metrics → safe `count: {gte: 1}` placeholder.
+    assert stub["logic"]["having"] == {"count": {"gte": 1}}
+
+
 def test_threshold_window_garbage_string_falls_back() -> None:
     """A string that's neither digits nor a valid pattern falls back."""
     row = LegacyRuleRow(

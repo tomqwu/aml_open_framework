@@ -456,13 +456,19 @@ def _coerce_window(value: Any) -> str:
       - `30.0` (float) → `"30d"`
       - `"30"` (string-of-int) → `"30d"`
       - `"30d"` (already valid) → unchanged
-      - anything else → `"30d"` fallback (the operator can correct)
+      - negative / non-finite / anything else → `"30d"` fallback so
+        the operator gets a schema-valid skeleton, not a `-7d` value
+        that fails the `^[0-9]+[smhd]$` pattern.
     """
+    import math
+
     if isinstance(value, bool):
         return "30d"
     if isinstance(value, int):
-        return f"{value}d"
+        return f"{value}d" if value > 0 else "30d"
     if isinstance(value, float):
+        if not math.isfinite(value) or value <= 0:
+            return "30d"
         return f"{int(value)}d"
     if isinstance(value, str):
         text = value.strip()
@@ -569,7 +575,12 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         # from the source dump is silently dropped — the operator can
         # `grep` for `legacy_threshold_block:` in the skeleton to audit.
         block = row.threshold_block if isinstance(row.threshold_block, dict) else {}
-        explicit_having = block.get("having") if isinstance(block.get("having"), dict) else None
+        raw_having = block.get("having")
+        # An empty `having: {}` violates the JSON Schema's
+        # `minProperties: 1` constraint; treat it as absent and fall
+        # through to the derived/placeholder branch so the skeleton
+        # passes `aml validate`.
+        explicit_having = raw_having if isinstance(raw_having, dict) and raw_having else None
         # `filter` lifts straight into the logic block too (it's a
         # documented AggregationWindowLogic field). Excluding it from
         # the derived `having` set below prevents the engine from
