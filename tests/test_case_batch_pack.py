@@ -414,6 +414,136 @@ class TestCasePack:
         # And the engine case_id (compound, key="case_id") IS masked.
         assert case_doc["case_id"] == "structuring_cash__MASKED__ts"
 
+    def test_pii_masking_masks_source_path_in_case_dict(self, tmp_path: Path) -> None:
+        """Codex P1 follow-up: ``cases/<id>.json`` carries the run's
+        input_hash with source_path. When masked, that source_path
+        must also be hashed — not just the lineage copy."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-srcpath"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        case = {
+            "case_id": "rule_x__C0001__t",
+            "rule_id": "rule_x",
+            "rule_name": "R",
+            "severity": "high",
+            "queue": "q",
+            "alert": {"customer_id": "C0001", "matched_row_ids": [1]},
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {
+                "txn": {
+                    "row_count": 1,
+                    "content_hash": "h",
+                    "source_path": "data/C0001/txn.csv",
+                    "schema_hash": "s",
+                }
+            },
+            "status": "open",
+        }
+        (cases_dir / "rule_x__C0001__t.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "MMMM", "plaintext": "C0001"}) + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, cases_dir / "rule_x__C0001__t.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            case_doc = json.loads(zf.read("cases/rule_x__MMMM__t.json"))
+        assert case_doc["input_hash"]["txn"]["source_path"] == "data/MMMM/txn.csv"
+        assert "C0001" not in json.dumps(case_doc)
+
+    def test_pii_masking_handles_non_string_pii_columns(self, tmp_path: Path) -> None:
+        """Codex P2 follow-up: when a ``pii: true`` spec column is
+        int/decimal/bool, AuditLedger writes the sidecar with the
+        ``str(value)`` form. Our walker must accept non-string leaves
+        that coerce to a known plaintext."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-numeric"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        case = {
+            "case_id": "rule_n__42__t",
+            "rule_id": "rule_n",
+            "rule_name": "N",
+            "severity": "high",
+            "queue": "q",
+            # An integer PII leaf — matches sidecar plaintext "42".
+            "alert": {"customer_id": 42, "matched_row_ids": [1]},
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {},
+            "status": "open",
+        }
+        (cases_dir / "rule_n__42__t.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "HASH42", "plaintext": "42"}) + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, cases_dir / "rule_n__42__t.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            case_doc = json.loads(zf.read("cases/rule_n__HASH42__t.json"))
+        # The numeric "42" is rewritten to its hash string in the alert.
+        assert case_doc["alert"]["customer_id"] == "HASH42"
+
+    def test_export_case_cli_default_out_masks_pii(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Codex P1 follow-up: `aml export-case` without --out used to
+        build the default filename from the raw case_id, embedding
+        plaintext PII in shell history / CI artifacts even though the
+        ZIP contents were masked. The CLI now masks the displayed id."""
+        run = tmp_path / "run-cli-mask"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        raw_case_id = "rule_z__C0001__t"
+        case = {
+            "case_id": raw_case_id,
+            "rule_id": "rule_z",
+            "rule_name": "Z",
+            "severity": "high",
+            "queue": "q",
+            "alert": {"customer_id": "C0001", "matched_row_ids": [1]},
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {},
+            "status": "open",
+        }
+        (cases_dir / f"{raw_case_id}.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "M1M1", "plaintext": "C0001"}) + "\n",
+            encoding="utf-8",
+        )
+        # cd into tmp_path so the default ZIP lands inside the
+        # test's scratch dir (and gets cleaned up with tmp_path).
+        out_dir = tmp_path / "cwd"
+        out_dir.mkdir()
+        monkeypatch.chdir(out_dir)
+        runner = CliRunner()
+        result = runner.invoke(
+            app, ["export-case", str(SPEC_CA), str(run), raw_case_id], catch_exceptions=False
+        )
+        assert result.exit_code == 0, result.output
+        # The CLI logs the masked id, never plaintext, in both the
+        # console output and the default filename.
+        assert "C0001" not in result.output, result.output
+        assert "M1M1" in result.output
+        masked_zip = out_dir / "case-rule_z__M1M1__t.zip"
+        raw_zip = out_dir / f"case-{raw_case_id}.zip"
+        assert masked_zip.exists()
+        assert not raw_zip.exists()
+
     def test_pii_masking_applied_to_lineage_source_path(self, tmp_path: Path) -> None:
         """Codex P2 follow-up: per-customer source paths like
         ``data/C0001/txn.csv`` embed plaintext PII. Lineage must apply

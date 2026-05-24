@@ -1499,20 +1499,30 @@ def export_case_cmd(
     payload. Smaller than a full-run pack; suitable for handing a
     regulator/auditor exactly the evidence for one alert.
     """
-    from aml_framework.generators.audit_pack import build_case_pack
+    from aml_framework.generators.audit_pack import (
+        _load_pii_map,
+        _mask_compound_string,
+        build_case_pack,
+    )
 
     spec = load_spec(spec_path)
     case_path = run_dir / "cases" / f"{case_id}.json"
     if not case_path.exists():
         console.print(f"[red]Case file not found:[/red] {case_path}")
         raise typer.Exit(code=1)
-    target = out or Path(f"case-{case_id}.zip")
+    # Codex P1 fix: when the run is masked, the engine case_id embeds
+    # plaintext PII (e.g. ``<rule>__C0001__<ts>``). Mask the case_id
+    # before using it in the default --out filename and in the console
+    # log so PII never leaks into shell history / a CI artifact name.
+    pii_map = _load_pii_map(run_dir)
+    display_case_id = _mask_compound_string(case_id, pii_map) if pii_map else case_id
+    target = out or Path(f"case-{display_case_id}.zip")
     payload = build_case_pack(spec, case_path, run_dir, signing_key=signing_key)
     target.write_bytes(payload)
     signed = " (signed)" if signing_key else ""
     console.print(
         f"[green]Case pack written[/green] {target} "
-        f"({len(payload):,} bytes, case_id={case_id}){signed}"
+        f"({len(payload):,} bytes, case_id={display_case_id}){signed}"
     )
 
 

@@ -578,24 +578,28 @@ def _mask_compound_string(value: str, pii_map: dict[str, str]) -> str:
     return masked
 
 
-_COMPOUND_ID_KEYS = frozenset({"case_id"})
-"""Keys whose *values* are engine-built compound identifiers that may
-embed plaintext PII (e.g. ``case_id`` = ``<rule>__<customer>__<ts>``).
-Only these keys get substring masking — generic leaf strings stay on
-exact-value masking so a short PII value like ``1`` cannot accidentally
-rewrite timestamps, hashes, or source paths (Codex P2 fix)."""
+_COMPOUND_ID_KEYS = frozenset({"case_id", "source_path"})
+"""Keys whose *values* are engine-built compound strings that may embed
+plaintext PII (``case_id`` = ``<rule>__<customer>__<ts>``,
+``source_path`` = ``data/<customer>/txn.csv``). Only these keys get
+substring masking — generic leaf strings stay on exact-value masking
+so a short PII value like ``1`` cannot accidentally rewrite timestamps,
+hashes, or other strings (Codex P2 fix)."""
 
 
 def _apply_pii_map(payload: Any, pii_map: dict[str, str], *, key: str | None = None) -> Any:
     """Recursively replace plaintext values with their hashes.
 
-    Walks dicts/lists. For leaf strings the default is exact-value
-    swap; only values keyed by one of ``_COMPOUND_ID_KEYS`` (e.g.
-    ``case_id``) also receive substring substitution so PII embedded
-    inside compound identifiers is hashed (Codex P1). Generic leaves
-    stay on equality matching to prevent short PII values (a numeric
-    customer_id like ``1``) from rewriting unrelated audit evidence
-    such as timestamps, content hashes, or source paths (Codex P2).
+    Walks dicts/lists. Leaf rules:
+
+    - String leaf, exact match in ``pii_map`` → swap for hash.
+    - String leaf under a ``_COMPOUND_ID_KEYS`` key → substring-mask
+      so PII embedded inside identifiers / paths is hashed (Codex P1).
+    - Non-string leaf whose ``str(value)`` matches a ``pii_map`` key
+      → swap for hash. ``AuditLedger._mask_alert`` records sidecar
+      keys via ``str(value)`` so an int/decimal PII column would
+      otherwise leave the case JSON unmasked (Codex P2).
+    - Anything else → returned as-is.
     """
     if not pii_map:
         return payload
@@ -608,6 +612,13 @@ def _apply_pii_map(payload: Any, pii_map: dict[str, str], *, key: str | None = N
             return pii_map[payload]
         if key in _COMPOUND_ID_KEYS:
             return _mask_compound_string(payload, pii_map)
+        return payload
+    # Non-string leaf — engine sidecar stringifies before hashing,
+    # so a numeric / decimal / bool PII column appears in pii_map
+    # keyed by str(value). Swap on str() equality (Codex P2 fix).
+    coerced = str(payload)
+    if coerced in pii_map:
+        return pii_map[coerced]
     return payload
 
 
@@ -724,17 +735,11 @@ def _case_pack_files(
                 rule_version = d["rule_version"]
                 break
 
-    # Codex P2 follow-up: a per-customer source_path like
-    # ``data/C0001/txn.csv`` embeds plaintext PII. Pre-mask the
-    # source_path string explicitly (substring-replace via the
-    # compound-id helper) so masked runs don't leak via lineage
-    # metadata, without broadening the global leaf masking rule.
-    def _masked_source_path(value: Any) -> Any:
-        if isinstance(value, str):
-            return _mask_compound_string(value, pii_map)
-        return value
-
-    lineage = {
+    # Codex P2 follow-up: source_path is now in _COMPOUND_ID_KEYS, so
+    # the recursive _apply_pii_map walk masks it everywhere it appears
+    # (lineage AND the embedded ``input_hash`` inside the case dict),
+    # and no per-field special-casing is needed here.
+    lineage_raw = {
         "case_id": masked_case_id,
         "rule_id": rule_id,
         "rule_version": rule_version,
@@ -744,12 +749,13 @@ def _case_pack_files(
                 "contract_id": contract_id,
                 "row_count": meta.get("row_count"),
                 "content_hash": meta.get("content_hash"),
-                "source_path": _masked_source_path(meta.get("source_path")),
+                "source_path": meta.get("source_path"),
                 "schema_hash": meta.get("schema_hash"),
             }
             for contract_id, meta in sorted((case.get("input_hash") or {}).items())
         ],
     }
+    lineage = _apply_pii_map(lineage_raw, pii_map)
     masked_case = _apply_pii_map(case, pii_map)
     masked_decisions = [_apply_pii_map(d, pii_map) for d in decisions]
     files: dict[str, bytes] = {
