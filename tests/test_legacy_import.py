@@ -990,6 +990,59 @@ def test_threshold_only_empty_having_uses_placeholder() -> None:
     assert stub["logic"]["having"] == {"count": {"gte": 1}}
 
 
+def test_threshold_window_zero_string_falls_back() -> None:
+    """`window: "0d"` falls back to `30d` (zero-length windows never fire)."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": "0d", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_string_zero_int_falls_back() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": "0", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_fractional_float_falls_back() -> None:
+    """`window: 0.5` truncates to 0 → falls back to `30d`."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": 0.5, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_group_by_delimiter_only_string_falls_back() -> None:
+    """`group_by: ","` (no items) falls back to the default."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"group_by": ",", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id"]
+
+
+def test_threshold_group_by_whitespace_delim_only_falls_back() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"group_by": " ; ", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id"]
+
+
 def test_threshold_window_garbage_string_falls_back() -> None:
     """A string that's neither digits nor a valid pattern falls back."""
     row = LegacyRuleRow(

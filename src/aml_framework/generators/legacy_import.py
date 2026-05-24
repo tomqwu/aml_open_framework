@@ -469,12 +469,24 @@ def _coerce_window(value: Any) -> str:
     if isinstance(value, float):
         if not math.isfinite(value) or value <= 0:
             return "30d"
-        return f"{int(value)}d"
+        whole = int(value)
+        # Fractional days (`0.5`) and any value that truncates to 0
+        # would produce a zero-duration window, which silently never
+        # fires while still passing the schema regex; fall back.
+        if whole <= 0:
+            return "30d"
+        return f"{whole}d"
     if isinstance(value, str):
         text = value.strip()
         if re.fullmatch(r"[0-9]+[smhd]", text):
+            # Reject zero-length windows like `"0d"` / `"0h"` — see
+            # the float-path comment above for why.
+            if re.fullmatch(r"0+[smhd]", text):
+                return "30d"
             return text
         if text.isdigit():
+            if int(text) <= 0:
+                return "30d"
             return f"{text}d"
     return "30d"
 
@@ -497,7 +509,12 @@ def _coerce_group_by(value: Any) -> list[str]:
             return ["customer_id"]
         for sep in (",", "|", ";"):
             if sep in text:
-                return [part.strip() for part in text.split(sep) if part.strip()]
+                parts = [part.strip() for part in text.split(sep) if part.strip()]
+                # A delimiter-only string (`","`, `" ; "`) splits to
+                # an empty list; the spec requires `min_length=1`, so
+                # fall back to the default rather than emit an
+                # invalid skeleton.
+                return parts if parts else ["customer_id"]
         return [text]
     return ["customer_id"]
 
