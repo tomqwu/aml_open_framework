@@ -156,9 +156,64 @@ class ParseWarning:
 
 
 def _normalise_header(header: str) -> str | None:
-    """Map a legacy column name to a `LegacyRuleRow` field, or None."""
-    key = header.strip().lower().replace(" ", "_").replace("-", "_")
+    """Map a legacy column name to a `LegacyRuleRow` field, or None.
+
+    Strips a UTF-8 BOM (``﻿``) before matching so Excel-saved
+    CSVs whose first header is `﻿frule_id` still hit the alias
+    table — common enough in real legacy dumps that ignoring it would
+    silently break the first row of every Excel export.
+    """
+    key = header.lstrip("﻿").strip().lower().replace(" ", "_").replace("-", "_")
     return _CSV_ALIASES.get(key)
+
+
+# Aliases higher in this set lose to aliases lower in it when both
+# appear in the same CSV header (e.g. `rule_id` + `id`). `rule_id`,
+# `name`, etc. are the canonical names — they always win over the
+# generic fallbacks. Anything not listed here is treated as
+# tied-precedence and the first non-empty value wins.
+_CANONICAL_FIELDS = frozenset(
+    {"rule_id", "name", "legacy_sql", "threshold_block", "narrative", "regulator_refs"}
+)
+
+
+def _merge_aliases(mapping: dict[str, str | None], raw_row: dict[str, Any]) -> dict[str, Any]:
+    """Collapse multiple aliased CSV columns into a single field map.
+
+    When a CSV has both a canonical column (`rule_id`) and a generic
+    alias (`id`) that maps to the same field, prefer the canonical
+    column's value when non-empty. For two aliases that both map to
+    the same field (neither canonical), the *first non-empty* value
+    wins so later noisy columns can't overwrite an earlier good one.
+    """
+    out: dict[str, Any] = {}
+    canonical_set: dict[str, bool] = {}
+    for original, field in mapping.items():
+        if field is None:
+            continue
+        value = raw_row.get(original)
+        if value is None:
+            continue
+        # Treat empty strings as "missing" so a later column with a
+        # real value can still populate the field.
+        if isinstance(value, str) and not value.strip():
+            continue
+        is_canonical = original.strip().lower().replace(" ", "_").replace("-", "_") == field
+        if field in out:
+            # If we've already seen a canonical value, only a canonical
+            # column can overwrite (and only the first canonical wins).
+            if canonical_set.get(field):
+                continue
+            # Existing was non-canonical; canonical now → overwrite.
+            if is_canonical:
+                out[field] = value
+                canonical_set[field] = True
+            # Both non-canonical → keep the first.
+            continue
+        out[field] = value
+        if is_canonical and field in _CANONICAL_FIELDS:
+            canonical_set[field] = True
+    return out
 
 
 def _coerce_threshold_block(raw: Any) -> dict[str, Any] | None:
@@ -291,7 +346,9 @@ def parse_legacy_csv_with_warnings(path: Path) -> ParseResult:
     """Variant that also returns parse warnings for the CLI summary."""
     rows: list[LegacyRuleRow] = []
     warnings: list[ParseWarning] = []
-    with path.open("r", encoding="utf-8", newline="") as fh:
+    # `utf-8-sig` strips an Excel-emitted BOM on the first header so
+    # otherwise-valid dumps don't silently break alias lookup.
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
         reader = csv.DictReader(fh)
         if reader.fieldnames is None:
             return ParseResult(rows=[], warnings=[ParseWarning(0, None, "empty CSV")])
@@ -302,14 +359,7 @@ def parse_legacy_csv_with_warnings(path: Path) -> ParseResult:
                 warnings=[ParseWarning(0, None, "no recognised columns in CSV header")],
             )
         for idx, raw_row in enumerate(reader, start=1):
-            normalised: dict[str, Any] = {}
-            for original, field in mapping.items():
-                if field is None:
-                    continue
-                value = raw_row.get(original)
-                if value is None:
-                    continue
-                normalised[field] = value
+            normalised = _merge_aliases(mapping, raw_row)
             row, warning = _row_from_mapping(normalised, row_index=idx)
             if row is not None:
                 rows.append(row)
@@ -360,12 +410,13 @@ def parse_legacy_json_with_warnings(path: Path) -> ParseResult:
             continue
         # JSON dumps typically already have the right field names, but
         # normalise so callers can supply `sql_text` etc. as in CSVs.
-        normalised: dict[str, Any] = {}
-        for key, value in entry.items():
-            field = _normalise_header(str(key))
-            if field is None:
-                continue
-            normalised[field] = value
+        # Use the same alias-collision resolver as CSV so a JSON
+        # object with both `rule_id` and `id` keys can't silently
+        # overwrite the canonical value with the alias.
+        json_mapping: dict[str, str | None] = {
+            str(key): _normalise_header(str(key)) for key in entry
+        }
+        normalised = _merge_aliases(json_mapping, {str(k): v for k, v in entry.items()})
         row, warning = _row_from_mapping(normalised, row_index=idx)
         if row is not None:
             rows.append(row)

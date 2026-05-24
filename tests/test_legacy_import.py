@@ -732,6 +732,108 @@ def test_build_spec_skeleton_disambiguation_skips_existing_suffix() -> None:
     assert ids == ["r_1", "r_1_2", "r_1_3"]
 
 
+def test_csv_canonical_column_wins_over_later_alias(tmp_path: Path) -> None:
+    """`rule_id` + later `id` column → canonical wins.
+
+    Regression for codex review P2: previously a later generic `id`
+    column overwrote the canonical `rule_id`, corrupting traceability
+    and duplicate-detection.
+    """
+    path = tmp_path / "alias_collision.csv"
+    _write_csv(
+        path,
+        ["rule_id", "name", "sql", "id"],
+        [["R_CANONICAL", "n", "SELECT 1", "wrong_id_from_alias"]],
+    )
+    rows = parse_legacy_csv(path)
+    assert rows[0].rule_id == "R_CANONICAL"
+
+
+def test_csv_first_non_empty_alias_wins(tmp_path: Path) -> None:
+    """When both columns are aliases (no canonical), first non-empty wins."""
+    path = tmp_path / "two_aliases.csv"
+    # Both `id` and `scenario_id` are aliases for `rule_id`; no canonical
+    # column present. First non-empty wins.
+    _write_csv(
+        path,
+        ["id", "scenario_id", "name", "sql"],
+        [["first_alias", "second_alias", "n", "SELECT 1"]],
+    )
+    rows = parse_legacy_csv(path)
+    assert rows[0].rule_id == "first_alias"
+
+
+def test_csv_empty_alias_falls_through_to_next(tmp_path: Path) -> None:
+    """An empty value in the first alias yields to the next non-empty alias."""
+    path = tmp_path / "alias_empty.csv"
+    _write_csv(
+        path,
+        ["id", "scenario_id", "name", "sql"],
+        [["", "fallback_id", "n", "SELECT 1"]],
+    )
+    rows = parse_legacy_csv(path)
+    assert rows[0].rule_id == "fallback_id"
+
+
+def test_csv_strips_utf8_bom_from_header(tmp_path: Path) -> None:
+    """Excel-saved CSVs have a BOM on the first header — must still parse.
+
+    Regression for codex review P2: previously `﻿rule_id` (with
+    BOM) didn't match the `rule_id` alias, breaking the first row of
+    every Excel-emitted dump.
+    """
+    path = tmp_path / "excel.csv"
+    # Write the BOM byte explicitly so the parser sees it.
+    path.write_bytes("﻿rule_id,name,sql\nR_BOM,n,SELECT 1\n".encode("utf-8"))
+    rows = parse_legacy_csv(path)
+    assert len(rows) == 1
+    assert rows[0].rule_id == "R_BOM"
+
+
+def test_coerce_threshold_block_empty_string_is_none() -> None:
+    """Direct cover for the empty-string path in `_coerce_threshold_block`."""
+    from aml_framework.generators.legacy_import import _coerce_threshold_block
+
+    assert _coerce_threshold_block("   ") is None
+
+
+def test_coerce_regulator_refs_empty_string() -> None:
+    """Direct cover for the empty-string path in `_coerce_regulator_refs`."""
+    from aml_framework.generators.legacy_import import _coerce_regulator_refs
+
+    assert _coerce_regulator_refs("   ") == []
+
+
+def test_json_rule_id_as_integer_is_coerced() -> None:
+    """A non-string `rule_id` (common in JSON dumps) is stringified."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+        json.dump([{"rule_id": 12345, "name": "n", "legacy_sql": "x"}], fh)
+        path = Path(fh.name)
+    try:
+        rows = parse_legacy_json(path)
+        assert rows[0].rule_id == "12345"
+    finally:
+        path.unlink()
+
+
+def test_json_canonical_key_wins_over_alias() -> None:
+    """JSON object with both `rule_id` and `id` → canonical wins."""
+    # Use a tmp path via fixture in a parameterized test would be cleaner;
+    # for inline simplicity write to tmp via the local helper.
+    import tempfile
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+        json.dump([{"id": "wrong", "rule_id": "R_CANONICAL", "name": "n", "legacy_sql": "x"}], fh)
+        path = Path(fh.name)
+    try:
+        rows = parse_legacy_json(path)
+        assert rows[0].rule_id == "R_CANONICAL"
+    finally:
+        path.unlink()
+
+
 def _row_from_mapping_via_csv(
     rule_id: str, *, regulator_refs_cell: str
 ) -> tuple[LegacyRuleRow | None, ParseWarning | None]:
