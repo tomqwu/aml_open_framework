@@ -121,7 +121,7 @@ Pre-built library of 20+ AML detection rule templates across 9 categories: struc
 
 ### North Star Coverage
 
-The 8 AML/TM + DS pillars this framework is built around (equivalence-before-optimization, evidence-as-a-product, point-in-time correctness, DQ/reconciliation/defect management, risk-based controls, alert lifecycle & explainability, DS as governed augmentation, serve five roles) — surfaced as 8 cards classified COVERED / PARTIAL / GAP with concrete artefacts from the live spec/run and links to the relevant dashboard pages (PR-NS-1). Read-only synthesis surface — no engine call, no buttons. Honest about gaps: pillar 1 (equivalence) is flagged GAP until the dedicated equivalence engine ships in PR-EQ-2. Routed universally — every persona sees it, same idiom as the Knowledge shelf.
+The 8 AML/TM + DS pillars this framework is built around (equivalence-before-optimization, evidence-as-a-product, point-in-time correctness, DQ/reconciliation/defect management, risk-based controls, alert lifecycle & explainability, DS as governed augmentation, serve five roles) — surfaced as 8 cards classified COVERED / PARTIAL / GAP with concrete artefacts from the live spec/run and links to the relevant dashboard pages (PR-NS-1). Read-only synthesis surface — no engine call, no buttons. Honest about gaps: pillar 1 (equivalence) shipped in PR-EQ-3 (Round 27); pillar 6 (alert lifecycle & explainability) flipped PARTIAL → COVERED in PR-PAY-1 once `engine/payload_meta.py` started stamping a uniform `threshold` + `reference_data_version` on every alert across all 5 rule shapes. Routed universally — every persona sees it, same idiom as the Knowledge shelf.
 
 _Screenshot: pending — see follow-up._
 

@@ -32,6 +32,7 @@ from aml_framework.engine.monitoring_digest import (
     lookup_prior_run,
     write_monitoring_digest,
 )
+from aml_framework.engine.payload_meta import stamp_payload_meta
 from aml_framework.engine.promotion import (
     EnvironmentGatingError,
     is_rule_approved_for_environment,
@@ -1210,6 +1211,7 @@ def run_spec(
                         message=error_msg,
                     ) from exc
                 continue
+            stamp_payload_meta(rule, alerts, as_of=as_of)
             alerts_by_rule[rule.id] = alerts
             ledger.record_alerts(rule.id, alerts)
             _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)
@@ -1223,6 +1225,7 @@ def run_spec(
             # of phantom-1 (codex pass-2 P3 on PR-LF2).
             with cost_timer.rule(rule.id):
                 alerts = _execute_list_match(rule, con, as_of, cost_timer)
+            stamp_payload_meta(rule, alerts, as_of=as_of)
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1243,6 +1246,7 @@ def run_spec(
             # query are all counted (codex pass-1 P2 on PR-LF2).
             with cost_timer.rule(rule.id):
                 alerts = _execute_network_pattern(rule, con, as_of, cost_timer)
+            stamp_payload_meta(rule, alerts, as_of=as_of)
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1322,6 +1326,7 @@ def run_spec(
                         alert["matched_row_ids"] = [int(r[0]) for r in rid_rows]
                     except Exception:
                         pass
+        stamp_payload_meta(rule, alerts, as_of=as_of)
         alerts_by_rule[rule.id] = alerts
         ledger.record_alerts(rule.id, alerts)
 

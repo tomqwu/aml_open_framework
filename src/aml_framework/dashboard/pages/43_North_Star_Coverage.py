@@ -367,12 +367,13 @@ _render_pillar(
 # explain the trigger (window, threshold, segment, rule version,
 # reference-data version, supporting txns)."
 #
-# Classification: PARTIAL. Lineage Explorer + Investigations carry
-# strong rule-version + escalation evidence per alert; aggregation_window
-# alerts carry their window + aggregate values. What's not yet first-
-# class on the alert payload itself: a uniform `threshold` +
-# `reference_data_version` schema across all 4 rule shapes (custom_sql /
-# python_ref produce arbitrary payloads today).
+# Classification: COVERED (PR-PAY-1). The engine now stamps a uniform
+# `threshold` + `reference_data_version` pair on every alert across all
+# 5 rule shapes (aggregation_window / list_match / network_pattern /
+# custom_sql / python_ref) via `engine/payload_meta.py`. The metadata
+# flows through `record_alerts` to `alerts/<rule_id>.jsonl` and lands
+# on the final `cases/<case_id>.json` so an investigator can answer
+# "why did this fire on this date?" without re-reading the spec.
 # ---------------------------------------------------------------------------
 _render_pillar(
     number=6,
@@ -382,7 +383,7 @@ _render_pillar(
         "the trigger (window, threshold, segment, rule version, "
         "reference-data version, supporting transactions)."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         f"**In:** every alert on this run ({_alert_count} total) carries "
         "its `rule_id`; the run-manifest pins the `spec_content_hash` so "
@@ -394,11 +395,13 @@ _render_pillar(
         "**In:** Investigations page carries the L1 → L2 → MLRO escalation "
         "lifecycle; STR narrative generator pre-attaches the trigger "
         "evidence.",
-        "**Missing:** a uniform `threshold` + `reference_data_version` "
-        "schema on every alert payload across all 4 rule shapes — "
-        "`custom_sql` and `python_ref` rules emit arbitrary payloads "
-        "today, so the 'why this fired' panel reads them best-effort "
-        "rather than from a typed contract.",
+        "**In:** every alert (and the case file derived from it) now "
+        "carries a uniform `threshold` snapshot + `reference_data_version` "
+        "fingerprint across all 5 rule shapes (`aggregation_window`, "
+        "`list_match`, `network_pattern`, `custom_sql`, `python_ref`) — "
+        "shipped in `engine/payload_meta.py` (PR-PAY-1). The 'why this "
+        "fired' panel now reads from a typed contract instead of "
+        "best-effort dict scraping.",
     ],
     links=[
         ("Case Investigation — 'Why this fired' panel", "pages/4_Case_Investigation.py"),
@@ -500,9 +503,13 @@ st.markdown("### Coverage roll-up")
 
 col_a, col_b, col_c = st.columns(3)
 with col_a:
-    st.metric("Covered", "2", help="Pillars 1 (PR-EQ-3 / Round 27), 8")
+    st.metric(
+        "Covered",
+        "3",
+        help="Pillars 1 (PR-EQ-3 / Round 27), 6 (PR-PAY-1 — uniform alert payload), 8",
+    )
 with col_b:
-    st.metric("Partial", "6", help="Pillars 2, 3, 4, 5, 6, 7")
+    st.metric("Partial", "5", help="Pillars 2, 3, 4, 5, 7")
 with col_c:
     st.metric(
         "Gap", "0", help="Pillar 1 equivalence engine + dashboard shipped in PR-EQ-3 (Round 27)"
