@@ -206,7 +206,10 @@ Either way, an `environment_gate_check` event is appended to `decisions.jsonl` f
 ## 7. Generate the Audit Bundle (1 min)
 
 ```bash
-aml export examples/community_bank/aml.yaml --out evidence.zip
+aml auditor-pack examples/community_bank/aml.yaml --out evidence.zip
+# Granular subsets (PR-D4):
+aml export-case  examples/community_bank/aml.yaml run-dir CASE_ID --out case.zip
+aml export-batch examples/community_bank/aml.yaml run-dir --cases c1,c2 --out batch.zip
 ```
 
 Produces an evidence ZIP containing:
