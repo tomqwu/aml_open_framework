@@ -499,24 +499,41 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
     if row.threshold_block is not None:
         # Build the aggregation_window block from a permissive merge:
         # legacy `having` / `window` / `group_by` / `source` keys (if
-        # present) override the defaults, and any remaining sibling
-        # keys are stashed under `legacy_threshold_block` on the stub
-        # so nothing from the source dump is silently dropped during
-        # the import — the operator can audit it before deletion.
+        # present) override the defaults. Any remaining sibling keys
+        # are preserved as a JSON-serialised tag so the spec stays
+        # schema-valid (Rule.extra="forbid") while nothing from the
+        # source dump is silently dropped — the operator can `grep`
+        # for `legacy_threshold_block:` in the skeleton to audit.
         block = row.threshold_block if isinstance(row.threshold_block, dict) else {}
-        having = block.get("having") if isinstance(block.get("having"), dict) else None
+        explicit_having = block.get("having") if isinstance(block.get("having"), dict) else None
+        # When no explicit `having` is supplied, derive one from the
+        # block but exclude the documented logic-block metadata
+        # (`source` / `window` / `group_by`) — otherwise the engine
+        # treats them as aggregate metrics and `compile_rule_sql`
+        # fails at runtime with "unsupported having metric 'source'".
+        derived_having: dict[str, Any] = {
+            k: v for k, v in block.items() if k not in {"source", "window", "group_by", "having"}
+        }
+        if not derived_having:
+            # Legacy block had only metadata + no metric → emit a
+            # safe placeholder so the stub validates and the operator
+            # gets pointed at the right rule by `aml validate`.
+            derived_having = {"count": {"gte": 1}}
         logic: dict[str, Any] = {
             "type": "aggregation_window",
             "source": block.get("source", "TODO_source_contract"),
             "group_by": block.get("group_by", ["customer_id"]),
             "window": block.get("window", "30d"),
-            "having": having if having is not None else block,
+            "having": explicit_having if explicit_having is not None else derived_having,
         }
         stub["logic"] = logic
-        # Preserve every sibling key (incl. the original `having`) so
-        # the operator can reconcile the imported stub against the
-        # source dump byte-for-byte.
-        stub["legacy_threshold_block"] = row.threshold_block
+        # Preserve the original blob as a tag (allowed by the Rule
+        # schema) so the spec validates as-is once the TODO source/
+        # queue/regulation fields are filled in.
+        stub["tags"] = [
+            *stub["tags"],
+            f"legacy_threshold_block:{json.dumps(row.threshold_block, sort_keys=True)}",
+        ]
         return stub
 
     # Narrative-only or empty — emit a placeholder so `aml validate`

@@ -664,9 +664,9 @@ def test_stub_preserves_threshold_siblings() -> None:
 
     Regression for codex review P2: previously only the inner `having`
     was extracted, dropping siblings like `window`, `source`, etc. Now
-    the legacy keys are mapped where possible and the full blob is
-    preserved under `legacy_threshold_block` so the operator can
-    audit before deletion.
+    the legacy keys are lifted into the logic block where they map
+    cleanly and the full blob is preserved as a JSON-serialised tag
+    so the stub stays schema-valid (Rule disallows extra fields).
     """
     row = LegacyRuleRow(
         rule_id="r1",
@@ -685,16 +685,112 @@ def test_stub_preserves_threshold_siblings() -> None:
     assert stub["logic"]["window"] == "7d"
     assert stub["logic"]["source"] == "wire_txn"
     assert stub["logic"]["group_by"] == ["account_id"]
-    # The full blob is preserved on the stub for reconciliation.
-    assert stub["legacy_threshold_block"]["vendor_param"] == "legacy_only"
+    # The full blob is preserved as a tag for reconciliation.
+    threshold_tags = [t for t in stub["tags"] if t.startswith("legacy_threshold_block:")]
+    assert len(threshold_tags) == 1
+    blob_json = threshold_tags[0].removeprefix("legacy_threshold_block:")
+    assert json.loads(blob_json)["vendor_param"] == "legacy_only"
 
 
 def test_stub_threshold_block_without_having_uses_blob_as_having() -> None:
-    """A threshold blob without a `having` key uses the blob itself."""
+    """A threshold blob without a `having` key uses metric-only fields."""
     row = LegacyRuleRow(rule_id="r1", name="n", threshold_block={"count": {"gte": 5}})
     stub = to_aml_rule_stub(row)
     assert stub["logic"]["having"] == {"count": {"gte": 5}}
-    assert stub["legacy_threshold_block"] == {"count": {"gte": 5}}
+    # Blob still preserved as tag.
+    assert any(t.startswith("legacy_threshold_block:") for t in stub["tags"])
+
+
+def test_stub_threshold_block_metadata_excluded_from_having() -> None:
+    """A no-having blob with metadata keys excludes them from the fallback having.
+
+    Regression for codex review P2: previously
+    `{'source': 'txn', 'window': '7d', 'group_by': [...], 'count': {'gte': 10}}`
+    copied the entire blob into `logic.having`, making the engine
+    treat `source`/`window`/`group_by` as aggregate metrics and
+    crashing `compile_rule_sql` at runtime.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={
+            "source": "txn",
+            "window": "7d",
+            "group_by": ["customer_id"],
+            "count": {"gte": 10},
+        },
+    )
+    stub = to_aml_rule_stub(row)
+    # `count` is the only metric → lifted to having.
+    assert stub["logic"]["having"] == {"count": {"gte": 10}}
+    # Metadata mapped into logic block.
+    assert stub["logic"]["source"] == "txn"
+    assert stub["logic"]["window"] == "7d"
+    assert stub["logic"]["group_by"] == ["customer_id"]
+
+
+def test_stub_threshold_block_metadata_only_falls_back_to_count() -> None:
+    """A blob with ONLY metadata (no metric) gets a safe placeholder."""
+    row = LegacyRuleRow(rule_id="r1", name="n", threshold_block={"source": "txn", "window": "1d"})
+    stub = to_aml_rule_stub(row)
+    # No real metric → safe placeholder so the stub is engine-compatible.
+    assert stub["logic"]["having"] == {"count": {"gte": 1}}
+
+
+def test_stub_with_threshold_validates_through_pydantic_rule() -> None:
+    """The threshold-bearing stub round-trips through the Rule model.
+
+    Pins that the stub stays schema-valid: a real spec author only
+    has to fix the `TODO_source_contract` placeholder + add an
+    `escalate_to` queue + a regulation citation, not also strip
+    extra fields the importer left behind.
+    """
+    from aml_framework.spec.models import Rule
+
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": "7d", "having": {"count": {"gte": 10}}},
+        regulator_refs=["FATF R.10"],
+    )
+    stub = to_aml_rule_stub(row)
+    # Patch the `TODO_source_contract` placeholder — the Pydantic
+    # Rule model has no constraint on the source string, but engine
+    # compilation would fail without a real contract. For schema
+    # validation it's fine as-is.
+    Rule.model_validate(stub)
+
+
+def test_stub_legacy_threshold_block_is_tag_not_extra_field() -> None:
+    """The preserved blob never appears as a top-level rule extra field.
+
+    Regression for codex review P2: previously `legacy_threshold_block`
+    was set at the rule level, which `aml validate` rejected because
+    `Rule` has `extra="forbid"`. Now it lives under `tags`.
+    """
+    row = LegacyRuleRow(rule_id="r1", name="n", threshold_block={"count": {"gte": 1}})
+    stub = to_aml_rule_stub(row)
+    # Must NOT be a top-level field on the rule dict.
+    assert "legacy_threshold_block" not in stub
+    # Allowed-field set: only fields the AML Rule schema accepts.
+    allowed = {
+        "id",
+        "name",
+        "severity",
+        "regulation_refs",
+        "escalate_to",
+        "evidence",
+        "tags",
+        "logic",
+        "status",
+        "evaluation_mode",
+        "tuning_grid",
+        "aml_priority",
+        "model_tier",
+        "validation_cadence_months",
+        "business_intent",
+    }
+    assert set(stub.keys()).issubset(allowed)
 
 
 def test_build_spec_skeleton_disambiguates_duplicate_ids() -> None:
