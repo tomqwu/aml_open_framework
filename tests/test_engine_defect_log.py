@@ -63,6 +63,7 @@ def _exc(
     failing_value: str | None = None,
     reason: str | None = None,
     contract_id: str = "txn",
+    severity: str = "high",
 ) -> DQException:
     return DQException(
         contract_id=contract_id,
@@ -72,6 +73,7 @@ def _exc(
         failing_value=failing_value,
         row_index=row_index,
         reason=reason or f"{check_type} failure on {column}",
+        severity=severity,  # type: ignore[arg-type]
         at=_AS_OF,
     )
 
@@ -230,6 +232,7 @@ class TestBuildDefectLog:
         assert out == []
 
     def test_one_dq_exception_becomes_one_defect(self):
+        # Default DQException severity is "high" (PR-B5 / #370 default).
         exc = _exc(check_type="not_null", column="amount", row_index=3)
         out = build_defect_log(
             run_id="run-x",
@@ -240,7 +243,7 @@ class TestBuildDefectLog:
         d = out[0]
         assert d.category == DefectCategory.DATA_QUALITY
         assert d.classification == DefectClassification.DATA
-        assert d.severity == DefectSeverity.MEDIUM
+        assert d.severity == DefectSeverity.HIGH
         assert d.summary == exc.reason
         assert d.detected_by == "dq.evaluator"
         assert d.source_run_id == "run-x"
@@ -248,17 +251,35 @@ class TestBuildDefectLog:
         assert d.status == DefectStatus.OPEN
         assert d.id.startswith("defect:run-x:0000:not_null:amount")
 
-    def test_dq_severity_unique_is_high(self):
-        exc = _exc(check_type="unique", column="txn_id", failing_value="T1")
+    def test_dq_severity_threaded_from_declared_tier_critical(self):
+        # Codex P2 on PR-C1: declared severity must NOT be silently
+        # demoted to a check_type-derived bucket. A `critical` not_null
+        # in the spec stays critical in defect_log.jsonl.
+        exc = _exc(check_type="not_null", column="amount", severity="critical")
         out = build_defect_log(run_id="run-x", dq_exceptions=[exc], created_at=_AS_OF)
-        assert out[0].severity == DefectSeverity.HIGH
+        assert out[0].severity == DefectSeverity.CRITICAL
 
-    def test_dq_severity_malformed_check_is_high(self):
+    def test_dq_severity_threaded_from_declared_tier_low(self):
+        # A `low` regex defect stays low; previously the check_type
+        # routing would have promoted it to medium.
+        exc = _exc(check_type="regex", column="email", severity="low")
+        out = build_defect_log(run_id="run-x", dq_exceptions=[exc], created_at=_AS_OF)
+        assert out[0].severity == DefectSeverity.LOW
+
+    def test_dq_severity_threaded_from_declared_tier_info(self):
+        exc = _exc(check_type="enum", column="currency", severity="info")
+        out = build_defect_log(run_id="run-x", dq_exceptions=[exc], created_at=_AS_OF)
+        assert out[0].severity == DefectSeverity.INFO
+
+    def test_dq_severity_malformed_check_routes_to_mapping(self):
         exc = _exc(check_type="malformed_check", column="enum", failing_value="list(len=1)")
         out = build_defect_log(run_id="run-x", dq_exceptions=[exc], created_at=_AS_OF)
-        assert out[0].severity == DefectSeverity.HIGH
+        # Category + classification still derived from check_type (the
+        # tree is about the *kind* of issue, not its tier); severity is
+        # the declared tier (default "high").
         assert out[0].category == DefectCategory.SPEC_CONFIG
         assert out[0].classification == DefectClassification.MAPPING
+        assert out[0].severity == DefectSeverity.HIGH
 
     def test_python_ref_failures_yield_rule_logic_defects(self):
         out = build_defect_log(
@@ -648,6 +669,47 @@ class TestDeriveRunId:
         assert len(out) == 16
         assert all(c in "0123456789abcdef" for c in out)
 
+    def test_id_changes_with_input_manifest_content_hash(self):
+        # Codex P2 pass-2: same spec + same as_of + DIFFERENT data
+        # snapshot must produce different run_id, else defect IDs from
+        # the corrected feed collide with the bad-feed defects.
+        manifest_a = {"txn": {"content_hash": "abc123", "row_count": 10}}
+        manifest_b = {"txn": {"content_hash": "def456", "row_count": 10}}
+        a = derive_run_id("hash-abc", _AS_OF, manifest_a)
+        b = derive_run_id("hash-abc", _AS_OF, manifest_b)
+        assert a != b
+
+    def test_id_stable_when_input_manifest_unchanged(self):
+        manifest = {"txn": {"content_hash": "abc123", "row_count": 10}}
+        a = derive_run_id("hash-abc", _AS_OF, manifest)
+        b = derive_run_id("hash-abc", _AS_OF, manifest)
+        assert a == b
+
+    def test_id_stable_across_contract_dict_order(self):
+        # Contract IDs sorted before hashing — Python dict iteration
+        # order must not influence the result.
+        manifest_a = {
+            "txn": {"content_hash": "abc"},
+            "customer": {"content_hash": "xyz"},
+        }
+        manifest_b = {
+            "customer": {"content_hash": "xyz"},
+            "txn": {"content_hash": "abc"},
+        }
+        assert derive_run_id("h", _AS_OF, manifest_a) == derive_run_id("h", _AS_OF, manifest_b)
+
+    def test_id_handles_none_input_manifest(self):
+        # No manifest → still deterministic from spec + as_of only.
+        a = derive_run_id("hash-abc", _AS_OF, None)
+        b = derive_run_id("hash-abc", _AS_OF, None)
+        assert a == b
+
+    def test_id_handles_malformed_manifest_entry(self):
+        # Defensive: meta is not a dict — treat as empty hash, don't crash.
+        manifest = {"txn": "not-a-dict"}  # type: ignore[dict-item]
+        out = derive_run_id("hash-abc", _AS_OF, manifest)  # type: ignore[arg-type]
+        assert len(out) == 16
+
 
 # ---------------------------------------------------------------------------
 # Strict python_ref aborts still emit defect_log — codex P2 on PR-C1
@@ -751,3 +813,98 @@ class TestStrictPythonRefDefectLog:
         assert rec["classification"] == "rule"
         assert rec["severity"] == "high"
         assert "r_pyref" in rec["summary"]
+
+
+# ---------------------------------------------------------------------------
+# ContractViolation aborts still emit defect_log — codex P2 pass-2 on PR-C1
+# ---------------------------------------------------------------------------
+
+
+class TestContractViolationDefectLog:
+    """Codex P2 pass-2 on PR-C1: when `_build_warehouse` raises
+    `ContractViolation` (a required column is missing), the run aborts
+    before `_finalize_run()`. The defect log must still land so the
+    DQ defects already gathered (e.g. a not_null check that fired
+    against missing-key rows) have matching tickets.
+    """
+
+    def test_contract_violation_writes_defect_log_before_raising(self, tmp_path: Path):
+        # Contract requires `amount` non-nullable AND declares a
+        # not_null check on it. Input rows omit the `amount` key, so
+        # DQ evaluation generates a not_null exception per row and
+        # then `_build_warehouse` raises ContractViolation.
+        from aml_framework.engine.runner import ContractViolation
+
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="TestProgram",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                    quality_checks=[{"not_null": ["amount"]}],
+                )
+            ],
+            rules=[
+                Rule(
+                    id="r1",
+                    name="R1",
+                    severity="low",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=AggregationWindowLogic(
+                        type="aggregation_window",
+                        source="txn",
+                        group_by=["customer_id"],
+                        window="365d",
+                        having={"count": {"gte": 1}},
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        # Input row omits the `amount` key entirely.
+        data = {
+            "txn": [
+                {"txn_id": "T1", "customer_id": "C1", "booked_at": _AS_OF},
+            ]
+        }
+        with pytest.raises(ContractViolation):
+            run_spec(
+                spec=spec,
+                spec_path=spec_path,
+                data=data,
+                as_of=_AS_OF,
+                artifacts_root=tmp_path,
+            )
+
+        run_dirs = sorted(tmp_path.glob("run-*"))
+        assert run_dirs, "run dir must exist even after ContractViolation"
+        run_dir = run_dirs[-1]
+        defect_path = run_dir / "defect_log.jsonl"
+        assert defect_path.exists(), (
+            "defect_log.jsonl must be written before ContractViolation re-raises"
+        )
+        lines = [ln for ln in defect_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        # The not_null DQ exception fired on the missing-amount row,
+        # so there is at least one DATA_QUALITY defect to surface.
+        assert len(lines) >= 1
+        recs = [json.loads(ln) for ln in lines]
+        assert any(r["category"] == "data_quality" for r in recs)
+        assert any(r["classification"] == "data" for r in recs)

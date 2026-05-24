@@ -38,6 +38,7 @@ import enum
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -150,18 +151,35 @@ _DQ_CHECK_TYPE_ROUTING: dict[str, tuple[DefectCategory, DefectClassification]] =
 }
 
 
-# Severity routing for DQ check types. Almost all data-quality failures
-# are MEDIUM by default; the exceptions are spec-defects (HIGH — a
-# silently-disabled check is a compliance gap) and uniqueness violations
-# (HIGH — a duplicated primary key risks double-counting in metrics).
-_DQ_SEVERITY: dict[str, DefectSeverity] = {
-    "not_null": DefectSeverity.MEDIUM,
-    "unique": DefectSeverity.HIGH,
-    "enum": DefectSeverity.MEDIUM,
-    "regex": DefectSeverity.MEDIUM,
-    "range": DefectSeverity.MEDIUM,
-    "malformed_check": DefectSeverity.HIGH,
+# Fallback severity used only when the DQException carries an
+# unrecognised tier (forward-compat with a future dialect). Authors
+# declare per-check severity on `quality_checks` entries (PR-B5 / #370)
+# and the runner threads it onto `DQException.severity`; we honour
+# that declared tier verbatim so a spec author who flagged a not_null
+# as `critical` doesn't see it silently demoted to medium in the
+# defect log. Codex P2 on PR-C1.
+_DQ_SEVERITY_BY_TIER: dict[str, DefectSeverity] = {
+    "critical": DefectSeverity.CRITICAL,
+    "high": DefectSeverity.HIGH,
+    "medium": DefectSeverity.MEDIUM,
+    "low": DefectSeverity.LOW,
+    "info": DefectSeverity.INFO,
 }
+
+
+def _severity_for_dq(exc: DQException) -> DefectSeverity:
+    """Resolve a DefectSeverity from the DQException's declared tier.
+
+    Falls back to ``HIGH`` for unknown tiers — matches the
+    pre-PR-B5 uniform posture so a future dialect adding a tier we
+    don't yet recognise still produces a visible defect rather than
+    silently dropping into the lowest bucket.
+    """
+    declared = getattr(exc, "severity", None)
+    if declared is None:
+        # Pre-PR-B5 callers won't carry a severity field at all.
+        return DefectSeverity.HIGH
+    return _DQ_SEVERITY_BY_TIER.get(declared, DefectSeverity.HIGH)
 
 
 def classify_defect(exc: DQException) -> tuple[DefectCategory, DefectClassification]:
@@ -207,7 +225,11 @@ def _defect_id_for_python_ref(run_id: str, rule_id: str, position: int) -> str:
     return f"defect:{run_id}:pyref:{position:04d}:{rule_id}"
 
 
-def derive_run_id(spec_content_hash: str, as_of: datetime) -> str:
+def derive_run_id(
+    spec_content_hash: str,
+    as_of: datetime,
+    input_manifest: dict[str, Any] | None = None,
+) -> str:
     """Deterministic ``source_run_id`` derived from inputs, not wall-clock.
 
     The audit ledger's on-disk directory name is ``run-<utcnow>`` —
@@ -217,13 +239,30 @@ def derive_run_id(spec_content_hash: str, as_of: datetime) -> str:
     directory basename in ``defect_log.jsonl`` would defeat
     ``defect_log_hash`` reproducibility (codex P2 on PR-C1).
 
-    Returns a 16-hex-char SHA-256 prefix over the spec content hash
-    and as_of — short enough to keep defect IDs readable, long enough
-    that the collision space (2^64) is safe for FI-scale dedupe.
+    Returns a 16-hex-char SHA-256 prefix over:
+      - ``spec_content_hash``;
+      - ``as_of`` (ISO);
+      - the per-contract content hashes from ``input_manifest`` (when
+        provided), sorted by contract id — so two re-runs against the
+        SAME spec at the SAME as_of but against DIFFERENT data
+        snapshots produce DIFFERENT defect IDs. Without this, a
+        corrected data feed reusing the original (spec, as_of) would
+        collide with the original defects in downstream
+        lifecycle/dedupe (codex P2 pass-2 on PR-C1).
+
+    16 hex chars → 2^64 collision space; safe for FI-scale dedupe.
     """
     import hashlib
 
-    payload = f"{spec_content_hash}|{as_of.isoformat()}".encode("utf-8")
+    parts = [spec_content_hash, as_of.isoformat()]
+    if input_manifest:
+        for cid in sorted(input_manifest.keys()):
+            meta = input_manifest[cid] or {}
+            content_hash = ""
+            if isinstance(meta, dict):
+                content_hash = str(meta.get("content_hash") or "")
+            parts.append(f"{cid}={content_hash}")
+    payload = "|".join(parts).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
@@ -263,7 +302,7 @@ def build_defect_log(
     # collision-free even when two exceptions share a check_id.
     for idx, exc in enumerate(dq_exceptions):
         category, classification = classify_defect(exc)
-        severity = _DQ_SEVERITY.get(exc.check_type, DefectSeverity.MEDIUM)
+        severity = _severity_for_dq(exc)
         defects.append(
             Defect(
                 id=_defect_id_for_dq(run_id, exc, idx),

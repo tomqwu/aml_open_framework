@@ -1005,6 +1005,19 @@ def run_spec(
                 "detail": str(exc),
             }
         )
+        # PR-C1 (#371) codex pass-2 P2: contract-violation aborts also
+        # bypass `_finalize_run()`, so without this emit the DQ
+        # exceptions already gathered would have a `dq_exceptions.jsonl`
+        # entry but no matching `defect_log.jsonl` ticket. Preserve the
+        # one-ticket-per-DQ-exception artifact contract by writing
+        # whatever defects accumulated so far before re-raising.
+        defects = build_defect_log(
+            run_id=derive_run_id(ledger.spec_content_hash, ledger.as_of, ledger.input_manifest),
+            dq_exceptions=dq_exceptions or [],
+            python_ref_failures={},
+            created_at=ledger.as_of,
+        )
+        write_defect_log(ledger.run_dir, defects)
         raise
 
     # DATA-2 whitepaper claim: per-attribute freshness pinning. After
@@ -1117,7 +1130,11 @@ def run_spec(
                     # tickets — even though `manifest.json` won't
                     # exist (the run was never finalized).
                     defects = build_defect_log(
-                        run_id=derive_run_id(ledger.spec_content_hash, ledger.as_of),
+                        run_id=derive_run_id(
+                            ledger.spec_content_hash,
+                            ledger.as_of,
+                            ledger.input_manifest,
+                        ),
                         dq_exceptions=dq_exceptions or [],
                         python_ref_failures=python_ref_failures,
                         created_at=ledger.as_of,
@@ -1370,7 +1387,11 @@ def _finalize_run(
     # byte-stable across re-runs — required for the manifest-hash
     # determinism contract. Codex P2 on PR-C1.
     defects = build_defect_log(
-        run_id=derive_run_id(ledger.spec_content_hash, ledger.as_of),
+        run_id=derive_run_id(
+            ledger.spec_content_hash,
+            ledger.as_of,
+            ledger.input_manifest,
+        ),
         dq_exceptions=dq_exceptions or [],
         python_ref_failures=python_ref_failures or {},
         created_at=ledger.as_of,
