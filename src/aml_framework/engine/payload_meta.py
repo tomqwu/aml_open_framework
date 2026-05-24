@@ -185,8 +185,15 @@ def stamp_payload_meta(
     may have placed under the same key (e.g. a `custom_sql` rule whose
     SELECT happens to project a column called `threshold`). This is the
     point of Pillar 6: investigators must read a uniform, spec-derived
-    contract, not arbitrary executor output. Mirrors the audit-ledger's
-    posture for `rule_version` on `case_opened` events.
+    contract, not arbitrary executor output.
+
+    `rule_version` is NOT stamped here — it lives at the case level
+    (`_build_case` injects it on the case file) so the alert hashes
+    stay invariant under spec-metadata-only changes (e.g.
+    `evaluation_mode: streaming`, pinned by
+    `test_engine_runs_batch_regardless_of_field`). The audit ledger
+    already stamps `rule_version` on `case_opened` decision events; the
+    case file mirrors that for dashboard convenience.
 
     Returns the same list for caller convenience. The audit ledger's
     `record_alerts` runs over the same list so the metadata lands on

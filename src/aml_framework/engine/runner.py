@@ -102,6 +102,11 @@ class CaseDict(TypedDict):
     case_id: str
     rule_id: str
     rule_name: str
+    # PR-PAY-1: spec-derived `rule_version_hash(rule)` — same value the
+    # audit ledger stamps on `case_opened` decisions. Surfaced at the
+    # case level so the dashboard's "Why this fired" panel reads it
+    # without a ledger round-trip.
+    rule_version: str
     severity: str
     regulation_refs: list[dict[str, str]]
     queue: str
@@ -261,6 +266,16 @@ def _build_case(
         "case_id": case_id,
         "rule_id": rule.id,
         "rule_name": rule.name,
+        # PR-PAY-1: surface the spec-derived rule_version_hash at the
+        # case level so the Case Investigation 'Why this fired' panel
+        # can render it without a ledger round-trip. Same hash the audit
+        # ledger stamps on `case_opened` decision events
+        # (_open_cases_for_alerts below) — pinned by
+        # `test_rule_version_stamped_matches_audit_hash`. Lives on the
+        # case (not the alert) so alert hashes stay invariant under
+        # spec-metadata-only changes such as `evaluation_mode:
+        # streaming`, per `test_engine_runs_batch_regardless_of_field`.
+        "rule_version": rule_version_hash(rule),
         "severity": rule.severity,
         # Drop None-valued fields (e.g. unresolved `url`) so downstream
         # consumers expecting dict[str, str] don't choke. Round-7 #1

@@ -313,7 +313,13 @@ _w_left, _w_right = st.columns([1, 2])
 with _w_left:
     st.metric("Matched source rows", len(_matched_ids) if _matched_ids else 0)
     st.metric("Severity", str(case.get("severity", "—")))
-    st.metric("Rule version", (case.get("alert", {}).get("rule_version") or "—")[:16])
+    # PR-PAY-1: `_build_case` now stamps `rule_version` at the case
+    # level (same hash the audit ledger uses on `case_opened`
+    # decisions). Prefer that; fall back to the alert-level field
+    # for back-compat with case files written by older engine
+    # versions.
+    _rule_version = case.get("rule_version") or case.get("alert", {}).get("rule_version") or "—"
+    st.metric("Rule version", _rule_version[:16])
     # PR-PAY-1: render the uniform `threshold` + `reference_data_version`
     # metadata the engine stamps on every alert payload (Pillar 6 —
     # alert lifecycle & explainability). `threshold` is a small JSON

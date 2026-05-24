@@ -288,6 +288,26 @@ class TestStampPayloadMeta:
         out = stamp_payload_meta(rule, [], as_of=datetime(2026, 4, 23))
         assert out == []
 
+    def test_stamp_does_not_add_rule_version_to_alert(self):
+        """`rule_version` is surfaced at the **case** level (by
+        `_build_case`), not the alert level. Stamping it on the alert
+        would couple alert hashes to spec-metadata-only changes such as
+        `evaluation_mode: streaming`, breaking the
+        `test_engine_runs_batch_regardless_of_field` invariant. The
+        helper must NOT add it here."""
+        rule = _rule(
+            AggregationWindowLogic(
+                type="aggregation_window",
+                source="txn",
+                group_by=["customer_id"],
+                window="7d",
+                having={"count": {"gte": 3}},
+            )
+        )
+        alerts = [{"customer_id": "C1"}]
+        stamp_payload_meta(rule, alerts, as_of=datetime(2026, 4, 23))
+        assert "rule_version" not in alerts[0]
+
 
 # ---------------------------------------------------------------------------
 # Engine-level integration tests — every alert from every rule path
@@ -312,7 +332,7 @@ class TestRunnerStampsAllRulePaths:
     """Every alert across every executable rule logic type must carry
     `threshold` + `reference_data_version` keys (value may be None)."""
 
-    def test_every_alert_has_both_keys(self, tmp_path):
+    def test_every_alert_has_uniform_payload_meta_keys(self, tmp_path):
         _, result = _run(tmp_path, SPEC_CA)
         assert result.total_alerts > 0
         for rule_id, alerts in result.alerts.items():
@@ -321,6 +341,23 @@ class TestRunnerStampsAllRulePaths:
                 assert "reference_data_version" in alert, (
                     f"alert from rule {rule_id!r} missing 'reference_data_version' key"
                 )
+
+    def test_every_case_file_has_rule_version(self, tmp_path):
+        """Codex pass-3 follow-up: `rule_version` lives on the case
+        file (not the alert), same hash the audit ledger uses on
+        `case_opened` decisions. Lets the Case Investigation 'Rule
+        version' metric render without a ledger lookup."""
+        from aml_framework.engine.audit import rule_version_hash
+
+        spec, result = _run(tmp_path, SPEC_CA)
+        rule_by_id = {r.id: r for r in spec.rules}
+        run_dir = Path(result.manifest["run_dir"])
+        case_files = list((run_dir / "cases").glob("*.json"))
+        assert case_files, "the run must produce at least one case file"
+        for case_path in case_files:
+            case = json.loads(case_path.read_bytes())
+            rule = rule_by_id[case["rule_id"]]
+            assert case.get("rule_version") == rule_version_hash(rule)
 
     def test_aggregation_window_alert_threshold_echoes_having(self, tmp_path):
         spec, result = _run(tmp_path, SPEC_US)
