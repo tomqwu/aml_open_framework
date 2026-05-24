@@ -221,7 +221,7 @@ class TestStageCountsForContract:
 
 
 class TestDropBreakdownForContract:
-    def test_bronze_to_alert_with_dq_and_rule_filter(self):
+    def test_bronze_to_alert_with_dq_and_alert_surface(self):
         counts = _stage_counts_for_contract(
             contract_id="txn",
             layer="bronze",
