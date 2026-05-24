@@ -232,7 +232,11 @@ def bundle_investigation_to_str(
         alert_dict = case.get("alert") or {}
         case_lineage[cid] = {
             "rule_id": case.get("rule_id"),
-            "rule_version": alert_dict.get("rule_version"),
+            # PR-PAY-1: prefer case-level `rule_version` stamped by
+            # `_build_case`; fall back to the alert-level field for
+            # back-compat with case files written by older engine
+            # versions.
+            "rule_version": case.get("rule_version") or alert_dict.get("rule_version"),
             "matched_row_ids": alert_dict.get("matched_row_ids") or [],
             "input_files": [
                 {

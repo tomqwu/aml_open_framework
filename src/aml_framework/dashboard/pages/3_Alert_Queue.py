@@ -397,19 +397,21 @@ if not df_cases.empty and "status" in df_cases.columns:
                 return str(len(ids)) if ids else "—"
             return "—"
 
-        def _rule_version_short(alert: object) -> str:
-            if isinstance(alert, dict):
-                v = alert.get("rule_version")
-                if v:
-                    return str(v)[:16]
-            return "—"
+        # PR-PAY-1: prefer the case-level `rule_version` stamped by
+        # `_build_case`; fall back to the alert-level field for
+        # back-compat with case files written by older engine versions.
+        def _rule_version_short(row) -> str:
+            v = row.get("rule_version")
+            if not v:
+                alert = row.get("alert")
+                if isinstance(alert, dict):
+                    v = alert.get("rule_version")
+            return str(v)[:16] if v else "—"
 
         active["Matched rows"] = (
             active["alert"].apply(_matched_rows_count) if ("alert" in active.columns) else "—"
         )
-        active["Rule version"] = (
-            active["alert"].apply(_rule_version_short) if ("alert" in active.columns) else "—"
-        )
+        active["Rule version"] = active.apply(_rule_version_short, axis=1)
 
         show_cols = [
             "case_id",
