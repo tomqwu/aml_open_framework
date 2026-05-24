@@ -845,6 +845,176 @@ def test_threshold_row_with_narrative_preserves_rationale() -> None:
     assert "Velocity rule" in stub["business_intent"]
 
 
+def test_sql_row_preserves_threshold_block_as_tag() -> None:
+    """A SQL-bearing row with a parameter blob keeps the blob as a tag.
+
+    Regression for codex review P2: previously parameterised SQL
+    exports lost their parameter values from the generated YAML
+    because the SQL branch returned before adding the
+    `legacy_threshold_block:` tag.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="parameterised",
+        legacy_sql="SELECT * FROM txn WHERE amount > :threshold",
+        threshold_block={"threshold": 9500, "lookback_days": 7},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["type"] == "custom_sql"
+    threshold_tags = [t for t in stub["tags"] if t.startswith("legacy_threshold_block:")]
+    assert len(threshold_tags) == 1
+    blob = json.loads(threshold_tags[0].removeprefix("legacy_threshold_block:"))
+    assert blob["threshold"] == 9500
+    assert blob["lookback_days"] == 7
+
+
+def test_threshold_window_int_coerces_to_days() -> None:
+    """`window: 30` (integer) → `"30d"` so the spec accepts it."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": 30, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_float_coerces_to_days() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": 7.0, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "7d"
+
+
+def test_threshold_window_string_of_int_coerces() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": "14", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "14d"
+
+
+def test_threshold_window_valid_pattern_passes_through() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": "6h", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "6h"
+
+
+def test_threshold_window_unrecognised_falls_back() -> None:
+    """An unrecognised window value falls back to the default `30d`."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": True, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_window_garbage_string_falls_back() -> None:
+    """A string that's neither digits nor a valid pattern falls back."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"window": "weekly", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["window"] == "30d"
+
+
+def test_threshold_group_by_string_coerces_to_list() -> None:
+    """`group_by: "customer_id"` (string) → `["customer_id"]`."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"group_by": "customer_id", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id"]
+
+
+def test_threshold_group_by_comma_separated_string_splits() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={
+            "group_by": "customer_id, account_id",
+            "having": {"count": {"gte": 5}},
+        },
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id", "account_id"]
+
+
+def test_threshold_group_by_unrecognised_type_falls_back() -> None:
+    """A non-list/non-string group_by falls back to the default."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"group_by": 42, "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id"]
+
+
+def test_threshold_group_by_empty_list_falls_back() -> None:
+    """An empty `group_by` list falls back to the default."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"group_by": [], "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id"]
+
+
+def test_threshold_group_by_empty_string_falls_back() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"group_by": "   ", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["group_by"] == ["customer_id"]
+
+
+def test_threshold_source_empty_string_falls_back_to_todo() -> None:
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"source": "   ", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["source"] == "TODO_source_contract"
+
+
+def test_stub_with_coerced_metadata_validates_through_pydantic() -> None:
+    """Even with scalar legacy metadata, the stub validates as a Rule."""
+    from aml_framework.spec.models import Rule
+
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={
+            "window": 30,  # int — coerces to "30d"
+            "group_by": "customer_id",  # str — coerces to list
+            "having": {"sum": {"gte": 100000}},
+        },
+        regulator_refs=["FATF R.10"],
+    )
+    stub = to_aml_rule_stub(row)
+    Rule.model_validate(stub)
+
+
 def test_stub_legacy_threshold_block_is_tag_not_extra_field() -> None:
     """The preserved blob never appears as a top-level rule extra field.
 

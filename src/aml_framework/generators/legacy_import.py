@@ -448,6 +448,54 @@ def _regulation_refs_for(row: LegacyRuleRow) -> list[dict[str, str]]:
     ]
 
 
+def _coerce_window(value: Any) -> str:
+    """Coerce a legacy `window` value into the AML spec's `^[0-9]+[smhd]$` shape.
+
+    Common legacy shapes:
+      - `30` (int days) → `"30d"`
+      - `30.0` (float) → `"30d"`
+      - `"30"` (string-of-int) → `"30d"`
+      - `"30d"` (already valid) → unchanged
+      - anything else → `"30d"` fallback (the operator can correct)
+    """
+    if isinstance(value, bool):
+        return "30d"
+    if isinstance(value, int):
+        return f"{value}d"
+    if isinstance(value, float):
+        return f"{int(value)}d"
+    if isinstance(value, str):
+        text = value.strip()
+        if re.fullmatch(r"[0-9]+[smhd]", text):
+            return text
+        if text.isdigit():
+            return f"{text}d"
+    return "30d"
+
+
+def _coerce_group_by(value: Any) -> list[str]:
+    """Coerce a legacy `group_by` value into the AML spec's `list[str]` shape.
+
+    Common legacy shapes:
+      - `"customer_id"` → `["customer_id"]`
+      - `"customer_id, account_id"` → `["customer_id", "account_id"]`
+      - `["customer_id"]` (already valid) → unchanged
+      - anything else → `["customer_id"]` fallback
+    """
+    if isinstance(value, list):
+        out = [str(item).strip() for item in value if str(item).strip()]
+        return out if out else ["customer_id"]
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return ["customer_id"]
+        for sep in (",", "|", ";"):
+            if sep in text:
+                return [part.strip() for part in text.split(sep) if part.strip()]
+        return [text]
+    return ["customer_id"]
+
+
 def _sanitise_rule_id(raw: str) -> str:
     """Rewrite a legacy ID into the AML spec's `^[a-z][a-z0-9_]*$` shape.
 
@@ -502,6 +550,14 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
             # rationale so the operator can reconcile the imported
             # stub against the legacy export.
             stub["business_intent"] = row.narrative
+        if row.threshold_block is not None:
+            # SQL-bearing rows can also ship parameter blobs (e.g.
+            # parameterised SQL). Preserve them as a tag so the
+            # operator can reconcile against the source dump.
+            stub["tags"] = [
+                *stub["tags"],
+                f"legacy_threshold_block:{json.dumps(row.threshold_block, sort_keys=True)}",
+            ]
         return stub
 
     if row.threshold_block is not None:
@@ -533,11 +589,21 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
             # safe placeholder so the stub validates and the operator
             # gets pointed at the right rule by `aml validate`.
             derived_having = {"count": {"gte": 1}}
+        # Coerce metadata so common legacy scalar shapes
+        # (`group_by: "customer_id"`, `window: 30`) emit schema-valid
+        # output instead of forcing `aml validate` failures even after
+        # the operator fills the TODO source/queue fields.
+        source_raw = block.get("source")
+        source_value = (
+            source_raw
+            if isinstance(source_raw, str) and source_raw.strip()
+            else "TODO_source_contract"
+        )
         logic: dict[str, Any] = {
             "type": "aggregation_window",
-            "source": block.get("source", "TODO_source_contract"),
-            "group_by": block.get("group_by", ["customer_id"]),
-            "window": block.get("window", "30d"),
+            "source": source_value,
+            "group_by": _coerce_group_by(block.get("group_by", ["customer_id"])),
+            "window": _coerce_window(block.get("window", "30d")),
             "having": explicit_having if explicit_having is not None else derived_having,
         }
         if filter_block is not None:
