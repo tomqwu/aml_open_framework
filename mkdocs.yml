@@ -1,0 +1,114 @@
+site_name: AML Open Framework
+site_description: An anti-money-laundering program you can show to your regulator without a six-week reconstruction.
+site_url: https://tomqwu.github.io/aml_open_framework_docs/docs/
+repo_url: https://github.com/tomqwu/aml_open_framework
+repo_name: tomqwu/aml_open_framework
+edit_uri: edit/main/docs/
+
+# Site lives at /docs/ on the docs repo (root / is the demo deck).
+site_dir: site
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.indexes
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.action.edit
+    - content.action.view
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started.md
+      - legacy-import.md
+  - Architecture:
+      - architecture.md
+      - personas.md
+  - Operations:
+      - deployment.md
+      - audit-evidence.md
+      - dashboard-tour.md
+  - Reference:
+      - api-reference.md
+      - metrics-framework.md
+      - regulator-mapping.md
+      - jurisdictions.md
+  - Research:
+      - research/2026-05-aml-data-problem.md
+      - research/2026-05-regulator-pulse.md
+      - research/2026-04-aml-process-pain.md
+      - research/2026-04-fintech-aml-reality.md
+      - research/2026-04-competitive-positioning.md
+      - research/2026-04-regulator-pulse.md
+  - Progress:
+      - progress.md
+      - five-year-lookback.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/tomqwu/aml_open_framework
+  generator: false

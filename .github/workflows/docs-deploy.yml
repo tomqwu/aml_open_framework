@@ -1,0 +1,92 @@
+name: docs-deploy
+
+# Builds the MkDocs Material site from this repo's `docs/` and pushes
+# the rendered `site/` into the docs repo at `main:/docs/`. The docs
+# repo (tomqwu/aml_open_framework_docs) serves GitHub Pages from
+# `main:/` — the root index.html is the marketing deck, `/docs/` is
+# this engineering site.
+#
+# Triggers:
+#   - push to main when any of: mkdocs.yml | docs/** | this workflow
+#   - manual workflow_dispatch (force-rebuild on demand)
+#
+# Cross-repo push uses DOCS_REPO_PAT — a Personal Access Token with
+# `Contents: write` scope on tomqwu/aml_open_framework_docs. Stored
+# as a repo secret on this repo.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mkdocs.yml"
+      - "docs/**"
+      - ".github/workflows/docs-deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mkdocs + theme
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[docs]"
+
+      - name: Build static site
+        run: mkdocs build
+
+      - name: Checkout docs repo
+        uses: actions/checkout@v4
+        with:
+          repository: tomqwu/aml_open_framework_docs
+          token: ${{ secrets.DOCS_REPO_PAT }}
+          path: docs-site-repo
+          ref: main
+          fetch-depth: 1
+
+      - name: Sync site/ into docs-site-repo/docs/
+        run: |
+          # Wipe the existing /docs/ directory on the docs repo so
+          # deletions in this repo's docs/ flow through (else we'd
+          # accumulate orphaned pages forever).
+          rm -rf docs-site-repo/docs
+          mkdir -p docs-site-repo/docs
+          # Copy the rendered site/ into docs/ on the docs repo.
+          cp -R site/. docs-site-repo/docs/
+          # Belt-and-suspenders: ensure GitHub Pages doesn't try to
+          # Jekyll-process the static MkDocs output (filenames starting
+          # with `_` would otherwise get dropped).
+          touch docs-site-repo/docs/.nojekyll
+
+      - name: Commit + push to docs repo
+        run: |
+          cd docs-site-repo
+          git config user.name "aml-open-framework-bot"
+          git config user.email "bot@aml-open-framework.local"
+          git add docs
+          if git diff --staged --quiet; then
+            echo "No doc changes to publish."
+            exit 0
+          fi
+          # Source-commit reference so the docs repo's history points
+          # back at the commit that produced this build.
+          git commit -m "docs(site): rebuild from tomqwu/aml_open_framework@${{ github.sha }}"
+          git push origin main

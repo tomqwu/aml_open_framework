@@ -9,6 +9,10 @@ venv/
 .mypy_cache/
 dist/
 build/
+# MkDocs static-site output — built by .github/workflows/docs-deploy.yml
+# and pushed cross-repo into tomqwu/aml_open_framework_docs:main:/docs/.
+# Local `mkdocs build` produces this; we never commit it here.
+site/
 *.duckdb
 *.duckdb.wal
 .artifacts/

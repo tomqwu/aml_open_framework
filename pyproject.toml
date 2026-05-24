@@ -42,6 +42,18 @@ ai = [
     "openai>=1.0",
     "ollama>=0.1",
 ]
+docs = [
+    # MkDocs Material static-site generator. Source-of-truth for
+    # docs is this repo's `docs/` directory; CI workflow
+    # `.github/workflows/docs-deploy.yml` builds with `mkdocs build`
+    # and pushes the rendered `site/` into the docs repo
+    # (tomqwu/aml_open_framework_docs) under `main:/docs/`. The
+    # docs repo's root `index.html` is the marketing deck — both
+    # surfaces serve from GitHub Pages on that repo.
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "pymdown-extensions>=10.7",
+]
 dashboard = [
     # `st.container(key=...)` (used by the PR3 AI-advisor FAB to pin
     # the floating button position via the generated `st-key-<key>`
