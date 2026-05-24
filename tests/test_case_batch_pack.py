@@ -306,6 +306,57 @@ class TestCasePack:
         assert "C0001" not in decision_body
         assert manifest["pii_masked"] is True
 
+    def test_pii_masking_replaces_plaintext_in_compound_case_id(self, tmp_path: Path) -> None:
+        """Codex P1 follow-up: the engine's case_id is a compound
+        ``<rule>__<customer>__<ts>`` string. Substring masking must
+        replace the embedded plaintext PII inside identifiers
+        everywhere (ZIP entry names, manifest case_id, lineage)."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-compound"
+        run.mkdir()
+        # Hand-craft a case with engine-shaped compound case_id.
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        raw_case_id = "structuring_cash__C0001__2026-04-23T120000"
+        masked_customer = "abcd1234abcd1234"
+        case = {
+            "case_id": raw_case_id,
+            "rule_id": "structuring_cash",
+            "rule_name": "Structuring",
+            "severity": "high",
+            "queue": "l1_aml_analyst",
+            "alert": {"customer_id": "C0001", "matched_row_ids": [10]},
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {},
+            "status": "open",
+        }
+        (cases_dir / f"{raw_case_id}.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(
+            run,
+            [{"case_id": raw_case_id, "event": "case_opened", "customer_id": "C0001"}],
+        )
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": masked_customer, "plaintext": "C0001"})
+            + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, cases_dir / f"{raw_case_id}.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            names = set(zf.namelist())
+            manifest = json.loads(zf.read("manifest.json"))
+        # No ZIP entry name carries plaintext "C0001".
+        assert not any("C0001" in n for n in names), names
+        # The masked compound id appears in entry names.
+        masked_id = f"structuring_cash__{masked_customer}__2026-04-23T120000"
+        assert f"cases/{masked_id}.json" in names
+        assert f"lineage/{masked_id}.json" in names
+        # Manifest carries the masked case_id, not the plaintext.
+        assert manifest["case_id"] == masked_id
+        assert "C0001" not in json.dumps(manifest)
+
     def test_no_pii_map_sidecar_means_no_masking(self, populated_run: Path) -> None:
         """The reverse contract: unmasked runs are a pure no-op — the
         case dict is shipped as-is and `pii_masked` is False."""
@@ -534,6 +585,56 @@ class TestBatchPack:
             key.encode("utf-8"), manifest["bundle_hash"].encode("utf-8"), hashlib.sha256
         ).hexdigest()
         assert manifest["signature"]["value"] == expected
+
+    def test_batch_pack_masks_compound_case_ids_in_summary(self, tmp_path: Path) -> None:
+        """Batch summary + manifest must carry masked case_ids when the
+        run is masked (Codex P1)."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-batch-mask"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        ids = ["structuring_cash__C0001__t1", "structuring_cash__C0002__t2"]
+        for cid, cust in zip(ids, ("C0001", "C0002"), strict=True):
+            case = {
+                "case_id": cid,
+                "rule_id": "structuring_cash",
+                "rule_name": "S",
+                "severity": "high",
+                "queue": "q",
+                "alert": {"customer_id": cust, "matched_row_ids": [1]},
+                "evidence_requested": [],
+                "spec_program": "schedule_i_bank_aml",
+                "input_hash": {},
+                "status": "open",
+            }
+            (cases_dir / f"{cid}.json").write_text(
+                json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+            )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps(
+                        {"field": "customer_id", "hash": "h1h1h1h1h1h1h1h1", "plaintext": "C0001"}
+                    ),
+                    json.dumps(
+                        {"field": "customer_id", "hash": "h2h2h2h2h2h2h2h2", "plaintext": "C0002"}
+                    ),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        payload = build_batch_pack(spec, run, ids)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            summary = json.loads(zf.read("batch_summary.json"))
+            manifest = json.loads(zf.read("manifest.json"))
+            names = set(zf.namelist())
+        assert manifest["pii_masked"] is True
+        assert all("C000" not in cid for cid in summary["case_ids"])
+        assert all("C000" not in cid for cid in manifest["case_ids"])
+        assert not any("C000" in n for n in names)
 
     def test_duplicate_case_ids_deduplicated(self, populated_run: Path) -> None:
         spec = load_spec(SPEC_CA)

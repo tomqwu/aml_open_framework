@@ -555,14 +555,39 @@ def _load_pii_map(run_dir: Path) -> dict[str, str]:
     return mapping
 
 
+def _mask_compound_string(value: str, pii_map: dict[str, str]) -> str:
+    """Substring-substitute every plaintext PII value with its hash.
+
+    The engine builds compound identifiers like
+    ``<rule_id>__<customer_id>__<window_end>`` for ``case_id`` so the
+    plaintext PII appears *inside* a longer string (Codex P1). The
+    plain-equality swap in ``_apply_pii_map`` won't touch those. We
+    iterate the pii_map (longest plaintext first to avoid prefix
+    collisions like ``C0001`` masking ``C00010``) and do simple
+    ``str.replace`` substitution. Safe because PII columns are
+    declared at the spec layer and the engine hashes them to opaque
+    16-hex strings that can never collide with the surrounding
+    rule_id / timestamp tokens.
+    """
+    if not pii_map or not value:
+        return value
+    masked = value
+    for plaintext in sorted(pii_map.keys(), key=len, reverse=True):
+        if plaintext and plaintext in masked:
+            masked = masked.replace(plaintext, pii_map[plaintext])
+    return masked
+
+
 def _apply_pii_map(payload: Any, pii_map: dict[str, str]) -> Any:
     """Recursively replace plaintext values with their hashes.
 
-    Walks dicts/lists; for leaf strings that appear in ``pii_map`` (i.e.
-    were recorded as plaintext for a PII column on this run), swap them
-    for the hash the engine wrote into ``alerts/<rule>.jsonl``. Leaves
-    non-string leaves and unmapped strings untouched. Safe to call on
-    any case-shaped dict — the only side effect is hash substitution.
+    Walks dicts/lists. For leaf strings: when the entire value matches a
+    ``pii_map`` key it's swapped for the hash; for compound strings that
+    *contain* a plaintext as substring (e.g. ``case_id`` =
+    ``rule__C0001__ts``) we also do a substring substitution so PII
+    embedded inside identifiers is hashed too (Codex P1). Leaves
+    non-string types untouched. Safe to call on any case-shaped dict —
+    the only side effect is hash substitution.
     """
     if not pii_map:
         return payload
@@ -570,8 +595,10 @@ def _apply_pii_map(payload: Any, pii_map: dict[str, str]) -> Any:
         return {k: _apply_pii_map(v, pii_map) for k, v in payload.items()}
     if isinstance(payload, list):
         return [_apply_pii_map(v, pii_map) for v in payload]
-    if isinstance(payload, str) and payload in pii_map:
-        return pii_map[payload]
+    if isinstance(payload, str):
+        if payload in pii_map:
+            return pii_map[payload]
+        return _mask_compound_string(payload, pii_map)
     return payload
 
 
@@ -662,13 +689,18 @@ def _case_pack_files(
     """Per-case file payloads — shared by single-case + batch packs.
 
     ``pii_map`` (plaintext → hash from the run's ``pii_map.jsonl``) is
-    applied to the case dict before it is written, so granular packs
-    inherit the masking posture of the run that produced them. When the
-    run had no masking sidecar the mapping is empty and this is a no-op.
+    applied to the case dict, decision sub-chain, alert payload AND the
+    case_id-derived ZIP entry names + lineage identifiers before they
+    are written. PII embedded inside compound identifiers (e.g.
+    ``case_id`` = ``<rule>__<customer>__<ts>``) is substring-replaced.
+    Empty mapping (unmasked run) is a no-op.
     """
-    case_id = case.get("case_id", "")
+    raw_case_id = case.get("case_id", "")
+    masked_case_id = _mask_compound_string(raw_case_id, pii_map)
     rule_id = case.get("rule_id", "")
-    decisions = _filter_decisions_for_cases(all_decisions, {case_id})
+    # decisions are looked up by the engine-emitted raw case_id; mask
+    # them only on the way out.
+    decisions = _filter_decisions_for_cases(all_decisions, {raw_case_id})
     alerts = _alerts_for_case(case, pii_map)
     rule_sql = _read_optional(run_dir, f"rules/{rule_id}.sql")
     # Codex P2: the engine stamps `rule_version` on the `case_opened`
@@ -683,7 +715,7 @@ def _case_pack_files(
                 rule_version = d["rule_version"]
                 break
     lineage = {
-        "case_id": case_id,
+        "case_id": masked_case_id,
         "rule_id": rule_id,
         "rule_version": rule_version,
         "matched_row_ids": alert_dict.get("matched_row_ids") or [],
@@ -701,15 +733,15 @@ def _case_pack_files(
     masked_case = _apply_pii_map(case, pii_map)
     masked_decisions = [_apply_pii_map(d, pii_map) for d in decisions]
     files: dict[str, bytes] = {
-        f"cases/{case_id}.json": _dump_json(masked_case),
-        f"decisions/{case_id}.jsonl": (
+        f"cases/{masked_case_id}.json": _dump_json(masked_case),
+        f"decisions/{masked_case_id}.jsonl": (
             "\n".join(json.dumps(d, sort_keys=True) for d in masked_decisions)
             + ("\n" if masked_decisions else "")
         ).encode("utf-8"),
-        f"alerts/{case_id}.jsonl": (
+        f"alerts/{masked_case_id}.jsonl": (
             "\n".join(json.dumps(a, sort_keys=True) for a in alerts) + ("\n" if alerts else "")
         ).encode("utf-8"),
-        f"lineage/{case_id}.json": _dump_json(lineage),
+        f"lineage/{masked_case_id}.json": _dump_json(lineage),
     }
     if rule_sql is not None:
         files[f"rules/{rule_id}.sql"] = rule_sql
@@ -755,7 +787,8 @@ def build_case_pack(
         "spec_program": spec.program.name,
         "spec_jurisdiction": spec.program.jurisdiction,
         "regulator": spec.program.regulator,
-        "case_id": case.get("case_id", ""),
+        # Mask any PII embedded in the compound case_id (Codex P1).
+        "case_id": _mask_compound_string(case.get("case_id", ""), pii_map),
         "rule_id": case.get("rule_id", ""),
     }
     return _assemble_pack(files, manifest_base, signing_key=signing_key)
@@ -805,10 +838,13 @@ def build_batch_pack(
     for case in cases:
         files.update(_case_pack_files(spec, case, run_dir, all_decisions, pii_map))
 
+    # Mask any PII embedded in compound case_ids (Codex P1) before
+    # surfacing them in the batch_summary / manifest.
+    masked_ids = sorted({_mask_compound_string(cid, pii_map) for cid in ordered_ids})
     files["batch_summary.json"] = _dump_json(
         {
             "case_count": len(cases),
-            "case_ids": sorted(ordered_ids),
+            "case_ids": masked_ids,
             "rules": sorted({c.get("rule_id", "") for c in cases if c.get("rule_id")}),
         }
     )
@@ -821,7 +857,7 @@ def build_batch_pack(
         "spec_jurisdiction": spec.program.jurisdiction,
         "regulator": spec.program.regulator,
         "case_count": len(cases),
-        "case_ids": sorted(ordered_ids),
+        "case_ids": masked_ids,
     }
     return _assemble_pack(files, manifest_base, signing_key=signing_key)
 
