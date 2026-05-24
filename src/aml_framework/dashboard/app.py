@@ -8,7 +8,6 @@ from aml_framework.dashboard.audience import (
     AUDIENCE_PAGES,
     AUDIT_TRAIL_PAGES,
     EQUIVALENCE_PAGES,
-    KNOWLEDGE_PAGES,
     LIFECYCLE_PAGES,
     NORTH_STAR_PAGES,
     PERSONA_LABELS,
@@ -143,7 +142,7 @@ ALL_PAGES: dict[str, list[st.Page]] = {
         # in Detection & Tuning next to Rule Tuning / Tuning Lab /
         # Rule Performance — the engineer's tuning lane — even though
         # it's universally routed (every persona sees it via
-        # TUNING_PAGES, same idiom as NORTH_STAR_PAGES / KNOWLEDGE).
+        # TUNING_PAGES, same idiom as NORTH_STAR_PAGES).
         st.Page(
             "pages/45_FP_Analysis.py",
             title="FP Analysis",
@@ -158,8 +157,8 @@ ALL_PAGES: dict[str, list[st.Page]] = {
         # sibling pages (Rule Performance, Spec Editor, Tuning Lab) are
         # the surfaces a reviewer crosses-back-and-forth with, even
         # though governance is cross-cutting. Universally routed via
-        # LIFECYCLE_PAGES (same idiom as North-Star / Knowledge / FP
-        # Analysis) so every persona keeps visibility without burning a
+        # LIFECYCLE_PAGES (same idiom as North-Star / FP Analysis)
+        # so every persona keeps visibility without burning a
         # slot in AUDIENCE_PAGES (MAX_PAGES_PER_PERSONA=9 preserved).
         # URL slug pinned to match the title-derived form the e2e
         # helper uses.
@@ -248,14 +247,14 @@ ALL_PAGES: dict[str, list[st.Page]] = {
         # Reporting because it's the strategic "are we honoring the
         # 8 pillars?" surface, even though it's universally routed
         # (every persona sees it via NORTH_STAR_PAGES, same idiom as
-        # Today / Executive Dashboard / KNOWLEDGE_PAGES).
+        # Today / Executive Dashboard).
         st.Page(
             "pages/43_North_Star_Coverage.py",
             title="North-Star Pillar Coverage",
             icon=":material/explore:",
             # Pin URL to match title-derived slug (`replace(' ', '_')`)
             # so direct/bookmarked nav stays consistent with the rest of
-            # the dashboard. Same idiom as the Knowledge pages above.
+            # the dashboard.
             url_path="North-Star_Pillar_Coverage",
         ),
     ],
@@ -302,89 +301,9 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             icon=":material/rocket_launch:",
         ),
     ],
-    "Knowledge": [
-        # PR-U2 of the unified-product epic. The GitHub-Pages
-        # marketing/knowledge site is being merged into the product so
-        # the GH page can be retired ("one product, two doors, three
-        # skins"). These 8 native pages are the ported Research
-        # whitepapers — the prose lives in the generated
-        # `dashboard/data/research.py` substrate. Placed AFTER the
-        # operational categories: it's the reference shelf, not a
-        # day-to-day surface. Every persona can see it (audience.py
-        # maps all personas to these titles).
-        # Knowledge filenames are `33_Knowledge_*`, so Streamlit's
-        # filename-derived slug would be `Knowledge_Architecture`, not
-        # the title-derived `Architecture` slug the rest of the app and
-        # the e2e helper use (`title.replace(" & ", "_").replace(" ",
-        # "_")`, see tests/test_e2e_dashboard.py). Pin `url_path`
-        # explicitly so title-based deep links resolve to these pages.
-        st.Page(
-            "pages/33_Knowledge_Architecture.py",
-            title="Architecture",
-            url_path="Architecture",
-            icon=":material/account_tree:",
-        ),
-        st.Page(
-            "pages/34_Knowledge_Competitive_Landscape.py",
-            title="Competitive Landscape",
-            url_path="Competitive_Landscape",
-            icon=":material/insights:",
-        ),
-        st.Page(
-            "pages/35_Knowledge_Data_Is_The_Problem.py",
-            title="Data Is The Problem",
-            url_path="Data_Is_The_Problem",
-            icon=":material/database:",
-        ),
-        st.Page(
-            "pages/36_Knowledge_FinTech_AML_Reality.py",
-            title="FinTech AML Reality",
-            url_path="FinTech_AML_Reality",
-            icon=":material/rocket_launch:",
-        ),
-        st.Page(
-            "pages/37_Knowledge_Lineage_Deep_Dive.py",
-            title="Lineage Deep-Dive",
-            url_path="Lineage_Deep-Dive",
-            icon=":material/timeline:",
-        ),
-        st.Page(
-            "pages/38_Knowledge_AML_Process_Pain.py",
-            title="AML Process Pain",
-            url_path="AML_Process_Pain",
-            icon=":material/healing:",
-        ),
-        st.Page(
-            "pages/39_Knowledge_Regulator_Pulse_Brief.py",
-            title="Regulator Pulse Brief",
-            url_path="Regulator_Pulse_Brief",
-            icon=":material/podcasts:",
-        ),
-        st.Page(
-            "pages/40_Knowledge_TD_2024_Case_Study.py",
-            title="TD 2024 Case Study",
-            url_path="TD_2024_Case_Study",
-            icon=":material/gavel:",
-        ),
-        # PR-U3 — board-pack business deck (12 slides + 64s board
-        # video) and the engineer/MLRO technical deck (18 slides + 92s
-        # walkthrough video). Image+video oriented (no prose extract
-        # step), assets resolved via `Path(__file__).parents[4] /
-        # docs/pitch/deck-v2/`. Universal-routed alongside the other
-        # Knowledge pages.
-        st.Page(
-            "pages/41_Knowledge_Business_Deck.py",
-            title="Business Deck",
-            url_path="Business_Deck",
-            icon=":material/slideshow:",
-        ),
-        st.Page(
-            "pages/42_Knowledge_Technical_Deck.py",
-            title="Technical Deck",
-            url_path="Technical_Deck",
-            icon=":material/code:",
-        ),
-    ],
+    # R32: the in-app Knowledge category (pages 33-42) was retired now
+    # that the MkDocs docs site is live at `tomqwu.github.io/aml_open_framework_docs/`.
+    # A single sidebar link below routes operators there.
 }
 
 # Filter pages by audience if one is selected. PR-NAV-1 made
@@ -401,17 +320,13 @@ if selected_audience:
     # the strategic-view fallback when no persona is selected).
     relevant_titles.add("Today")
     relevant_titles.add("Executive Dashboard")
-    # PR-U2: the Knowledge reference shelf is universal too — every
-    # persona keeps access to the merged knowledge site regardless of
-    # the operational filter.
-    relevant_titles.update(KNOWLEDGE_PAGES)
     # PR-NS-1: the North-Star pillar coverage page is the cross-cutting
     # "are we honoring the 8 pillars?" surface — pitch reviewers,
-    # examiners, every persona needs it. Universal same as Knowledge.
+    # examiners, every persona needs it.
     relevant_titles.update(NORTH_STAR_PAGES)
     # PR-E1 (#378): FP Analysis is cross-persona — analysts, MLROs,
     # engineers, examiners, and CCOs all need to see which rules are
-    # noisiest. Universal same as North-Star / Knowledge.
+    # noisiest. Universal same as North-Star.
     relevant_titles.update(TUNING_PAGES)
     # PR-A4 (#365): the Rule Lifecycle page surfaces lifecycle state
     # + the approval-workflow placeholder. Governance is cross-cutting
@@ -669,5 +584,26 @@ with st.sidebar:
             f"<span style='font-size:0.78rem;'>Cases **{len(result.case_ids)}**</span>",
             unsafe_allow_html=True,
         )
+
+    st.divider()
+
+    # R32: a single link to the external docs site replaces the previous
+    # in-app Knowledge tabs (pages 33-42, retired). `AML_DOCS_URL` env
+    # override lets deployments point at a private mirror; default is the
+    # public MkDocs site published by `.github/workflows/docs-deploy.yml`.
+    import os as _os
+
+    _docs_url = _os.environ.get("AML_DOCS_URL", "https://tomqwu.github.io/aml_open_framework_docs/")
+    st.markdown(
+        f'<a href="{_docs_url}" target="_blank" rel="noopener" '
+        'style="font-size:0.85rem; text-decoration:none;">'
+        "Research &amp; whitepapers &rarr;"
+        "</a><br>"
+        f'<a href="{_docs_url}how-to/" target="_blank" rel="noopener" '
+        'style="font-size:0.85rem; text-decoration:none;">'
+        "How-to recipes &rarr;"
+        "</a>",
+        unsafe_allow_html=True,
+    )
 
 pg.run()

@@ -59,21 +59,13 @@ PAGES = [
     "AI Assistant",
     "Information Sharing",
     "Lineage Explorer",
-    # PR-U2: the 8 ported Knowledge whitepapers (merged GH-Pages site).
-    "Architecture",
-    "Competitive Landscape",
-    "Data Is The Problem",
-    "FinTech AML Reality",
-    "Lineage Deep-Dive",
-    "AML Process Pain",
-    "Regulator Pulse Brief",
-    "TD 2024 Case Study",
-    # PR-U3: the 2 deck pages (board-pack business + technical CLI).
-    "Business Deck",
-    "Technical Deck",
-    # PR-NS-1: north-star pillar coverage (universal, like Knowledge).
+    # R32 retired the in-app Knowledge pages (PR-U2/U3, pages 33–42)
+    # once the MkDocs docs site shipped in R31. Whitepapers + decks
+    # now live at tomqwu.github.io/aml_open_framework_docs/, linked
+    # from the sidebar.
+    # PR-NS-1: north-star pillar coverage (universal).
     "North-Star Pillar Coverage",
-    # PR-E1: false-positive analysis (universal, like Knowledge).
+    # PR-E1: false-positive analysis (universal).
     "FP Analysis",
     # PR-A4 (#365): rule lifecycle dashboard + approval-workflow
     # placeholder (universally routed, same idiom as North-Star).
@@ -238,16 +230,9 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Equivalence": "Audit & Reference",
     "AI Assistant": "Audit & Reference",
     "FinTech Cockpit": "FinTech",
-    # PR-U2: the Knowledge reference shelf (universal — visible to
-    # every persona regardless of the audience filter).
-    "Architecture": "Knowledge",
-    "Competitive Landscape": "Knowledge",
-    "Data Is The Problem": "Knowledge",
-    "FinTech AML Reality": "Knowledge",
-    "Lineage Deep-Dive": "Knowledge",
-    "AML Process Pain": "Knowledge",
-    "Regulator Pulse Brief": "Knowledge",
-    "TD 2024 Case Study": "Knowledge",
+    # R32 retired the in-app Knowledge reference shelf (PR-U2/U3,
+    # pages 33–42). Whitepapers + decks now live on the MkDocs docs
+    # site at tomqwu.github.io/aml_open_framework_docs/.
 }
 
 

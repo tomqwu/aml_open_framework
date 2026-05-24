@@ -72,8 +72,11 @@ class TestHealth:
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")
 class TestLandingFrontDoor:
     """PR-U1: FastAPI owns / and serves the thin static hero so the
-    framework hosts its own landing. PR-U4 retired the GH Pages demo
-    in favor of the dashboard's native Knowledge section."""
+    framework hosts its own landing. PR-U4 pointed the KB CTA at the
+    dashboard's native Knowledge section. R32 (the in-app Knowledge
+    pages were retired in favor of the MkDocs docs site) now points
+    the KB CTA at the docs site instead — single canonical surface
+    for whitepapers + how-tos."""
 
     @pytest.fixture(autouse=True)
     def _clear_url_env(self, monkeypatch):
@@ -110,18 +113,15 @@ class TestLandingFrontDoor:
         # The new "/" route must not shadow the API surface.
         assert client.get("/api/v1/health").status_code == 200
 
-    def test_default_kb_url_points_at_dashboard_knowledge(self):
-        # PR-U4: GH-Pages demo retired in favor of the dashboard's
-        # native Knowledge section (PR-U2 + PR-U3 = 10 ported
-        # pages). Pin: the default KB URL is no longer a github.io
-        # link.
+    def test_default_kb_url_points_at_docs_site(self):
+        # R32: the in-app Knowledge pages were retired; the KB CTA now
+        # points at the MkDocs docs site
+        # (`tomqwu.github.io/aml_open_framework_docs/`) — single
+        # canonical surface for whitepapers + how-tos.
         body = client.get("/").text
-        assert "github.io" not in body, (
-            "GH-Pages demo URL should no longer be the default KB target"
-        )
-        # And the dashboard Architecture page should be in the body
-        # (substituted into __KB_URL__).
-        assert "/Architecture" in body
+        assert "tomqwu.github.io/aml_open_framework_docs" in body
+        # And the old in-app `/Architecture` deep link is gone.
+        assert "/Architecture" not in body
 
     def test_app_redirect_returns_302_to_dashboard(self):
         # PR-U4: stable `/app` marketing URL redirects to the
@@ -139,13 +139,12 @@ class TestLandingFrontDoor:
         assert resp.status_code == 302
         assert resp.headers["location"] == "https://app.example.test"
 
-    def test_knowledge_redirect_returns_302_to_dashboard(self):
+    def test_knowledge_redirect_returns_302_to_docs_site(self):
         resp = client.get("/knowledge", follow_redirects=False)
         assert resp.status_code == 302
-        # Default points at the dashboard's Architecture entry
-        # (the first Knowledge page in PR-U2's port order).
-        assert "/Architecture" in resp.headers["location"]
-        assert "github.io" not in resp.headers["location"]
+        # R32: default points at the MkDocs docs site (the in-app
+        # Knowledge pages were retired).
+        assert "tomqwu.github.io/aml_open_framework_docs" in resp.headers["location"]
 
     def test_knowledge_redirect_honors_env_override(self, monkeypatch):
         monkeypatch.setenv("AML_KB_URL", "https://docs.example.test/knowledge")
@@ -164,23 +163,23 @@ class TestLandingFrontDoor:
     def test_knowledge_redirect_supports_head(self):
         resp = client.head("/knowledge", follow_redirects=False)
         assert resp.status_code == 302
-        assert "/Architecture" in resp.headers["location"]
+        assert "tomqwu.github.io/aml_open_framework_docs" in resp.headers["location"]
 
-    def test_knowledge_default_derives_from_app_url(self, monkeypatch):
-        # Codex P2 round 1 — when an operator sets AML_APP_URL to a
-        # non-dev dashboard but leaves AML_KB_URL unset, the
-        # knowledge fallback must follow the app host (otherwise
-        # /knowledge silently sends users to the dev stack).
+    def test_knowledge_kb_url_is_independent_of_app_url(self, monkeypatch):
+        # R32: AML_KB_URL is no longer derived from AML_APP_URL — the
+        # docs site is on a different host (GitHub Pages) than the
+        # dashboard (Azure Container Apps). Setting AML_APP_URL must
+        # NOT change where the KB CTA / `/knowledge` redirect points.
         monkeypatch.delenv("AML_KB_URL", raising=False)
         monkeypatch.setenv("AML_APP_URL", "https://prod-dash.example.test")
         resp = client.get("/knowledge", follow_redirects=False)
         assert resp.status_code == 302
-        assert resp.headers["location"] == "https://prod-dash.example.test/Architecture"
-        # And the landing page's __KB_URL__ substitution follows
-        # the same derivation.
+        assert "tomqwu.github.io/aml_open_framework_docs" in resp.headers["location"]
+        assert "prod-dash.example.test" not in resp.headers["location"]
+        # And the landing page's __KB_URL__ substitution stays on
+        # the docs site too.
         body = client.get("/").text
-        assert "https://prod-dash.example.test/Architecture" in body
-        assert "ca-aml-dashboard-dev" not in body
+        assert "tomqwu.github.io/aml_open_framework_docs" in body
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="fastapi not installed")

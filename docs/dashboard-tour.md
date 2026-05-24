@@ -1,8 +1,8 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **51 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **41 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
-The final ten pages form the **Knowledge** reference shelf — the merged GitHub-Pages knowledge site, ported native (PR-U2 ported 8 Research whitepapers; PR-U3 added the Business + Technical decks with their walkthrough videos — both PRs of the unified-product epic). They carry no engine coupling; every persona keeps access to them regardless of the audience filter.
+The sidebar carries two external links — **Research & whitepapers** and **How-to recipes** — pointing at the MkDocs docs site at `tomqwu.github.io/aml_open_framework_docs/` (`AML_DOCS_URL` env override). Round 32 (2026-05-24) retired the in-app Knowledge category — the 10 pages 33–42 ported from the old GH-Pages site in PR-U2/U3 — once the docs site shipped in Round 31. Knowledge content lives in one canonical place now; the dashboard owns the operational/run-coupled surfaces only.
 
 ```bash
 pip install -e ".[dev,dashboard]"
@@ -121,7 +121,7 @@ Pre-built library of 20+ AML detection rule templates across 9 categories: struc
 
 ### North Star Coverage
 
-The 8 AML/TM + DS pillars this framework is built around (equivalence-before-optimization, evidence-as-a-product, point-in-time correctness, DQ/reconciliation/defect management, risk-based controls, alert lifecycle & explainability, DS as governed augmentation, serve five roles) — surfaced as 8 cards classified COVERED / PARTIAL / GAP with concrete artefacts from the live spec/run and links to the relevant dashboard pages (PR-NS-1). Read-only synthesis surface — no engine call, no buttons. Live roll-up: **3 COVERED / 5 PARTIAL / 0 GAP** — COVERED are pillar 1 (equivalence — `engine/equivalence.py` + `pages/48_Equivalence.py`, shipped in PR-EQ-3 / Round 27), pillar 6 (alert lifecycle & explainability — flipped PARTIAL → COVERED in PR-PAY-1 / Round 28 once `engine/payload_meta.py` started stamping a uniform `threshold` + `reference_data_version` on every alert across all 5 rule shapes), and pillar 8 (serve five roles — `audience.py` persona routing). The 5 PARTIAL pillars (2 evidence-as-a-product, 3 point-in-time, 4 DQ/defect lifecycle, 5 risk-based controls, 7 DS as governed augmentation) name the missing piece on each card rather than soft-pedalling it — e.g. defect-ticket lifecycle, SCD-2 customer history, first-class `risk_tier`, model-risk approval gates. Routed universally — every persona sees it, same idiom as the Knowledge shelf.
+The 8 AML/TM + DS pillars this framework is built around (equivalence-before-optimization, evidence-as-a-product, point-in-time correctness, DQ/reconciliation/defect management, risk-based controls, alert lifecycle & explainability, DS as governed augmentation, serve five roles) — surfaced as 8 cards classified COVERED / PARTIAL / GAP with concrete artefacts from the live spec/run and links to the relevant dashboard pages (PR-NS-1). Read-only synthesis surface — no engine call, no buttons. Live roll-up: **3 COVERED / 5 PARTIAL / 0 GAP** — COVERED are pillar 1 (equivalence — `engine/equivalence.py` + `pages/48_Equivalence.py`, shipped in PR-EQ-3 / Round 27), pillar 6 (alert lifecycle & explainability — flipped PARTIAL → COVERED in PR-PAY-1 / Round 28 once `engine/payload_meta.py` started stamping a uniform `threshold` + `reference_data_version` on every alert across all 5 rule shapes), and pillar 8 (serve five roles — `audience.py` persona routing). The 5 PARTIAL pillars (2 evidence-as-a-product, 3 point-in-time, 4 DQ/defect lifecycle, 5 risk-based controls, 7 DS as governed augmentation) name the missing piece on each card rather than soft-pedalling it — e.g. defect-ticket lifecycle, SCD-2 customer history, first-class `risk_tier`, model-risk approval gates. Routed universally — every persona sees it, same idiom as Today / Executive Dashboard.
 
 _Screenshot: pending — see follow-up._
 
@@ -137,7 +137,7 @@ Per-rule analytics table showing alert counts, detection rates, and logic types.
 
 ### Rule Lifecycle
 
-Per-rule lifecycle state (active / experimental / deprecated) plus a per-rule approval-workflow placeholder (PR-A4, closes #365). Lifecycle KPI strip counts rules by status; the governance table surfaces `model_tier`, `validation_cadence_months`, `rule_version` (16-hex SHA-256), `business_intent` (truncated), `out_of_scope` exclusion count, and `risk_tier` — deliberately different columns from Rule Performance (alert volume + detection rate) so the two pages complement instead of overlap. Sorted by status (deprecated last, then experimental, then active) so the "rules being tuned right now" band is most visible. The `approval` column is an HONEST placeholder: until the signed-off-version store ships in a follow-up PR, every row reads `⚠ unapproved` — captioned plainly so a reviewer is never misled into thinking the workflow is wired. Cross-links to Spec Editor (modify rules), Rule Performance (per-rule stats), and Tuning Lab (validate experimental rules before promotion). Routed universally — every persona sees it, same idiom as the Knowledge shelf and North-Star Coverage.
+Per-rule lifecycle state (active / experimental / deprecated) plus a per-rule approval-workflow placeholder (PR-A4, closes #365). Lifecycle KPI strip counts rules by status; the governance table surfaces `model_tier`, `validation_cadence_months`, `rule_version` (16-hex SHA-256), `business_intent` (truncated), `out_of_scope` exclusion count, and `risk_tier` — deliberately different columns from Rule Performance (alert volume + detection rate) so the two pages complement instead of overlap. Sorted by status (deprecated last, then experimental, then active) so the "rules being tuned right now" band is most visible. The `approval` column is an HONEST placeholder: until the signed-off-version store ships in a follow-up PR, every row reads `⚠ unapproved` — captioned plainly so a reviewer is never misled into thinking the workflow is wired. Cross-links to Spec Editor (modify rules), Rule Performance (per-rule stats), and Tuning Lab (validate experimental rules before promotion). Routed universally — every persona sees it, same idiom as North-Star Coverage.
 
 _Screenshot: pending — see follow-up._
 
@@ -249,49 +249,14 @@ _Screenshot: pending — see follow-up._
 
 ---
 
-## Knowledge Pages
+## Knowledge → docs site (retired in-app)
 
-The merged GitHub-Pages research/knowledge site, ported into native Streamlit pages (PR-U2 + PR-U3 of the unified-product epic — "one product, two doors, three skins"). PR-U2 ported 8 Research whitepapers (prose extracted at build time into `dashboard/data/research.py`, rendered verbatim as Markdown — same discipline as `regulator_pulse.py`, no runtime HTML parsing, no new markdown-parser dependency). PR-U3 added 2 deck pages — board-pack **Business Deck** + engineer **Technical Deck** — each pairing a walkthrough video with a native slide gallery and PDF download; deck assets live under `docs/pitch/deck-v2/` and ship inside the deployed container. All 10 pages are pure reference: no engine or session-state coupling, visible to every persona. The Knowledge scope inherits the normal dashboard theme; a per-page dark showcase skin is deferred to a later phase.
+The in-app Knowledge category (10 pages 33–42) was retired in Round 32 once the MkDocs docs site shipped in Round 31. The same content — Compliance Manifest architecture rationale, the AML/TM data-problem whitepaper, competitive positioning, FinTech AML reality, lineage deep-dive, AML process pain, the narrative regulator-pulse brief, the TD 2024 case study, the board-pack business deck (12 slides + 64s video), the engineer technical deck (18 slides + 92s walkthrough) — now lives at:
 
-### Knowledge Architecture
+- **Whitepapers**: `https://tomqwu.github.io/aml_open_framework_docs/explain/`
+- **Deck PDFs (preserved doors)**: `/business/`, `/technical/`, `/v1-archive/`
 
-The Compliance Manifest design rationale: one manifest, four layers (Policy / Generation / Runtime / Evidence), the determinism + reproducibility hash model, why spec-over-code for regulated change, the two extensibility escape hatches, and what the framework explicitly is not. Ported from `docs/pitch/landing/research/architecture.html`.
-
-### Knowledge Competitive Landscape
-
-Where the framework wins versus the 2026 vendor field: six buyer archetypes on the vision × execution axes, per-archetype strengths and cautions, where the framework lands by buyer, and the five highest-leverage next features. Ported from `competitive-positioning.html`.
-
-### Knowledge Data Is The Problem
-
-The whitepaper arguing the data layer is the binding constraint on AML audit-defensibility: the 11 faces of the data problem, cross-cutting themes, a copy style guide, and the DATA-N → framework-artifact map. Ported from `data-problem.html`.
-
-### Knowledge FinTech AML Reality
-
-The 8 AML realities a fintech MLRO lives with — sponsor-bank cure notices, growth-as-risk, the Annex 1 questionnaire, VASP enforcement, the Travel Rule, the AMLR clock — each anchored to a primary source. Ported from `fintech.html`.
-
-### Knowledge Lineage Deep Dive
-
-The narrative behind the operational Lineage Explorer (page 32): the question regulators actually ask, the 12-field per-decision payload, the 7-link walk-back chain, reproducibility proof, and a worked example. Ported from `lineage.html`.
-
-### Knowledge AML Process Pain
-
-The 10 daily pain points an AML leader feels, the pain quadrant, cross-cutting themes, and a copy style guide of phrases to use and avoid — the language layer the product's persona voice is built on. Ported from `process-pain.html`.
-
-### Knowledge Regulator Pulse Brief
-
-The narrative 90-day regulator brief — themes plus the per-regulator event detail (Federal Reserve / OCC / FDIC / FinCEN / EU AMLA / FATF / UK FCA). The operational Regulator Pulse (page 27) is the filterable event log built on the same research; this is the prose companion. Ported from `regulator-pulse.html`.
-
-### Knowledge TD 2024 Case Study
-
-The largest BSA enforcement action of 2024 ($3.09B): penalty breakdown, five findings, finding-to-spec-clause traceability, the reports that would have flagged it, and the spec's regulatory citations. Ported from `td-2024.html`.
-
-### Knowledge Business Deck
-
-The 12-slide board-pack for CCO / MLRO / Audit Committee audiences — pain → capability map, the 2:1 rule, the meetings that stop happening, by-the-numbers — paired with a 64-second McKinsey-style **board video**. PDF download + native slide gallery. Source assets: `docs/pitch/deck-v2/business-slides/` + `docs/pitch/deck-v2/board-video/`. PR-U3 of the unified-product epic.
-
-### Knowledge Technical Deck
-
-The 18-slide engineer/MLRO companion deck — spec validation, the audit hash-chain proof, lineage walk-back, init/BYOD, multi-jurisdiction, by-the-numbers — paired with a 92-second auto-advance **walkthrough video** of the live deck. PDF download + native slide gallery. Source assets: `docs/pitch/deck-v2/slides/` + `docs/pitch/deck-v2/video/`. PR-U3 of the unified-product epic.
+The dashboard sidebar carries two external links (Research & whitepapers · How-to recipes). `AML_DOCS_URL` env override repoints both for private-mirror deploys. The deck PDF assets continue to ship under `docs/pitch/deck-v2/` for download.
 
 ---
 
@@ -333,7 +298,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The 51 pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the 10 Knowledge reference pages stay visible to every persona regardless of the filter:
+The 41 operational pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the cross-cutting synthesis surfaces (North-Star Coverage, FP Analysis, Threshold Sensitivity, Anomaly Discovery, Drift Monitor, Rule Lifecycle, Decision Trail, Experiment Tracking, Equivalence) stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|

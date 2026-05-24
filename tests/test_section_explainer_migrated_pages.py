@@ -55,23 +55,10 @@ _EXPECTED_PAGE_LEVEL = {
     "30_Data_Integration.py",
     "31_Information_Sharing.py",
     "32_Lineage_Explorer.py",
-    # PR-U2: the 8 ported Knowledge whitepapers. Each carries a
-    # page-level section_explainer so the "GenAI on every page"
-    # promise holds for the merged knowledge site too.
-    "33_Knowledge_Architecture.py",
-    "34_Knowledge_Competitive_Landscape.py",
-    "35_Knowledge_Data_Is_The_Problem.py",
-    "36_Knowledge_FinTech_AML_Reality.py",
-    "37_Knowledge_Lineage_Deep_Dive.py",
-    "38_Knowledge_AML_Process_Pain.py",
-    "39_Knowledge_Regulator_Pulse_Brief.py",
-    "40_Knowledge_TD_2024_Case_Study.py",
-    # PR-U3: deck pages (board-pack + technical) carry the same
-    # page-level explainer contract as the whitepaper pages — keeps
-    # the "GenAI on every page" promise across the full Knowledge
-    # category.
-    "41_Knowledge_Business_Deck.py",
-    "42_Knowledge_Technical_Deck.py",
+    # R32 retired the in-app Knowledge pages (PR-U2/U3, pages 33–42)
+    # — the section-explainer contract shrank with them. Knowledge
+    # content now lives on the MkDocs docs site (linked from the
+    # dashboard sidebar).
     # PR-NS-1: universally-routed north-star pillar coverage page,
     # same explainer contract as the Knowledge category above.
     "43_North_Star_Coverage.py",

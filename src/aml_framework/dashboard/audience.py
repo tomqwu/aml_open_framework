@@ -341,43 +341,24 @@ AUDIENCE_PAGES = {
 }
 
 
-# PR-U2 of the unified-product epic. The 8 ported Research whitepapers
-# form a "Knowledge" reference shelf. Every persona can see Knowledge —
-# it's the merged GitHub-Pages knowledge site, not a role-specific
-# workflow. Rather than add 8 titles to every persona's AUDIENCE_PAGES
-# entry (which would blow MAX_PAGES_PER_PERSONA and bury the operational
-# arc), Knowledge is routed UNIVERSALLY: app.py adds these titles to the
-# visible set for every persona, exactly the same idiom already used for
-# "Today" and "Executive Dashboard". Keeping the list here (not inlined
-# in app.py) makes the routing intent explicit and unit-testable
-# (tests/test_dashboard_knowledge.py) without a streamlit import.
-KNOWLEDGE_PAGES = [
-    "Architecture",
-    "Competitive Landscape",
-    "Data Is The Problem",
-    "FinTech AML Reality",
-    "Lineage Deep-Dive",
-    "AML Process Pain",
-    "Regulator Pulse Brief",
-    "TD 2024 Case Study",
-    # PR-U3 of the unified-product epic — board-pack + technical decks
-    # + their walkthrough videos, surfaced inside the product so the
-    # GH Pages deck hosting can be retired by PR-U4.
-    "Business Deck",
-    "Technical Deck",
-]
+# R32: the in-app Knowledge reference shelf (PR-U2/U3, pages 33–42) was
+# retired now that the MkDocs docs site (`tomqwu.github.io/aml_open_framework_docs`)
+# is live and hosts the same whitepapers + decks. The in-app pages were
+# the original "port the GH-Pages site INTO the product so we can retire
+# the GH-Pages site" move; R31 then rebuilt a GH-Pages site, leaving the
+# product carrying both surfaces. Picking one: docs site is the SEO/discovery
+# door; the dashboard sidebar carries a single link to it. See `app.py`'s
+# sidebar — the "Research & whitepapers →" entry replaces the previous
+# `KNOWLEDGE_PAGES` universal routing.
 
 
 # PR-NS-1. North-Star Pillar Coverage is a cross-cutting synthesis
 # surface — it answers "which of the 8 AML/TM + DS pillars does this
 # framework demonstrably honor today?" — so every persona (pitch
 # reviewer, examiner, CCO, engineer) needs visibility. Routed
-# UNIVERSALLY via the same idiom as Today / Executive Dashboard /
-# KNOWLEDGE_PAGES (app.py adds these titles to the visible set for
-# every persona), NOT via AUDIENCE_PAGES — that preserves
-# MAX_PAGES_PER_PERSONA=9. Kept as its own constant rather than
-# folded into KNOWLEDGE_PAGES because it's a live-run synthesis
-# page, not a static research brief.
+# UNIVERSALLY via the same idiom as Today / Executive Dashboard
+# (app.py adds these titles to the visible set for every persona),
+# NOT via AUDIENCE_PAGES — that preserves MAX_PAGES_PER_PERSONA=9.
 NORTH_STAR_PAGES = [
     "North-Star Pillar Coverage",
 ]
@@ -387,11 +368,10 @@ NORTH_STAR_PAGES = [
 # "DS as governed augmentation" surface — per-rule FP rate so the
 # operator can see which rules to tune first. Cross-persona: analysts,
 # MLROs, engineers, examiners, and CCOs all need it. Routed
-# UNIVERSALLY via the same idiom as NORTH_STAR_PAGES / KNOWLEDGE_PAGES
-# so the per-persona operational cap (MAX_PAGES_PER_PERSONA=9) is
-# untouched. Kept as its own constant rather than folded into an
-# existing list because it's an FP-rate synthesis page, not a static
-# knowledge brief or pillar-coverage map.
+# UNIVERSALLY via the same idiom as NORTH_STAR_PAGES so the per-persona
+# operational cap (MAX_PAGES_PER_PERSONA=9) is untouched. Kept as its
+# own constant rather than folded into an existing list because it's
+# an FP-rate synthesis page, not a static pillar-coverage map.
 TUNING_PAGES = [
     "FP Analysis",
     # PR-E2 (#379) — threshold-sensitivity sweep roll-up.
@@ -435,10 +415,9 @@ EQUIVALENCE_PAGES = [
 # the FP-rate analysis sibling above) and NOT alert-volume analytics
 # (Rule Performance owns that), so it sits in its own constant rather
 # than being folded into TUNING_PAGES. Routed UNIVERSALLY via the
-# same idiom as KNOWLEDGE_PAGES / NORTH_STAR_PAGES / TUNING_PAGES
-# (app.py adds these titles to the visible set for every persona),
-# NOT via AUDIENCE_PAGES — that preserves MAX_PAGES_PER_PERSONA=9
-# for the operational arcs.
+# same idiom as NORTH_STAR_PAGES / TUNING_PAGES (app.py adds these
+# titles to the visible set for every persona), NOT via AUDIENCE_PAGES
+# — that preserves MAX_PAGES_PER_PERSONA=9 for the operational arcs.
 LIFECYCLE_PAGES = [
     "Rule Lifecycle",
 ]

@@ -17,7 +17,7 @@ each have their own follow-up PRs (anomaly discovery #382, threshold
 sweep #379).
 
 Universally routed (every persona sees it via TUNING_PAGES — same
-idiom as NORTH_STAR_PAGES / KNOWLEDGE_PAGES) because FP analysis
+idiom as NORTH_STAR_PAGES) because FP analysis
 is cross-persona: analysts, MLROs, engineers, examiners, and CCOs
 all ask "which rules are noisiest?" Cross-links to Rule Tuning,
 Tuning Lab, and Rule Performance so the operator can jump from

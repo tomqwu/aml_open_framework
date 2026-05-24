@@ -25,8 +25,9 @@ file-text + AST guards pin that:
     & Reporting") and ``audience.py`` (``NORTH_STAR_PAGES`` constant,
     universally routed).
 
-Same pattern as ``test_dashboard_knowledge.py`` /
-``test_dashboard_data_integration_pr_c.py``.
+Same pattern as ``test_dashboard_data_integration_pr_c.py``
+(the retired KNOWLEDGE_PAGES (R32) test ``test_dashboard_knowledge.py``
+was the original example).
 """
 
 from __future__ import annotations
@@ -191,7 +192,7 @@ class TestPillarCoverage:
 class TestRegistration:
     def test_audience_has_north_star_pages_constant(self):
         # PR-NS-1 added a dedicated NORTH_STAR_PAGES constant rather
-        # than folding into KNOWLEDGE_PAGES (different semantics: live-
+        # than folding into the retired KNOWLEDGE_PAGES (R32) (different semantics: live-
         # run synthesis vs. static research brief).
         assert NORTH_STAR_PAGES == [NAV_TITLE], (
             f"NORTH_STAR_PAGES drift: expected {[NAV_TITLE]!r}, got {NORTH_STAR_PAGES!r}"
@@ -205,7 +206,7 @@ class TestRegistration:
         assert f'title="{NAV_TITLE}"' in body, f"app.py must use the exact nav title {NAV_TITLE!r}"
 
     def test_app_routes_north_star_universally(self):
-        # Universal-routing idiom — same pattern as KNOWLEDGE_PAGES.
+        # Universal-routing idiom — same pattern as the retired KNOWLEDGE_PAGES (R32).
         # Without this line every non-default persona's filter would
         # hide the page; the page must be visible to every persona.
         body = APP.read_text(encoding="utf-8")
@@ -218,14 +219,14 @@ class TestRegistration:
     def test_north_star_not_in_audience_pages(self):
         # Keeping the page OUT of AUDIENCE_PAGES preserves the per-
         # persona operational cap. Same discipline as
-        # KNOWLEDGE_PAGES (test_dashboard_knowledge.py pins this for
+        # the retired KNOWLEDGE_PAGES (R32) (test_dashboard_knowledge.py pins this for
         # the Knowledge titles).
         for persona, pages in AUDIENCE_PAGES.items():
             assert NAV_TITLE not in pages, (
                 f"{NAV_TITLE!r} leaked into AUDIENCE_PAGES[{persona!r}] — "
                 f"would count against MAX_PAGES_PER_PERSONA="
                 f"{MAX_PAGES_PER_PERSONA}; route universally instead "
-                "(via NORTH_STAR_PAGES, same idiom as KNOWLEDGE_PAGES)"
+                "(via NORTH_STAR_PAGES, same idiom as the retired KNOWLEDGE_PAGES (R32))"
             )
 
     def test_audience_module_has_no_streamlit_import(self):

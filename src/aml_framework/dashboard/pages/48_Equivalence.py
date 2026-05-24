@@ -20,8 +20,8 @@ Behaviour:
 
 Routed UNIVERSALLY (every persona sees it) via
 ``EQUIVALENCE_PAGES`` in ``audience.py`` — same idiom as
-``KNOWLEDGE_PAGES`` / ``NORTH_STAR_PAGES``. Audit-team-facing, so it's
-registered under the "Audit & Reference" sidebar category.
+``NORTH_STAR_PAGES``. Audit-team-facing, so it's registered under
+the "Audit & Reference" sidebar category.
 
 Read-only: never writes ``legacy_reference`` back to the spec — that
 edit path belongs to the Spec Editor.
