@@ -191,6 +191,41 @@ class TestCasePack:
         assert rows[0]["matched_row_ids"] == [10]
         assert rows[0]["customer_id"] == "C0001"
 
+    def test_alert_filter_excludes_other_cases_sharing_matched_rows(self, tmp_path: Path) -> None:
+        """Codex P2 regression: network/graph-pattern rules emit per-seed
+        alerts that share a subgraph's row set, so two cases can have
+        identical ``matched_row_ids`` for different customers. The filter
+        must match on (customer_id, matched_row_ids) together, not on
+        matched_row_ids alone."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-network"
+        run.mkdir()
+        # Two cases share matched_row_ids but seed different customers
+        # (typical of a network_pattern rule).
+        _write_case(
+            run, "case-net-X", rule_id="rapid_movement", customer_id="C0007", matched_rows=[1, 2]
+        )
+        _write_case(
+            run, "case-net-Y", rule_id="rapid_movement", customer_id="C0008", matched_rows=[1, 2]
+        )
+        _write_decisions(run, [])
+        _write_alert(
+            run,
+            "rapid_movement",
+            [
+                {"customer_id": "C0007", "matched_row_ids": [1, 2], "rule_id": "rapid_movement"},
+                {"customer_id": "C0008", "matched_row_ids": [1, 2], "rule_id": "rapid_movement"},
+            ],
+        )
+        payload = build_case_pack(spec, run / "cases" / "case-net-X.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            body = zf.read("alerts/case-net-X.jsonl").decode("utf-8")
+        rows = [json.loads(line) for line in body.splitlines() if line.strip()]
+        assert len(rows) == 1
+        assert rows[0]["customer_id"] == "C0007"
+        # The C0008 sibling alert must NOT leak in despite same matched rows.
+        assert all(r["customer_id"] != "C0008" for r in rows)
+
     def test_alert_filter_excludes_other_same_customer_alerts(self, tmp_path: Path) -> None:
         """Codex P2 regression: when one customer trips a rule multiple
         times, each alert maps to a separate case. The case pack must

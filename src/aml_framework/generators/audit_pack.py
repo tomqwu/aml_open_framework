@@ -544,19 +544,28 @@ def _filter_alerts_for_case(
     """Restrict the rule's alert payload to the rows that produced this case.
 
     The case dict carries the canonical alert under ``case["alert"]``; we
-    additionally retain any other alert row sharing the same
-    ``matched_row_ids`` value (i.e. produced from the same source rows).
-    Customer-id is **not** used as a fallback — when one customer trips a
-    rule multiple times each alert maps to a separate case, and granular
-    packs must ship only the requested case's evidence (Codex P2). When
-    no row matches we still attach the case's own alert payload so the
-    pack always has at least the canonical alert.
+    only retain alert-jsonl rows that match the case alert on **both**
+    ``customer_id`` and ``matched_row_ids`` (Codex P2). Filtering by
+    ``matched_row_ids`` alone is not enough — network/graph-pattern
+    rules emit per-seed alerts that share a subgraph's row set, so two
+    cases can have identical ``matched_row_ids`` for different
+    customers. Customer-id alone over-includes sibling-case alerts when
+    one customer trips a rule multiple times. The conjunction matches
+    exactly the rows the engine recorded for this case.
+
+    When no row matches (e.g. the alerts file was rotated away or the
+    case was loaded from an older format), we still attach the case's
+    own alert payload as a fallback so the pack has at minimum the
+    canonical alert.
     """
     alert = case.get("alert") or {}
     target_rows = alert.get("matched_row_ids") or []
+    target_customer = alert.get("customer_id")
     kept: list[dict[str, Any]] = []
     for row in alerts:
-        if target_rows and row.get("matched_row_ids") == target_rows:
+        same_rows = bool(target_rows) and row.get("matched_row_ids") == target_rows
+        same_customer = target_customer is not None and row.get("customer_id") == target_customer
+        if same_rows and same_customer:
             kept.append(row)
     if not kept and alert:
         # Always retain the case's own alert payload at minimum.
