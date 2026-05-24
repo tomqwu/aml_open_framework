@@ -894,6 +894,118 @@ def init(
     console.print(f"  [dim]$[/dim] aml dashboard {scaffold.spec_path}\n")
 
 
+def _load_legacy_inventory(legacy_path: Path):
+    """Dispatch by suffix to the right legacy parser. Returns ParseResult."""
+    from aml_framework.generators.legacy_import import (
+        parse_legacy_csv_with_warnings,
+        parse_legacy_json_with_warnings,
+    )
+
+    suffix = legacy_path.suffix.lower()
+    if suffix == ".csv":
+        return parse_legacy_csv_with_warnings(legacy_path)
+    if suffix == ".json":
+        return parse_legacy_json_with_warnings(legacy_path)
+    raise typer.BadParameter(f"Unsupported legacy file format '{suffix}' — expected .csv or .json.")
+
+
+@app.command(name="inventory")
+def inventory_cmd(
+    legacy_path: Path = typer.Argument(..., exists=True, readable=True),
+) -> None:
+    """Read-only summary of a legacy rule export.
+
+    Counts rules by shape (SQL / threshold / narrative / empty), flags
+    duplicate rule IDs, and reports how many rules are ready to import
+    vs how many need manual conversion. Use this before
+    `aml import-legacy` to size the migration.
+    """
+    from aml_framework.generators.legacy_import import inventory_summary
+
+    result = _load_legacy_inventory(legacy_path)
+    summary = inventory_summary(result.rows)
+
+    console.rule(f"[bold cyan]Legacy rule inventory — {legacy_path.name}[/bold cyan]")
+    console.print(f"  Total rules parsed : [bold]{summary['total']}[/bold]")
+    console.print(f"  Ready to import    : [green]{summary['ready_to_import']}[/green]")
+    console.print(f"  Needs manual work  : [yellow]{summary['needs_manual']}[/yellow]")
+    console.print(f"  Missing reg refs   : {summary['missing_regulator_refs']}")
+    if summary["duplicate_rule_ids"]:
+        console.print(
+            f"  [red]Duplicate rule_ids[/red]: {', '.join(summary['duplicate_rule_ids'])}"
+        )
+    table = Table(title="By shape")
+    table.add_column("Shape")
+    table.add_column("Count", justify="right")
+    for shape, count in summary["by_shape"].items():
+        table.add_row(shape, str(count))
+    console.print(table)
+    if result.warnings:
+        console.print(f"\n[yellow]{len(result.warnings)} parse warning(s):[/yellow]")
+        for warning in result.warnings[:20]:
+            rid = warning.rule_id or "—"
+            console.print(f"  row {warning.row_index} ({rid}): {warning.reason}")
+        if len(result.warnings) > 20:
+            console.print(f"  …and {len(result.warnings) - 20} more")
+
+
+@app.command(name="import-legacy")
+def import_legacy_cmd(
+    legacy_path: Path = typer.Argument(..., exists=True, readable=True),
+    output: Path = typer.Option(
+        Path("spec_skeleton.yaml"),
+        "--output",
+        "-o",
+        help="Where to write the starter spec skeleton.",
+    ),
+    overwrite: bool = typer.Option(
+        False, "--overwrite", help="Replace the output file if it already exists."
+    ),
+) -> None:
+    """Convert a legacy SAS / Actimize / Mantas / IMS rule export into a spec skeleton.
+
+    The output is a *starter* `aml.yaml` block — every legacy rule
+    becomes a stub the operator iterates on. SQL-bearing rules become
+    `logic.type: custom_sql`; threshold-bearing rules become
+    `aggregation_window` stubs with the legacy threshold tucked into
+    `having`; narrative-only rules emit a TODO placeholder so the
+    operator can find them with `grep TODO`.
+
+    The skeleton intentionally fails `aml validate` if used as-is —
+    that's the design. The operator must merge it into their real
+    spec, fill in regulation_refs / escalate_to / severity, and tune
+    thresholds against the institution's data contracts.
+    """
+    import yaml
+
+    from aml_framework.generators.legacy_import import build_spec_skeleton, inventory_summary
+
+    if output.exists() and not overwrite:
+        console.print(f"[red]{output} already exists.[/red]\nRe-run with [bold]--overwrite[/bold].")
+        raise typer.Exit(code=1)
+
+    result = _load_legacy_inventory(legacy_path)
+    summary = inventory_summary(result.rows)
+    skeleton = build_spec_skeleton(result.rows)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(yaml.safe_dump(skeleton, sort_keys=False), encoding="utf-8")
+
+    console.rule(f"[bold cyan]✓ Wrote {output}[/bold cyan]")
+    console.print(
+        f"  {summary['total']} rule(s) — "
+        f"[green]{summary['ready_to_import']} ready[/green], "
+        f"[yellow]{summary['needs_manual']} need manual work[/yellow]"
+    )
+    if result.warnings:
+        console.print(
+            f"  [yellow]{len(result.warnings)} parse warning(s) — run `aml inventory` to see them.[/yellow]"
+        )
+    console.print("\n[bold]Next steps:[/bold]")
+    console.print(f"  1. Open {output} and search for [bold]TODO[/bold] markers.")
+    console.print("  2. Fill in regulation_refs, escalate_to, severity per rule.")
+    console.print("  3. Merge into your real aml.yaml + run `aml validate`.")
+
+
 @app.command()
 def byod(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

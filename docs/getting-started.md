@@ -224,6 +224,7 @@ This is what you hand to your 2nd line of defense or an external auditor. Full s
 
 | If you want to... | Read |
 |---|---|
+| Import from a legacy SAS / Actimize / Mantas dump | [`docs/legacy-import.md`](legacy-import.md) — supported shapes, header aliases, manual-conversion workflow |
 | Understand the architecture end-to-end | [`docs/architecture.md`](architecture.md) |
 | See every dashboard page | [`docs/dashboard-tour.md`](dashboard-tour.md) |
 | Map your role to the framework | [`docs/personas.md`](personas.md) |

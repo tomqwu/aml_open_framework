@@ -36,6 +36,18 @@ from aml_framework.generators.mrm import (
     export_bundle_from_run_dir as export_mrm_bundle,
     render_dossier_markdown,
 )
+from aml_framework.generators.legacy_import import (
+    LegacyRuleRow,
+    ParseWarning,
+    build_spec_skeleton,
+    classify_row,
+    inventory_summary,
+    parse_legacy_csv,
+    parse_legacy_csv_with_warnings,
+    parse_legacy_json,
+    parse_legacy_json_with_warnings,
+    to_aml_rule_stub,
+)
 
 __all__ = [
     "compile_rule_sql",
@@ -68,4 +80,14 @@ __all__ = [
     "build_inventory",
     "export_mrm_bundle",
     "render_dossier_markdown",
+    "LegacyRuleRow",
+    "ParseWarning",
+    "build_spec_skeleton",
+    "classify_row",
+    "inventory_summary",
+    "parse_legacy_csv",
+    "parse_legacy_csv_with_warnings",
+    "parse_legacy_json",
+    "parse_legacy_json_with_warnings",
+    "to_aml_rule_stub",
 ]
