@@ -171,9 +171,19 @@ if not open_cases.empty:
                 else "—"
             )
         )
-        open_cases["Rule version"] = open_cases["alert"].apply(
-            lambda a: str(a.get("rule_version") or "—")[:16] if isinstance(a, dict) else "—"
-        )
+
+        # PR-PAY-1: prefer the case-level `rule_version` stamped by
+        # `_build_case`; fall back to the alert-level field for
+        # back-compat with case files written by older engine versions.
+        def _row_rule_version(row) -> str:
+            v = row.get("rule_version")
+            if not v:
+                a = row.get("alert")
+                if isinstance(a, dict):
+                    v = a.get("rule_version")
+            return str(v or "—")[:16]
+
+        open_cases["Rule version"] = open_cases.apply(_row_rule_version, axis=1)
         display_cols = [
             "case_id",
             "customer",

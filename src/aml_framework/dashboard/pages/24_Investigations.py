@@ -265,7 +265,10 @@ for case in cases:
     # count alongside SLA state. Same shape as Alert Queue / My Queue.
     _alert_dict = case.get("alert") or {}
     _matched = _alert_dict.get("matched_row_ids") or []
-    _rule_version = _alert_dict.get("rule_version") or "—"
+    # PR-PAY-1: prefer case-level `rule_version` stamped by
+    # `_build_case`; fall back to the alert-level field for back-compat
+    # with case files written by older engine versions.
+    _rule_version = case.get("rule_version") or _alert_dict.get("rule_version") or "—"
     case_rows.append(
         {
             "case_id": case["case_id"],

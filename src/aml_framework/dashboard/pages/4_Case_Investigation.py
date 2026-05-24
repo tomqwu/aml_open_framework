@@ -351,6 +351,21 @@ with _w_left:
                 "`rules/<rule_id>.sql` or the scorer's "
                 "`feature_attribution` for explainability._"
             )
+
+    # PR-PAY-1 codex pass-6 P2: when a python_ref scorer attached a
+    # `feature_attribution` map and / or an `explanation` string (the
+    # `heuristic_risk_scorer` does this — see PR-EXPLAIN), surface them
+    # here so model-backed alerts have first-class explainability on
+    # the same panel. Without this, Pillar 6 COVERED would overstate
+    # what investigators actually see for python_ref rules.
+    _feature_attr = _alert.get("feature_attribution")
+    _explanation = _alert.get("explanation")
+    if _feature_attr or _explanation:
+        st.caption("**Scorer attribution**")
+        if isinstance(_explanation, str) and _explanation:
+            st.markdown(_explanation)
+        if isinstance(_feature_attr, dict) and _feature_attr:
+            st.code(_json.dumps(_feature_attr, indent=2, sort_keys=True), language="json")
 with _w_right:
     if _rule_sql.strip():
         with st.expander("Rule SQL (post-substitution, executed verbatim)", expanded=False):

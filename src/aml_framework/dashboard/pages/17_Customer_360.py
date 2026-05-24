@@ -300,9 +300,18 @@ if not cust_cases.empty:
     cust_cases["Matched rows"] = cust_cases["alert"].apply(
         lambda a: str(len(a.get("matched_row_ids") or [])) if isinstance(a, dict) else "—"
     )
-    cust_cases["Rule version"] = cust_cases["alert"].apply(
-        lambda a: str(a.get("rule_version") or "—")[:16] if isinstance(a, dict) else "—"
-    )
+
+    # PR-PAY-1: prefer case-level `rule_version` stamped by
+    # `_build_case`; fall back to the alert-level field for back-compat.
+    def _row_rule_version(row) -> str:
+        v = row.get("rule_version")
+        if not v:
+            a = row.get("alert")
+            if isinstance(a, dict):
+                v = a.get("rule_version")
+        return str(v or "—")[:16]
+
+    cust_cases["Rule version"] = cust_cases.apply(_row_rule_version, axis=1)
     show_cols = show_cols + ["sla_state", "Matched rows", "Rule version"]
 
     available = [c for c in show_cols if c in cust_cases.columns]
