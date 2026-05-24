@@ -17,7 +17,7 @@ Snapshot of where the AML Open Framework is as of 2026-05-24. This document is a
 >
 > **Azure deploy**: single `v0.1.40` cut after all 8 PRs merged (ACR build + both Container Apps updated, `/api/v1/health` → `version=0.1.40, git_sha=70ee241, tag_summary=Round 28 close ...`). Schema additions are additive and back-compat — no per-PR rollouts needed.
 >
-> **Result**: 8 PRs merged + 9 issues closed + 1 Azure deploy + ~40 codex rounds across all PRs. The engine now emits **7 manifest-hashed evidence artifacts** per run (decisions.jsonl + dq_exceptions.jsonl + field_lineage.jsonl + sla_report.json + run_cost_volume.json + monitoring_digest.json + defect_log.jsonl + reconciliation_report.json). Pillar 2 + Pillar 4 + Pillar 6 all flip from PARTIAL to richer coverage. Zero open PRs, zero open issues at session close.
+> **Result**: 8 PRs merged + 9 issues closed + 1 Azure deploy + ~40 codex rounds across all PRs. The engine now emits **8 manifest-hashed evidence artifacts** per run (decisions.jsonl + dq_exceptions.jsonl + field_lineage.jsonl + sla_report.json + run_cost_volume.json + monitoring_digest.json + defect_log.jsonl + reconciliation_report.json). Pillar 2 + Pillar 4 + Pillar 6 all flip from PARTIAL to richer coverage. Zero open PRs, zero open issues at session close.
 
 ---
 
@@ -44,7 +44,7 @@ Snapshot of where the AML Open Framework is as of 2026-05-24. This document is a
 > - The dashboard batch (#413) was originally six individual PRs (#401, #405, #406, #408, #409, #410) — closed and re-shipped as one batch because the merge-train fanout problem (each PR touched shared wiring: `app.py`, `audience.py`, `tests/test_e2e_dashboard.py`, `dashboard-tour.md`) created N(N-1)/2 conflict resolutions. Single-batch ship was a clear win; ~30 fewer rebase rounds.
 > - Round 27 closed five `[deferred]` pillar tasks (#5 PR-A2 follow-up, #18 Decision Trail, #14 evidence pack, #34/#35/#36 each PR). Pillar 1 (Equivalence) flipped GAP → COVERED with the new dashboard surface.
 >
-> **Result**: 7 PRs merged + ~30 Codex rounds + 2 Azure deploys. The engine now emits 5 manifest-hashed evidence artifacts per run (`decisions.jsonl`, `dq_exceptions.jsonl`, `field_lineage.jsonl`, `sla_report.json`, `run_cost_volume.json`, `monitoring_digest.json`) — every one of which is tamper-evident via the SHA-256 chain. The dashboard grew from 47 to 53 pages. Pillar 1 closes; Pillar 6 lifecycle becomes a real product surface (SLA monitor + run cost + decision trail + monitoring digest all shipped in one round).
+> **Result**: 7 PRs merged + ~30 Codex rounds + 2 Azure deploys. The engine now emits 6 manifest-hashed evidence artifacts per run (`decisions.jsonl`, `dq_exceptions.jsonl`, `field_lineage.jsonl`, `sla_report.json`, `run_cost_volume.json`, `monitoring_digest.json`) — every one of which is tamper-evident via the SHA-256 chain. The dashboard grew from 47 to 53 pages. Pillar 1 closes; Pillar 6 lifecycle becomes a real product surface (SLA monitor + run cost + decision trail + monitoring digest all shipped in one round).
 
 ---
 
