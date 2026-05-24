@@ -920,7 +920,12 @@ def apply_theme() -> None:
 # ---------------------------------------------------------------------------
 
 
-def page_header(title: str, description: str | None = None) -> None:
+def page_header(
+    title: str,
+    description: str | None = None,
+    *,
+    render_chrome: bool = True,
+) -> None:
     """Consistent page header — deck DNA (PR-M).
 
     Renders the static-site / pitch-deck signature pattern on every
@@ -931,26 +936,34 @@ def page_header(title: str, description: str | None = None) -> None:
     Also mounts the GenAI assistant panel in the sidebar (PR-K). The
     assistant call is wrapped in try/except so a misconfigured backend
     never crashes a page render.
+
+    ``render_chrome=False`` skips the visible eyebrow/title/caption/
+    divider block and only mounts the side effects (assistant panels +
+    section-explainer poller). Use this for pages that render their own
+    bespoke entrance hero (e.g. ``0_Today.py``'s ``.dna-hero``) so the
+    page-level convention — "every page calls ``page_header()``" — still
+    holds without producing duplicate H1 surfaces.
     """
-    # Eyebrow: persona context if a persona is selected, else "Dashboard".
-    eyebrow_label = (
-        f"Dashboard · {st.session_state.get('selected_audience', '').replace('_', ' ').title()}".strip(
-            " ·"
+    if render_chrome:
+        # Eyebrow: persona context if a persona is selected, else "Dashboard".
+        eyebrow_label = (
+            f"Dashboard · {st.session_state.get('selected_audience', '').replace('_', ' ').title()}".strip(
+                " ·"
+            )
+            if st.session_state.get("selected_audience")
+            else "Dashboard"
         )
-        if st.session_state.get("selected_audience")
-        else "Dashboard"
-    )
-    st.markdown(
-        f'<div class="dna-eyebrow"><span class="dot"></span>{eyebrow_label}</div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(f"# {title}")
-    if description:
-        st.caption(description)
-    st.markdown(
-        '<hr style="border:none; border-top:1px solid var(--dna-rule); margin:10px 0 18px 0;">',
-        unsafe_allow_html=True,
-    )
+        st.markdown(
+            f'<div class="dna-eyebrow"><span class="dot"></span>{eyebrow_label}</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(f"# {title}")
+        if description:
+            st.caption(description)
+        st.markdown(
+            '<hr style="border:none; border-top:1px solid var(--dna-rule); margin:10px 0 18px 0;">',
+            unsafe_allow_html=True,
+        )
     # AI assistant — present on every page via this single wire-up (PR-K).
     # Two entry points mounted: the sidebar `ai_panel` (legacy, buried
     # below Streamlit's 32-page navigation widget) and the floating-
