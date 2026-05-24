@@ -399,9 +399,10 @@ _render_pillar(
         "carries a uniform `threshold` snapshot + `reference_data_version` "
         "fingerprint across all 5 rule shapes (`aggregation_window`, "
         "`list_match`, `network_pattern`, `custom_sql`, `python_ref`) — "
-        "shipped in `engine/payload_meta.py` (PR-PAY-1). The 'why this "
-        "fired' panel now reads from a typed contract instead of "
-        "best-effort dict scraping.",
+        "shipped in `engine/payload_meta.py` (PR-PAY-1). The Case "
+        "Investigation 'Why this fired' panel renders both fields "
+        "directly from the case file so investigators read the spec-"
+        "derived contract instead of best-effort dict scraping.",
     ],
     links=[
         ("Case Investigation — 'Why this fired' panel", "pages/4_Case_Investigation.py"),

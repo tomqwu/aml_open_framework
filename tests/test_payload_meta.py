@@ -98,6 +98,46 @@ class TestAlertThresholdSnapshot:
         snap = alert_threshold_snapshot(rule)
         assert snap == {"match": "fuzzy", "threshold": 0.85}
 
+    def test_list_match_fuzzy_omitted_threshold_uses_runner_default(self):
+        """Codex review (pass 1, blocker #2): when `logic.threshold` is
+        None on a fuzzy rule, `_execute_list_match` substitutes 0.8.
+        The snapshot must report the effective threshold the rule
+        actually fired at — reporting None would mislead investigators."""
+        from aml_framework.engine.payload_meta import DEFAULT_FUZZY_THRESHOLD
+
+        rule = _rule(
+            ListMatchLogic(
+                type="list_match",
+                source="customer",
+                field="full_name",
+                list="sanctions",
+                match="fuzzy",
+                # threshold omitted — schema allows it.
+            )
+        )
+        snap = alert_threshold_snapshot(rule)
+        assert snap == {"match": "fuzzy", "threshold": DEFAULT_FUZZY_THRESHOLD}
+
+    def test_list_match_fuzzy_zero_threshold_normalised_to_default(self):
+        """A schema-valid `threshold: 0.0` is also treated as falsy by
+        the runner's `or 0.8` fallback, so the snapshot must mirror
+        that behaviour (otherwise the alert says "fired at 0.0" while
+        the engine actually fired at 0.8)."""
+        from aml_framework.engine.payload_meta import DEFAULT_FUZZY_THRESHOLD
+
+        rule = _rule(
+            ListMatchLogic(
+                type="list_match",
+                source="customer",
+                field="full_name",
+                list="sanctions",
+                match="fuzzy",
+                threshold=0.0,
+            )
+        )
+        snap = alert_threshold_snapshot(rule)
+        assert snap == {"match": "fuzzy", "threshold": DEFAULT_FUZZY_THRESHOLD}
+
     def test_list_match_exact_preserves_none_threshold(self):
         rule = _rule(
             ListMatchLogic(
@@ -221,7 +261,12 @@ class TestReferenceDataVersion:
 
 
 class TestStampPayloadMeta:
-    def test_setdefault_does_not_overwrite_existing(self):
+    def test_engine_owned_keys_overwrite_executor_output(self):
+        """Codex review (pass 1, blocker #1): the audit contract is
+        engine-owned; an executor-projected `threshold` column (e.g.
+        from a custom_sql SELECT) must NOT win over the spec-derived
+        snapshot — otherwise Pillar 6's "uniform contract" claim is a
+        lie."""
         rule = _rule(
             AggregationWindowLogic(
                 type="aggregation_window",
@@ -231,10 +276,12 @@ class TestStampPayloadMeta:
                 having={"count": {"gte": 3}},
             )
         )
-        # Pre-existing keys win — `stamp_payload_meta` is non-clobbering.
-        alerts = [{"customer_id": "C1", "threshold": "custom"}]
+        alerts = [
+            {"customer_id": "C1", "threshold": "executor_smuggled_value"},
+        ]
         stamp_payload_meta(rule, alerts, as_of=datetime(2026, 4, 23))
-        assert alerts[0]["threshold"] == "custom"
+        # Engine-owned value wins.
+        assert alerts[0]["threshold"] == {"having": {"count": {"gte": 3}}}
         assert "reference_data_version" in alerts[0]
 
     def test_empty_alert_list_is_noop(self):

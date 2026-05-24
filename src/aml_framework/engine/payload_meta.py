@@ -53,9 +53,20 @@ from aml_framework.paths import REFERENCE_LISTS_DIR
 from aml_framework.spec.models import Rule
 
 __all__ = [
+    "DEFAULT_FUZZY_THRESHOLD",
     "alert_threshold_snapshot",
     "reference_data_version",
+    "stamp_payload_meta",
 ]
+
+
+# Mirror of the runner's `_execute_list_match` fallback for the fuzzy
+# score floor. Kept here too so the threshold snapshot reports the
+# *effective* threshold (what the rule actually fired at), not the raw
+# `logic.threshold` field — which may be None or omitted in the spec
+# even though the executor still uses 0.8. If the runner default ever
+# changes, update both constants together.
+DEFAULT_FUZZY_THRESHOLD = 0.8
 
 
 def alert_threshold_snapshot(rule: Rule) -> dict[str, Any] | None:
@@ -93,12 +104,21 @@ def alert_threshold_snapshot(rule: Rule) -> dict[str, Any] | None:
         return {"having": dict(having)}
 
     if logic_type == "list_match":
-        # Surface the fuzzy-match floor verbatim. For exact matches the
-        # spec model leaves threshold = None — preserve that so callers
-        # can distinguish "no scoring" from "scoring at 0.0".
+        # Surface the *effective* threshold the runner uses:
+        # `_execute_list_match` substitutes DEFAULT_FUZZY_THRESHOLD when
+        # `logic.threshold` is None or falsy (including the schema-valid
+        # 0.0). Reflect that here so the alert payload reports the
+        # threshold the rule actually fired at, not the raw spec field.
+        # For exact matches there is no scoring threshold — leave it as
+        # None so callers can distinguish "no scoring" from "score
+        # floor".
+        if logic.match == "fuzzy":
+            effective = logic.threshold or DEFAULT_FUZZY_THRESHOLD
+        else:
+            effective = None
         return {
             "match": logic.match,
-            "threshold": logic.threshold,
+            "threshold": effective,
         }
 
     if logic_type == "network_pattern":
@@ -159,12 +179,16 @@ def stamp_payload_meta(
     as_of: datetime,
     lists_dir: Path | None = None,
 ) -> list[dict[str, Any]]:
-    """Mutate each alert in-place to carry `threshold` + `reference_data_version`.
+    """Stamp every alert with `threshold` + `reference_data_version`.
 
-    Returns the same list for caller convenience. Existing keys on the
-    alert are **not** overwritten — if a rule executor already chose to
-    surface a richer threshold (today none do, but a future
-    rule-shape might), the executor's value wins. The audit ledger's
+    Both keys are **engine-owned** — they OVERWRITE any value an executor
+    may have placed under the same key (e.g. a `custom_sql` rule whose
+    SELECT happens to project a column called `threshold`). This is the
+    point of Pillar 6: investigators must read a uniform, spec-derived
+    contract, not arbitrary executor output. Mirrors the audit-ledger's
+    posture for `rule_version` on `case_opened` events.
+
+    Returns the same list for caller convenience. The audit ledger's
     `record_alerts` runs over the same list so the metadata lands on
     `alerts/<rule_id>.jsonl` AND on the final `cases/<case_id>.json`
     via `_build_case`.
@@ -172,6 +196,6 @@ def stamp_payload_meta(
     snapshot = alert_threshold_snapshot(rule)
     ref_version = reference_data_version(rule, as_of=as_of, lists_dir=lists_dir)
     for alert in alerts:
-        alert.setdefault("threshold", snapshot)
-        alert.setdefault("reference_data_version", ref_version)
+        alert["threshold"] = snapshot
+        alert["reference_data_version"] = ref_version
     return alerts

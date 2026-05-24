@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json as _json
 from datetime import datetime, timezone
 from pathlib import Path as _Path
 
@@ -313,6 +314,24 @@ with _w_left:
     st.metric("Matched source rows", len(_matched_ids) if _matched_ids else 0)
     st.metric("Severity", str(case.get("severity", "—")))
     st.metric("Rule version", (case.get("alert", {}).get("rule_version") or "—")[:16])
+    # PR-PAY-1: render the uniform `threshold` + `reference_data_version`
+    # metadata the engine stamps on every alert payload (Pillar 6 —
+    # alert lifecycle & explainability). `threshold` is a small JSON
+    # snapshot of the rule's active threshold (e.g. `{"having":
+    # {"count": {"gte": 3}}}` for aggregation_window;
+    # `{"match": "fuzzy", "threshold": 0.85}` for list_match);
+    # `reference_data_version` is the content-fingerprint of the
+    # reference list a list_match rule depended on (e.g.
+    # `"sanctions@a1b2c3d4e5f60718"`). Both keys are present on every
+    # alert across all 5 rule shapes — value may be None for rules
+    # that carry no first-class threshold / reference-list concept.
+    _ref_version = _alert.get("reference_data_version")
+    if _ref_version:
+        st.metric("Reference data", _ref_version)
+    _threshold_snapshot = _alert.get("threshold")
+    if _threshold_snapshot is not None:
+        st.caption("**Active threshold**")
+        st.code(_json.dumps(_threshold_snapshot, indent=2, sort_keys=True), language="json")
 with _w_right:
     if _rule_sql.strip():
         with st.expander("Rule SQL (post-substitution, executed verbatim)", expanded=False):
