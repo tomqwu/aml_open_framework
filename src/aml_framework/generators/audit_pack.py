@@ -571,6 +571,17 @@ class _PiiMap:
         return self._all_plaintexts
 
 
+class PiiMapCorruptError(ValueError):
+    """Raised when a run's ``pii_map.jsonl`` is malformed.
+
+    Fail-closed for regulator-facing evidence exports (Codex P2): a
+    corrupt masking sidecar must abort the pack build, not be silently
+    skipped — otherwise the requested case's customer_id could remain
+    unmasked in the ZIP while the manifest still advertises
+    ``pii_masked: true``.
+    """
+
+
 def _load_pii_map(run_dir: Path) -> _PiiMap:
     """Load the run's ``pii_map.jsonl`` sidecar into a field-aware map.
 
@@ -579,24 +590,30 @@ def _load_pii_map(run_dir: Path) -> _PiiMap:
     columns flagged ``pii: true``). Granular packs use the field tag to
     restrict masking to the right column so a numeric plaintext can't
     rewrite unrelated audit evidence (Codex P2).
+
+    Raises ``PiiMapCorruptError`` when the sidecar exists but a row is
+    malformed (Codex P2): silent skip would let a granular pack ship
+    with plaintext PII for the corrupt row's case.
     """
     by_field: dict[str, dict[str, str]] = {}
     sidecar = run_dir / "pii_map.jsonl"
     if not sidecar.exists():
         return _PiiMap(by_field)
-    for line in sidecar.read_text(encoding="utf-8").splitlines():
+    for line_no, line in enumerate(sidecar.read_text(encoding="utf-8").splitlines(), start=1):
         line = line.strip()
         if not line:
             continue
         try:
             row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
+        except json.JSONDecodeError as exc:
+            raise PiiMapCorruptError(f"{sidecar}: malformed JSON on line {line_no}: {exc}") from exc
         plain = row.get("plaintext")
         hashed = row.get("hash")
         field = row.get("field")
         if plain is None or hashed is None or field is None:
-            continue
+            raise PiiMapCorruptError(
+                f"{sidecar}: missing required key (field/plaintext/hash) on line {line_no}"
+            )
         by_field.setdefault(str(field), {})[str(plain)] = str(hashed)
     return _PiiMap(by_field)
 
@@ -663,12 +680,23 @@ def _apply_pii_map(payload: Any, pii_map: _PiiMap, *, key: str | None = None) ->
     if isinstance(payload, list):
         return [_apply_pii_map(v, pii_map, key=key) for v in payload]
     if isinstance(payload, str):
-        # Field-keyed exact-match swap.
+        # Field-keyed exact-match swap (handles PII columns directly).
         hashed = pii_map.lookup(key, payload)
         if hashed is not None:
             return hashed
         if key in _COMPOUND_ID_KEYS:
             return _mask_compound_string(payload, pii_map, key=key)
+        # Network-pattern cases nest customer ids inside subgraph
+        # objects under generic keys like ``seed``, ``id``, ``source``,
+        # ``target``. Those keys are not PII field names, so the
+        # field-keyed lookup above misses them. Fall back to an
+        # all-fields exact-string lookup — safe for opaque PII
+        # identifiers and only applied to *string* leaves so a numeric
+        # plaintext "1" still cannot rewrite int leaves like
+        # ``row_count`` (Codex P1 follow-up).
+        all_pt_hash = pii_map.all_plaintexts.get(payload)
+        if all_pt_hash is not None:
+            return all_pt_hash
         return payload
     # Non-string leaf — coerce to str() and look up under the same
     # field so a numeric/decimal/bool PII column gets hashed without

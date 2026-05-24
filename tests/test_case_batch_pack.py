@@ -22,6 +22,7 @@ from typer.testing import CliRunner
 from aml_framework.cli import app
 from aml_framework.generators.audit_pack import (
     CASE_PACK_VERSION,
+    PiiMapCorruptError,
     build_batch_pack,
     build_case_pack,
 )
@@ -356,6 +357,95 @@ class TestCasePack:
         # Manifest carries the masked case_id, not the plaintext.
         assert manifest["case_id"] == masked_id
         assert "C0001" not in json.dumps(manifest)
+
+    def test_pii_masking_handles_network_subgraph_node_ids(self, tmp_path: Path) -> None:
+        """Codex P1 follow-up: network_pattern alerts carry customer
+        ids nested inside ``subgraph.{seed, nodes[].id, edges[].source,
+        edges[].target}`` under non-PII-field keys. The masker must
+        catch these by value across all known plaintexts."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-net-mask"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        case = {
+            "case_id": "net__C0007__t",
+            "rule_id": "net",
+            "rule_name": "Network",
+            "severity": "high",
+            "queue": "q",
+            "alert": {
+                "customer_id": "C0007",
+                "matched_row_ids": [1],
+                "subgraph": {
+                    "seed": "C0007",
+                    "nodes": [{"id": "C0007"}, {"id": "C0008"}],
+                    "edges": [{"source": "C0007", "target": "C0008"}],
+                },
+            },
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {},
+            "status": "open",
+        }
+        (cases_dir / "net__C0007__t.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps({"field": "customer_id", "hash": "Hh07", "plaintext": "C0007"}),
+                    json.dumps({"field": "customer_id", "hash": "Hh08", "plaintext": "C0008"}),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, cases_dir / "net__C0007__t.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            case_doc = json.loads(zf.read("cases/net__Hh07__t.json"))
+        sub = case_doc["alert"]["subgraph"]
+        assert sub["seed"] == "Hh07"
+        assert {n["id"] for n in sub["nodes"]} == {"Hh07", "Hh08"}
+        assert sub["edges"][0]["source"] == "Hh07"
+        assert sub["edges"][0]["target"] == "Hh08"
+        assert "C0007" not in json.dumps(case_doc)
+        assert "C0008" not in json.dumps(case_doc)
+
+    def test_corrupt_pii_map_sidecar_aborts_pack_build(self, tmp_path: Path) -> None:
+        """Codex P2 follow-up: silent skip of a corrupt pii_map.jsonl
+        row would let a pack ship with plaintext PII for the requested
+        case. Fail closed by raising PiiMapCorruptError."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-bad-map"
+        run.mkdir()
+        _write_case(run, "case-bad", customer_id="C0001", matched_rows=[1])
+        _write_decisions(run, [])
+        # Second line is malformed JSON.
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "h", "plaintext": "C0001"})
+            + "\n"
+            + "{ this is not json\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(PiiMapCorruptError, match="malformed JSON"):
+            build_case_pack(spec, run / "cases" / "case-bad.json", run)
+
+    def test_corrupt_pii_map_missing_required_key_aborts(self, tmp_path: Path) -> None:
+        """Same fail-closed contract for a row missing field/hash/plaintext."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-bad-map2"
+        run.mkdir()
+        _write_case(run, "case-bad2", customer_id="C0001", matched_rows=[1])
+        _write_decisions(run, [])
+        # Missing "plaintext".
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "h"}) + "\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(PiiMapCorruptError, match="missing required key"):
+            build_case_pack(spec, run / "cases" / "case-bad2.json", run)
 
     def test_compound_id_masking_is_token_level(self, tmp_path: Path) -> None:
         """Codex P2: when the PII plaintext is short / numeric (e.g.
