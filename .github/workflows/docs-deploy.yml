@@ -97,7 +97,12 @@ jobs:
           cd docs-site-repo
           git config user.name "aml-open-framework-bot"
           git config user.email "bot@aml-open-framework.local"
-          git add docs
+          # Pre-PR-442 the site lived under /docs/ and `git add docs`
+          # was correct; post-#442 the rendered site is at REPO ROOT
+          # (alongside the preserved deck subdirs). Use `git add -A`
+          # so EVERY change — including deletions of the now-removed
+          # /docs/ subtree — is staged.
+          git add -A
           if git diff --staged --quiet; then
             echo "No doc changes to publish."
             exit 0
