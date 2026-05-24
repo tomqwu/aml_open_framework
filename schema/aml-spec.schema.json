@@ -133,7 +133,16 @@
         },
         "quality_checks": {
           "type": "array",
-          "items": { "type": "object" }
+          "items": {
+            "type": "object",
+            "properties": {
+              "severity": {
+                "type": "string",
+                "description": "PR-B5 (#370): DQ-failure severity carried into `DQException.severity`. Distinct from rule `severity`: classifies the contract break (critical = missing required column; info = non-canonical format). Optional; defaults to 'high' (prior uniform posture).",
+                "enum": ["critical", "high", "medium", "low", "info"]
+              }
+            }
+          }
         },
         "layer": {
           "type": "string",

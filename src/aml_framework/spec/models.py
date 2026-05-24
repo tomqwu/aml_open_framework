@@ -55,9 +55,43 @@ RiskTier = Literal["low", "medium", "high"]
 # provenance. Additive — defaults to unset.
 Layer = Literal["bronze", "silver", "gold"]
 
+# PR-B5 (#370): data-quality severity tier carried on each `quality_checks`
+# entry. Distinct from rule `Severity` (alert urgency): DQ severity classifies
+# the *contract break* — a missing required column is `critical`; a
+# non-canonical phone format is `info`. Investigators triage on this so
+# `dq_exceptions.jsonl` is filterable. Defaults to `"high"` (the prior
+# uniform posture) so adding the field is a no-op for existing specs.
+DQSeverity = Literal["critical", "high", "medium", "low", "info"]
+
 
 class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class QualityCheck(_Base):
+    """Typed shape for a single `quality_checks` entry (PR-B5 / #370).
+
+    Existing specs use a plain dict-of-dicts form, e.g.
+    `{not_null: [col_a, col_b]}` or `{enum: {currency: [USD, CAD]}}`.
+    The engine still iterates the raw dict, so `DataContract.quality_checks`
+    stays `list[dict[str, Any]]` for backward-compat (every example spec
+    keeps validating without edits). This model is the **canonical typed
+    form** callers and tests can construct programmatically; it also pins
+    `severity` as a first-class field with a `"high"` default so
+    DQ failures arrive at `DQException` with a triage tier rather than
+    uniform urgency.
+
+    `extra="allow"` (overrides the `_Base` default) is intentional: this
+    wrapper must permit any of the existing check-type keys
+    (`not_null` / `unique` / `enum` / `regex` / `range`) as siblings of
+    `severity` without each one becoming a hard-coded field. Forward-
+    compat with new check types (e.g. PR-B2's `foreign_key`) follows the
+    same posture — adding a new key here is not a breaking change.
+    """
+
+    model_config = ConfigDict(extra="allow", frozen=True)
+
+    severity: DQSeverity = "high"
 
 
 AiAuditLogMode = Literal["hash_only", "full_text"]

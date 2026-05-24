@@ -1174,3 +1174,234 @@ def test_dq_exception_is_frozen_extra_forbid():
             at=_AS_OF,
             unknown_field="boom",  # type: ignore[call-arg]
         )
+
+
+# ---------------------------------------------------------------------------
+# PR-B5 (#370) — DQ severity model on quality_checks
+# ---------------------------------------------------------------------------
+
+
+class TestDQSeverityPropagation:
+    """Severity declared on a `quality_checks` entry must thread into every
+    `DQException` the entry produces. Default is `"high"` when omitted,
+    preserving prior uniform-severity behaviour.
+    """
+
+    def test_default_severity_is_high_when_omitted(self):
+        rows = [{"email": None}]
+        checks = [{"not_null": ["email"]}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].severity == "high"
+
+    def test_severity_critical_propagates_through_not_null(self):
+        rows = [{"customer_id": None}, {"customer_id": "C1"}]
+        checks = [{"not_null": ["customer_id"], "severity": "critical"}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].severity == "critical"
+        assert excs[0].check_type == "not_null"
+
+    def test_severity_info_propagates_through_regex(self):
+        # Non-canonical phone format is the canonical "info" example
+        # from issue #370 — the check fires but should not block triage.
+        rows = [{"phone": "abc-not-a-phone"}]
+        checks = [
+            {"regex": {"phone": r"^\+?[0-9]{10,15}$"}, "severity": "info"},
+        ]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].severity == "info"
+        assert excs[0].check_type == "regex"
+
+    def test_severity_low_propagates_through_enum(self):
+        rows = [{"currency": "XYZ"}]
+        checks = [{"enum": {"currency": ["USD", "CAD"]}, "severity": "low"}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].severity == "low"
+        assert excs[0].check_type == "enum"
+
+    def test_severity_medium_propagates_through_range(self):
+        rows = [{"amount": 999.0}]
+        checks = [{"range": {"amount": {"min": 0, "max": 100}}, "severity": "medium"}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].severity == "medium"
+        assert excs[0].check_type == "range"
+
+    def test_severity_critical_propagates_through_unique(self):
+        rows = [{"txn_id": "T1"}, {"txn_id": "T1"}]
+        checks = [{"unique": ["txn_id"], "severity": "critical"}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].severity == "critical"
+        assert excs[0].check_type == "unique"
+
+    def test_severity_is_per_entry_not_global(self):
+        # Two checks on the same contract with different severities —
+        # each DQException carries its OWN entry's tier.
+        rows = [{"a": None, "b": None}]
+        checks = [
+            {"not_null": ["a"], "severity": "critical"},
+            {"not_null": ["b"], "severity": "info"},
+        ]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        by_col = {e.column: e.severity for e in excs}
+        assert by_col == {"a": "critical", "b": "info"}
+
+    def test_severity_threads_to_every_violation_in_entry(self):
+        # Two violations from the same entry both pick up the entry's severity.
+        rows = [{"x": None}, {"x": None}, {"x": "ok"}]
+        checks = [{"not_null": ["x"], "severity": "low"}]
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 2
+        assert all(e.severity == "low" for e in excs)
+
+    def test_severity_threads_to_malformed_check_emission(self):
+        # `enum: [list]` (should be dict) emits a `malformed_check`
+        # exception — the entry's severity must still ride along.
+        checks = [{"enum": ["currency"], "severity": "critical"}]
+        excs = evaluate_contract_checks([{"currency": "USD"}], checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].check_type == "malformed_check"
+        assert excs[0].severity == "critical"
+
+    def test_unrecognised_severity_value_falls_back_to_default(self):
+        # PR-B5 chose fallback-to-default rather than raise: an unknown
+        # severity value would otherwise force every spec to declare one,
+        # which is out of scope for this additive-only PR.
+        rows = [{"x": None}]
+        checks = [{"not_null": ["x"], "severity": "URGENT"}]  # not a valid tier
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert len(excs) == 1
+        assert excs[0].severity == "high"  # default, not "URGENT"
+
+    def test_severity_key_does_not_emit_as_check(self):
+        # The outer loop iterates qc.items() — `severity` is metadata,
+        # not a check_type. It must NOT generate a stray exception.
+        rows = [{"email": "ok@example.com"}]
+        checks = [{"severity": "critical"}]  # severity only, no checks
+        excs = evaluate_contract_checks(rows, checks, contract_id="c", at=_AS_OF)
+        assert excs == []
+
+    def test_dq_exception_severity_field_is_frozen(self):
+        # Field is on the frozen Pydantic model — mutation must raise.
+        import pytest
+
+        exc = DQException(
+            contract_id="c",
+            check_id="not_null:email",
+            check_type="not_null",
+            column="email",
+            reason="r",
+            severity="critical",
+            at=_AS_OF,
+        )
+        assert exc.severity == "critical"
+        with pytest.raises(Exception):
+            exc.severity = "low"  # type: ignore[misc]
+
+    def test_dq_exception_rejects_invalid_severity_literal(self):
+        # The Literal-typed `DQSeverity` field rejects out-of-set values.
+        # This pins the contract: only the 5 declared tiers are accepted
+        # at the model boundary (callers that construct directly).
+        import pytest
+
+        with pytest.raises(Exception):
+            DQException(
+                contract_id="c",
+                check_id="x",
+                check_type="not_null",
+                column="x",
+                reason="r",
+                severity="URGENT",  # type: ignore[arg-type]
+                at=_AS_OF,
+            )
+
+    def test_quality_check_typed_model_default_severity(self):
+        # The typed `QualityCheck` model in spec.models pins the default.
+        from aml_framework.spec.models import QualityCheck
+
+        qc = QualityCheck()
+        assert qc.severity == "high"
+
+    def test_quality_check_typed_model_accepts_check_type_siblings(self):
+        # `extra="allow"` is intentional: the wrapper carries any
+        # check-type key (not_null/unique/enum/...) without each
+        # becoming a hard-coded field.
+        from aml_framework.spec.models import QualityCheck
+
+        qc = QualityCheck.model_validate({"not_null": ["email"], "severity": "critical"})
+        assert qc.severity == "critical"
+        # Dump round-trips the extra payload so engine-side iteration sees it.
+        dumped = qc.model_dump()
+        assert dumped["not_null"] == ["email"]
+        assert dumped["severity"] == "critical"
+
+    def test_dq_exceptions_jsonl_carries_severity(self, tmp_path: Path):
+        # End-to-end: severity declared on the spec entry must surface
+        # in the on-disk `dq_exceptions.jsonl` artifact.
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="T",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                    quality_checks=[{"unique": ["txn_id"], "severity": "critical"}],
+                ),
+            ],
+            rules=[
+                Rule(
+                    id="r",
+                    name="R",
+                    severity="low",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=AggregationWindowLogic(
+                        type="aggregation_window",
+                        source="txn",
+                        group_by=["customer_id"],
+                        window="365d",
+                        having={"count": {"gte": 1}},
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                ),
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        data = {
+            "txn": [
+                {"txn_id": "T1", "customer_id": "C1", "amount": 10.0, "booked_at": _AS_OF},
+                {"txn_id": "T1", "customer_id": "C2", "amount": 20.0, "booked_at": _AS_OF},
+            ],
+        }
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+        run_spec(
+            spec=spec,
+            spec_path=spec_path,
+            data=data,
+            as_of=_AS_OF,
+            artifacts_root=tmp_path,
+        )
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+        dq_path = run_dir / "dq_exceptions.jsonl"
+        lines = [ln for ln in dq_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        assert len(lines) == 1
+        rec = json.loads(lines[0])
+        assert rec["severity"] == "critical"
+        assert rec["check_type"] == "unique"

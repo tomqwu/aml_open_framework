@@ -55,6 +55,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from aml_framework.spec.models import DQSeverity
+
 # Numeric types accepted by range checks. `Decimal` is included because
 # CSV-backed contract columns of type `decimal` are loaded as
 # `decimal.Decimal` (see `data/sources.py`); excluding it would falsely
@@ -64,6 +66,11 @@ from pydantic import BaseModel, ConfigDict, Field
 _NUMERIC_TYPES = (int, float, Decimal)
 
 DQCheckType = Literal["not_null", "unique", "enum", "regex", "range", "malformed_check"]
+
+# PR-B5 (#370): default tier when a `quality_checks` entry omits `severity`.
+# Matches the previous uniform posture so existing specs see no behaviour
+# drift — the field becomes meaningful only when authors override it.
+_DEFAULT_DQ_SEVERITY: DQSeverity = "high"
 
 
 class DQException(BaseModel):
@@ -83,6 +90,10 @@ class DQException(BaseModel):
     failing_value: str | None = None
     row_index: int | None = None
     reason: str
+    # PR-B5 (#370): DQ-failure severity threaded from the `quality_checks`
+    # entry that produced this exception. Defaults to "high" (prior uniform
+    # posture). Investigators triage on this in `dq_exceptions.jsonl`.
+    severity: DQSeverity = _DEFAULT_DQ_SEVERITY
     at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
@@ -126,7 +137,23 @@ def evaluate_contract_checks(
     exceptions: list[DQException] = []
 
     for qc in checks:
+        # PR-B5 (#370): pull the per-entry severity once and skip it from
+        # the check-type iteration below. A malformed value (e.g.
+        # `severity: "URGENT"`) falls back to the default rather than
+        # raising — surfacing it as a `malformed_check` event would force
+        # every spec to declare severity and is out of scope for the
+        # additive-only PR. The DQSeverity literal still validates strict
+        # inputs constructed via the typed `QualityCheck` model.
+        raw_severity = qc.get("severity")
+        severity: DQSeverity = (
+            raw_severity
+            if raw_severity in ("critical", "high", "medium", "low", "info")
+            else _DEFAULT_DQ_SEVERITY
+        )
         for check_type, fields in qc.items():
+            if check_type == "severity":
+                # Already consumed above — not a check_type, just metadata.
+                continue
             if check_type in ("not_null", "unique"):
                 # Existing shape: list of column names.
                 if not isinstance(fields, list):
@@ -142,14 +169,19 @@ def evaluate_contract_checks(
                             fields,
                             timestamp,
                             expected="list of column names",
+                            severity=severity,
                         )
                     )
                     continue
                 for column in fields:
                     if check_type == "not_null":
-                        exceptions.extend(_eval_not_null(rows, contract_id, column, timestamp))
+                        exceptions.extend(
+                            _eval_not_null(rows, contract_id, column, timestamp, severity)
+                        )
                     else:
-                        exceptions.extend(_eval_unique(rows, contract_id, column, timestamp))
+                        exceptions.extend(
+                            _eval_unique(rows, contract_id, column, timestamp, severity)
+                        )
             elif check_type in ("enum", "regex", "range"):
                 # PR-B1 (#366): dict-shaped checks — `{col: spec}` per
                 # declared column. `spec` is the allowed-values list
@@ -166,19 +198,29 @@ def evaluate_contract_checks(
                             fields,
                             timestamp,
                             expected="dict of {column: check_spec}",
+                            severity=severity,
                         )
                     )
                     continue
                 for column, spec in fields.items():
                     if check_type == "enum":
-                        exceptions.extend(_eval_enum(rows, contract_id, column, spec, timestamp))
+                        exceptions.extend(
+                            _eval_enum(rows, contract_id, column, spec, timestamp, severity)
+                        )
                     elif check_type == "regex":
-                        exceptions.extend(_eval_regex(rows, contract_id, column, spec, timestamp))
+                        exceptions.extend(
+                            _eval_regex(rows, contract_id, column, spec, timestamp, severity)
+                        )
                     else:
-                        exceptions.extend(_eval_range(rows, contract_id, column, spec, timestamp))
+                        exceptions.extend(
+                            _eval_range(rows, contract_id, column, spec, timestamp, severity)
+                        )
             else:
                 # Forward-compat: unknown check shape (a future dialect)
                 # stays a silent skip — only KNOWN types fail closed.
+                # PR-B2's `foreign_key` is wired in a sibling PR; this
+                # branch keeps that path untouched (no severity threading
+                # here — PR-B2 owns its own emission site).
                 continue
 
     return exceptions
@@ -191,6 +233,7 @@ def _malformed_check_exception(
     at: datetime,
     *,
     expected: str,
+    severity: DQSeverity = _DEFAULT_DQ_SEVERITY,
 ) -> DQException:
     """Build a DQ exception for a known check_type with a wrong-shaped value.
 
@@ -225,6 +268,7 @@ def _malformed_check_exception(
             f"malformed quality_check: '{check_type}' expects {expected}, "
             f"got {shape_hint} — check is silently disabled until fixed"
         ),
+        severity=severity,
         at=at,
     )
 
@@ -234,6 +278,7 @@ def _eval_not_null(
     contract_id: str,
     column: str,
     at: datetime,
+    severity: DQSeverity = _DEFAULT_DQ_SEVERITY,
 ) -> list[DQException]:
     out: list[DQException] = []
     for idx, row in enumerate(rows):
@@ -252,6 +297,7 @@ def _eval_not_null(
                     failing_value=None,
                     row_index=idx,
                     reason=f"column '{column}' is null on row {idx}",
+                    severity=severity,
                     at=at,
                 )
             )
@@ -263,6 +309,7 @@ def _eval_unique(
     contract_id: str,
     column: str,
     at: datetime,
+    severity: DQSeverity = _DEFAULT_DQ_SEVERITY,
 ) -> list[DQException]:
     """Flag the *second and later* occurrence of each duplicated value.
 
@@ -288,6 +335,7 @@ def _eval_unique(
                     failing_value=_format_value(value),
                     row_index=idx,
                     reason=(f"column '{column}' value duplicates row {first_idx} at row {idx}"),
+                    severity=severity,
                     at=at,
                 )
             )
@@ -302,6 +350,7 @@ def _eval_enum(
     column: str,
     allowed: Any,
     at: datetime,
+    severity: DQSeverity = _DEFAULT_DQ_SEVERITY,
 ) -> list[DQException]:
     """Flag any row whose value for `column` is not in `allowed`.
 
@@ -318,6 +367,7 @@ def _eval_enum(
                 allowed,
                 at,
                 expected="list of allowed values",
+                severity=severity,
             )
         ]
     allowed_set = list(allowed)  # preserve list semantics for reason text
@@ -346,6 +396,7 @@ def _eval_enum(
                     reason=(
                         f"column '{column}' value not in allowed set {allowed_set!r} at row {idx}"
                     ),
+                    severity=severity,
                     at=at,
                 )
             )
@@ -358,6 +409,7 @@ def _eval_regex(
     column: str,
     pattern: Any,
     at: datetime,
+    severity: DQSeverity = _DEFAULT_DQ_SEVERITY,
 ) -> list[DQException]:
     """Flag any row whose value for `column` does not `re.fullmatch(pattern)`.
 
@@ -375,6 +427,7 @@ def _eval_regex(
                 pattern,
                 at,
                 expected="regex pattern string",
+                severity=severity,
             )
         ]
     try:
@@ -391,6 +444,7 @@ def _eval_regex(
                 pattern,
                 at,
                 expected="valid Python regex pattern",
+                severity=severity,
             )
         ]
     out: list[DQException] = []
@@ -416,6 +470,7 @@ def _eval_regex(
                         f"column '{column}' value does not fullmatch "
                         f"pattern {pattern!r} at row {idx}"
                     ),
+                    severity=severity,
                     at=at,
                 )
             )
@@ -471,6 +526,7 @@ def _eval_range(
     column: str,
     bounds: Any,
     at: datetime,
+    severity: DQSeverity = _DEFAULT_DQ_SEVERITY,
 ) -> list[DQException]:
     """Flag any row whose numeric value for `column` is outside [min, max].
 
@@ -498,6 +554,7 @@ def _eval_range(
                 bounds,
                 at,
                 expected="dict with optional 'min' / 'max' numeric bounds",
+                severity=severity,
             )
         ]
     # Detect typoed bound keys (`minimum`/`maximum`/`lo`/etc.) — a
@@ -517,6 +574,7 @@ def _eval_range(
                 bounds,
                 at,
                 expected=f"'min' and/or 'max' keys (got {sorted(unknown_keys)!r})",
+                severity=severity,
             )
         ]
     raw_lo = bounds.get("min")
@@ -537,6 +595,7 @@ def _eval_range(
                 bounds,
                 at,
                 expected="at least one finite numeric bound (min and/or max)",
+                severity=severity,
             )
         ]
     out: list[DQException] = []
@@ -556,6 +615,7 @@ def _eval_range(
                     failing_value=_format_value(value),
                     row_index=idx,
                     reason="non-numeric value cannot be range-checked",
+                    severity=severity,
                     at=at,
                 )
             )
@@ -584,6 +644,7 @@ def _eval_range(
                     failing_value=_format_value(value),
                     row_index=idx,
                     reason="non-finite value cannot be range-checked",
+                    severity=severity,
                     at=at,
                 )
             )
@@ -601,6 +662,7 @@ def _eval_range(
                     failing_value=_format_value(value),
                     row_index=idx,
                     reason=(f"column '{column}' value below min {lo!r} at row {idx}"),
+                    severity=severity,
                     at=at,
                 )
             )
@@ -615,6 +677,7 @@ def _eval_range(
                     failing_value=_format_value(value),
                     row_index=idx,
                     reason=(f"column '{column}' value above max {hi!r} at row {idx}"),
+                    severity=severity,
                     at=at,
                 )
             )
