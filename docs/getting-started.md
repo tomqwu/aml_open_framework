@@ -203,6 +203,76 @@ Either way, an `environment_gate_check` event is appended to `decisions.jsonl` f
 
 ---
 
+## 6.2. Advanced spec features
+
+Five spec fields shipped in Rounds 26–28 that operators routinely miss because they're optional and default to a sensible no-op. Each one closes a specific compliance-pillar gap; reach for them when your program matures past the first-run shape.
+
+### `program.sla` — operational SLA monitor (PR-LF1)
+
+Declares two operational SLAs the engine evaluates per run and writes to `sla_report.json` in the run directory: **alert disposition aging** (open cases older than `alert_disposition_days` with no terminal `closed` / `escalated_to_str` event) and **batch lateness** (the gap between `run.as_of` and the most-recent transaction exceeds `batch_cadence_days + batch_lateness_grace_days`). The engine never raises on a breach — it records the breach so the Pillar-6 dashboard and the audit pack surface it. Omit the block to disable the monitor (empty report).
+
+```yaml
+program:
+  name: community_bank_aml
+  # ... other program fields ...
+  sla:
+    alert_disposition_days: 30      # open alerts older than this = breach
+    batch_cadence_days: 1           # expected daily extract
+    batch_lateness_grace_days: 1    # 1-day grace before flagging late
+```
+
+Spec model: `src/aml_framework/spec/models.py::ProgramSLA`. Test: [`tests/test_engine_sla.py`](../tests/test_engine_sla.py).
+
+### `quality_checks[*].severity` — DQ triage tier (PR-B5)
+
+Each `quality_checks` entry on a `data_contract` can carry a `severity` of `critical` / `high` / `medium` / `low` / `info` (defaults to `high` — the prior uniform posture, so the field is a no-op for existing specs). The engine threads severity into every `DQException` written to `dq_exceptions.jsonl`, so the Data Quality dashboard page and triage routing can filter on it. Use `critical` for required-column / unique-key breaks and `info` for canonicalisation drift.
+
+```yaml
+data_contracts:
+  - id: txn
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at], severity: critical }
+      - { unique: [txn_id], severity: critical }
+      - { enum: { currency: [USD, CAD, EUR] }, severity: medium }
+      - { regex: { phone: "^\\+?[0-9]{7,15}$" }, severity: info }
+```
+
+Spec model: `src/aml_framework/spec/models.py::QualityCheck` (`DQSeverity` literal). Test: [`tests/test_engine_dq_exceptions.py`](../tests/test_engine_dq_exceptions.py).
+
+### `rule.risk_tier` — risk-based-controls axis (PR-RISK-1)
+
+A first-class `low` / `medium` / `high` tier on each rule, independent of `severity` (alert urgency) and `model_tier` (model-risk validation cadence). Closes the Pillar-5 "risk-based controls" gap on the North-Star Coverage page — until this shipped, the only risk signal was `severity`, which is an alert-priority field. Optional (defaults to `None`). PR-RISK-1 is additive-only: the field lands on the loaded spec, flows into the rule-version hash, and surfaces in the spec-diff path. Engine-time wire-in (alert priority + queue routing) is a follow-up PR.
+
+```yaml
+rules:
+  - id: structuring_cash_deposits
+    severity: high           # alert urgency
+    risk_tier: high          # risk-based-controls posture
+    # ... logic ...
+```
+
+Spec model: `src/aml_framework/spec/models.py::RiskTier`. Test: [`tests/test_spec_risk_tier.py`](../tests/test_spec_risk_tier.py).
+
+### `rule.business_intent` + `out_of_scope` — examiner-readable rationale (PR-A2)
+
+Free-text prose declaring **why this rule exists** and **what it explicitly does NOT catch**, written for an examiner or 2LoD reviewer (not a regulation citation — those go in `regulation_refs`). At generation time these fields flow into four downstream artifacts: the STR narrative preamble, the MRM dossier's conceptual-soundness section, the control-matrix program-intent block, and the audit pack's `program_intent.md` / `inventory.json`. `business_intent` is `None` until authored; `out_of_scope` defaults to an empty list (the downstream renderers collapse the exclusions block when empty).
+
+```yaml
+rules:
+  - id: structuring_cash_deposits
+    business_intent: >
+      Detect customers depositing cash in the $7,000–$9,999 just-below-CTR
+      band three or more times within 30 days summing to $25,000+ — the
+      classic anti-structuring pattern targeted by 31 CFR 1010.314.
+    out_of_scope:
+      - single cash deposits at or above $10,000 (covered by large_cash_ctr)
+      - cash withdrawals (this rule is inbound-only)
+```
+
+Spec model: `src/aml_framework/spec/models.py::Rule` (`business_intent`, `out_of_scope`). Test: [`tests/test_program_intent_wiring.py`](../tests/test_program_intent_wiring.py).
+
+---
+
 ## 7. Generate the Audit Bundle (1 min)
 
 ```bash
