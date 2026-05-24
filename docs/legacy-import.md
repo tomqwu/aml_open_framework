@@ -84,6 +84,23 @@ When a row has both SQL and a malformed threshold block, the SQL is
 kept (legacy dumps often ship parameter blobs alongside SQL) and the
 bad threshold is logged as a warning.
 
+## Threshold blocks
+
+A row with a `threshold_block` cell goes into an `aggregation_window`
+stub. The wizard tries to use legacy `having` / `window` / `source` /
+`group_by` keys directly when present, and the **full original blob
+is preserved on the stub under `legacy_threshold_block`** so the
+operator can reconcile the imported rule against the source dump
+byte-for-byte before deleting it.
+
+## Duplicate rule IDs
+
+If two legacy rules sanitise to the same spec ID (e.g. `R-1` and
+`R_1` both become `r_1`), the second is suffixed with `_<n>` so the
+runner doesn't silently overwrite alerts from one rule with the
+other. A `legacy_dup_of:<original>` tag is added to the duplicates
+for traceability.
+
 ## Rule-ID sanitisation
 
 The AML spec requires `Rule.id` to match `^[a-z][a-z0-9_]*$`. Legacy

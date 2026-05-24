@@ -446,16 +446,26 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         return stub
 
     if row.threshold_block is not None:
-        having = (
-            row.threshold_block.get("having") if isinstance(row.threshold_block, dict) else None
-        )
-        stub["logic"] = {
+        # Build the aggregation_window block from a permissive merge:
+        # legacy `having` / `window` / `group_by` / `source` keys (if
+        # present) override the defaults, and any remaining sibling
+        # keys are stashed under `legacy_threshold_block` on the stub
+        # so nothing from the source dump is silently dropped during
+        # the import — the operator can audit it before deletion.
+        block = row.threshold_block if isinstance(row.threshold_block, dict) else {}
+        having = block.get("having") if isinstance(block.get("having"), dict) else None
+        logic: dict[str, Any] = {
             "type": "aggregation_window",
-            "source": "TODO_source_contract",
-            "group_by": ["customer_id"],
-            "window": "30d",
-            "having": having if isinstance(having, dict) else row.threshold_block,
+            "source": block.get("source", "TODO_source_contract"),
+            "group_by": block.get("group_by", ["customer_id"]),
+            "window": block.get("window", "30d"),
+            "having": having if having is not None else block,
         }
+        stub["logic"] = logic
+        # Preserve every sibling key (incl. the original `having`) so
+        # the operator can reconcile the imported stub against the
+        # source dump byte-for-byte.
+        stub["legacy_threshold_block"] = row.threshold_block
         return stub
 
     # Narrative-only or empty — emit a placeholder so `aml validate`
@@ -535,13 +545,56 @@ def inventory_summary(rows: list[LegacyRuleRow]) -> dict[str, Any]:
     }
 
 
+def _disambiguate_rule_ids(stubs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Append `_<n>` to colliding `id` values so each stub is unique.
+
+    Legacy dumps occasionally contain duplicate rule IDs, and distinct
+    legacy IDs can sanitise to the same spec ID (e.g. `R-1` and `R_1`
+    both become `r_1`). The runner uses `rule.id` as a dict key and as
+    part of alert filenames, so collisions would silently overwrite
+    one rule with another after the skeleton is merged. Disambiguation
+    happens here (at skeleton-build time) rather than per-stub so a
+    caller using `to_aml_rule_stub` directly still gets the natural
+    ID, while the persisted skeleton is collision-free.
+    """
+    seen: dict[str, int] = {}
+    out: list[dict[str, Any]] = []
+    for stub in stubs:
+        base = stub["id"]
+        count = seen.get(base, 0)
+        if count == 0:
+            seen[base] = 1
+            out.append(stub)
+            continue
+        # Collision — append `_<n>` and keep counting.
+        seen[base] = count + 1
+        new_id = f"{base}_{count + 1}"
+        # The disambiguated ID itself must also be unique.
+        while new_id in seen:
+            count += 1
+            seen[base] = count + 1
+            new_id = f"{base}_{count + 1}"
+        seen[new_id] = 1
+        disambiguated = dict(stub)
+        disambiguated["id"] = new_id
+        tags = list(disambiguated.get("tags", []))
+        tags.append(f"legacy_dup_of:{base}")
+        disambiguated["tags"] = tags
+        out.append(disambiguated)
+    return out
+
+
 def build_spec_skeleton(rows: list[LegacyRuleRow]) -> dict[str, Any]:
     """Wrap a list of stubs in the minimal envelope `aml validate` expects.
 
     Returns a dict ready to be `yaml.safe_dump`-ed. The envelope is
     intentionally thin — the operator is expected to merge it into
-    their existing spec, not run it raw.
+    their existing spec, not run it raw. Duplicate generated rule
+    IDs (from a noisy legacy dump or sanitisation collisions) are
+    disambiguated with a numeric suffix; the original ID is preserved
+    on the stub's `tags`.
     """
+    stubs = [to_aml_rule_stub(row) for row in rows]
     return {
         "version": 1,
         "program": {
@@ -552,7 +605,7 @@ def build_spec_skeleton(rows: list[LegacyRuleRow]) -> dict[str, Any]:
             "effective_date": "2026-01-01",
         },
         "data_contracts": [],
-        "rules": [to_aml_rule_stub(row) for row in rows],
+        "rules": _disambiguate_rule_ids(stubs),
         "workflow": {"queues": []},
         "reporting": {"forms": {}},
     }

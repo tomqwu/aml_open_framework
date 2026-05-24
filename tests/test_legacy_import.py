@@ -659,6 +659,79 @@ def test_stub_sanitises_unrecoverable_id_to_legacy_unknown() -> None:
     assert stub["id"] == "legacy_unknown"
 
 
+def test_stub_preserves_threshold_siblings() -> None:
+    """A threshold blob with `having` + other keys keeps the full blob.
+
+    Regression for codex review P2: previously only the inner `having`
+    was extracted, dropping siblings like `window`, `source`, etc. Now
+    the legacy keys are mapped where possible and the full blob is
+    preserved under `legacy_threshold_block` so the operator can
+    audit before deletion.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={
+            "window": "7d",
+            "source": "wire_txn",
+            "group_by": ["account_id"],
+            "having": {"sum": {"gte": 100000}},
+            "vendor_param": "legacy_only",
+        },
+    )
+    stub = to_aml_rule_stub(row)
+    # `having` extracted; sibling legacy keys lifted into the logic block.
+    assert stub["logic"]["having"] == {"sum": {"gte": 100000}}
+    assert stub["logic"]["window"] == "7d"
+    assert stub["logic"]["source"] == "wire_txn"
+    assert stub["logic"]["group_by"] == ["account_id"]
+    # The full blob is preserved on the stub for reconciliation.
+    assert stub["legacy_threshold_block"]["vendor_param"] == "legacy_only"
+
+
+def test_stub_threshold_block_without_having_uses_blob_as_having() -> None:
+    """A threshold blob without a `having` key uses the blob itself."""
+    row = LegacyRuleRow(rule_id="r1", name="n", threshold_block={"count": {"gte": 5}})
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["having"] == {"count": {"gte": 5}}
+    assert stub["legacy_threshold_block"] == {"count": {"gte": 5}}
+
+
+def test_build_spec_skeleton_disambiguates_duplicate_ids() -> None:
+    """Two rows sanitising to the same ID get `_<n>` suffixes.
+
+    Regression for codex review P2: the runner uses `rule.id` as a
+    dict key and in alert filenames, so collisions would silently
+    overwrite one rule with another.
+    """
+    rows = [
+        LegacyRuleRow(rule_id="R-1", name="a", legacy_sql="SELECT 1"),
+        LegacyRuleRow(rule_id="R_1", name="b", legacy_sql="SELECT 2"),
+        LegacyRuleRow(rule_id="R 1", name="c", legacy_sql="SELECT 3"),
+    ]
+    skeleton = build_spec_skeleton(rows)
+    ids = [r["id"] for r in skeleton["rules"]]
+    assert len(set(ids)) == 3
+    assert ids[0] == "r_1"
+    assert ids[1] == "r_1_2"
+    assert ids[2] == "r_1_3"
+    # The duplicates get a `legacy_dup_of:` tag pointing at the original.
+    assert any(t == "legacy_dup_of:r_1" for t in skeleton["rules"][1]["tags"])
+
+
+def test_build_spec_skeleton_disambiguation_skips_existing_suffix() -> None:
+    """If a `_2` suffix already exists, disambiguation jumps past it."""
+    rows = [
+        LegacyRuleRow(rule_id="r_1", name="a", legacy_sql="SELECT 1"),
+        LegacyRuleRow(rule_id="r_1_2", name="pre-existing", legacy_sql="SELECT 2"),
+        LegacyRuleRow(rule_id="r-1", name="dup of first", legacy_sql="SELECT 3"),
+    ]
+    skeleton = build_spec_skeleton(rows)
+    ids = [r["id"] for r in skeleton["rules"]]
+    assert len(set(ids)) == 3
+    assert ids == ["r_1", "r_1_2", "r_1_3"]
+
+
 def _row_from_mapping_via_csv(
     rule_id: str, *, regulator_refs_cell: str
 ) -> tuple[LegacyRuleRow | None, ParseWarning | None]:
