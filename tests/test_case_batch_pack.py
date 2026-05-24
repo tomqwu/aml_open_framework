@@ -226,6 +226,98 @@ class TestCasePack:
         # The C0008 sibling alert must NOT leak in despite same matched rows.
         assert all(r["customer_id"] != "C0008" for r in rows)
 
+    def test_alert_payload_is_case_canonical_alert_only(self, tmp_path: Path) -> None:
+        """Codex P2 (custom_sql case): two alerts sharing customer_id +
+        matched_row_ids but differing on other fields (e.g. window_end)
+        produce distinct case_ids. The case pack must ship only the
+        canonical alert from the requested case, never the sibling.
+        Our implementation derives the alert from ``case["alert"]`` so
+        this is guaranteed by construction — pinning it here so a
+        future refactor can't regress."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-cs"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        # Two cases share customer + matched_rows but have different
+        # window_end (typical of a custom_sql rule firing twice).
+        for cid, w_end in (("case-W1", "2026-04-01"), ("case-W2", "2026-04-15")):
+            case = {
+                "case_id": cid,
+                "rule_id": "custom_dual",
+                "rule_name": "Custom dual fire",
+                "severity": "high",
+                "queue": "l1_aml_analyst",
+                "alert": {
+                    "customer_id": "C0099",
+                    "matched_row_ids": [7, 8],
+                    "window_end": w_end,
+                },
+                "evidence_requested": [],
+                "spec_program": "schedule_i_bank_aml",
+                "input_hash": {},
+                "status": "open",
+            }
+            (cases_dir / f"{cid}.json").write_text(
+                json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+            )
+        _write_decisions(run, [])
+        payload = build_case_pack(spec, run / "cases" / "case-W1.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            body = zf.read("alerts/case-W1.jsonl").decode("utf-8")
+        rows = [json.loads(line) for line in body.splitlines() if line.strip()]
+        assert len(rows) == 1
+        assert rows[0]["window_end"] == "2026-04-01"
+        # The W2 sibling alert must NOT leak in.
+        assert all(r["window_end"] != "2026-04-15" for r in rows)
+
+    def test_pii_masking_applied_to_case_pack(self, tmp_path: Path) -> None:
+        """Codex P1: when the run was produced with AML_PII_MASKING=1
+        the case file still carries plaintext PII (the engine masks
+        alerts/<rule>.jsonl but writes the case dict raw). The case
+        pack must re-apply the run's pii_map so plaintext never leaks
+        into a pack intended for external sharing."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-masked"
+        run.mkdir()
+        _write_case(run, "case-mask", customer_id="C0001", matched_rows=[10])
+        _write_decisions(
+            run,
+            [
+                {"case_id": "case-mask", "event": "case_opened", "customer_id": "C0001"},
+            ],
+        )
+        # Write the masking sidecar that AuditLedger._mask_alert produces.
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "deadbeefcafe1234", "plaintext": "C0001"})
+            + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, run / "cases" / "case-mask.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            case_doc = json.loads(zf.read("cases/case-mask.json"))
+            alert_body = zf.read("alerts/case-mask.jsonl").decode("utf-8")
+            decision_body = zf.read("decisions/case-mask.jsonl").decode("utf-8")
+            manifest = json.loads(zf.read("manifest.json"))
+        # Every surface that carried plaintext "C0001" must now carry the hash.
+        assert case_doc["alert"]["customer_id"] == "deadbeefcafe1234"
+        assert "C0001" not in alert_body
+        assert "deadbeefcafe1234" in alert_body
+        assert "C0001" not in decision_body
+        assert manifest["pii_masked"] is True
+
+    def test_no_pii_map_sidecar_means_no_masking(self, populated_run: Path) -> None:
+        """The reverse contract: unmasked runs are a pure no-op — the
+        case dict is shipped as-is and `pii_masked` is False."""
+        spec = load_spec(SPEC_CA)
+        # populated_run has no pii_map.jsonl
+        payload = build_case_pack(spec, populated_run / "cases" / "case-001.json", populated_run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            case_doc = json.loads(zf.read("cases/case-001.json"))
+            manifest = json.loads(zf.read("manifest.json"))
+        assert case_doc["alert"]["customer_id"] == "C0001"
+        assert manifest["pii_masked"] is False
+
     def test_alert_filter_excludes_other_same_customer_alerts(self, tmp_path: Path) -> None:
         """Codex P2 regression: when one customer trips a rule multiple
         times, each alert maps to a separate case. The case pack must

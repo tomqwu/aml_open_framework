@@ -43,13 +43,15 @@ aml export-batch spec.yaml <run-dir> --cases c1,c2,c3     # multi-case batch
 ```
 
 Both commands produce deterministic ZIPs containing only the requested
-case file(s), the rule SQL that produced each alert, the alert payload
-restricted to the case, the per-case decision sub-chain, lineage
+case file(s), the rule SQL that produced each alert, the canonical alert
+attached to each case, the per-case decision sub-chain, lineage
 (`rule_version`, `matched_row_ids`, source `input_files`), and the spec
 snapshot. Pass `--signing-key` (or set `AML_CASE_PACK_SIGNING_KEY`) to
 attach an HMAC-SHA256 signature over the bundle hash to `manifest.json`.
 Missing case ids fail loudly — `export-batch` refuses to ship a partial
-pack.
+pack. When the run was produced with `AML_PII_MASKING=1`, the pack
+re-applies the run's `pii_map.jsonl` so plaintext PII never leaves the
+masking boundary; the manifest records `pii_masked: true` in that case.
 
 ## Determinism properties
 

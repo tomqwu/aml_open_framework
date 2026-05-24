@@ -525,52 +525,73 @@ def _load_decisions(run_dir: Path) -> list[dict[str, Any]]:
     return decisions
 
 
-def _load_alerts_for_rule(run_dir: Path, rule_id: str) -> list[dict[str, Any]]:
-    """Read ``alerts/<rule_id>.jsonl`` (best-effort — empty if missing)."""
-    alerts_path = run_dir / "alerts" / f"{rule_id}.jsonl"
-    if not alerts_path.exists():
-        return []
-    out: list[dict[str, Any]] = []
-    for line in alerts_path.read_text(encoding="utf-8").splitlines():
+def _load_pii_map(run_dir: Path) -> dict[str, str]:
+    """Plaintext → hash map from the run's ``pii_map.jsonl`` sidecar.
+
+    The engine writes one row per (field, hash, plaintext) tuple whenever
+    PII masking is enabled (``AML_PII_MASKING=1`` + spec columns flagged
+    ``pii: true``). The sidecar is the auditor's unmask path; here we use
+    it in reverse so granular evidence packs respect the masking contract
+    of the run that produced them (Codex P1). Returns an empty mapping
+    when the sidecar is absent, so unmasked runs are a no-op.
+    """
+    sidecar = run_dir / "pii_map.jsonl"
+    if not sidecar.exists():
+        return {}
+    mapping: dict[str, str] = {}
+    for line in sidecar.read_text(encoding="utf-8").splitlines():
         line = line.strip()
-        if line:
-            out.append(json.loads(line))
-    return out
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        plain = row.get("plaintext")
+        hashed = row.get("hash")
+        if plain is None or hashed is None:
+            continue
+        mapping[str(plain)] = str(hashed)
+    return mapping
 
 
-def _filter_alerts_for_case(
-    alerts: list[dict[str, Any]], case: dict[str, Any]
-) -> list[dict[str, Any]]:
-    """Restrict the rule's alert payload to the rows that produced this case.
+def _apply_pii_map(payload: Any, pii_map: dict[str, str]) -> Any:
+    """Recursively replace plaintext values with their hashes.
 
-    The case dict carries the canonical alert under ``case["alert"]``; we
-    only retain alert-jsonl rows that match the case alert on **both**
-    ``customer_id`` and ``matched_row_ids`` (Codex P2). Filtering by
-    ``matched_row_ids`` alone is not enough — network/graph-pattern
-    rules emit per-seed alerts that share a subgraph's row set, so two
-    cases can have identical ``matched_row_ids`` for different
-    customers. Customer-id alone over-includes sibling-case alerts when
-    one customer trips a rule multiple times. The conjunction matches
-    exactly the rows the engine recorded for this case.
+    Walks dicts/lists; for leaf strings that appear in ``pii_map`` (i.e.
+    were recorded as plaintext for a PII column on this run), swap them
+    for the hash the engine wrote into ``alerts/<rule>.jsonl``. Leaves
+    non-string leaves and unmapped strings untouched. Safe to call on
+    any case-shaped dict — the only side effect is hash substitution.
+    """
+    if not pii_map:
+        return payload
+    if isinstance(payload, dict):
+        return {k: _apply_pii_map(v, pii_map) for k, v in payload.items()}
+    if isinstance(payload, list):
+        return [_apply_pii_map(v, pii_map) for v in payload]
+    if isinstance(payload, str) and payload in pii_map:
+        return pii_map[payload]
+    return payload
 
-    When no row matches (e.g. the alerts file was rotated away or the
-    case was loaded from an older format), we still attach the case's
-    own alert payload as a fallback so the pack has at minimum the
-    canonical alert.
+
+def _alerts_for_case(case: dict[str, Any], pii_map: dict[str, str]) -> list[dict[str, Any]]:
+    """Return the alert payload(s) attributable to *this* case.
+
+    Codex P2 / P1 fix: rather than mining ``alerts/<rule>.jsonl`` and
+    trying to identify which row produced this case (a join that's
+    ambiguous for network rules and for rules with multiple alerts per
+    customer with shared ``matched_row_ids``), we take the canonical
+    alert the engine stamped onto ``case["alert"]`` as the
+    single-source-of-truth. The case file is opened by the engine 1:1
+    with its triggering alert, so this is exactly the right row and no
+    sibling-case rows can ever leak in. PII masking is reapplied through
+    ``pii_map`` so the pack honours the run's masking contract.
     """
     alert = case.get("alert") or {}
-    target_rows = alert.get("matched_row_ids") or []
-    target_customer = alert.get("customer_id")
-    kept: list[dict[str, Any]] = []
-    for row in alerts:
-        same_rows = bool(target_rows) and row.get("matched_row_ids") == target_rows
-        same_customer = target_customer is not None and row.get("customer_id") == target_customer
-        if same_rows and same_customer:
-            kept.append(row)
-    if not kept and alert:
-        # Always retain the case's own alert payload at minimum.
-        kept.append(alert)
-    return kept
+    if not alert:
+        return []
+    return [_apply_pii_map(alert, pii_map)]
 
 
 def _filter_decisions_for_cases(
@@ -636,12 +657,19 @@ def _case_pack_files(
     case: dict[str, Any],
     run_dir: Path,
     all_decisions: list[dict[str, Any]],
+    pii_map: dict[str, str],
 ) -> dict[str, bytes]:
-    """Per-case file payloads — shared by single-case + batch packs."""
+    """Per-case file payloads — shared by single-case + batch packs.
+
+    ``pii_map`` (plaintext → hash from the run's ``pii_map.jsonl``) is
+    applied to the case dict before it is written, so granular packs
+    inherit the masking posture of the run that produced them. When the
+    run had no masking sidecar the mapping is empty and this is a no-op.
+    """
     case_id = case.get("case_id", "")
     rule_id = case.get("rule_id", "")
     decisions = _filter_decisions_for_cases(all_decisions, {case_id})
-    alerts = _filter_alerts_for_case(_load_alerts_for_rule(run_dir, rule_id), case)
+    alerts = _alerts_for_case(case, pii_map)
     rule_sql = _read_optional(run_dir, f"rules/{rule_id}.sql")
     # Codex P2: the engine stamps `rule_version` on the `case_opened`
     # decision event, not on the alert payload, so prefer the alert
@@ -670,11 +698,13 @@ def _case_pack_files(
             for contract_id, meta in sorted((case.get("input_hash") or {}).items())
         ],
     }
+    masked_case = _apply_pii_map(case, pii_map)
+    masked_decisions = [_apply_pii_map(d, pii_map) for d in decisions]
     files: dict[str, bytes] = {
-        f"cases/{case_id}.json": _dump_json(case),
+        f"cases/{case_id}.json": _dump_json(masked_case),
         f"decisions/{case_id}.jsonl": (
-            "\n".join(json.dumps(d, sort_keys=True) for d in decisions)
-            + ("\n" if decisions else "")
+            "\n".join(json.dumps(d, sort_keys=True) for d in masked_decisions)
+            + ("\n" if masked_decisions else "")
         ).encode("utf-8"),
         f"alerts/{case_id}.jsonl": (
             "\n".join(json.dumps(a, sort_keys=True) for a in alerts) + ("\n" if alerts else "")
@@ -710,16 +740,18 @@ def build_case_pack(
     """
     case = _read_case_file(case_path)
     all_decisions = _load_decisions(run_dir)
+    pii_map = _load_pii_map(run_dir)
     files: dict[str, bytes] = {
         "program.md": _program_md(spec).encode("utf-8"),
     }
     spec_snapshot = _read_optional(run_dir, "spec_snapshot.yaml")
     if spec_snapshot is not None:
         files["spec_snapshot.yaml"] = spec_snapshot
-    files.update(_case_pack_files(spec, case, run_dir, all_decisions))
+    files.update(_case_pack_files(spec, case, run_dir, all_decisions, pii_map))
     manifest_base = {
         "pack_version": CASE_PACK_VERSION,
         "pack_kind": "case",
+        "pii_masked": bool(pii_map),
         "spec_program": spec.program.name,
         "spec_jurisdiction": spec.program.jurisdiction,
         "regulator": spec.program.regulator,
@@ -762,6 +794,7 @@ def build_batch_pack(
         cases.append(_read_case_file(path))
 
     all_decisions = _load_decisions(run_dir)
+    pii_map = _load_pii_map(run_dir)
 
     files: dict[str, bytes] = {
         "program.md": _program_md(spec).encode("utf-8"),
@@ -770,7 +803,7 @@ def build_batch_pack(
     if spec_snapshot is not None:
         files["spec_snapshot.yaml"] = spec_snapshot
     for case in cases:
-        files.update(_case_pack_files(spec, case, run_dir, all_decisions))
+        files.update(_case_pack_files(spec, case, run_dir, all_decisions, pii_map))
 
     files["batch_summary.json"] = _dump_json(
         {
@@ -783,6 +816,7 @@ def build_batch_pack(
     manifest_base = {
         "pack_version": CASE_PACK_VERSION,
         "pack_kind": "batch",
+        "pii_masked": bool(pii_map),
         "spec_program": spec.program.name,
         "spec_jurisdiction": spec.program.jurisdiction,
         "regulator": spec.program.regulator,
