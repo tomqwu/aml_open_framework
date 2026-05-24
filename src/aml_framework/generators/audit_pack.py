@@ -545,19 +545,18 @@ def _filter_alerts_for_case(
 
     The case dict carries the canonical alert under ``case["alert"]``; we
     additionally retain any other alert row sharing the same
-    ``matched_row_ids`` set or the same ``customer_id`` so an investigator
-    can see the immediate cohort. Matches are conservative — when in
-    doubt we keep the row rather than drop evidence.
+    ``matched_row_ids`` value (i.e. produced from the same source rows).
+    Customer-id is **not** used as a fallback — when one customer trips a
+    rule multiple times each alert maps to a separate case, and granular
+    packs must ship only the requested case's evidence (Codex P2). When
+    no row matches we still attach the case's own alert payload so the
+    pack always has at least the canonical alert.
     """
     alert = case.get("alert") or {}
     target_rows = alert.get("matched_row_ids") or []
-    target_customer = alert.get("customer_id")
     kept: list[dict[str, Any]] = []
     for row in alerts:
         if target_rows and row.get("matched_row_ids") == target_rows:
-            kept.append(row)
-            continue
-        if target_customer and row.get("customer_id") == target_customer:
             kept.append(row)
     if not kept and alert:
         # Always retain the case's own alert payload at minimum.
@@ -635,11 +634,22 @@ def _case_pack_files(
     decisions = _filter_decisions_for_cases(all_decisions, {case_id})
     alerts = _filter_alerts_for_case(_load_alerts_for_rule(run_dir, rule_id), case)
     rule_sql = _read_optional(run_dir, f"rules/{rule_id}.sql")
+    # Codex P2: the engine stamps `rule_version` on the `case_opened`
+    # decision event, not on the alert payload, so prefer the alert
+    # but fall back to the decision sub-chain so packs built from real
+    # `aml run` output never record rule_version as null.
+    alert_dict = case.get("alert") or {}
+    rule_version = alert_dict.get("rule_version")
+    if rule_version is None:
+        for d in decisions:
+            if d.get("rule_version"):
+                rule_version = d["rule_version"]
+                break
     lineage = {
         "case_id": case_id,
         "rule_id": rule_id,
-        "rule_version": (case.get("alert") or {}).get("rule_version"),
-        "matched_row_ids": (case.get("alert") or {}).get("matched_row_ids") or [],
+        "rule_version": rule_version,
+        "matched_row_ids": alert_dict.get("matched_row_ids") or [],
         "input_files": [
             {
                 "contract_id": contract_id,

@@ -191,6 +191,35 @@ class TestCasePack:
         assert rows[0]["matched_row_ids"] == [10]
         assert rows[0]["customer_id"] == "C0001"
 
+    def test_alert_filter_excludes_other_same_customer_alerts(self, tmp_path: Path) -> None:
+        """Codex P2 regression: when one customer trips a rule multiple
+        times, each alert maps to a separate case. The case pack must
+        ship only the requested case's evidence — same-customer alerts
+        belonging to *other* cases must NOT leak in."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-sibling"
+        run.mkdir()
+        # Two cases for the same customer, different matched_row_ids.
+        _write_case(run, "case-A", customer_id="C0042", matched_rows=[100])
+        _write_case(run, "case-B", customer_id="C0042", matched_rows=[200])
+        _write_decisions(run, [])
+        _write_alert(
+            run,
+            "structuring_cash",
+            [
+                {"customer_id": "C0042", "matched_row_ids": [100], "rule_id": "structuring_cash"},
+                {"customer_id": "C0042", "matched_row_ids": [200], "rule_id": "structuring_cash"},
+            ],
+        )
+        payload = build_case_pack(spec, run / "cases" / "case-A.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            body = zf.read("alerts/case-A.jsonl").decode("utf-8")
+        rows = [json.loads(line) for line in body.splitlines() if line.strip()]
+        assert len(rows) == 1
+        assert rows[0]["matched_row_ids"] == [100]
+        # The sibling row with [200] must not leak in.
+        assert all(r["matched_row_ids"] != [200] for r in rows)
+
     def test_lineage_carries_rule_version_and_input_files(self, populated_run: Path) -> None:
         spec = load_spec(SPEC_CA)
         payload = build_case_pack(spec, populated_run / "cases" / "case-001.json", populated_run)
@@ -201,6 +230,49 @@ class TestCasePack:
         assert lineage["matched_row_ids"] == [10]
         assert lineage["input_files"][0]["source_path"] == "data/input/txn.csv"
         assert lineage["input_files"][0]["schema_hash"] == "deadbeef0badcafe"
+
+    def test_lineage_rule_version_falls_back_to_decisions(self, tmp_path: Path) -> None:
+        """Codex P2 regression: the engine stamps `rule_version` on the
+        `case_opened` decision event, not on the alert object. Packs
+        built from real `aml run` output must derive rule_version from
+        the decision sub-chain when the alert payload omits it."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-decver"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        # Hand-crafted case dict whose alert has NO rule_version (mirrors
+        # the engine's normal output shape).
+        case = {
+            "case_id": "case-engine-001",
+            "rule_id": "structuring_cash",
+            "rule_name": "Structuring",
+            "severity": "high",
+            "queue": "l1_aml_analyst",
+            "alert": {"customer_id": "C0001", "matched_row_ids": [42]},
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {},
+            "status": "open",
+        }
+        (cases_dir / "case-engine-001.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(
+            run,
+            [
+                {
+                    "case_id": "case-engine-001",
+                    "event": "case_opened",
+                    "rule_id": "structuring_cash",
+                    "rule_version": "6b572889743ea02e",
+                },
+            ],
+        )
+        payload = build_case_pack(spec, run / "cases" / "case-engine-001.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            lineage = json.loads(zf.read("lineage/case-engine-001.json"))
+        assert lineage["rule_version"] == "6b572889743ea02e"
 
     def test_manifest_records_kind_and_case_id(self, populated_run: Path) -> None:
         spec = load_spec(SPEC_CA)
