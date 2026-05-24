@@ -732,6 +732,48 @@ def test_build_spec_skeleton_disambiguation_skips_existing_suffix() -> None:
     assert ids == ["r_1", "r_1_2", "r_1_3"]
 
 
+def test_inventory_surfaces_sanitised_collisions() -> None:
+    """Sanitised-ID collisions show up in the inventory summary too.
+
+    Regression for codex review P2: previously `inventory_summary`
+    only counted raw rule_id duplicates, so a dump with `R-1` and
+    `R_1` (both sanitising to `r_1`) passed the pre-import check
+    even though the importer would have to rename them.
+    """
+    rows = [
+        LegacyRuleRow(rule_id="R-1", name="a", legacy_sql="x"),
+        LegacyRuleRow(rule_id="R_1", name="b", legacy_sql="y"),
+    ]
+    summary = inventory_summary(rows)
+    # Surface format: `<safe_id> ← <raw_a>, <raw_b>` so the operator
+    # sees both the post-import name and the source IDs.
+    assert summary["duplicate_rule_ids"]
+    label = summary["duplicate_rule_ids"][0]
+    assert "r_1" in label
+    assert "R-1" in label and "R_1" in label
+
+
+def test_disambiguation_reserves_natural_ids_first() -> None:
+    """A later row with natural `r_1_2` keeps that ID even if `R-1`/`R_1` come first.
+
+    Regression for codex review P2: previously the wizard appended
+    `_2` to the second `r_1` collision before checking whether
+    `r_1_2` was a later natural ID, forcing that legitimate row to
+    `r_1_2_2`. Now the pre-pass reserves natural IDs so disambiguation
+    skips suffixes that would collide with them.
+    """
+    rows = [
+        LegacyRuleRow(rule_id="R-1", name="a", legacy_sql="x"),
+        LegacyRuleRow(rule_id="R_1", name="b", legacy_sql="y"),
+        LegacyRuleRow(rule_id="r_1_2", name="c", legacy_sql="z"),
+    ]
+    skeleton = build_spec_skeleton(rows)
+    ids = [r["id"] for r in skeleton["rules"]]
+    assert ids == ["r_1", "r_1_3", "r_1_2"]
+    # The natural `r_1_2` row is NOT tagged as a duplicate.
+    assert not any(t.startswith("legacy_dup_of:") for t in skeleton["rules"][2]["tags"])
+
+
 def test_csv_canonical_column_wins_over_later_alias(tmp_path: Path) -> None:
     """`rule_id` + later `id` column → canonical wins.
 

@@ -565,8 +565,12 @@ def inventory_summary(rows: list[LegacyRuleRow]) -> dict[str, Any]:
     ready = 0
     manual = 0
     missing_regs = 0
-    seen: dict[str, int] = {}
-    duplicates: list[str] = []
+    # Track raw and sanitised separately: raw catches literal dupes,
+    # sanitised catches dupes the importer would generate (e.g. `R-1`
+    # + `R_1` both sanitise to `r_1`) so the operator sees them
+    # *before* the import generates a numeric suffix.
+    raw_to_rows: dict[str, list[str]] = {}
+    sanitised_to_raws: dict[str, list[str]] = {}
     for row in rows:
         if row.legacy_sql is not None:
             counts["sql"] += 1
@@ -582,10 +586,19 @@ def inventory_summary(rows: list[LegacyRuleRow]) -> dict[str, Any]:
             manual += 1
         if not row.regulator_refs:
             missing_regs += 1
-        seen[row.rule_id] = seen.get(row.rule_id, 0) + 1
-    for rule_id, count in seen.items():
-        if count > 1 and rule_id not in duplicates:
+        raw_to_rows.setdefault(row.rule_id, []).append(row.rule_id)
+        sanitised_to_raws.setdefault(_sanitise_rule_id(row.rule_id), []).append(row.rule_id)
+
+    duplicates: list[str] = []
+    for rule_id, occurrences in raw_to_rows.items():
+        if len(occurrences) > 1:
             duplicates.append(rule_id)
+    # Surface sanitised collisions even when raw IDs differ, so the
+    # operator sees the post-import collision in the summary.
+    for safe_id, raw_ids in sanitised_to_raws.items():
+        if len(raw_ids) > 1 and len(set(raw_ids)) > 1:
+            label = f"{safe_id} ← {', '.join(sorted(set(raw_ids)))}"
+            duplicates.append(label)
     return {
         "total": len(rows),
         "by_shape": counts,
@@ -607,27 +620,43 @@ def _disambiguate_rule_ids(stubs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     happens here (at skeleton-build time) rather than per-stub so a
     caller using `to_aml_rule_stub` directly still gets the natural
     ID, while the persisted skeleton is collision-free.
+
+    Two-pass: first reserve every natural sanitised ID (so a later
+    `r_1_2` row keeps its name), then walk the stubs and only rewrite
+    those whose natural ID collides with an earlier stub.
     """
-    seen: dict[str, int] = {}
+    # Pass 1: reserve every natural ID. Use a multiset so a stub that
+    # appears N times is still counted, and only the *first occurrence*
+    # of each natural ID is allowed to keep it.
+    natural_ids = [stub["id"] for stub in stubs]
+    natural_counts: dict[str, int] = {}
+    for nid in natural_ids:
+        natural_counts[nid] = natural_counts.get(nid, 0) + 1
+    reserved: set[str] = set(natural_ids)
+
+    used: set[str] = set()
     out: list[dict[str, Any]] = []
     for stub in stubs:
         base = stub["id"]
-        count = seen.get(base, 0)
-        if count == 0:
-            seen[base] = 1
+        if base not in used:
+            used.add(base)
             out.append(stub)
             continue
-        # Collision — append `_<n>` and keep counting.
-        seen[base] = count + 1
-        new_id = f"{base}_{count + 1}"
-        # The disambiguated ID itself must also be unique.
-        while new_id in seen:
-            count += 1
-            seen[base] = count + 1
-            new_id = f"{base}_{count + 1}"
-        seen[new_id] = 1
+        # Collision — pick the smallest `_n` suffix that isn't already
+        # used AND isn't reserved for a later natural ID, so a stub
+        # with natural ID `r_1_2` is never displaced by a disambiguated
+        # duplicate of `r_1`.
+        n = 2
+        while True:
+            candidate = f"{base}_{n}"
+            if candidate not in used and (
+                candidate not in reserved or natural_counts.get(candidate, 0) == 0
+            ):
+                break
+            n += 1
+        used.add(candidate)
         disambiguated = dict(stub)
-        disambiguated["id"] = new_id
+        disambiguated["id"] = candidate
         tags = list(disambiguated.get("tags", []))
         tags.append(f"legacy_dup_of:{base}")
         disambiguated["tags"] = tags
