@@ -32,6 +32,10 @@ from aml_framework.engine.monitoring_digest import (
     lookup_prior_run,
     write_monitoring_digest,
 )
+from aml_framework.engine.reconciliation import (
+    build_reconciliation_report,
+    write_reconciliation_report,
+)
 from aml_framework.engine.sla import SLAReport, evaluate_sla
 from aml_framework.generators.sql import _compile_filter, compile_rule_sql
 from aml_framework.metrics.engine import MetricResult, evaluate_metrics
@@ -1417,6 +1421,19 @@ def _finalize_run(
         dq_exceptions=dq_exceptions or [],
         python_ref_failures=python_ref_failures or {},
     )
+
+    # PR-B3 (#368): write the Pillar-4 reconciliation report BEFORE
+    # `ledger.finalize()` so the manifest can pin its SHA-256. Always
+    # emitted (possibly empty `contracts` for an empty-spec run) so
+    # downstream readers can rely on its presence — same posture as
+    # `monitoring_digest.json` / `sla_report.json` / `dq_exceptions.jsonl`.
+    reconciliation = build_reconciliation_report(
+        spec,
+        data,
+        dq_exceptions or [],
+        alerts_by_rule,
+    )
+    write_reconciliation_report(ledger.run_dir, reconciliation)
 
     manifest = ledger.finalize()
     manifest["metrics"] = [m.to_dict() for m in metric_results]

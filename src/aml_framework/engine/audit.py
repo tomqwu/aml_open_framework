@@ -233,6 +233,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # be edited after finalize; the same hash-pin posture as every
     # other regulator-facing artifact above.
     "defect_log.jsonl",
+    # PR-B3 (#368) — Pillar-4 reconciliation stage tracker. Frozen so
+    # the row-count survival story across bronze→silver→gold→alert
+    # can't be edited after finalize.
+    "reconciliation_report.json",
 )
 
 
@@ -549,6 +553,16 @@ class AuditLedger:
         defect_path = self.run_dir / "defect_log.jsonl"
         defect_log_hash = _sha256(defect_path.read_bytes()) if defect_path.exists() else None
 
+        # PR-B3 (#368): pin the SHA-256 of `reconciliation_report.json`
+        # so a tampered Pillar-4 row-count survival report surfaces
+        # the same way the other audit artifacts do. File written by
+        # the runner before this call; older runs predating B3 leave
+        # the hash None.
+        reconciliation_path = self.run_dir / "reconciliation_report.json"
+        reconciliation_report_hash = (
+            _sha256(reconciliation_path.read_bytes()) if reconciliation_path.exists() else None
+        )
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -564,6 +578,7 @@ class AuditLedger:
             "run_cost_volume_hash": run_cost_volume_hash,
             "monitoring_digest_hash": monitoring_digest_hash,
             "defect_log_hash": defect_log_hash,
+            "reconciliation_report_hash": reconciliation_report_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         (self.run_dir / "manifest.json").write_bytes(
