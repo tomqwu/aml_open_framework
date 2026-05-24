@@ -328,16 +328,29 @@ with _w_left:
     # `{"match": "fuzzy", "threshold": 0.85}` for list_match);
     # `reference_data_version` is the content-fingerprint of the
     # reference list a list_match rule depended on (e.g.
-    # `"sanctions@a1b2c3d4e5f60718"`). Both keys are present on every
-    # alert across all 5 rule shapes — value may be None for rules
-    # that carry no first-class threshold / reference-list concept.
+    # `"sanctions@a1b2c3d4e5f60718"`). Codex pass-5 P2: render an
+    # explicit "Not applicable — <reason>" state when the value is
+    # None for a current run, so investigators can tell "no schematic
+    # threshold for this rule shape" apart from "case file written
+    # before PR-PAY-1 and missing the key entirely".
     _ref_version = _alert.get("reference_data_version")
-    if _ref_version:
-        st.metric("Reference data", _ref_version)
+    if "reference_data_version" in _alert:
+        if _ref_version:
+            st.metric("Reference data", _ref_version)
+        else:
+            st.metric("Reference data", "n/a", help="Rule does not read a reference list.")
     _threshold_snapshot = _alert.get("threshold")
-    if _threshold_snapshot is not None:
+    if "threshold" in _alert:
         st.caption("**Active threshold**")
-        st.code(_json.dumps(_threshold_snapshot, indent=2, sort_keys=True), language="json")
+        if _threshold_snapshot is not None:
+            st.code(_json.dumps(_threshold_snapshot, indent=2, sort_keys=True), language="json")
+        else:
+            st.caption(
+                "_Not applicable — rule has no schematic threshold "
+                "(bespoke `custom_sql` or `python_ref`). Read "
+                "`rules/<rule_id>.sql` or the scorer's "
+                "`feature_attribution` for explainability._"
+            )
 with _w_right:
     if _rule_sql.strip():
         with st.expander("Rule SQL (post-substitution, executed verbatim)", expanded=False):

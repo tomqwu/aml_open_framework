@@ -369,31 +369,44 @@ def _fuzzy_match(value: str, list_entries: list[str], threshold: float) -> tuple
     return best
 
 
-def _load_reference_list(list_name: str) -> list[str] | None:
-    """Load a reference list CSV, returning uppercased names + aliases or None if missing."""
-    import csv
+def _load_reference_list(list_name: str) -> tuple[list[str], str] | None:
+    """Load a reference list CSV, returning `(names+aliases, version)` or None.
 
+    PR-PAY-1 codex pass-5 race fix: the bytes used to build the matcher
+    are also the bytes hashed for the alert payload's
+    `reference_data_version`. That removes the original two-read race
+    (a sanctions-list refresh between the screening read and the
+    digest re-read would otherwise produce an alert that cites a
+    different list snapshot than the one it was actually matched
+    against).
+    """
+    import csv
+    import io
+
+    from aml_framework.engine.payload_meta import reference_data_version_from_bytes
     from aml_framework.paths import REFERENCE_LISTS_DIR
 
     list_path = REFERENCE_LISTS_DIR / f"{list_name}.csv"
     if not list_path.exists():
         return None
+    raw = list_path.read_bytes()
+    version = reference_data_version_from_bytes(list_name, raw)
     names: list[str] = []
-    with list_path.open("r", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            name = row.get("name", "").strip().upper()
-            if name:
-                names.append(name)
-            # #209: include aliases in the matchable set so alias-only
-            # entries can trigger list_match while the canonical name
-            # and list_id survive in the alert payload.
-            aliases_raw = row.get("aliases", "")
-            if aliases_raw:
-                for alias in aliases_raw.split("|"):
-                    alias = alias.strip().upper()
-                    if alias and alias not in names:
-                        names.append(alias)
-    return names
+    reader = csv.DictReader(io.StringIO(raw.decode("utf-8")))
+    for row in reader:
+        name = row.get("name", "").strip().upper()
+        if name:
+            names.append(name)
+        # #209: include aliases in the matchable set so alias-only
+        # entries can trigger list_match while the canonical name
+        # and list_id survive in the alert payload.
+        aliases_raw = row.get("aliases", "")
+        if aliases_raw:
+            for alias in aliases_raw.split("|"):
+                alias = alias.strip().upper()
+                if alias and alias not in names:
+                    names.append(alias)
+    return names, version
 
 
 def _execute_list_match(
@@ -402,7 +415,35 @@ def _execute_list_match(
     as_of: datetime,
     cost_timer: CostVolumeTimer | None = None,
 ) -> list[dict[str, Any]]:
-    """Screen a data source field against a reference list (sanctions, PEP, etc.)."""
+    """Screen a data source field against a reference list (sanctions, PEP, etc.).
+
+    The companion `_execute_list_match_with_version` returns the same
+    alerts AND the content fingerprint of the bytes that drove the
+    match, so the runner can stamp a race-free `reference_data_version`
+    on the alert payload. This thin wrapper preserves the
+    previous public signature for older callers (unit tests, the
+    `_execute_list_match` import in tests/test_engine.py) that only
+    care about the alerts list.
+    """
+    alerts, _version = _execute_list_match_with_version(rule, con, as_of, cost_timer)
+    return alerts
+
+
+def _execute_list_match_with_version(
+    rule: Rule,
+    con: duckdb.DuckDBPyConnection,
+    as_of: datetime,
+    cost_timer: CostVolumeTimer | None = None,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Same as `_execute_list_match` but also returns the version of the
+    reference list bytes that were actually matched against.
+
+    Returns `(alerts, version)` where `version` is `None` when the
+    reference list was missing (alerts is also empty in that case).
+    Used by `run_spec` to pin the `reference_data_version` stamped on
+    each alert to the exact bytes the matcher saw, eliminating the
+    race window codex pass-5 flagged on the two-read original.
+    """
     logic = rule.logic
     list_name = logic.list
     field = logic.field
@@ -416,9 +457,10 @@ def _execute_list_match(
 
     threshold = DEFAULT_FUZZY_THRESHOLD if logic.threshold is None else logic.threshold
 
-    list_entries = _load_reference_list(list_name)
-    if list_entries is None:
-        return []
+    loaded = _load_reference_list(list_name)
+    if loaded is None:
+        return [], None
+    list_entries, list_version = loaded
 
     # Get source data — pull rowid alongside so each alert can carry
     # `matched_row_ids` (PR-LIN-4) for the dashboard's "show me which
@@ -431,7 +473,7 @@ def _execute_list_match(
         cols = [d[0] for d in con.description] if con.description else []
     except Exception:
         logger.warning("list_match: table '%s' not found for rule '%s'", source_table, rule.id)
-        return []
+        return [], list_version
 
     source_rows = [dict(zip(cols, r)) for r in rows]
     alerts: list[dict[str, Any]] = []
@@ -476,7 +518,7 @@ def _execute_list_match(
                         "matched_row_ids": matched_row_ids,
                     }
                 )
-    return alerts
+    return alerts, list_version
 
 
 def _execute_network_pattern(
@@ -1246,8 +1288,22 @@ def run_spec(
             # missing-reference-list path returns 0 queries instead
             # of phantom-1 (codex pass-2 P3 on PR-LF2).
             with cost_timer.rule(rule.id):
-                alerts = _execute_list_match(rule, con, as_of, cost_timer)
-            stamp_payload_meta(rule, alerts, as_of=as_of)
+                alerts, list_version = _execute_list_match_with_version(
+                    rule, con, as_of, cost_timer
+                )
+            # PR-PAY-1 codex pass-5 race fix: pin the alert payload's
+            # `reference_data_version` to the EXACT bytes
+            # `_load_reference_list` just read. Without the override,
+            # `stamp_payload_meta` would re-read the list file; a
+            # mid-run refresh between the screening read and the
+            # digest re-read would mean the alert cites a snapshot
+            # different from the one it was actually matched against.
+            stamp_payload_meta(
+                rule,
+                alerts,
+                as_of=as_of,
+                reference_data_version_override=list_version,
+            )
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,

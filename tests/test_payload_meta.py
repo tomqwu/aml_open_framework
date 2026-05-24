@@ -32,6 +32,7 @@ from aml_framework.engine import run_spec
 from aml_framework.engine.payload_meta import (
     alert_threshold_snapshot,
     reference_data_version,
+    reference_data_version_from_bytes,
     stamp_payload_meta,
 )
 from aml_framework.engine.runner import (
@@ -287,6 +288,53 @@ class TestStampPayloadMeta:
         rule = _rule(CustomSQLLogic(type="custom_sql", sql="SELECT 1"))
         out = stamp_payload_meta(rule, [], as_of=datetime(2026, 4, 23))
         assert out == []
+
+    def test_override_pins_version_to_matched_bytes(self):
+        """Codex pass-5 race fix: when the executor has already
+        digested the bytes it screened against, the override pins the
+        alert payload to that exact value — preventing a mid-run list
+        refresh from making the alert cite a snapshot different from
+        the one it was matched against."""
+        rule = _rule(
+            ListMatchLogic(
+                type="list_match",
+                source="customer",
+                field="full_name",
+                list="sanctions",
+                match="fuzzy",
+                threshold=0.8,
+            )
+        )
+        alerts = [{"customer_id": "C1"}]
+        stamp_payload_meta(
+            rule,
+            alerts,
+            as_of=datetime(2026, 4, 23),
+            reference_data_version_override="sanctions@deadbeefcafef00d",
+        )
+        assert alerts[0]["reference_data_version"] == "sanctions@deadbeefcafef00d"
+
+    def test_reference_data_version_from_bytes_matches_file_hash(self, tmp_path: Path):
+        """The bytes-based helper must produce the same fingerprint as
+        the file-based helper for identical content — that's what makes
+        the override race-free contract sound."""
+        lists_dir = tmp_path / "lists"
+        lists_dir.mkdir()
+        list_path = lists_dir / "mylist.csv"
+        content = b"name\nALICE\nBOB\n"
+        list_path.write_bytes(content)
+        rule = _rule(
+            ListMatchLogic(
+                type="list_match",
+                source="customer",
+                field="full_name",
+                list="mylist",
+                match="exact",
+            )
+        )
+        from_file = reference_data_version(rule, as_of=datetime(2026, 4, 23), lists_dir=lists_dir)
+        from_bytes = reference_data_version_from_bytes("mylist", content)
+        assert from_file == from_bytes
 
     def test_stamp_does_not_add_rule_version_to_alert(self):
         """`rule_version` is surfaced at the **case** level (by

@@ -56,6 +56,7 @@ __all__ = [
     "DEFAULT_FUZZY_THRESHOLD",
     "alert_threshold_snapshot",
     "reference_data_version",
+    "reference_data_version_from_bytes",
     "stamp_payload_meta",
 ]
 
@@ -178,6 +179,7 @@ def stamp_payload_meta(
     *,
     as_of: datetime,
     lists_dir: Path | None = None,
+    reference_data_version_override: str | None = None,
 ) -> list[dict[str, Any]]:
     """Stamp every alert with `threshold` + `reference_data_version`.
 
@@ -186,6 +188,14 @@ def stamp_payload_meta(
     SELECT happens to project a column called `threshold`). This is the
     point of Pillar 6: investigators must read a uniform, spec-derived
     contract, not arbitrary executor output.
+
+    `reference_data_version_override` lets a caller pin the version
+    string to bytes the executor *actually* read (codex pass-5 race fix
+    — without it, the helper re-reads the list file and could pick up a
+    mid-run refresh that diverges from what alerts were matched
+    against). When `None`, the helper derives the version itself by
+    re-reading the list — fine for tests and callers that haven't
+    already loaded the bytes.
 
     `rule_version` is NOT stamped here — it lives at the case level
     (`_build_case` injects it on the case file) so the alert hashes
@@ -201,8 +211,27 @@ def stamp_payload_meta(
     via `_build_case`.
     """
     snapshot = alert_threshold_snapshot(rule)
-    ref_version = reference_data_version(rule, as_of=as_of, lists_dir=lists_dir)
+    if reference_data_version_override is not None:
+        ref_version: str | None = reference_data_version_override
+    else:
+        ref_version = reference_data_version(rule, as_of=as_of, lists_dir=lists_dir)
     for alert in alerts:
         alert["threshold"] = snapshot
         alert["reference_data_version"] = ref_version
     return alerts
+
+
+def reference_data_version_from_bytes(list_name: str, content: bytes) -> str:
+    """Return the canonical `<list>@<sha256-16>` fingerprint for already-read bytes.
+
+    PR-PAY-1 codex pass-5 race fix. `_execute_list_match` loads the
+    reference list to match against; this helper lets the caller derive
+    the version string from the EXACT bytes it read, so the alert
+    payload's `reference_data_version` and the screening operation
+    can never reference different list snapshots even if the file is
+    refreshed mid-run. Pure function — same hash format as
+    `reference_data_version` so consumers downstream don't need to
+    branch on which helper produced the string.
+    """
+    digest = hashlib.sha256(content).hexdigest()[:16]
+    return f"{list_name}@{digest}"
