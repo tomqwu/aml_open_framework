@@ -1475,6 +1475,95 @@ def audit_pack_cmd(
     )
 
 
+@app.command(name="export-case")
+def export_case_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Argument(..., exists=True, file_okay=False, readable=True),
+    case_id: str = typer.Argument(..., help="case_id (basename of cases/<id>.json)."),
+    out: Path = typer.Option(
+        None,
+        "--out",
+        help="Output ZIP path; defaults to ./case-<case_id>.zip.",
+    ),
+    signing_key: str | None = typer.Option(
+        None,
+        "--signing-key",
+        envvar="AML_CASE_PACK_SIGNING_KEY",
+        help="Optional HMAC-SHA256 signing key for the manifest.",
+    ),
+) -> None:
+    """Build a per-case evidence pack (PR-D4).
+
+    The single-case subset of `audit-pack` — spec snapshot, the one case
+    file, decisions sub-chain, lineage, the rule SQL and the alert
+    payload. Smaller than a full-run pack; suitable for handing a
+    regulator/auditor exactly the evidence for one alert.
+    """
+    from aml_framework.generators.audit_pack import build_case_pack
+
+    spec = load_spec(spec_path)
+    case_path = run_dir / "cases" / f"{case_id}.json"
+    if not case_path.exists():
+        console.print(f"[red]Case file not found:[/red] {case_path}")
+        raise typer.Exit(code=1)
+    target = out or Path(f"case-{case_id}.zip")
+    payload = build_case_pack(spec, case_path, run_dir, signing_key=signing_key)
+    target.write_bytes(payload)
+    signed = " (signed)" if signing_key else ""
+    console.print(
+        f"[green]Case pack written[/green] {target} "
+        f"({len(payload):,} bytes, case_id={case_id}){signed}"
+    )
+
+
+@app.command(name="export-batch")
+def export_batch_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Argument(..., exists=True, file_okay=False, readable=True),
+    cases: str = typer.Option(
+        ...,
+        "--cases",
+        help="Comma-separated case_ids to bundle.",
+    ),
+    out: Path = typer.Option(
+        Path("batch-pack.zip"),
+        "--out",
+        help="Output ZIP path.",
+    ),
+    signing_key: str | None = typer.Option(
+        None,
+        "--signing-key",
+        envvar="AML_CASE_PACK_SIGNING_KEY",
+        help="Optional HMAC-SHA256 signing key for the manifest.",
+    ),
+) -> None:
+    """Build a multi-case evidence pack (PR-D4).
+
+    For when a regulator requests evidence on a hand-picked batch of
+    alerts — bundles every requested case's spec snapshot, decisions
+    sub-chain, lineage, rule SQL and alert payload into one ZIP. Missing
+    case ids fail loudly so the investigator never ships a half-empty pack.
+    """
+    from aml_framework.generators.audit_pack import build_batch_pack
+
+    spec = load_spec(spec_path)
+    case_ids = [c.strip() for c in cases.split(",") if c.strip()]
+    if not case_ids:
+        console.print("[red]--cases must contain at least one case_id.[/red]")
+        raise typer.Exit(code=1)
+    try:
+        payload = build_batch_pack(spec, run_dir, case_ids, signing_key=signing_key)
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+    out.write_bytes(payload)
+    signed = " (signed)" if signing_key else ""
+    console.print(
+        f"[green]Batch pack written[/green] {out} "
+        f"({len(payload):,} bytes, {len(case_ids)} cases){signed}"
+    )
+
+
 @app.command(name="export-amla-str")
 def export_amla_str_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

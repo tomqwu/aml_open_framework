@@ -490,9 +490,295 @@ def build_audit_pack_from_run_dir(
     return build_audit_pack(spec, cases, decisions, jurisdiction=jurisdiction)
 
 
+# ---------------------------------------------------------------------------
+# PR-D4: per-case / per-batch evidence packs (closes #377)
+# ---------------------------------------------------------------------------
+#
+# The whole-run audit pack above is ~50 MB on a real bank's monthly run.
+# Investigators / regulators frequently want only the subset that pertains
+# to one case (or a handful of escalations). These two helpers carve out
+# the minimum set of artefacts needed to defend one alert: the case file
+# itself, the rule SQL that produced it, the alert payload, the per-case
+# decision sub-chain, lineage stamps, and the spec snapshot. Determinism
+# guarantees match the whole-run pack — same inputs → byte-identical ZIP
+# — and an optional `signing_key` attaches an HMAC-SHA256 over the
+# bundle hash to the manifest so the receiver can verify provenance.
+
+
+CASE_PACK_VERSION = "1"
+
+
+def _read_case_file(case_path: Path) -> dict[str, Any]:
+    if not case_path.exists():
+        raise FileNotFoundError(f"case file not found: {case_path}")
+    return json.loads(case_path.read_text(encoding="utf-8"))
+
+
+def _load_decisions(run_dir: Path) -> list[dict[str, Any]]:
+    decisions: list[dict[str, Any]] = []
+    dec_path = run_dir / "decisions.jsonl"
+    if dec_path.exists():
+        for line in dec_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line:
+                decisions.append(json.loads(line))
+    return decisions
+
+
+def _load_alerts_for_rule(run_dir: Path, rule_id: str) -> list[dict[str, Any]]:
+    """Read ``alerts/<rule_id>.jsonl`` (best-effort — empty if missing)."""
+    alerts_path = run_dir / "alerts" / f"{rule_id}.jsonl"
+    if not alerts_path.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for line in alerts_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            out.append(json.loads(line))
+    return out
+
+
+def _filter_alerts_for_case(
+    alerts: list[dict[str, Any]], case: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Restrict the rule's alert payload to the rows that produced this case.
+
+    The case dict carries the canonical alert under ``case["alert"]``; we
+    additionally retain any other alert row sharing the same
+    ``matched_row_ids`` set or the same ``customer_id`` so an investigator
+    can see the immediate cohort. Matches are conservative — when in
+    doubt we keep the row rather than drop evidence.
+    """
+    alert = case.get("alert") or {}
+    target_rows = alert.get("matched_row_ids") or []
+    target_customer = alert.get("customer_id")
+    kept: list[dict[str, Any]] = []
+    for row in alerts:
+        if target_rows and row.get("matched_row_ids") == target_rows:
+            kept.append(row)
+            continue
+        if target_customer and row.get("customer_id") == target_customer:
+            kept.append(row)
+    if not kept and alert:
+        # Always retain the case's own alert payload at minimum.
+        kept.append(alert)
+    return kept
+
+
+def _filter_decisions_for_cases(
+    decisions: list[dict[str, Any]], case_ids: set[str]
+) -> list[dict[str, Any]]:
+    return [d for d in decisions if d.get("case_id", "") in case_ids]
+
+
+def _read_optional(run_dir: Path, relative: str) -> bytes | None:
+    p = run_dir / relative
+    if p.exists() and p.is_file():
+        return p.read_bytes()
+    return None
+
+
+def _attach_signature(manifest: dict[str, Any], signing_key: str | None) -> None:
+    """Sign the manifest in-place when a key is supplied.
+
+    Uses HMAC-SHA256 over the canonical ``bundle_hash`` — same primitive
+    the engine uses to hash PII (`engine/audit.py`). Receivers verify by
+    re-running HMAC over the bundle_hash with the shared key.
+    """
+    if not signing_key:
+        return
+    import hmac
+
+    sig = hmac.new(
+        signing_key.encode("utf-8"),
+        manifest["bundle_hash"].encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    manifest["signature"] = {"algorithm": "HMAC-SHA256", "value": sig}
+
+
+def _assemble_pack(
+    files: dict[str, bytes],
+    manifest_base: dict[str, Any],
+    *,
+    signing_key: str | None,
+) -> bytes:
+    """Common tail: per-file hashes, bundle hash, manifest, deterministic ZIP."""
+    file_hashes = {
+        path: hashlib.sha256(payload).hexdigest() for path, payload in sorted(files.items())
+    }
+    bundle_hash = hashlib.sha256(
+        "\n".join(f"{p}:{h}" for p, h in sorted(file_hashes.items())).encode("utf-8")
+    ).hexdigest()
+    manifest = {**manifest_base, "files": file_hashes, "bundle_hash": bundle_hash}
+    _attach_signature(manifest, signing_key)
+    files["manifest.json"] = _dump_json(manifest)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(files.keys()):
+            info = zipfile.ZipInfo(filename=path, date_time=_ZIP_FIXED_TIME)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(info, files[path])
+    return buf.getvalue()
+
+
+def _case_pack_files(
+    spec: AMLSpec,
+    case: dict[str, Any],
+    run_dir: Path,
+    all_decisions: list[dict[str, Any]],
+) -> dict[str, bytes]:
+    """Per-case file payloads — shared by single-case + batch packs."""
+    case_id = case.get("case_id", "")
+    rule_id = case.get("rule_id", "")
+    decisions = _filter_decisions_for_cases(all_decisions, {case_id})
+    alerts = _filter_alerts_for_case(_load_alerts_for_rule(run_dir, rule_id), case)
+    rule_sql = _read_optional(run_dir, f"rules/{rule_id}.sql")
+    lineage = {
+        "case_id": case_id,
+        "rule_id": rule_id,
+        "rule_version": (case.get("alert") or {}).get("rule_version"),
+        "matched_row_ids": (case.get("alert") or {}).get("matched_row_ids") or [],
+        "input_files": [
+            {
+                "contract_id": contract_id,
+                "row_count": meta.get("row_count"),
+                "content_hash": meta.get("content_hash"),
+                "source_path": meta.get("source_path"),
+                "schema_hash": meta.get("schema_hash"),
+            }
+            for contract_id, meta in sorted((case.get("input_hash") or {}).items())
+        ],
+    }
+    files: dict[str, bytes] = {
+        f"cases/{case_id}.json": _dump_json(case),
+        f"decisions/{case_id}.jsonl": (
+            "\n".join(json.dumps(d, sort_keys=True) for d in decisions)
+            + ("\n" if decisions else "")
+        ).encode("utf-8"),
+        f"alerts/{case_id}.jsonl": (
+            "\n".join(json.dumps(a, sort_keys=True) for a in alerts) + ("\n" if alerts else "")
+        ).encode("utf-8"),
+        f"lineage/{case_id}.json": _dump_json(lineage),
+    }
+    if rule_sql is not None:
+        files[f"rules/{rule_id}.sql"] = rule_sql
+    return files
+
+
+def build_case_pack(
+    spec: AMLSpec,
+    case_path: Path,
+    run_dir: Path,
+    *,
+    signing_key: str | None = None,
+) -> bytes:
+    """Per-case evidence pack — the minimum subset to defend one alert.
+
+    Contents:
+    - ``program.md`` — program metadata (same shape as full audit pack)
+    - ``spec_snapshot.yaml`` — copied verbatim from the run when present
+    - ``cases/<case_id>.json`` — the case file itself
+    - ``decisions/<case_id>.jsonl`` — decision sub-chain for this case
+    - ``alerts/<case_id>.jsonl`` — alert payload restricted to this case
+    - ``rules/<rule_id>.sql`` — the SQL that produced the alert (if recorded)
+    - ``lineage/<case_id>.json`` — rule_version + matched_row_ids + inputs
+    - ``manifest.json`` — file-by-file SHA-256 + bundle hash (+ HMAC signature
+      if ``signing_key`` supplied)
+
+    Raises ``FileNotFoundError`` when ``case_path`` is missing.
+    """
+    case = _read_case_file(case_path)
+    all_decisions = _load_decisions(run_dir)
+    files: dict[str, bytes] = {
+        "program.md": _program_md(spec).encode("utf-8"),
+    }
+    spec_snapshot = _read_optional(run_dir, "spec_snapshot.yaml")
+    if spec_snapshot is not None:
+        files["spec_snapshot.yaml"] = spec_snapshot
+    files.update(_case_pack_files(spec, case, run_dir, all_decisions))
+    manifest_base = {
+        "pack_version": CASE_PACK_VERSION,
+        "pack_kind": "case",
+        "spec_program": spec.program.name,
+        "spec_jurisdiction": spec.program.jurisdiction,
+        "regulator": spec.program.regulator,
+        "case_id": case.get("case_id", ""),
+        "rule_id": case.get("rule_id", ""),
+    }
+    return _assemble_pack(files, manifest_base, signing_key=signing_key)
+
+
+def build_batch_pack(
+    spec: AMLSpec,
+    run_dir: Path,
+    case_ids: list[str],
+    *,
+    signing_key: str | None = None,
+) -> bytes:
+    """Multi-case evidence pack — hand-selected batch for a regulator request.
+
+    ``case_ids`` is the list of ``case_id`` values to include. Each id is
+    matched against ``cases/<case_id>.json`` under ``run_dir``. Missing
+    cases raise ``FileNotFoundError`` — silent skips would let investigators
+    accidentally hand over an incomplete pack. Empty ``case_ids`` raises
+    ``ValueError`` (the caller almost certainly meant to use the full-run
+    audit pack instead).
+    """
+    if not case_ids:
+        raise ValueError("case_ids must not be empty; use build_audit_pack for full runs")
+    # Deduplicate while preserving caller order for the manifest summary.
+    seen: set[str] = set()
+    ordered_ids: list[str] = []
+    for cid in case_ids:
+        if cid not in seen:
+            seen.add(cid)
+            ordered_ids.append(cid)
+
+    cases_dir = run_dir / "cases"
+    cases: list[dict[str, Any]] = []
+    for cid in ordered_ids:
+        path = cases_dir / f"{cid}.json"
+        cases.append(_read_case_file(path))
+
+    all_decisions = _load_decisions(run_dir)
+
+    files: dict[str, bytes] = {
+        "program.md": _program_md(spec).encode("utf-8"),
+    }
+    spec_snapshot = _read_optional(run_dir, "spec_snapshot.yaml")
+    if spec_snapshot is not None:
+        files["spec_snapshot.yaml"] = spec_snapshot
+    for case in cases:
+        files.update(_case_pack_files(spec, case, run_dir, all_decisions))
+
+    files["batch_summary.json"] = _dump_json(
+        {
+            "case_count": len(cases),
+            "case_ids": sorted(ordered_ids),
+            "rules": sorted({c.get("rule_id", "") for c in cases if c.get("rule_id")}),
+        }
+    )
+
+    manifest_base = {
+        "pack_version": CASE_PACK_VERSION,
+        "pack_kind": "batch",
+        "spec_program": spec.program.name,
+        "spec_jurisdiction": spec.program.jurisdiction,
+        "regulator": spec.program.regulator,
+        "case_count": len(cases),
+        "case_ids": sorted(ordered_ids),
+    }
+    return _assemble_pack(files, manifest_base, signing_key=signing_key)
+
+
 __all__ = [
+    "CASE_PACK_VERSION",
     "PACK_VERSION",
     "SUPPORTED_JURISDICTIONS",
     "build_audit_pack",
     "build_audit_pack_from_run_dir",
+    "build_batch_pack",
+    "build_case_pack",
 ]

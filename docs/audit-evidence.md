@@ -32,6 +32,25 @@ Every `aml run` produces an evidence bundle containing:
 | `reconciliation_report.json`| Pillar-4 row-count survival per contract across bronze→silver→gold→alert + signed drop attribution (hash pinned on the manifest) |
 | `signatures/manifest.sig`   | detached signature over `manifest.json` (if signing key set)    |
 
+## Granular evidence exports (PR-D4, #377)
+
+A full-run `aml audit-pack` ZIP can be tens of megabytes. When a regulator
+asks for evidence on one alert or a hand-picked batch, ship the subset:
+
+```
+aml export-case  spec.yaml <run-dir> <case_id>            # one case
+aml export-batch spec.yaml <run-dir> --cases c1,c2,c3     # multi-case batch
+```
+
+Both commands produce deterministic ZIPs containing only the requested
+case file(s), the rule SQL that produced each alert, the alert payload
+restricted to the case, the per-case decision sub-chain, lineage
+(`rule_version`, `matched_row_ids`, source `input_files`), and the spec
+snapshot. Pass `--signing-key` (or set `AML_CASE_PACK_SIGNING_KEY`) to
+attach an HMAC-SHA256 signature over the bundle hash to `manifest.json`.
+Missing case ids fail loudly — `export-batch` refuses to ship a partial
+pack.
+
 ## Determinism properties
 
 - **Ordered input.** Rows going into any rule are sorted by the rule's natural
