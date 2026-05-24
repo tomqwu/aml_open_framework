@@ -1,0 +1,272 @@
+/* AML Open Framework — brand theme overrides on MkDocs Material.
+ *
+ * Inherits the visual language from the existing board deck at
+ * tomqwu.github.io/aml_open_framework_docs/ — off-white parchment,
+ * ink, and a rust/terracotta accent. Material's default indigo
+ * palette feels generic next to the deck; this stylesheet rewires
+ * the CSS custom properties so the engineering docs and the deck
+ * read as one product.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap');
+
+:root {
+  /* Surfaces (light mode) */
+  --aml-bg: #fbfbfc;
+  --aml-bg-cream: #fdfbf5;
+  --aml-bg-accent: #fdeee5;
+  --aml-divider: #c8cfd6;
+
+  /* Ink */
+  --aml-ink: #1c1f26;
+  --aml-ink-soft: #2b3641;
+  --aml-ink-mute: #5f6b78;
+  --aml-ink-faint: #9aa3ad;
+
+  /* Accent — rust / terracotta */
+  --aml-accent: #dd5c34;
+  --aml-accent-deep: #a44b30;
+  --aml-accent-bg: #fdeee5;
+
+  /* Cyan signal (used sparingly for "live" indicators) */
+  --aml-signal: #67e8f9;
+
+  /* Fonts */
+  --aml-font-sans: 'Inter', -apple-system, system-ui, sans-serif;
+  --aml-font-serif: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
+  --aml-font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+
+/* ── Material palette overrides ─────────────────────────────────── */
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: var(--aml-ink);
+  --md-primary-fg-color--light: var(--aml-ink-soft);
+  --md-primary-fg-color--dark: #0a0e1a;
+  --md-primary-bg-color: var(--aml-bg);
+  --md-primary-bg-color--light: var(--aml-bg-cream);
+
+  --md-accent-fg-color: var(--aml-accent);
+  --md-accent-fg-color--transparent: var(--aml-accent-bg);
+  --md-accent-bg-color: var(--aml-accent);
+
+  --md-default-bg-color: var(--aml-bg);
+  --md-default-fg-color: var(--aml-ink);
+  --md-default-fg-color--light: var(--aml-ink-mute);
+  --md-default-fg-color--lighter: var(--aml-ink-faint);
+
+  --md-typeset-color: var(--aml-ink);
+  --md-typeset-a-color: var(--aml-accent-deep);
+
+  --md-code-bg-color: #f6f7f9;
+  --md-code-fg-color: var(--aml-ink-soft);
+
+  --md-footer-bg-color: var(--aml-ink);
+  --md-footer-bg-color--dark: #0a0e1a;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #0a0e1a;
+  --md-primary-bg-color: #f6f7f9;
+  --md-accent-fg-color: var(--aml-accent);
+  --md-default-bg-color: #0a0e1a;
+  --md-default-fg-color: #e8eaef;
+  --md-typeset-a-color: #f0a085;
+  --md-code-bg-color: #1c1f26;
+}
+
+/* ── Typography ─────────────────────────────────────────────────── */
+
+body,
+.md-typeset {
+  font-family: var(--aml-font-sans);
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+/* Editorial italic accents inside headings — `<em>` inside h1/h2
+ * becomes the deck's signature serif italic. */
+.md-typeset h1 em,
+.md-typeset h2 em {
+  font-family: var(--aml-font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--aml-accent-deep);
+  letter-spacing: -0.01em;
+}
+
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-size: 2.5rem;
+  color: var(--aml-ink);
+}
+
+.md-typeset h2 {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-top: 2.5rem;
+  border-bottom: 1px solid var(--aml-divider);
+  padding-bottom: 0.4rem;
+}
+
+.md-typeset code {
+  font-family: var(--aml-font-mono);
+  font-size: 0.85em;
+  background: var(--md-code-bg-color);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+}
+
+/* ── Deck-style hero block ──────────────────────────────────────── */
+
+.aml-hero {
+  margin: 0 -1.2rem 2.5rem;
+  padding: 2.4rem 1.6rem 2.4rem;
+  background: linear-gradient(180deg, var(--aml-bg-cream) 0%, var(--aml-bg) 100%);
+  border-bottom: 1px solid var(--aml-divider);
+}
+
+.aml-eyebrow {
+  font-family: var(--aml-font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--aml-accent-deep);
+  margin-bottom: 0.8rem;
+}
+
+.aml-hero h1 {
+  margin: 0 0 0.8rem;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+}
+
+.aml-lede {
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--aml-ink-soft);
+  max-width: 56ch;
+  margin: 0;
+}
+
+.aml-lede strong {
+  color: var(--aml-ink);
+  font-weight: 600;
+}
+
+/* ── Door cards (replace Material grid cards visually) ──────────── */
+
+.md-typeset .grid.cards {
+  gap: 1rem;
+}
+
+.md-typeset .grid.cards > * {
+  border: 1px solid var(--aml-divider);
+  border-radius: 4px;
+  background: var(--aml-bg);
+  transition: border-color 0.15s, transform 0.15s;
+  padding: 1.3rem 1.4rem;
+  position: relative;
+}
+
+.md-typeset .grid.cards > *:hover {
+  border-color: var(--aml-accent);
+  transform: translateY(-1px);
+}
+
+/* The first card in a section gets a left rust border-accent —
+ * makes the "primary door" visually pop in the door grid. */
+.md-typeset .grid.cards > *:first-child {
+  border-left: 3px solid var(--aml-accent);
+  padding-left: 1.2rem;
+}
+
+.md-typeset .grid.cards .twemoji.lg.middle,
+.md-typeset .grid.cards svg.twemoji {
+  color: var(--aml-accent);
+}
+
+/* ── Tabs / navigation ──────────────────────────────────────────── */
+
+.md-tabs {
+  background: var(--aml-ink);
+  border-bottom: 1px solid var(--aml-divider);
+}
+
+.md-tabs__link {
+  font-family: var(--aml-font-sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+.md-tabs__link--active {
+  opacity: 1;
+  border-bottom: 2px solid var(--aml-accent);
+}
+
+.md-header {
+  background: var(--aml-ink);
+  box-shadow: 0 1px 0 var(--aml-divider);
+}
+
+.md-header__title {
+  font-family: var(--aml-font-sans);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+/* ── Search box ─────────────────────────────────────────────────── */
+
+.md-search__form {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+
+.md-search__input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+
+.md-footer-meta {
+  background: #0a0e1a;
+}
+
+/* ── Admonition rust accent ─────────────────────────────────────── */
+
+.md-typeset .admonition.note,
+.md-typeset .admonition.info {
+  border-left-color: var(--aml-accent);
+}
+
+.md-typeset .admonition.note > .admonition-title::before,
+.md-typeset .admonition.info > .admonition-title::before {
+  background-color: var(--aml-accent);
+}
+
+/* ── Small refinements ──────────────────────────────────────────── */
+
+.md-typeset a {
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.1s;
+}
+
+.md-typeset a:hover {
+  border-bottom-color: var(--aml-accent);
+}
+
+.md-typeset blockquote {
+  border-left: 3px solid var(--aml-accent);
+  background: var(--aml-bg-accent);
+  padding: 0.8rem 1.2rem;
+  color: var(--aml-ink-soft);
+  font-family: var(--aml-font-serif);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}

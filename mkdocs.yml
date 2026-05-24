@@ -27,21 +27,30 @@ theme:
     - content.action.view
     - toc.follow
   palette:
+    # Brand colours are applied via docs/stylesheets/brand.css —
+    # Material's primary/accent here only set the high-level scheme
+    # (which dial-set the background ramp); the actual hex values
+    # come from brand.css overrides on the `default` / `slate`
+    # CSS schemes. Keeping primary/accent set to "black" so Material
+    # doesn't ship its own indigo gradient that fights our overrides.
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: indigo
+      primary: black
+      accent: deep orange
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: black
+      accent: deep orange
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   font:
+    # Matches the existing board deck: Inter for sans, JetBrains Mono
+    # for code. Editorial italic accents (e.g. <em> inside h1) come
+    # from Source Serif 4, loaded via the stylesheet @import.
     text: Inter
     code: JetBrains Mono
   icon:
@@ -78,6 +87,12 @@ markdown_extensions:
 
 plugins:
   - search
+
+extra_css:
+  - stylesheets/brand.css
+
+# Source Serif 4 (used for editorial <em> accents inside headings)
+# is fetched at runtime from Google Fonts via @import in brand.css.
 
 nav:
   - Home: index.md
