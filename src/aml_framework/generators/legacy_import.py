@@ -717,9 +717,11 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         ]
         if metric_less:
             # No real metric in the source block → flag for manual
-            # conversion so the operator doesn't accidentally ship a
-            # `count >= 1` placeholder to production.
+            # conversion AND set `status: experimental` so the
+            # engine ignores the rule until the operator finishes
+            # the manual conversion + promotes to `active`.
             new_tags.append("needs_manual_conversion")
+            stub["status"] = "experimental"
         stub["tags"] = new_tags
         if row.narrative:
             stub["business_intent"] = row.narrative
@@ -735,8 +737,13 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         "having": {"count": {"gte": 1}},
     }
     # Append `needs_manual_conversion` so the operator can filter for
-    # rules that still need narrative-to-rule translation.
+    # rules that still need narrative-to-rule translation. Also set
+    # `status: experimental` so the runner doesn't pick this rule up
+    # for production execution until the operator promotes it after
+    # finishing the manual conversion. (The runner skips
+    # non-`active` rules, see engine/runner.py.)
     stub["tags"] = [*tags, "needs_manual_conversion"]
+    stub["status"] = "experimental"
     if row.narrative:
         # Persist the human prose so it isn't lost between formats.
         stub["business_intent"] = f"# TODO: convert narrative -> {row.narrative}"

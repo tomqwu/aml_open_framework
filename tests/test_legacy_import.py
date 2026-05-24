@@ -1288,6 +1288,47 @@ def test_regulator_refs_null_entries_skipped(tmp_path: Path) -> None:
     assert rows[0].regulator_refs == []
 
 
+def test_narrative_stub_status_experimental() -> None:
+    """Narrative-only stubs are `status: experimental`, not `active`.
+
+    Regression for codex review P2: previously narrative-only stubs
+    defaulted to `active`, so a merged skeleton with a real
+    `escalate_to` queue would let the runner execute the
+    `count >= 1` placeholder and flood alerts.
+    """
+    row = LegacyRuleRow(rule_id="r1", name="n", narrative="Round-trip 24h")
+    stub = to_aml_rule_stub(row)
+    assert stub["status"] == "experimental"
+
+
+def test_metric_less_threshold_stub_status_experimental() -> None:
+    """Metric-less threshold stubs are `status: experimental`."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"source": "txn", "window": "7d"},  # metric-less
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["status"] == "experimental"
+
+
+def test_ready_stub_omits_status_defaulting_active() -> None:
+    """A ready SQL or threshold stub does NOT force experimental.
+
+    The Rule model defaults `status` to `active` when absent; we
+    only override it for manual-conversion placeholders.
+    """
+    sql_row = LegacyRuleRow(rule_id="r1", name="n", legacy_sql="SELECT 1")
+    sql_stub = to_aml_rule_stub(sql_row)
+    assert "status" not in sql_stub  # defaults to active
+
+    threshold_row = LegacyRuleRow(
+        rule_id="r2", name="n", threshold_block={"having": {"count": {"gte": 5}}}
+    )
+    threshold_stub = to_aml_rule_stub(threshold_row)
+    assert "status" not in threshold_stub
+
+
 def test_threshold_with_real_metric_not_flagged_manual() -> None:
     """A block with a real metric is NOT flagged needs_manual_conversion."""
     row = LegacyRuleRow(

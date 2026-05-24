@@ -88,10 +88,15 @@ bad threshold is logged as a warning.
 
 A row with a `threshold_block` cell goes into an `aggregation_window`
 stub. The wizard tries to use legacy `having` / `window` / `source` /
-`group_by` keys directly when present, and the **full original blob
-is preserved on the stub under `legacy_threshold_block`** so the
-operator can reconcile the imported rule against the source dump
-byte-for-byte before deleting it.
+`group_by` / `filter` keys directly when present, and the **full
+original blob is preserved as a `legacy_threshold_block:<json>` tag
+on the stub** (a single string under `tags`, since `Rule` forbids
+extra top-level fields). Find every preserved blob with
+`grep legacy_threshold_block: skeleton.yaml`. Rows whose source
+block has only metadata (no real metric like `count` / `sum_amount`)
+are tagged `needs_manual_conversion` AND set to `status:
+experimental` so the engine skips them until the operator promotes
+to `active` after finishing the conversion.
 
 ## Duplicate rule IDs
 
