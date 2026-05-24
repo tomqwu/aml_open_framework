@@ -385,7 +385,16 @@ def parse_legacy_json(path: Path) -> list[LegacyRuleRow]:
 
 def parse_legacy_json_with_warnings(path: Path) -> ParseResult:
     """Variant that also returns parse warnings for the CLI summary."""
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, ValueError) as exc:
+        # Mirror the CSV path's behaviour: surface a warning + return
+        # an empty result instead of letting the JSON decoder's
+        # traceback bubble up through the CLI.
+        return ParseResult(
+            rows=[],
+            warnings=[ParseWarning(0, None, f"JSON decode failed: {exc}")],
+        )
     if isinstance(payload, dict):
         if "rules" in payload and isinstance(payload["rules"], list):
             entries = payload["rules"]
@@ -626,6 +635,13 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         # metric 'source'".
         _METADATA_KEYS = {"source", "window", "group_by", "filter", "having"}
         derived_having: dict[str, Any] = {k: v for k, v in block.items() if k not in _METADATA_KEYS}
+        # A metric-less block (only metadata, or `having: {}` only)
+        # has no real threshold to import — flag it as needing manual
+        # conversion so the operator doesn't accidentally promote a
+        # `count >= 1` placeholder into production. The placeholder
+        # still emits so `aml validate` passes; the tag makes it
+        # discoverable via `grep needs_manual_conversion`.
+        metric_less = not derived_having and explicit_having is None
         if not derived_having:
             # Legacy block had only metadata + no metric → emit a
             # safe placeholder so the stub validates and the operator
@@ -654,10 +670,16 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         # Preserve the original blob as a tag (allowed by the Rule
         # schema) so the spec validates as-is once the TODO source/
         # queue/regulation fields are filled in.
-        stub["tags"] = [
+        new_tags = [
             *stub["tags"],
             f"legacy_threshold_block:{json.dumps(row.threshold_block, sort_keys=True)}",
         ]
+        if metric_less:
+            # No real metric in the source block → flag for manual
+            # conversion so the operator doesn't accidentally ship a
+            # `count >= 1` placeholder to production.
+            new_tags.append("needs_manual_conversion")
+        stub["tags"] = new_tags
         if row.narrative:
             stub["business_intent"] = row.narrative
         return stub

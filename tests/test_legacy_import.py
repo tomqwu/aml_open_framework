@@ -1054,6 +1054,66 @@ def test_threshold_only_empty_having_uses_placeholder() -> None:
     stub = to_aml_rule_stub(row)
     # Empty having + no other metrics → safe `count: {gte: 1}` placeholder.
     assert stub["logic"]["having"] == {"count": {"gte": 1}}
+    # Metric-less blocks must be flagged for manual conversion so the
+    # operator doesn't accidentally promote a placeholder to production.
+    assert "needs_manual_conversion" in stub["tags"]
+
+
+def test_threshold_metadata_only_block_flagged_as_manual() -> None:
+    """A block with only metadata (no metric, no having) is flagged manual.
+
+    Regression for codex review P2: previously a block like
+    `{"source": "txn", "window": "7d", "group_by": ["customer_id"]}`
+    emitted a `count >= 1` placeholder while still being classified
+    as a ready threshold import, which could fire on every grouped
+    entity if the operator merged the stub as-is.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={
+            "source": "txn",
+            "window": "7d",
+            "group_by": ["customer_id"],
+        },
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["having"] == {"count": {"gte": 1}}
+    assert "needs_manual_conversion" in stub["tags"]
+
+
+def test_threshold_with_real_metric_not_flagged_manual() -> None:
+    """A block with a real metric is NOT flagged needs_manual_conversion."""
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"source": "txn", "window": "7d", "count": {"gte": 10}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert "needs_manual_conversion" not in stub["tags"]
+
+
+def test_parse_json_malformed_file_returns_warning(tmp_path: Path) -> None:
+    """A malformed `.json` file surfaces a warning, not a JSONDecodeError.
+
+    Regression for codex review P3: previously
+    `json.loads(path.read_text(...))` raised before `ParseResult` was
+    returned, so the CLI showed a traceback instead of the warn-and-
+    abort flow used for other bad inputs.
+    """
+    path = tmp_path / "broken.json"
+    path.write_text("{ not json at all", encoding="utf-8")
+    result = parse_legacy_json_with_warnings(path)
+    assert result.rows == []
+    assert any("JSON decode failed" in w.reason for w in result.warnings)
+
+
+def test_parse_json_empty_file_returns_warning(tmp_path: Path) -> None:
+    path = tmp_path / "empty.json"
+    path.write_text("", encoding="utf-8")
+    result = parse_legacy_json_with_warnings(path)
+    assert result.rows == []
+    assert any("JSON decode failed" in w.reason for w in result.warnings)
 
 
 def test_threshold_window_zero_string_falls_back() -> None:
