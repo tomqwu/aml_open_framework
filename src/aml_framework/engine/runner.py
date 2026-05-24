@@ -938,18 +938,26 @@ def run_spec(
     # payload PII via `_mask_alert`; mirror that posture here by
     # hashing `failing_value` with the same salt before persisting.
     dq_exceptions: list[DQException] = []
+    # PR-B2 (#367): build the FK-lookup map from *declared* contracts only.
+    # `data` can carry undeclared tables (the synthetic generator does this
+    # for several specs); passing the raw map would let a `foreign_key`
+    # check resolve against a parent table the spec doesn't actually
+    # declare, silently passing on synthetic/dashboard runs while the
+    # same spec correctly fails under CSV sources. Codex review pass 1.
+    declared_data: dict[str, list[dict[str, Any]]] = {
+        c.id: data.get(c.id, []) for c in spec.data_contracts
+    }
     for contract in spec.data_contracts:
         rows = data.get(contract.id, [])
-        # PR-B2 (#367): `all_data` enables `foreign_key` checks to look
-        # up the referenced contract's column values without a DuckDB
-        # roundtrip. Every other check ignores it; passing the full
-        # `data` map costs nothing on the happy path.
+        # `all_data` enables `foreign_key` checks to look up the
+        # referenced contract's column values without a DuckDB
+        # roundtrip. Every other check ignores it.
         contract_exceptions = evaluate_contract_checks(
             rows,
             contract.quality_checks,
             contract_id=contract.id,
             at=as_of,
-            all_data=data,
+            all_data=declared_data,
         )
         for raw_exc in contract_exceptions:
             exc = _maybe_mask_dq_exception(raw_exc, ledger)

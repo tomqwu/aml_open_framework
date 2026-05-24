@@ -104,8 +104,9 @@ for contract in spec.data_contracts:
 
     # Quality checks. PR-B1 (#366) extends the engine with `enum` /
     # `regex` / `range` validity checks alongside `not_null` / `unique`;
-    # this page now scores all five so the KPI denominator and the
-    # per-contract table stay aligned with what the engine emits.
+    # PR-B2 (#367) adds `foreign_key`. This page now scores all six so
+    # the KPI denominator and the per-contract table stay aligned with
+    # what the engine emits.
     check_results: list[dict] = []
     for qc in contract.quality_checks:
         for check_type, fields in qc.items():
@@ -115,9 +116,11 @@ for contract in spec.data_contracts:
             # never silently drop the check, never count it as PASS.
             outer_shape_ok = (
                 check_type in ("not_null", "unique") and isinstance(fields, list)
-            ) or (check_type in ("enum", "regex", "range") and isinstance(fields, dict))
+            ) or (
+                check_type in ("enum", "regex", "range", "foreign_key") and isinstance(fields, dict)
+            )
             if (
-                check_type in ("not_null", "unique", "enum", "regex", "range")
+                check_type in ("not_null", "unique", "enum", "regex", "range", "foreign_key")
                 and not outer_shape_ok
             ):
                 total_checks += 1
@@ -309,6 +312,70 @@ for contract in spec.data_contracts:
                     check_results.append(
                         {
                             "Check": f"{check_type}({field})",
+                            "Status": "PASS" if passed else "FAIL",
+                            "Detail": detail,
+                        }
+                    )
+            elif check_type == "foreign_key" and isinstance(fields, dict):
+                # PR-B2 (#367): referential integrity. Mirror engine
+                # semantics — NULL / missing values on the child side
+                # are SKIPPED (ANSI; `not_null` is the right tool for
+                # required FKs). The reference set is built from the
+                # parent contract's declared rows, skipping its NULLs.
+                # Malformed inner spec (missing keys, non-string keys,
+                # or referenced contract not declared in the spec)
+                # mirrors the engine's `malformed_check` posture so the
+                # scorecard doesn't silently PASS a disabled check.
+                # Codex review (B2 pass 1).
+                declared_ids = {c.id for c in spec.data_contracts}
+                for field, check_spec in fields.items():
+                    total_checks += 1
+                    inner_ok = (
+                        isinstance(check_spec, dict)
+                        and isinstance(check_spec.get("contract"), str)
+                        and isinstance(check_spec.get("column"), str)
+                    )
+                    if not inner_ok:
+                        passed = False
+                        detail = "malformed foreign_key spec (expected dict with contract+column)"
+                    else:
+                        ref_contract_id = check_spec["contract"]
+                        ref_column = check_spec["column"]
+                        if ref_contract_id not in declared_ids:
+                            passed = False
+                            detail = f"referenced contract '{ref_contract_id}' not declared"
+                        else:
+                            ref_rows = data.get(ref_contract_id, [])
+                            allowed: set = set()
+                            for ref_row in ref_rows:
+                                if ref_column not in ref_row:
+                                    continue
+                                rv = ref_row[ref_column]
+                                if rv is None:
+                                    continue
+                                try:
+                                    allowed.add(rv)
+                                except TypeError:
+                                    continue
+                            field_values = [
+                                r[field] for r in rows if field in r and r[field] is not None
+                            ]
+                            bad = 0
+                            for v in field_values:
+                                try:
+                                    if v not in allowed:
+                                        bad += 1
+                                except TypeError:
+                                    bad += 1
+                            passed = bad == 0
+                            detail = f"{bad} orphan(s)" if bad else "0 orphans"
+                    if passed:
+                        total_passed += 1
+                    else:
+                        total_violations += 1
+                    check_results.append(
+                        {
+                            "Check": f"foreign_key({field})",
                             "Status": "PASS" if passed else "FAIL",
                             "Detail": detail,
                         }

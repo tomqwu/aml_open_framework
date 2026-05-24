@@ -1181,6 +1181,95 @@ class TestEngineEmitsDQExceptions:
         ok, msg = AuditLedger.verify_decisions(run_dir)
         assert ok, f"hash chain broken after foreign_key event: {msg}"
 
+    def test_foreign_key_only_resolves_against_declared_contracts(self, tmp_path: Path):
+        """PR-B2 codex review pass 1: a `foreign_key` check must NOT
+        resolve against undeclared tables that happen to be in the
+        runner's raw `data` map. The synthetic generator adds extra
+        tables for several specs; resolving FK against them would
+        silently PASS on synthetic/dashboard runs while the same spec
+        correctly fails under CSV sources. The runner builds the
+        FK-lookup map from `spec.data_contracts` only.
+        """
+        spec = AMLSpec(
+            version=1,
+            program=Program(
+                name="T",
+                jurisdiction="US",
+                regulator="FinCEN",
+                owner="MLRO",
+                effective_date=_date(2026, 1, 1),
+            ),
+            data_contracts=[
+                # NOTE: `customer` is NOT declared as a data_contract.
+                DataContract(
+                    id="txn",
+                    source="t",
+                    columns=[
+                        Column(name="txn_id", type="string", nullable=False),
+                        Column(name="customer_id", type="string", nullable=False),
+                        Column(name="amount", type="decimal", nullable=False),
+                        Column(name="booked_at", type="timestamp", nullable=False),
+                    ],
+                    quality_checks=[
+                        {
+                            "foreign_key": {
+                                "customer_id": {
+                                    "contract": "customer",
+                                    "column": "customer_id",
+                                }
+                            }
+                        }
+                    ],
+                ),
+            ],
+            rules=[
+                Rule(
+                    id="r",
+                    name="R",
+                    severity="low",
+                    regulation_refs=[RegulationRef(citation="x", description="x")],
+                    logic=AggregationWindowLogic(
+                        type="aggregation_window",
+                        source="txn",
+                        group_by=["customer_id"],
+                        window="365d",
+                        having={"count": {"gte": 1}},
+                    ),
+                    escalate_to="q1",
+                    evidence=[],
+                )
+            ],
+            workflow=Workflow(queues=[Queue(id="q1", sla="24h")]),
+        )
+        # Data DOES contain a `customer` table, but the spec doesn't
+        # declare it. The FK check must NOT resolve against it — that
+        # would let an undeclared-source dependency silently pass on
+        # synthetic runs but fail under real CSV sources.
+        data = {
+            "customer": [{"customer_id": "C0001"}],
+            "txn": [
+                {"txn_id": "T1", "customer_id": "C0001", "amount": 10.0, "booked_at": _AS_OF},
+            ],
+        }
+        spec_path = tmp_path / "spec.yaml"
+        spec_path.write_text("placeholder: 1\n", encoding="utf-8")
+
+        run_spec(spec=spec, spec_path=spec_path, data=data, as_of=_AS_OF, artifacts_root=tmp_path)
+
+        run_dir = sorted(tmp_path.glob("run-*"))[-1]
+        dq_lines = [
+            json.loads(ln)
+            for ln in (run_dir / "dq_exceptions.jsonl").read_text(encoding="utf-8").splitlines()
+            if ln.strip()
+        ]
+        # Must emit a `malformed_check` event (referenced contract not
+        # declared in spec) — NOT a silent pass.
+        malformed = [r for r in dq_lines if r["check_type"] == "malformed_check"]
+        assert len(malformed) == 1, (
+            f"undeclared FK target must surface as malformed_check; got {dq_lines}"
+        )
+        assert malformed[0]["check_id"] == "malformed_check:foreign_key:customer_id"
+
     def test_dq_failing_value_masked_when_pii_masking_enabled(self, tmp_path: Path, monkeypatch):
         """When `AML_PII_MASKING=1` and a `unique` violation fires on a
         column marked `pii: true`, the persisted `failing_value` must

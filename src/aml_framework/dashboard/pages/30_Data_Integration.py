@@ -253,9 +253,9 @@ for contract in spec.data_contracts:
         total_freshness_ok += 1
 
     # Quality-check pass count (per-check, not per-field). PR-B1 (#366):
-    # `enum` / `regex` / `range` join `not_null` / `unique` so the
-    # integration scorecard reflects all five validity shapes the
-    # engine evaluates, not just the original two.
+    # `enum` / `regex` / `range` join `not_null` / `unique`; PR-B2
+    # (#367) adds `foreign_key`. The integration scorecard reflects all
+    # six validity shapes the engine evaluates.
     contract_passed = 0
     contract_total = 0
     for qc in contract.quality_checks:
@@ -267,9 +267,11 @@ for contract in spec.data_contracts:
             # disablement.
             outer_shape_ok = (
                 check_type in ("not_null", "unique") and isinstance(fields, list)
-            ) or (check_type in ("enum", "regex", "range") and isinstance(fields, dict))
+            ) or (
+                check_type in ("enum", "regex", "range", "foreign_key") and isinstance(fields, dict)
+            )
             if (
-                check_type in ("not_null", "unique", "enum", "regex", "range")
+                check_type in ("not_null", "unique", "enum", "regex", "range", "foreign_key")
                 and not outer_shape_ok
             ):
                 contract_total += 1
@@ -405,6 +407,50 @@ for contract in spec.data_contracts:
                                         break
                         if ok:
                             contract_passed += 1
+            elif check_type == "foreign_key" and isinstance(fields, dict):
+                # PR-B2 (#367): mirror engine semantics for the pass
+                # count. Inner-spec/reference-missing malformed cases
+                # leave `contract_passed` unincremented so the failing
+                # ratio reflects the silent disablement. Codex review
+                # (B2 pass 1).
+                declared_ids = {c.id for c in spec.data_contracts}
+                for field, check_spec in fields.items():
+                    contract_total += 1
+                    inner_ok = (
+                        isinstance(check_spec, dict)
+                        and isinstance(check_spec.get("contract"), str)
+                        and isinstance(check_spec.get("column"), str)
+                    )
+                    if not inner_ok:
+                        continue
+                    ref_contract_id = check_spec["contract"]
+                    ref_column = check_spec["column"]
+                    if ref_contract_id not in declared_ids:
+                        continue
+                    ref_rows = data.get(ref_contract_id, [])
+                    allowed: set = set()
+                    for ref_row in ref_rows:
+                        if ref_column not in ref_row:
+                            continue
+                        rv = ref_row[ref_column]
+                        if rv is None:
+                            continue
+                        try:
+                            allowed.add(rv)
+                        except TypeError:
+                            continue
+                    field_values = [r[field] for r in rows if field in r and r[field] is not None]
+                    ok_fk = True
+                    for v in field_values:
+                        try:
+                            if v not in allowed:
+                                ok_fk = False
+                                break
+                        except TypeError:
+                            ok_fk = False
+                            break
+                    if ok_fk:
+                        contract_passed += 1
     total_checks += contract_total
     total_passed += contract_passed
 
