@@ -279,10 +279,10 @@ def test_to_stub_threshold_row_uses_aggregation_window() -> None:
 
 
 def test_to_stub_threshold_without_having_key_falls_back() -> None:
-    """A bare threshold block (no 'having' wrapper) is still preserved."""
-    row = LegacyRuleRow(rule_id="r3", name="n", threshold_block={"min_amount": 9500})
+    """A bare threshold block (no 'having' wrapper) uses the metric directly."""
+    row = LegacyRuleRow(rule_id="r3", name="n", threshold_block={"sum": {"gte": 9500}})
     stub = to_aml_rule_stub(row)
-    assert stub["logic"]["having"] == {"min_amount": 9500}
+    assert stub["logic"]["having"] == {"sum": {"gte": 9500}}
 
 
 def test_to_stub_narrative_row_emits_todo_placeholder() -> None:
@@ -322,7 +322,7 @@ def test_to_stub_missing_regulator_refs_emits_todo() -> None:
 def test_classify_row_buckets() -> None:
     assert classify_row(LegacyRuleRow(rule_id="a", name="a", legacy_sql="x")) == "ready_sql"
     assert (
-        classify_row(LegacyRuleRow(rule_id="a", name="a", threshold_block={"x": 1}))
+        classify_row(LegacyRuleRow(rule_id="a", name="a", threshold_block={"count": {"gte": 1}}))
         == "ready_threshold"
     )
     assert classify_row(LegacyRuleRow(rule_id="a", name="a", narrative="x")) == "needs_manual"
@@ -332,7 +332,7 @@ def test_classify_row_buckets() -> None:
 def test_inventory_summary_rollup() -> None:
     rows = [
         LegacyRuleRow(rule_id="a", name="a", legacy_sql="x"),
-        LegacyRuleRow(rule_id="b", name="b", threshold_block={"x": 1}),
+        LegacyRuleRow(rule_id="b", name="b", threshold_block={"count": {"gte": 10}}),
         LegacyRuleRow(rule_id="c", name="c", narrative="x"),
         LegacyRuleRow(rule_id="d", name="d"),
         LegacyRuleRow(rule_id="a", name="dup", legacy_sql="y", regulator_refs=["FATF R.10"]),
@@ -1080,6 +1080,61 @@ def test_threshold_metadata_only_block_flagged_as_manual() -> None:
     stub = to_aml_rule_stub(row)
     assert stub["logic"]["having"] == {"count": {"gte": 1}}
     assert "needs_manual_conversion" in stub["tags"]
+
+
+def test_threshold_having_with_empty_operator_dict_is_manual() -> None:
+    """`{"having": {"count": {}}}` is classified as manual.
+
+    Regression for codex review P2: previously the truthy outer
+    `{"count": {}}` dict made `metric_less` False, so the stub was
+    emitted without `needs_manual_conversion` and `compile_rule_sql`
+    later produced a dangling `WHERE`.
+    """
+    row = LegacyRuleRow(rule_id="r1", name="n", threshold_block={"having": {"count": {}}})
+    stub = to_aml_rule_stub(row)
+    assert "needs_manual_conversion" in stub["tags"]
+    # Stub still emits a safe placeholder so `aml validate` passes.
+    assert stub["logic"]["having"] == {"count": {"gte": 1}}
+
+
+def test_bare_threshold_with_empty_operator_is_manual() -> None:
+    """A bare `{"count": {}}` block is classified as manual."""
+    row = LegacyRuleRow(rule_id="r1", name="n", threshold_block={"count": {}})
+    stub = to_aml_rule_stub(row)
+    assert "needs_manual_conversion" in stub["tags"]
+
+
+def test_threshold_source_whitespace_stripped() -> None:
+    """`source: " txn "` → emitted as `"txn"` so cross-references match.
+
+    Regression for codex review P3: previously the raw unstripped
+    value was emitted, so the rule referenced ` txn ` and failed
+    cross-reference validation against the `txn` data contract.
+    """
+    row = LegacyRuleRow(
+        rule_id="r1",
+        name="n",
+        threshold_block={"source": "  txn  ", "having": {"count": {"gte": 5}}},
+    )
+    stub = to_aml_rule_stub(row)
+    assert stub["logic"]["source"] == "txn"
+
+
+def test_regulator_refs_csv_json_list_with_null_entries(tmp_path: Path) -> None:
+    """CSV `regulator_refs: [null, "FATF R.10"]` skips the null.
+
+    Regression for codex review P2 (companion to the real-list null
+    skip): the JSON-list path in `_coerce_regulator_refs` also
+    skips None entries.
+    """
+    path = tmp_path / "csv_null.csv"
+    _write_csv(
+        path,
+        ["rule_id", "name", "regulator_refs", "sql"],
+        [["R_CSV_NULL", "n", '[null, "FATF R.10"]', "SELECT 1"]],
+    )
+    rows = parse_legacy_csv(path)
+    assert rows[0].regulator_refs == ["FATF R.10"]
 
 
 def test_threshold_is_metric_less_helper_paths() -> None:

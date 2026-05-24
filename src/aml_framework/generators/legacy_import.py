@@ -255,7 +255,13 @@ def _coerce_regulator_refs(raw: Any) -> list[str]:
             try:
                 parsed = json.loads(text)
                 if isinstance(parsed, list):
-                    return [str(item).strip() for item in parsed if str(item).strip()]
+                    # Skip None entries (`[null]` cells mirror the
+                    # real-list None-skip above).
+                    return [
+                        str(item).strip()
+                        for item in parsed
+                        if item is not None and str(item).strip()
+                    ]
             except (json.JSONDecodeError, ValueError):
                 pass
         for sep in ("|", ";", ","):
@@ -620,11 +626,17 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         # `grep` for `legacy_threshold_block:` in the skeleton to audit.
         block = row.threshold_block if isinstance(row.threshold_block, dict) else {}
         raw_having = block.get("having")
-        # An empty `having: {}` violates the JSON Schema's
-        # `minProperties: 1` constraint; treat it as absent and fall
-        # through to the derived/placeholder branch so the skeleton
-        # passes `aml validate`.
-        explicit_having = raw_having if isinstance(raw_having, dict) and raw_having else None
+        # An explicit `having` is only usable when every value is a
+        # real (non-empty) operator dict — empty operators like
+        # `{"count": {}}` pass schema validation but produce a
+        # dangling `WHERE` at compile time.
+        explicit_having = (
+            raw_having
+            if isinstance(raw_having, dict)
+            and raw_having
+            and all(_is_real_metric(v) for v in raw_having.values())
+            else None
+        )
         # `filter` lifts straight into the logic block too (it's a
         # documented AggregationWindowLogic field). Excluding it from
         # the derived `having` set below prevents the engine from
@@ -636,17 +648,21 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         # (`source` / `window` / `group_by` / `filter`) — otherwise
         # the engine treats them as aggregate metrics and
         # `compile_rule_sql` fails at runtime with "unsupported having
-        # metric 'source'".
+        # metric 'source'". Empty operator values are also dropped so
+        # they don't make it through as a fake-real metric.
         _METADATA_KEYS = {"source", "window", "group_by", "filter", "having"}
-        derived_having: dict[str, Any] = {k: v for k, v in block.items() if k not in _METADATA_KEYS}
-        # A metric-less block (only metadata, or `having: {}` only)
-        # has no real threshold to import — flag it as needing manual
-        # conversion so the operator doesn't accidentally promote a
-        # `count >= 1` placeholder into production. The placeholder
-        # still emits so `aml validate` passes; the tag makes it
-        # discoverable via `grep needs_manual_conversion`.
-        metric_less = not derived_having and explicit_having is None
-        if not derived_having:
+        derived_having: dict[str, Any] = {
+            k: v for k, v in block.items() if k not in _METADATA_KEYS and _is_real_metric(v)
+        }
+        # A metric-less block (only metadata, or `having: {}` /
+        # `{"count": {}}`) has no real threshold to import — flag it
+        # as needing manual conversion so the operator doesn't
+        # accidentally promote a `count >= 1` placeholder into
+        # production. The placeholder still emits so `aml validate`
+        # passes; the tag makes it discoverable via
+        # `grep needs_manual_conversion`.
+        metric_less = _threshold_is_metric_less(row.threshold_block)
+        if not derived_having and explicit_having is None:
             # Legacy block had only metadata + no metric → emit a
             # safe placeholder so the stub validates and the operator
             # gets pointed at the right rule by `aml validate`.
@@ -656,8 +672,11 @@ def to_aml_rule_stub(row: LegacyRuleRow) -> dict[str, Any]:
         # output instead of forcing `aml validate` failures even after
         # the operator fills the TODO source/queue fields.
         source_raw = block.get("source")
+        # Strip whitespace so the emitted `source` matches a data
+        # contract ID exactly — `" txn "` vs `"txn"` would otherwise
+        # fail cross-reference validation after the operator merges.
         source_value = (
-            source_raw
+            source_raw.strip()
             if isinstance(source_raw, str) and source_raw.strip()
             else "TODO_source_contract"
         )
@@ -725,6 +744,18 @@ def classify_row(row: LegacyRuleRow) -> str:
 _METADATA_KEYS_FOR_CLASSIFICATION = frozenset({"source", "window", "group_by", "filter", "having"})
 
 
+def _is_real_metric(value: Any) -> bool:
+    """A metric value is real when it's a non-empty dict of operators.
+
+    The AML spec's `having` accepts `{<metric>: {<op>: <value>}}`. An
+    empty operator dict (`{"count": {}}`) passes schema validation
+    but produces a dangling `WHERE` at compile time. Treating it as
+    real-metric here would cause the importer to skip
+    `needs_manual_conversion`.
+    """
+    return isinstance(value, dict) and bool(value)
+
+
 def _threshold_is_metric_less(block: dict[str, Any] | None) -> bool:
     """Return True when a threshold block has no real metric.
 
@@ -737,8 +768,16 @@ def _threshold_is_metric_less(block: dict[str, Any] | None) -> bool:
         return True
     raw_having = block.get("having")
     if isinstance(raw_having, dict) and raw_having:
-        return False
-    siblings = {k: v for k, v in block.items() if k not in _METADATA_KEYS_FOR_CLASSIFICATION}
+        # Each value under `having` must itself be a non-empty
+        # operator dict — `{"count": {}}` is metric-less even though
+        # the metric name is present.
+        if any(_is_real_metric(v) for v in raw_having.values()):
+            return False
+    siblings = {
+        k: v
+        for k, v in block.items()
+        if k not in _METADATA_KEYS_FOR_CLASSIFICATION and _is_real_metric(v)
+    }
     return not siblings
 
 
