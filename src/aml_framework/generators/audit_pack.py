@@ -578,27 +578,36 @@ def _mask_compound_string(value: str, pii_map: dict[str, str]) -> str:
     return masked
 
 
-def _apply_pii_map(payload: Any, pii_map: dict[str, str]) -> Any:
+_COMPOUND_ID_KEYS = frozenset({"case_id"})
+"""Keys whose *values* are engine-built compound identifiers that may
+embed plaintext PII (e.g. ``case_id`` = ``<rule>__<customer>__<ts>``).
+Only these keys get substring masking — generic leaf strings stay on
+exact-value masking so a short PII value like ``1`` cannot accidentally
+rewrite timestamps, hashes, or source paths (Codex P2 fix)."""
+
+
+def _apply_pii_map(payload: Any, pii_map: dict[str, str], *, key: str | None = None) -> Any:
     """Recursively replace plaintext values with their hashes.
 
-    Walks dicts/lists. For leaf strings: when the entire value matches a
-    ``pii_map`` key it's swapped for the hash; for compound strings that
-    *contain* a plaintext as substring (e.g. ``case_id`` =
-    ``rule__C0001__ts``) we also do a substring substitution so PII
-    embedded inside identifiers is hashed too (Codex P1). Leaves
-    non-string types untouched. Safe to call on any case-shaped dict —
-    the only side effect is hash substitution.
+    Walks dicts/lists. For leaf strings the default is exact-value
+    swap; only values keyed by one of ``_COMPOUND_ID_KEYS`` (e.g.
+    ``case_id``) also receive substring substitution so PII embedded
+    inside compound identifiers is hashed (Codex P1). Generic leaves
+    stay on equality matching to prevent short PII values (a numeric
+    customer_id like ``1``) from rewriting unrelated audit evidence
+    such as timestamps, content hashes, or source paths (Codex P2).
     """
     if not pii_map:
         return payload
     if isinstance(payload, dict):
-        return {k: _apply_pii_map(v, pii_map) for k, v in payload.items()}
+        return {k: _apply_pii_map(v, pii_map, key=k) for k, v in payload.items()}
     if isinstance(payload, list):
-        return [_apply_pii_map(v, pii_map) for v in payload]
+        return [_apply_pii_map(v, pii_map, key=key) for v in payload]
     if isinstance(payload, str):
         if payload in pii_map:
             return pii_map[payload]
-        return _mask_compound_string(payload, pii_map)
+        if key in _COMPOUND_ID_KEYS:
+            return _mask_compound_string(payload, pii_map)
     return payload
 
 
@@ -714,6 +723,17 @@ def _case_pack_files(
             if d.get("rule_version"):
                 rule_version = d["rule_version"]
                 break
+
+    # Codex P2 follow-up: a per-customer source_path like
+    # ``data/C0001/txn.csv`` embeds plaintext PII. Pre-mask the
+    # source_path string explicitly (substring-replace via the
+    # compound-id helper) so masked runs don't leak via lineage
+    # metadata, without broadening the global leaf masking rule.
+    def _masked_source_path(value: Any) -> Any:
+        if isinstance(value, str):
+            return _mask_compound_string(value, pii_map)
+        return value
+
     lineage = {
         "case_id": masked_case_id,
         "rule_id": rule_id,
@@ -724,7 +744,7 @@ def _case_pack_files(
                 "contract_id": contract_id,
                 "row_count": meta.get("row_count"),
                 "content_hash": meta.get("content_hash"),
-                "source_path": meta.get("source_path"),
+                "source_path": _masked_source_path(meta.get("source_path")),
                 "schema_hash": meta.get("schema_hash"),
             }
             for contract_id, meta in sorted((case.get("input_hash") or {}).items())

@@ -357,6 +357,105 @@ class TestCasePack:
         assert manifest["case_id"] == masked_id
         assert "C0001" not in json.dumps(manifest)
 
+    def test_pii_masking_does_not_corrupt_unrelated_strings(self, tmp_path: Path) -> None:
+        """Codex P2 (substring-mask too aggressive): a short / common
+        plaintext PII like ``1`` must NOT rewrite unrelated audit
+        evidence (timestamps, hashes, source paths) on the way out.
+        We pin this by using a deliberately collision-prone plaintext
+        and asserting non-identifier leaves are untouched."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-narrow"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        # customer_id is "1" — appears in any string that contains a 1.
+        case = {
+            "case_id": "structuring_cash__1__ts",
+            "rule_id": "structuring_cash",
+            "rule_name": "S",
+            "severity": "high",
+            "queue": "q",
+            "alert": {
+                "customer_id": "1",
+                "matched_row_ids": [10],
+                "window_end": "2026-01-15T11:00:00",
+            },
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {
+                "txn": {
+                    "row_count": 1311,
+                    "content_hash": "a1b1c1d1e1f1a1b1",
+                    "source_path": "data/input/txn.csv",
+                    "schema_hash": "11deadbeef111111",
+                }
+            },
+            "status": "open",
+        }
+        (cases_dir / "structuring_cash__1__ts.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "MASKED", "plaintext": "1"}) + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, cases_dir / "structuring_cash__1__ts.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            case_doc = json.loads(zf.read("cases/structuring_cash__MASKED__ts.json"))
+            lineage = json.loads(zf.read("lineage/structuring_cash__MASKED__ts.json"))
+        # Exact-value leaf got hashed (the customer_id "1").
+        assert case_doc["alert"]["customer_id"] == "MASKED"
+        # Non-identifier leaves containing "1" as a substring stay
+        # untouched — would be corrupted under naive substring masking.
+        assert case_doc["alert"]["window_end"] == "2026-01-15T11:00:00"
+        assert lineage["input_files"][0]["content_hash"] == "a1b1c1d1e1f1a1b1"
+        assert lineage["input_files"][0]["schema_hash"] == "11deadbeef111111"
+        # And the engine case_id (compound, key="case_id") IS masked.
+        assert case_doc["case_id"] == "structuring_cash__MASKED__ts"
+
+    def test_pii_masking_applied_to_lineage_source_path(self, tmp_path: Path) -> None:
+        """Codex P2 follow-up: per-customer source paths like
+        ``data/C0001/txn.csv`` embed plaintext PII. Lineage must apply
+        the same substring masking the case_id receives."""
+        spec = load_spec(SPEC_CA)
+        run = tmp_path / "run-lineage-mask"
+        run.mkdir()
+        cases_dir = run / "cases"
+        cases_dir.mkdir()
+        case = {
+            "case_id": "structuring_cash__C0001__t",
+            "rule_id": "structuring_cash",
+            "rule_name": "S",
+            "severity": "high",
+            "queue": "q",
+            "alert": {"customer_id": "C0001", "matched_row_ids": [1]},
+            "evidence_requested": [],
+            "spec_program": "schedule_i_bank_aml",
+            "input_hash": {
+                "txn": {
+                    "row_count": 10,
+                    "content_hash": "abcd",
+                    "source_path": "data/C0001/txn.csv",
+                    "schema_hash": "ef01",
+                }
+            },
+            "status": "open",
+        }
+        (cases_dir / "structuring_cash__C0001__t.json").write_text(
+            json.dumps(case, indent=2, sort_keys=True), encoding="utf-8"
+        )
+        _write_decisions(run, [])
+        (run / "pii_map.jsonl").write_text(
+            json.dumps({"field": "customer_id", "hash": "h0h0", "plaintext": "C0001"}) + "\n",
+            encoding="utf-8",
+        )
+        payload = build_case_pack(spec, cases_dir / "structuring_cash__C0001__t.json", run)
+        with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+            lineage = json.loads(zf.read("lineage/structuring_cash__h0h0__t.json"))
+        assert lineage["input_files"][0]["source_path"] == "data/h0h0/txn.csv"
+        assert "C0001" not in json.dumps(lineage)
+
     def test_no_pii_map_sidecar_means_no_masking(self, populated_run: Path) -> None:
         """The reverse contract: unmasked runs are a pure no-op — the
         case dict is shipped as-is and `pii_masked` is False."""
