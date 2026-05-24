@@ -397,12 +397,17 @@ _render_pillar(
         "evidence.",
         "**In:** every alert (and the case file derived from it) now "
         "carries a uniform `threshold` snapshot + `reference_data_version` "
-        "fingerprint across all 5 rule shapes (`aggregation_window`, "
-        "`list_match`, `network_pattern`, `custom_sql`, `python_ref`) — "
-        "shipped in `engine/payload_meta.py` (PR-PAY-1). The Case "
-        "Investigation 'Why this fired' panel renders both fields "
-        "directly from the case file so investigators read the spec-"
-        "derived contract instead of best-effort dict scraping.",
+        "fingerprint across all 5 rule shapes (`aggregation_window` echoes "
+        "the `having` block, `list_match` echoes match-type + score floor "
+        "+ list content hash, `network_pattern` echoes pattern + max_hops "
+        "+ `having`) — shipped in `engine/payload_meta.py` (PR-PAY-1). "
+        "`custom_sql` and `python_ref` carry `threshold = None` by design: "
+        "those shapes have no schematic threshold (the rule is bespoke "
+        "SQL or a model callable), and their first-class explainability "
+        "artefacts are the audit-ledger's `rules/<id>.sql` and the "
+        "scorer's `feature_attribution` / `_inspect_context` hook "
+        "respectively — both already wired to the Case Investigation "
+        "'Why this fired' panel.",
     ],
     links=[
         ("Case Investigation — 'Why this fired' panel", "pages/4_Case_Investigation.py"),

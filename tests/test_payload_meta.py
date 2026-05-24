@@ -118,13 +118,12 @@ class TestAlertThresholdSnapshot:
         snap = alert_threshold_snapshot(rule)
         assert snap == {"match": "fuzzy", "threshold": DEFAULT_FUZZY_THRESHOLD}
 
-    def test_list_match_fuzzy_zero_threshold_normalised_to_default(self):
-        """A schema-valid `threshold: 0.0` is also treated as falsy by
-        the runner's `or 0.8` fallback, so the snapshot must mirror
-        that behaviour (otherwise the alert says "fired at 0.0" while
-        the engine actually fired at 0.8)."""
-        from aml_framework.engine.payload_meta import DEFAULT_FUZZY_THRESHOLD
-
+    def test_list_match_fuzzy_explicit_zero_threshold_is_honoured(self):
+        """Codex review (pass 2, blocker #2): the spec YAML is the
+        source of truth. An explicit `threshold: 0.0` must NOT be
+        silently rewritten to 0.8 — that would lie about what the rule
+        fired at. The runner's `or 0.8` fallback was tightened to
+        `is None` to enforce this; the snapshot mirrors that."""
         rule = _rule(
             ListMatchLogic(
                 type="list_match",
@@ -136,7 +135,7 @@ class TestAlertThresholdSnapshot:
             )
         )
         snap = alert_threshold_snapshot(rule)
-        assert snap == {"match": "fuzzy", "threshold": DEFAULT_FUZZY_THRESHOLD}
+        assert snap == {"match": "fuzzy", "threshold": 0.0}
 
     def test_list_match_exact_preserves_none_threshold(self):
         rule = _rule(

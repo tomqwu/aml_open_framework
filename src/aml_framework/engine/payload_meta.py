@@ -105,15 +105,15 @@ def alert_threshold_snapshot(rule: Rule) -> dict[str, Any] | None:
 
     if logic_type == "list_match":
         # Surface the *effective* threshold the runner uses:
-        # `_execute_list_match` substitutes DEFAULT_FUZZY_THRESHOLD when
-        # `logic.threshold` is None or falsy (including the schema-valid
-        # 0.0). Reflect that here so the alert payload reports the
-        # threshold the rule actually fired at, not the raw spec field.
-        # For exact matches there is no scoring threshold — leave it as
-        # None so callers can distinguish "no scoring" from "score
-        # floor".
+        # `_execute_list_match` substitutes DEFAULT_FUZZY_THRESHOLD only
+        # when `logic.threshold is None` (the schema-allowed omitted
+        # case). An explicit 0.0 is honoured — the spec YAML is the
+        # source of truth, so silently rewriting a schema-valid value
+        # would lie. For exact matches there is no scoring threshold —
+        # leave it as None so callers can distinguish "no scoring" from
+        # "score floor".
         if logic.match == "fuzzy":
-            effective = logic.threshold or DEFAULT_FUZZY_THRESHOLD
+            effective = DEFAULT_FUZZY_THRESHOLD if logic.threshold is None else logic.threshold
         else:
             effective = None
         return {

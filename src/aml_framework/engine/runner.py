@@ -392,7 +392,14 @@ def _execute_list_match(
     list_name = logic.list
     field = logic.field
     match_type = logic.match
-    threshold = logic.threshold or 0.8
+    # Default only on None (omitted in spec); honour an explicit 0.0
+    # because the spec YAML is the source of truth — silently rewriting
+    # a schema-valid value would lie about what fired. Mirror of
+    # `payload_meta.alert_threshold_snapshot` so the alert payload and
+    # the executor agree on the effective threshold.
+    from aml_framework.engine.payload_meta import DEFAULT_FUZZY_THRESHOLD
+
+    threshold = DEFAULT_FUZZY_THRESHOLD if logic.threshold is None else logic.threshold
 
     list_entries = _load_reference_list(list_name)
     if list_entries is None:
