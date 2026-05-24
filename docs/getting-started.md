@@ -241,7 +241,7 @@ Spec model: `src/aml_framework/spec/models.py::QualityCheck` (`DQSeverity` liter
 
 ### `rule.risk_tier` — risk-based-controls axis (PR-RISK-1)
 
-A first-class `low` / `medium` / `high` tier on each rule, independent of `severity` (alert urgency) and `model_tier` (model-risk validation cadence). Closes the Pillar-5 "risk-based controls" gap on the North-Star Coverage page — until this shipped, the only risk signal was `severity`, which is an alert-priority field. Optional (defaults to `None`); when authored, it surfaces in the spec-diff path and downstream alert-priority + queue-routing wire-ins.
+A first-class `low` / `medium` / `high` tier on each rule, independent of `severity` (alert urgency) and `model_tier` (model-risk validation cadence). Closes the Pillar-5 "risk-based controls" gap on the North-Star Coverage page — until this shipped, the only risk signal was `severity`, which is an alert-priority field. Optional (defaults to `None`). PR-RISK-1 is additive-only: the field lands on the loaded spec, flows into the rule-version hash, and surfaces in the spec-diff path. Engine-time wire-in (alert priority + queue routing) is a follow-up PR.
 
 ```yaml
 rules:
@@ -255,7 +255,7 @@ Spec model: `src/aml_framework/spec/models.py::RiskTier`. Test: [`tests/test_spe
 
 ### `rule.business_intent` + `out_of_scope` — examiner-readable rationale (PR-A2)
 
-Free-text prose declaring **why this rule exists** and **what it explicitly does NOT catch**, written for an examiner or 2LoD reviewer (not a regulation citation — those go in `regulation_refs`). At generation time these fields flow into four downstream artifacts: the STR narrative preamble, the MRM dossier's conceptual-soundness section, the control-matrix program-intent block, and the audit pack's `program_intent.md` / `inventory.json`. `out_of_scope: []` means "no known exclusions"; omitting the field means "not yet documented" — they are semantically distinct.
+Free-text prose declaring **why this rule exists** and **what it explicitly does NOT catch**, written for an examiner or 2LoD reviewer (not a regulation citation — those go in `regulation_refs`). At generation time these fields flow into four downstream artifacts: the STR narrative preamble, the MRM dossier's conceptual-soundness section, the control-matrix program-intent block, and the audit pack's `program_intent.md` / `inventory.json`. `business_intent` is `None` until authored; `out_of_scope` defaults to an empty list (the downstream renderers collapse the exclusions block when empty).
 
 ```yaml
 rules:
