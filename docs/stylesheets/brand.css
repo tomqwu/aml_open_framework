@@ -271,6 +271,25 @@ body,
   line-height: 1.5;
 }
 
+/* ── R32 follow-up · Clickable header title (wordmark → home) ───── */
+/* The `overrides/partials/header.html` template wraps the site-name
+ * topic in an `<a>` to the home URL (Material's stock template leaves
+ * it as a plain div). These rules style it so it visually inherits
+ * the title typography but gains the affordances of a link. */
+
+.md-header__topic--home {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+
+.md-header__topic--home:hover {
+  opacity: 0.75;
+}
+
 /* ── R32 follow-up · Level-2 horizontal nav + hide primary sidebar ── */
 /* The custom override at overrides/partials/tabs.html adds a second
  * `.md-tabs--secondary` element under the standard tabs bar. This block
@@ -284,6 +303,40 @@ body,
   border-bottom: 1px solid rgba(28, 31, 38, 0.08);
   font-size: 0.72rem;
   color: var(--aml-ink-mute);
+}
+
+/* Dark mode (`slate` scheme) — the cream background + opacity-dimmed
+ * dark-ink text from the light-mode rules above dissolves the L2 nav
+ * into the dark navy header. Explicit overrides give the secondary
+ * bar a distinct (but slightly lighter than the main header) band
+ * with full-opacity light text so every pill is readable. */
+[data-md-color-scheme="slate"] .md-tabs--secondary {
+  background-color: #1c2333;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__link {
+  color: #cbd5e1;
+  opacity: 1;
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__link:hover {
+  color: var(--aml-accent);
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__item--active .md-tabs__link {
+  color: var(--aml-accent);
+  border-bottom-color: var(--aml-accent);
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__link--label {
+  color: rgba(203, 213, 225, 0.55);
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__item--group-label {
+  border-left-color: rgba(255, 255, 255, 0.12);
 }
 
 .md-tabs--secondary .md-tabs__list {
