@@ -123,7 +123,7 @@ Pre-built library of 20+ AML detection rule templates across 9 categories: struc
 
 The 8 AML/TM + DS pillars this framework is built around (equivalence-before-optimization, evidence-as-a-product, point-in-time correctness, DQ/reconciliation/defect management, risk-based controls, alert lifecycle & explainability, DS as governed augmentation, serve five roles) — surfaced as 8 cards classified COVERED / PARTIAL / GAP with concrete artefacts from the live spec/run and links to the relevant dashboard pages (PR-NS-1). Read-only synthesis surface — no engine call, no buttons. Live roll-up: **3 COVERED / 5 PARTIAL / 0 GAP** — COVERED are pillar 1 (equivalence — `engine/equivalence.py` + `pages/48_Equivalence.py`, shipped in PR-EQ-3 / Round 27), pillar 6 (alert lifecycle & explainability — flipped PARTIAL → COVERED in PR-PAY-1 / Round 28 once `engine/payload_meta.py` started stamping a uniform `threshold` + `reference_data_version` on every alert across all 5 rule shapes), and pillar 8 (serve five roles — `audience.py` persona routing). The 5 PARTIAL pillars (2 evidence-as-a-product, 3 point-in-time, 4 DQ/defect lifecycle, 5 risk-based controls, 7 DS as governed augmentation) name the missing piece on each card rather than soft-pedalling it — e.g. defect-ticket lifecycle, SCD-2 customer history, first-class `risk_tier`, model-risk approval gates. Routed universally — every persona sees it, same idiom as Today / Executive Dashboard.
 
-_Screenshot: pending — see follow-up._
+![North Star Coverage](screenshots/43_north_star_coverage.png)
 
 ---
 
@@ -139,7 +139,7 @@ Per-rule analytics table showing alert counts, detection rates, and logic types.
 
 Per-rule lifecycle state (active / experimental / deprecated) plus a per-rule approval-workflow placeholder (PR-A4, closes #365). Lifecycle KPI strip counts rules by status; the governance table surfaces `model_tier`, `validation_cadence_months`, `rule_version` (16-hex SHA-256), `business_intent` (truncated), `out_of_scope` exclusion count, and `risk_tier` — deliberately different columns from Rule Performance (alert volume + detection rate) so the two pages complement instead of overlap. Sorted by status (deprecated last, then experimental, then active) so the "rules being tuned right now" band is most visible. The `approval` column is an HONEST placeholder: until the signed-off-version store ships in a follow-up PR, every row reads `⚠ unapproved` — captioned plainly so a reviewer is never misled into thinking the workflow is wired. Cross-links to Spec Editor (modify rules), Rule Performance (per-rule stats), and Tuning Lab (validate experimental rules before promotion). Routed universally — every persona sees it, same idiom as North-Star Coverage.
 
-_Screenshot: pending — see follow-up._
+![Rule Lifecycle](screenshots/51_rule_lifecycle.png)
 
 ### Rule Tuning
 
@@ -211,19 +211,19 @@ Per-rule false-positive rate (`closed_no_action ÷ total cases`) derived at rend
 
 Beneficial-Ownership status across reporting-company customers. Single source of truth — Customer 360 + pKYC + freshness window — with one-click FinCEN BOIR-shaped JSON export. Per-customer table sorted worst-first (missing → stale → current); KPI buttons filter the table by status. Stops the re-keying-into-three-systems failure mode the KYC operator hits today.
 
-_Screenshot: pending — see follow-up._
+![BOI Workflow](screenshots/25_boi_workflow.png)
 
 ### FinTech Cockpit
 
 1-MLRO operating surface for FinTech / EMI / VASP programs. Sponsor-bank cure-notice timer, the 8 FinTech AML realities (research-doc anchored), and a one-button evidence pack. Built for the persona that IS all three lines of defence — no separate validation team to delegate to.
 
-_Screenshot: pending — see follow-up._
+![FinTech Cockpit](screenshots/26_fintech_cockpit.png)
 
 ### Regulator Pulse
 
 What's moved in the last 90 days across FinCEN / OCC / FRB / FCA / EBA / AMLA / FINTRAC / FATF. Filterable by jurisdiction, regulator, severity, and event type. Every event cites the regulator's primary source — no industry briefings, no vendor analysis as the load-bearing citation.
 
-_Screenshot: pending — see follow-up._
+![Regulator Pulse](screenshots/27_regulator_pulse.png)
 
 ---
 
@@ -233,19 +233,19 @@ _Screenshot: pending — see follow-up._
 
 Browseable catalogue of every metric the spec declares. KPI strip (total / categories used / with-targets / owners assigned), category × audience × formula filters, per-category accordion of metric cards with live RAG accent + current-run value strip, formula-as-YAML expander per metric, see-also footer cross-linking Executive Dashboard / Comparative Analytics / Spec Editor. Sister page to the Typology Catalogue — what the program *measures* vs what it *detects*.
 
-_Screenshot: pending — see follow-up._
+![Metrics Taxonomy](screenshots/28_metrics_taxonomy.png)
 
 ### AI Assistant
 
 Where the dashboard's GenAI co-pilot lives (PR-K). Three sections: (1) backend status — which provider is configured (`template` / `ollama` / `openai`), is the API key set, what's the spec's `program.ai_audit_log` mode; (2) this session's transcript — every Q&A from the sidebar panel, page-tagged; (3) run-level audit trail — tail of `ai_interactions.jsonl` for forensic review. The sidebar panel that appears on every page is for asking; this page is for accountability.
 
-_Screenshot: pending — see follow-up._
+![AI Assistant](screenshots/29_ai_assistant.png)
 
 ### Information Sharing
 
 Cross-bank obfuscated-pattern exchange (PR-DATA-10b). Renders the spec's `information_sharing` block — declared partners, jurisdictions, typology scope, salt-rotation cadence — and the recent `aml share-pattern` artifacts the institution has published. Read-only operational view; production cross-FI exchange (transport, partner discovery, salt rotation infrastructure) is out of scope. Anchored in FATF Recommendation 18 / Wolfsberg CBDDQ V1.4 / FinCEN 314(b) / AMLA cross-border pilot. Empty-states cleanly when the spec doesn't declare information sharing — no spurious surface for institutions that haven't opted in.
 
-_Screenshot: pending — see follow-up._
+![Information Sharing](screenshots/31_information_sharing.png)
 
 ---
 
