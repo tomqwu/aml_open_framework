@@ -359,21 +359,22 @@ body,
     max-width: 76rem;
   }
 
-  /* Codex P2 round 1 — sticky-header offset accounts for the extra
-   * level-2 row. Material's sticky header with `navigation.tabs.sticky`
-   * is 2 rows (header 48px + tabs 48px ≈ 96px). The new secondary row
-   * adds ~50px so the right TOC's sticky-top and anchor scroll-margin
-   * need to land below ~146px or in-page jumps slide behind the bar. */
+  /* Codex P2 round 1 + P3 round 3 — sticky-header offset accounts for
+   * the extra level-2 row. Material sets `html { font-size: 125% }`
+   * so 1rem = 20px on desktop; explicit `147px` avoids rem-scaling
+   * confusion and matches the measured 3-row sticky height (header
+   * 49px + tabs 48px + secondary 50px = 147px). Anchor jumps + the
+   * right TOC's sticky-top now land flush with the bar's bottom edge. */
   .md-sidebar--secondary {
-    top: 9.2rem !important;
+    top: 147px !important;
   }
 
   :target,
   .md-typeset :target {
-    scroll-margin-top: 9.2rem;
+    scroll-margin-top: 147px;
   }
 
   html {
-    scroll-padding-top: 9.2rem;
+    scroll-padding-top: 147px;
   }
 }
