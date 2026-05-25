@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **41 purpose-built pages**. The sidebar **Audience** selector hides pages outside your persona's primary workflow. (Two additional pages — Welcome and Today — are navigation surfaces, not described here.) Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **43 page files** — 41 operational + 2 navigation surfaces (Welcome / Today). The 2 navigation pages aren't described in this tour; the sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 The sidebar carries two external links — **Research & whitepapers** and **How-to recipes** — pointing at the MkDocs docs site at `tomqwu.github.io/aml_open_framework_docs/` (`AML_DOCS_URL` env override). Round 32 (2026-05-24) retired the in-app Knowledge category — the 10 pages 33–42 ported from the old GH-Pages site in PR-U2/U3 — once the docs site shipped in Round 31. Knowledge content lives in one canonical place now; the dashboard owns the operational/run-coupled surfaces only.
 

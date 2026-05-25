@@ -55,15 +55,22 @@ If `manifest.json::decisions_hash` got rewritten alongside `decisions.jsonl` (th
 
 ### 3 · Verify every run in a directory tree
 
-```bash
-find .artifacts/ -name manifest.json -execdir aml verify-decisions . \;
-```
-
-Or batch-mode (faster for large archives):
+The CLI verifies one run at a time. A `find` loop fans out across an archive:
 
 ```bash
-aml verify-decisions --batch .artifacts/ --fail-fast
+set -euo pipefail
+# Belt-and-suspenders: a missing/typo'd archive path silently passes
+# without the count check (xargs exits 0 on empty input).
+count=$(find .artifacts/ -name manifest.json | wc -l)
+if [ "$count" -eq 0 ]; then
+  echo "::error::No manifest.json under .artifacts/ — refusing to claim verification."
+  exit 1
+fi
+find .artifacts/ -name manifest.json -print0 \
+  | xargs -0 -n1 -I{} sh -c 'aml verify-decisions --run-dir "$(dirname "$1")" || exit 255' _ {}
 ```
+
+For large archives a parallel variant (`xargs -P 8 ...`) drops wall time at the cost of interleaved logs.
 
 ### 4 · Wire into CI
 
@@ -71,7 +78,18 @@ Add to your `.github/workflows/audit-check.yml` or scheduled S3 audit:
 
 ```yaml
 - name: Verify audit chain
-  run: aml verify-decisions --batch ${{ env.RUN_ARCHIVE_PATH }} --fail-fast
+  run: |
+    set -euo pipefail
+    # Belt-and-suspenders: `find` exits non-zero on a missing path,
+    # but `xargs` exits 0 on empty input, so without a count check
+    # a typo in $RUN_ARCHIVE_PATH would silently "pass" the audit.
+    count=$(find "${{ env.RUN_ARCHIVE_PATH }}" -name manifest.json | wc -l)
+    if [ "$count" -eq 0 ]; then
+      echo "::error::No manifest.json files found under ${{ env.RUN_ARCHIVE_PATH }} — audit cannot run."
+      exit 1
+    fi
+    find "${{ env.RUN_ARCHIVE_PATH }}" -name manifest.json -print0 \
+      | xargs -0 -n1 -I{} sh -c 'aml verify-decisions --run-dir "$(dirname "$1")" || exit 255' _ {}
 ```
 
 Recommended frequency: daily on the last 7 days of stored runs.
@@ -98,7 +116,7 @@ aml verify-decisions .artifacts/run-...   # back to PASS
 | Symptom | Cause | Fix |
 |---|---|---|
 | `chain valid` but `manifest.json::decisions_hash mismatch` | Someone edited `decisions.jsonl` AND re-recorded the head hash in `manifest.json`. The chain inside is internally consistent but it's not the chain the run ORIGINALLY produced. | Pull `decisions_hash` from an external store (DB row, WORM bucket) and pass `--expected-hash`. |
-| `manifest.json` doesn't exist | Run aborted before `ledger.finalize()` (e.g. `ContractViolation`, strict `python_ref` raise) | Look for `decisions.jsonl` and `defect_log.jsonl` — abort-path artifacts. Use `aml verify-decisions --partial` to walk what exists. |
+| `manifest.json` doesn't exist | Run aborted before `ledger.finalize()` (e.g. `ContractViolation`, strict `python_ref` raise) | Look for `decisions.jsonl` and `defect_log.jsonl` — abort-path artifacts. **With an out-of-band head hash**: `aml verify-decisions --run-dir <partial-run-dir> --expected-hash <hex>` works against `decisions.jsonl` directly (manifest not required). The explicit `--run-dir` is important when multiple runs sit under `.artifacts/` — the CLI otherwise defaults to the newest and could verify the wrong run. **Without a pinned hash**: the CLI needs `manifest.json`; inspect the partial files with `jq` or open them in the dashboard's Decision Trail page. |
 | Verifier complains `field_lineage_hash` is None | Run predates PR-A3 (Round 26+) | Expected. The hash is back-compat optional; only post-A3 runs have it populated. |
 | Permission denied on `.artifacts/run-...` | Files were chmod-frozen post-finalize (POSIX read-only) | Read-only is the intended behaviour. Use `sudo` or run verification as the user that ran the spec. |
 

@@ -165,7 +165,7 @@ rules:
     tags: [structuring, cash, bsa]
 ```
 
-Four rule types are supported: `aggregation_window`, `custom_sql`, `list_match`, `python_ref`. Full reference: [`docs/spec-reference.md`](spec-reference.md).
+Five rule types are supported: `aggregation_window`, `list_match`, `custom_sql`, `python_ref`, and `network_pattern` (the entity-resolution graph type — runs a recursive CTE up to `max_hops` from each seed customer and flags subgraphs satisfying a `having` condition, typically minimum component size or shared-counterparty count). Full reference: [`docs/spec-reference.md`](spec-reference.md).
 
 After editing, validate before running:
 ```bash

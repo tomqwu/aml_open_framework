@@ -336,6 +336,7 @@ Response `200`:
 | `GET` | `/api/v1/runs/{run_id}/metrics` | required | Metric values + RAG |
 | `GET` | `/api/v1/runs/{run_id}/reports` | required | Report ids |
 | `GET` | `/api/v1/runs/{run_id}/alerts/cef` | required | CEF export for SIEM |
+| `GET` | `/api/v1/runs/{run_id}/cases/{case_id}/lineage` | required | 7-link lineage chain for a case (PR-DATA-4) |
 | `POST` | `/api/v1/validate` | required | Validate a spec |
 | `GET` | `/api/v1/specs` | required | List stored spec versions |
 | `POST` | `/api/v1/webhooks` | required | Register a webhook |

@@ -169,6 +169,34 @@ logic:
   model_version: 2026.03.1
 ```
 
+### Logic type: `network_pattern`
+
+Detects patterns over the entity-resolution graph. The engine maintains a `resolved_entity_link` table (pairs of customers sharing a linking attribute); the rule runs a recursive CTE up to `max_hops` from each seed customer and flags subgraphs satisfying the `having` condition.
+
+```yaml
+logic:
+  type: network_pattern
+  source: customer                    # accepted in spec but the executor seeds
+                                      # ONLY from the `customer` table today
+                                      # (engine/runner.py:_execute_network_pattern,
+                                      # engine/lineage.py:311). Leave as `customer`.
+  pattern: component_size             # component_size | common_counterparty
+  max_hops: 2                         # 1..5; how far to walk the link graph
+  having:
+    # Keys MUST be one of the metric names the executor emits:
+    # `component_size` or `counterparty_count` (always both emitted
+    # regardless of `pattern`). `having: {common_counterparty: ...}`
+    # validates against the schema but silently produces zero alerts.
+    component_size: { gte: 3 }        # e.g. flag clusters of ≥3 linked customers
+```
+
+The `pattern` field is a hint to operators / surfaces about which metric the rule is meant to highlight — the executor always computes both and gates on whatever `having` keys you write.
+
+Patterns:
+
+- **`component_size`** — number of distinct customers in the connected component reachable from the seed within `max_hops` (includes the seed).
+- **`common_counterparty`** — counterparty-overlap rule; the gating metric to use in `having` is **`counterparty_count`**, computed by `_execute_network_pattern` as `COUNT(DISTINCT reached_id)` excluding the seed itself. A hub linked to four other customers (any combination of link attributes) scores `counterparty_count = 4`. Useful for ring / pass-through detection.
+
 ## `workflow`
 
 ```yaml
