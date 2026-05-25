@@ -28,6 +28,27 @@ program:
   owner: chief_compliance_officer     # human owner of the program
   effective_date: 2026-01-01          # YYYY-MM-DD, when this version takes effect
   ai_audit_log: hash_only             # what the GenAI assistant writes to ai_interactions.jsonl
+
+  # ── Optional blocks (omit when not needed) ──────────────────────
+  environment: dev                    # promotion lane: dev | test | uat | prod
+  strict_environment_gating: false    # raise on rule env-mismatch when True
+  sla:                                # Pillar-6 SLA monitor (PR-LF1)
+    alert_disposition_days: 30
+    batch_cadence_days: 1
+    batch_lateness_grace_days: 1
+  legacy_reference:                   # parallel-run equivalence (PR-EQ-1)
+    path: ./legacy-alerts.csv         # required
+    format: csv                       # optional: csv | parquet | jsonl (default csv)
+    key_columns: [customer_id, alert_window_end]   # required
+    rule_map:                         # optional: new_rule_id → legacy_rule_id
+      structuring_burst: LEGACY_RULE_42
+  nfrs:                               # non-functional requirements (PR-D2)
+    rto_minutes: 240                  # optional
+    rpo_minutes: 60                   # optional
+    sla_p95_ms: 5000                  # optional
+    throughput_per_min: 200           # optional
+    retention_days: 2555              # optional (7y for AML)
+    notes: "MRM validation cadence + BCP/DR posture"
 ```
 
 **`ai_audit_log`** (default `hash_only`) controls what the dashboard's GenAI assistant retains in the run's append-only `ai_interactions.jsonl` file:
@@ -36,6 +57,24 @@ program:
 - `full_text` — logs the entire reply for forensic recall. Institutions opt into this only after clearing it against their privacy posture; the spec change is itself the paper trail.
 
 Other audit fields (`ts`, `page`, `persona`, `backend`, `citations`, `confidence`, `referenced_metric_ids`, `referenced_case_ids`, `question`) are always logged regardless of mode.
+
+### Optional blocks
+
+**`environment`** (default `dev`) — the promotion lane this spec is running in. Allowed: `dev | test | uat | prod`. Combined with each rule's `environments` list, the engine warns (or with `strict_environment_gating: true`, raises `EnvironmentGatingError`) when a rule fires in a lane it wasn't approved for. Greenfield deployments leave this at `dev` until the promotion process is wired up. *PR-D3 / Round 28.*
+
+**`strict_environment_gating`** (default `false`) — opt-in to hard-fail on environment mismatches instead of warning. Institutions flip this once the rule lifecycle workflow is signing off rule promotions across lanes. *PR-D3 / Round 28.*
+
+**`sla`** (default `None`) — Pillar-6 SLA monitor declaration. Three sub-fields, all optional with sensible defaults:
+
+- `alert_disposition_days` (default `30`) — max age in days before an open alert is a breach. The engine counts cases with a `case_opened` event older than this threshold and no terminal decision (`closed` / `escalated_to_str`) in the audit ledger.
+- `batch_cadence_days` (default `1`) — expected cadence of the data extract.
+- `batch_lateness_grace_days` (default `1`) — grace window before a late batch is flagged. The engine compares `run.as_of` to the most-recent transaction timestamp; a gap larger than `cadence + grace` flags the run as a lateness breach.
+
+Engine never raises on SLA breach; it records the breach in `sla_report.json` for downstream surfaces (manifest-hash pinned). Omitting the block disables the monitor. *PR-LF1 / Round 27.*
+
+**`legacy_reference`** (default `None`) — pointer to a legacy alert export for parallel-run divergence classification. Required: `path` + `key_columns`. Optional: `format` (`csv | parquet | jsonl`, default `csv`), `dataset` (for multi-table formats), `rule_map` (**new → legacy** rule id mapping; keys are this spec's `rule_id`s, values are the corresponding legacy-system identifiers). Consumed by `engine/equivalence.py` and the Equivalence dashboard page (pages/48). Engine ignores at runtime — equivalence is a separate read-only synthesis. *PR-EQ-1 / Round 26.*
+
+**`nfrs`** (default `None`) — non-functional requirements declaration. Six optional fields: `rto_minutes`, `rpo_minutes`, `sla_p95_ms`, `throughput_per_min`, `retention_days`, `notes` (free-form prose for MRM context, validation cadence, regulatory commitments). Surfaces feed it into capacity planning, BCP/DR posture, and the regulator audit pack. Engine ignores at runtime. *PR-D2 / Round 27.*
 
 ## `data_contracts`
 
