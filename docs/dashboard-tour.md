@@ -253,8 +253,15 @@ _Screenshot: pending — see follow-up._
 
 The in-app Knowledge category (10 pages 33–42) was retired in Round 32 once the MkDocs docs site shipped in Round 31. The same content — Compliance Manifest architecture rationale, the AML/TM data-problem whitepaper, competitive positioning, FinTech AML reality, lineage deep-dive, AML process pain, the narrative regulator-pulse brief, the TD 2024 case study, the board-pack business deck (12 slides + 64s video), the engineer technical deck (18 slides + 92s walkthrough) — now lives at:
 
-- **Whitepapers**: `https://tomqwu.github.io/aml_open_framework_docs/explain/`
-- **Deck PDFs (preserved doors)**: `/business/`, `/technical/`, `/v1-archive/`
+- **Architecture**: <https://tomqwu.github.io/aml_open_framework_docs/architecture/>
+- **Research whitepapers** (under the `Explain` nav):
+    - <https://tomqwu.github.io/aml_open_framework_docs/research/2026-05-aml-data-problem/>
+    - <https://tomqwu.github.io/aml_open_framework_docs/research/2026-05-regulator-pulse/>
+    - <https://tomqwu.github.io/aml_open_framework_docs/research/2026-04-aml-process-pain/>
+    - <https://tomqwu.github.io/aml_open_framework_docs/research/2026-04-fintech-aml-reality/>
+    - <https://tomqwu.github.io/aml_open_framework_docs/research/2026-04-competitive-positioning/>
+    - <https://tomqwu.github.io/aml_open_framework_docs/research/2026-04-regulator-pulse/>
+- **Deck PDFs (preserved doors on the docs repo root)**: `/business/`, `/technical/`, `/v1-archive/`
 
 The dashboard sidebar carries two external links (Research & whitepapers · How-to recipes). `AML_DOCS_URL` env override repoints both for private-mirror deploys. The deck PDF assets continue to ship under `docs/pitch/deck-v2/` for download.
 

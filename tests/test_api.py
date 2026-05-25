@@ -81,13 +81,17 @@ class TestLandingFrontDoor:
     @pytest.fixture(autouse=True)
     def _clear_url_env(self, monkeypatch):
         # Codex P3 round 2: default-case tests are environment-
-        # dependent. If `AML_APP_URL` or `AML_KB_URL` are set in
-        # the test runner's env (CI, local dev), the "default"
-        # assertions exercise the override path instead and
-        # produce false negatives. Clear both before every test
-        # in this class; tests that need an override re-set
-        # within the method body.
+        # dependent. If any of the URL envs are set in the test
+        # runner's env (CI, local dev), the "default" assertions
+        # exercise the override path instead and produce false
+        # negatives. Clear all three before every test in this
+        # class; tests that need an override re-set within the
+        # method body.
+        # R32 + Codex P2 round 2 on PR #446: `AML_DOCS_URL` is
+        # now the canonical env (was `AML_KB_URL` pre-R32). Must
+        # be cleared too — the resolver reads it first.
         monkeypatch.delenv("AML_APP_URL", raising=False)
+        monkeypatch.delenv("AML_DOCS_URL", raising=False)
         monkeypatch.delenv("AML_KB_URL", raising=False)
 
     def test_root_serves_hero_html(self):
