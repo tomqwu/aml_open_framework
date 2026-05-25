@@ -27,6 +27,10 @@
   --aml-accent: #dd5c34;
   --aml-accent-deep: #a44b30;
   --aml-accent-bg: #fdeee5;
+  /* Lighter rust for use on dark backgrounds — hits WCAG 4.5:1 on
+   * `#1c2333` (the L2 nav slate bg) at 6.49:1. Same brand-rust hue,
+   * just enough chroma lift to clear the contrast threshold. */
+  --aml-accent-light: #ef8d68;
 
   /* Cyan signal (used sparingly for "live" indicators) */
   --aml-signal: #67e8f9;
@@ -335,12 +339,15 @@ body,
 }
 
 [data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__link:hover {
-  color: var(--aml-accent);
+  color: var(--aml-accent-light);
 }
 
 [data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__item--active .md-tabs__link {
-  color: var(--aml-accent);
-  border-bottom-color: var(--aml-accent);
+  /* Codex P3 round 1 — dark-mode active needed a lighter rust to clear
+   * WCAG 4.5:1. `--aml-accent` (#dd5c34) on `#1c2333` = 4.23:1 ❌;
+   * `--aml-accent-light` (#ef8d68) = 6.49:1 ✅. */
+  color: var(--aml-accent-light);
+  border-bottom-color: var(--aml-accent-light);
 }
 
 [data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__link--label {
