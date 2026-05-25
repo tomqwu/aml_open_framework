@@ -275,6 +275,65 @@ body,
   line-height: 1.5;
 }
 
+/* ── Release chip — version + tag summary next to the wordmark ──── */
+/* Mirrors the dashboard topbar (`dashboard/components.py:248-291`).
+ * Markup is in `overrides/partials/header.html`; env-injected at
+ * docs-deploy time so each published rebuild stamps "v0.1.42 · Round
+ * 32 close: ..." into the header. Hidden on phone widths so it doesn't
+ * compete with the brand for the narrow top row. */
+
+.md-header__release {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 10px;
+  font-family: var(--aml-font-mono);
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.md-header__release-tag {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.md-header__release-summary {
+  font-family: var(--aml-font-serif);
+  font-style: italic;
+  font-size: 12px;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.md-header__release-summary::before {
+  content: "·";
+  margin-right: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@media screen and (max-width: 60em) {
+  .md-header__release-summary {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 30em) {
+  .md-header__release {
+    display: none;
+  }
+}
+
 /* ── R32 follow-up · Clickable header title (wordmark → home) ───── */
 /* The `overrides/partials/header.html` template wraps the site-name
  * topic in an `<a>` to the home URL (Material's stock template leaves

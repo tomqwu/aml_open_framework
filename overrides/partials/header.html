@@ -47,6 +47,28 @@
         </div>
       </div>
     </div>
+    {#-
+      Release chip next to the wordmark — mirrors the dashboard topbar
+      pattern (`dashboard/app.py:478-479`). Populated from
+      `config.extra.release_tag` + `config.extra.release_summary`,
+      which mkdocs.yml reads from the `AML_RELEASE_TAG` /
+      `AML_RELEASE_SUMMARY` env vars exported by `docs-deploy.yml`.
+      Both default to empty (local `mkdocs serve` outside CI) — the
+      chip just doesn't render.
+    -#}
+    {% if config.extra.release_tag %}
+      {#- Codex P2 — release_tag + release_summary come from Git tag
+         metadata, which `git check-ref-format` permits to contain HTML
+         metacharacters (`<`, `&`, `"`). Explicit `| e` escapes prevent
+         a malicious or malformed tag from publishing raw HTML / a
+         stored-XSS payload into every docs page. -#}
+      <div class="md-header__release" aria-label="Build release">
+        <span class="md-header__release-tag">{{ config.extra.release_tag | e }}</span>
+        {% if config.extra.release_summary %}
+          <span class="md-header__release-summary" title="{{ config.extra.release_summary | e }}">{{ config.extra.release_summary | e }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
     {% if config.theme.palette %}
       {% if not config.theme.palette is mapping %}
         {% include "partials/palette.html" %}

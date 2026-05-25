@@ -168,3 +168,9 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/tomqwu/aml_open_framework
   generator: false
+  # Release chip in the header (mirrors the dashboard topbar).
+  # `docs-deploy.yml` exports these env vars from `git describe --tags`
+  # before `mkdocs build` runs; both default to empty when building
+  # locally outside CI so the chip just doesn't render.
+  release_tag: !ENV [AML_RELEASE_TAG, ""]
+  release_summary: !ENV [AML_RELEASE_SUMMARY, ""]
