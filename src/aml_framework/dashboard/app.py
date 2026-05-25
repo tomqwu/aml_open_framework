@@ -588,18 +588,24 @@ with st.sidebar:
     st.divider()
 
     # R32: a single link to the external docs site replaces the previous
-    # in-app Knowledge tabs (pages 33-42, retired). `AML_DOCS_URL` env
-    # override lets deployments point at a private mirror; default is the
-    # public MkDocs site published by `.github/workflows/docs-deploy.yml`.
-    import os as _os
+    # in-app Knowledge tabs (pages 33-42, retired). `aml_framework.links.docs_url()`
+    # centralizes the env resolution so this sidebar, the FastAPI landing
+    # CTA, and the `/knowledge` redirect all honor the same `AML_DOCS_URL`
+    # (or legacy `AML_KB_URL`) override — Codex P2 round 1 on PR #446 flagged
+    # the two-knob split. `urljoin` so mirror URLs without a trailing slash
+    # still produce well-formed sub-paths.
+    from urllib.parse import urljoin
 
-    _docs_url = _os.environ.get("AML_DOCS_URL", "https://tomqwu.github.io/aml_open_framework_docs/")
+    from aml_framework.links import docs_url as _docs_url_fn
+
+    _docs_base = _docs_url_fn()
+    _how_to = urljoin(_docs_base, "how-to/")
     st.markdown(
-        f'<a href="{_docs_url}" target="_blank" rel="noopener" '
+        f'<a href="{_docs_base}" target="_blank" rel="noopener" '
         'style="font-size:0.85rem; text-decoration:none;">'
         "Research &amp; whitepapers &rarr;"
         "</a><br>"
-        f'<a href="{_docs_url}how-to/" target="_blank" rel="noopener" '
+        f'<a href="{_how_to}" target="_blank" rel="noopener" '
         'style="font-size:0.85rem; text-decoration:none;">'
         "How-to recipes &rarr;"
         "</a>",

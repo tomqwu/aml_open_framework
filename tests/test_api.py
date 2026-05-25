@@ -147,10 +147,24 @@ class TestLandingFrontDoor:
         assert "tomqwu.github.io/aml_open_framework_docs" in resp.headers["location"]
 
     def test_knowledge_redirect_honors_env_override(self, monkeypatch):
+        # R32 + Codex P2 on PR #446: the resolver always normalizes to
+        # a trailing slash so urljoin sub-paths work. Operator-set env
+        # without trailing slash is silently fixed up.
         monkeypatch.setenv("AML_KB_URL", "https://docs.example.test/knowledge")
         resp = client.get("/knowledge", follow_redirects=False)
         assert resp.status_code == 302
-        assert resp.headers["location"] == "https://docs.example.test/knowledge"
+        assert resp.headers["location"] == "https://docs.example.test/knowledge/"
+
+    def test_aml_docs_url_supersedes_legacy_kb_url(self, monkeypatch):
+        # R32: AML_DOCS_URL is the canonical name; AML_KB_URL remains
+        # honored for back-compat, but the new name wins when both
+        # are set. Pin: a deployment migrating to the new env doesn't
+        # have to unset the old one immediately.
+        monkeypatch.setenv("AML_DOCS_URL", "https://new.example.test/")
+        monkeypatch.setenv("AML_KB_URL", "https://old.example.test/")
+        resp = client.get("/knowledge", follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "https://new.example.test/"
 
     def test_app_redirect_supports_head(self):
         # PR-U6: HEAD probes (link-validators, health-checkers)

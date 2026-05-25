@@ -283,16 +283,14 @@ class RunRequest(BaseModel):
 # are env-overridable so the same image works across deploys.
 #
 # R32: the in-app Knowledge pages (PR-U2/U3, pages 33–42) were
-# retired now that the MkDocs docs site is live at
-# `tomqwu.github.io/aml_open_framework_docs/`. `_DEFAULT_KB_URL`
-# now points there directly — same whitepaper + deck content, served
-# from the canonical docs site. Operators with a custom `AML_KB_URL`
-# env override keep their pointer.
+# retired now that the MkDocs docs site is live. The shared resolver
+# in ``aml_framework.links`` honors both ``AML_DOCS_URL`` (canonical)
+# and ``AML_KB_URL`` (legacy PR-U4 name) — single env knob across
+# api landing, ``/knowledge`` redirect, and dashboard sidebar.
 _STATIC_DIR = Path(__file__).parent / "static"
 _DEFAULT_APP_URL = (
     "https://ca-aml-dashboard-dev.wittyhill-44456789.canadacentral.azurecontainerapps.io"
 )
-_DEFAULT_KB_URL = "https://tomqwu.github.io/aml_open_framework_docs/"
 
 
 def _app_url() -> str:
@@ -301,9 +299,12 @@ def _app_url() -> str:
 
 
 def _kb_url() -> str:
-    """The Knowledge / docs site URL. `AML_KB_URL` env override or
-    the public MkDocs site default."""
-    return os.environ.get("AML_KB_URL", _DEFAULT_KB_URL)
+    """Back-compat alias for ``aml_framework.links.docs_url`` — kept thin
+    so the landing-template substitution + ``/knowledge`` redirect can
+    keep their existing call sites."""
+    from aml_framework.links import docs_url
+
+    return docs_url()
 
 
 @app.get("/", include_in_schema=False)
