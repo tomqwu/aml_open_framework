@@ -23,6 +23,10 @@ on:
     paths:
       - "mkdocs.yml"
       - "docs/**"
+      # Custom theme overrides land here (R32 follow-up — PR #447).
+      # MkDocs treats `overrides/` as part of the source via
+      # `theme.custom_dir`, so changes here MUST trigger a rebuild.
+      - "overrides/**"
       - ".github/workflows/docs-deploy.yml"
   workflow_dispatch:
 
