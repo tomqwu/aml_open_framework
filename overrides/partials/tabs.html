@@ -55,3 +55,28 @@
     </nav>
   {% endif %}
 {% endfor %}
+
+{#-
+  Codex P2 round 1 — keep the active level-2 item in view. Material's
+  built-in tabs script doesn't initialize our custom `tabs-secondary`
+  component, so on long rows (e.g. Build → Triage defects, the 9th pill;
+  Explain → late research papers) the active item starts off-screen at
+  scrollLeft=0. This 12-line scroller centers it on initial load —
+  defer until after layout so offsetLeft is correct.
+-#}
+<script>
+  (function () {
+    var center = function () {
+      var item = document.querySelector(".md-tabs--secondary .md-tabs__item--active");
+      if (!item) return;
+      var row = item.parentElement;
+      if (!row || row.scrollWidth <= row.clientWidth) return;
+      row.scrollLeft = item.offsetLeft - row.clientWidth / 2 + item.offsetWidth / 2;
+    };
+    if (document.readyState === "complete") {
+      center();
+    } else {
+      window.addEventListener("load", center);
+    }
+  })();
+</script>

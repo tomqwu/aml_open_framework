@@ -358,4 +358,22 @@ body,
   .md-grid {
     max-width: 76rem;
   }
+
+  /* Codex P2 round 1 — sticky-header offset accounts for the extra
+   * level-2 row. Material's sticky header with `navigation.tabs.sticky`
+   * is 2 rows (header 48px + tabs 48px ≈ 96px). The new secondary row
+   * adds ~50px so the right TOC's sticky-top and anchor scroll-margin
+   * need to land below ~146px or in-page jumps slide behind the bar. */
+  .md-sidebar--secondary {
+    top: 9.2rem !important;
+  }
+
+  :target,
+  .md-typeset :target {
+    scroll-margin-top: 9.2rem;
+  }
+
+  html {
+    scroll-padding-top: 9.2rem;
+  }
 }
