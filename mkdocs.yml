@@ -11,6 +11,11 @@ docs_dir: docs
 
 theme:
   name: material
+  # R32 follow-up: custom theme override directory.
+  # `overrides/partials/tabs.html` injects a 2nd-level horizontal nav
+  # under the standard tabs bar; `docs/stylesheets/brand.css` hides
+  # the primary sidebar on desktop and widens the content grid.
+  custom_dir: overrides
   features:
     - navigation.tabs
     - navigation.tabs.sticky

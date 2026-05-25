@@ -270,3 +270,92 @@ body,
   font-size: 1.05rem;
   line-height: 1.5;
 }
+
+/* ── R32 follow-up · Level-2 horizontal nav + hide primary sidebar ── */
+/* The custom override at overrides/partials/tabs.html adds a second
+ * `.md-tabs--secondary` element under the standard tabs bar. This block
+ * styles it as a quieter sub-band and hides Material's left sidebar on
+ * desktop so the content column gets the full center width. Mobile is
+ * untouched — Material's hamburger drawer still shows the full nav. */
+
+.md-tabs--secondary {
+  background-color: var(--aml-bg-cream);
+  border-top: 1px solid rgba(28, 31, 38, 0.08);
+  border-bottom: 1px solid rgba(28, 31, 38, 0.08);
+  font-size: 0.72rem;
+  color: var(--aml-ink-mute);
+}
+
+.md-tabs--secondary .md-tabs__list {
+  /* Allow horizontal scroll on narrow viewports without wrapping. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.md-tabs--secondary .md-tabs__list::-webkit-scrollbar {
+  display: none;
+}
+
+.md-tabs--secondary .md-tabs__item {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.md-tabs--secondary .md-tabs__link {
+  opacity: 0.7;
+  padding: 0.55rem 1rem;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  margin: 0;
+  border-bottom: 2px solid transparent;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.md-tabs--secondary .md-tabs__link:hover {
+  opacity: 1;
+  color: var(--aml-accent);
+}
+
+.md-tabs--secondary .md-tabs__item--active .md-tabs__link {
+  opacity: 1;
+  color: var(--aml-accent-deep);
+  border-bottom-color: var(--aml-accent);
+}
+
+/* Nested-section group label (e.g. "Research whitepapers" under Explain).
+ * Renders as italic serif so it's visually distinct from the actual links
+ * and signals "this is a category, not a destination." */
+.md-tabs--secondary .md-tabs__item--group-label {
+  margin-left: 1rem;
+  padding-left: 1rem;
+  border-left: 1px solid rgba(28, 31, 38, 0.12);
+}
+
+.md-tabs--secondary .md-tabs__link--label {
+  font-family: var(--aml-font-serif);
+  font-style: italic;
+  font-size: 0.7rem;
+  color: var(--aml-ink-faint);
+  cursor: default;
+  pointer-events: none;
+  padding-right: 0.5rem;
+  border-bottom: none !important;
+}
+
+/* Desktop: hide the primary sidebar entirely — level-2 nav replaces it.
+ * Material's breakpoint for showing the persistent left sidebar is
+ * `min-width: 76.25em` (1220 px). Below that the sidebar becomes a
+ * drawer accessed via the hamburger, which we leave alone. */
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary {
+    display: none;
+  }
+
+  /* Widen the content grid since the left gutter is gone. The default
+   * `--md-grid-max-width` is 61rem; pushing to 76rem gives the content
+   * column ~250 px more, the right TOC stays its normal width. */
+  .md-grid {
+    max-width: 76rem;
+  }
+}

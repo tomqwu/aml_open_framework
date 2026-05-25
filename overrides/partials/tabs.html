@@ -1,0 +1,57 @@
+{#-
+  R32 follow-up — custom override on top of Material 9.x `partials/tabs.html`.
+
+  Material's stock template renders a single horizontal tabs bar (level 1)
+  and relies on the left sidebar (`.md-sidebar--primary`) for level-2
+  in-section navigation. That eats ~250 px of horizontal real estate per
+  side.
+
+  This override keeps the standard level-1 tabs **verbatim** (so search,
+  active-state, mobile collapse all keep working) and appends a second
+  `<nav class="md-tabs md-tabs--secondary">` element that renders the
+  direct children of the currently-active top-level nav item as a
+  horizontal pill row. Combined with `brand.css` hiding the primary
+  sidebar on desktop, this widens the content column ~60 %.
+
+  Nested sections (e.g. "Research whitepapers" under Explain) flatten
+  into the level-2 row with an italic group-label separator so the
+  reader can see the grouping without a dropdown.
+-#}
+{% import "partials/tabs-item.html" as item with context %}
+
+<nav class="md-tabs" aria-label="{{ lang.t('tabs') }}" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      {% for nav_item in nav.items %}
+        {{ item.render(nav_item) }}
+      {% endfor %}
+    </ul>
+  </div>
+</nav>
+
+{% for nav_item in nav.items %}
+  {% if nav_item.active and nav_item.children %}
+    <nav class="md-tabs md-tabs--secondary" aria-label="Section navigation" data-md-component="tabs-secondary">
+      <div class="md-grid">
+        <ul class="md-tabs__list">
+          {% for child in nav_item.children recursive %}
+            {% if child.is_page %}
+              {% set class = "md-tabs__item" %}
+              {% if child == page %}{% set class = class ~ " md-tabs__item--active" %}{% endif %}
+              <li class="{{ class }}">
+                <a href="{{ child.url | url }}" class="md-tabs__link">
+                  {{ child.title }}
+                </a>
+              </li>
+            {% elif child.children %}
+              <li class="md-tabs__item md-tabs__item--group-label" aria-hidden="true">
+                <span class="md-tabs__link md-tabs__link--label">{{ child.title }}</span>
+              </li>
+              {{ loop(child.children) }}
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+    </nav>
+  {% endif %}
+{% endfor %}
