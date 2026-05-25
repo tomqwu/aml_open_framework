@@ -290,6 +290,18 @@ body,
   opacity: 0.75;
 }
 
+/* Codex P2 on PR #448 — a11y. When Material scrolls the page enough
+ * that `.md-header__title--active` switches topics (site-name slides
+ * up, page-title slides in), Material relies on transform+opacity to
+ * hide the first topic but it stays in the DOM tree — keyboard users
+ * could tab to an invisible "Home" link. `visibility: hidden` removes
+ * the element from the tab order (and from a11y tree) once scrolled;
+ * the fade animation is cut short but the home link is no longer a
+ * focusable phantom. */
+.md-header__title--active .md-header__topic--home {
+  visibility: hidden;
+}
+
 /* ── R32 follow-up · Level-2 horizontal nav + hide primary sidebar ── */
 /* The custom override at overrides/partials/tabs.html adds a second
  * `.md-tabs--secondary` element under the standard tabs bar. This block
