@@ -132,6 +132,9 @@ fallback_version = "0.1.0+unknown"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "slow: marks tests that exercise multi-step demo flows (generator + engine + CLI); run with `pytest -m slow` to include, or `pytest -m 'not slow'` to skip in fast CI loops.",
+]
 
 [tool.coverage.run]
 source = ["aml_framework"]

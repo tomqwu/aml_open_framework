@@ -144,6 +144,7 @@ aml export-case spec.yaml <run-dir> <case_id>        # single-case subset of the
 aml export-batch spec.yaml <run-dir> --cases c1,c2   # multi-case subset of the audit pack (PR-D4)
 aml inventory legacy.csv                             # summary of a SAS / Actimize / Mantas rule dump
 aml import-legacy legacy.csv --output spec.yaml      # convert legacy rules to AML spec skeleton
+aml equivalence <run-dir> --legacy legacy-alerts.csv # MATCH/NEW_ONLY/LEGACY_ONLY/DIFF parallel-run report (SR 11-7 / OSFI E-23)
 ```
 
 Full catalogue (incl. `aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md#cli-commands`](docs/getting-started.md). Data sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
