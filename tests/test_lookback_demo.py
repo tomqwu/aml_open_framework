@@ -227,6 +227,11 @@ class TestLookbackDemoSmoke:
 
         out_json = tmp_path / "equivalence.json"
         out_md = tmp_path / "equivalence.md"
+        # Intentionally omit --spec to exercise the codex-pass-2 fix:
+        # the CLI must auto-load `spec_snapshot.yaml` from the run dir so
+        # `rule_severities` populates and same-cell severity mismatches
+        # surface as DIFF (not silent MATCH). The run dir always carries
+        # `spec_snapshot.yaml` from `engine/runner.py`.
         eq_result = runner.invoke(
             app,
             [
@@ -236,8 +241,6 @@ class TestLookbackDemoSmoke:
                 str(legacy_csv),
                 "--rule-map",
                 str(rule_map_yaml),
-                "--spec",
-                str(LOOKBACK_SPEC),
                 "--out",
                 str(out_json),
                 "--markdown",

@@ -2464,12 +2464,23 @@ def equivalence_cmd(
         console.print(f"[red]Could not parse --legacy CSV[/red] {legacy}: {exc}")
         raise typer.Exit(code=2) from exc
 
-    # Optional per-rule severity fallback so DIFF survives runner alerts
-    # that don't carry `severity` on the payload. Mirrors the dashboard
-    # call-site in `pages/48_Equivalence.py`.
+    # Per-rule severity map for DIFF detection. Codex P2 review on
+    # PR-LOOKBACK-3 pass 2: runner alerts don't normally carry
+    # `severity` on the payload, so without a `rule_severities=` map
+    # the classifier silently degrades same-cell severity mismatches
+    # to MATCH and `--max-severity-diff 0` becomes a no-op. Default to
+    # the run's `spec_snapshot.yaml` so the gate works against the
+    # exact spec that produced the alerts; operators can override with
+    # `--spec` (e.g. to test a proposed-spec severity change against
+    # an existing run).
     rule_severities: dict[str, str] | None = None
-    if spec_path is not None:
-        spec = load_spec(spec_path)
+    effective_spec_path: Path | None = spec_path
+    if effective_spec_path is None:
+        snapshot = run_dir / "spec_snapshot.yaml"
+        if snapshot.exists():
+            effective_spec_path = snapshot
+    if effective_spec_path is not None:
+        spec = load_spec(effective_spec_path)
         rule_severities = {r.id: r.severity for r in spec.rules}
 
     # Filter alerts that lack the comparison-required fields so the
