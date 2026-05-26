@@ -2455,7 +2455,14 @@ def equivalence_cmd(
     if not rule_map_dict:
         rule_map_dict = {rid: rid for rid in new_alerts}
 
-    legacy_alerts = load_legacy_alerts_csv(legacy)
+    # Surface loader failures (missing header / required column / malformed
+    # datetime) as a user-readable CLI error instead of a Python traceback.
+    # The loader's messages already name the file and the offending column.
+    try:
+        legacy_alerts = load_legacy_alerts_csv(legacy)
+    except ValueError as exc:
+        console.print(f"[red]Could not parse --legacy CSV[/red] {legacy}: {exc}")
+        raise typer.Exit(code=2) from exc
 
     # Optional per-rule severity fallback so DIFF survives runner alerts
     # that don't carry `severity` on the payload. Mirrors the dashboard
