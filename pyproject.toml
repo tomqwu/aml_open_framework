@@ -65,6 +65,12 @@ dashboard = [
     "streamlit-echarts>=0.6.0",
     "streamlit-aggrid>=1.2.1",
     "pandas>=2.2",
+    # `scripts/generate_lookback_dataset.py` (PR-LOOKBACK-1) writes
+    # Parquet slices via pyarrow on its default `--formats both` path.
+    # The 5-year-lookback how-to recommends `pip install -e
+    # ".[dev,dashboard,api]"` as the install command, so the generator
+    # must work out-of-box from that install.
+    "pyarrow>=15",
 ]
 api = [
     "fastapi>=0.111",
