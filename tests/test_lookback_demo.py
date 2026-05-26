@@ -33,7 +33,33 @@ LOOKBACK_SPEC = REPO_ROOT / "examples" / "community_bank_lookback" / "aml.yaml"
 GENERATOR_SCRIPT = REPO_ROOT / "scripts" / "generate_lookback_dataset.py"
 
 
-pytestmark = pytest.mark.slow
+# Skip the whole module in environments that can't run the demo end-to-
+# end — codex P1 review on PR-LOOKBACK-3: the default unit-tests CI job
+# installs only `[dev]` (no pyarrow), and the docker-build job runs
+# `pytest tests/` inside an image that doesn't `COPY scripts/`. The
+# `slow` marker by itself does NOT skip tests — pytest still collects +
+# runs them — so we gate via runtime probes. The full smoke test fires
+# under `make ci-coverage` (which installs `[dev,dashboard]`) and
+# under any developer-loop pytest run from a real checkout.
+_PYARROW_AVAILABLE = True
+try:
+    import pyarrow  # noqa: F401
+except ImportError:
+    _PYARROW_AVAILABLE = False
+
+pytestmark = [
+    pytest.mark.slow,
+    pytest.mark.skipif(
+        not GENERATOR_SCRIPT.exists(),
+        reason="scripts/generate_lookback_dataset.py not present in this checkout "
+        "(e.g. Docker image build that excludes scripts/)",
+    ),
+    pytest.mark.skipif(
+        not _PYARROW_AVAILABLE,
+        reason="pyarrow not installed (lookback dataset generator's default "
+        "--formats both writes parquet); install `[dashboard]` extras to run",
+    ),
+]
 
 
 @pytest.fixture

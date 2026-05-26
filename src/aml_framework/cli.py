@@ -2408,30 +2408,30 @@ def equivalence_cmd(
     Without it, the command always exits 0 (warn-only).
     """
     import json as _json
+    from datetime import datetime as _datetime
+    from datetime import timezone as _timezone
 
+    from aml_framework.engine.audit import unmask_alerts
     from aml_framework.engine.equivalence import (
         EquivalenceClass,
         classify_alerts,
         load_legacy_alerts_csv,
     )
 
-    # Load new-side alerts from <run_dir>/alerts/*.jsonl. Mirrors the
-    # shape `RunResult.alerts` carries so `classify_alerts` can accept
-    # the dict form directly (it flattens internally).
+    # Load new-side alerts. Codex P2 review on PR-LOOKBACK-3: when the
+    # run was produced with `AML_PII_MASKING=1`, `alerts/*.jsonl` stores
+    # 16-hex-char hashes for `customer_id`, while a typical legacy CSV
+    # carries plaintext IDs. Joining hashed vs plaintext keys would
+    # report every true MATCH as NEW_ONLY + LEGACY_ONLY — misleading
+    # evidence under SR 11-7 / OSFI E-23 scrutiny. `unmask_alerts()`
+    # is a no-op when the run isn't masked (returns the raw alerts as
+    # written), so this path is safe for both modes.
     alerts_dir = run_dir / "alerts"
     if not alerts_dir.exists():
         console.print(f"[red]No alerts/ in {run_dir}.[/red] Run `aml run` first.")
         raise typer.Exit(code=1)
 
-    new_alerts: dict[str, list[dict]] = {}
-    for jsonl_file in sorted(alerts_dir.glob("*.jsonl")):
-        rule_id = jsonl_file.stem
-        rows: list[dict] = []
-        for line in jsonl_file.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                rows.append(_json.loads(line))
-        if rows:
-            new_alerts[rule_id] = rows
+    new_alerts = unmask_alerts(run_dir)
 
     # Load the optional new→legacy rule map.
     rule_map_dict: dict[str, str] = {}
@@ -2499,11 +2499,20 @@ def equivalence_cmd(
             f"customer_id / window_start / window_end.[/yellow]"
         )
 
+    # Codex P2 review on PR-LOOKBACK-3: pass a real wall-clock timestamp
+    # so the Markdown evidence pack carries an honest `Generated at` line
+    # instead of the classifier's deterministic `datetime.min` sentinel
+    # (`0001-01-01T00:00:00`). The sentinel is the right default for
+    # equivalence-of-equivalence library tests, but a regulator-facing
+    # CLI report needs a true generation time.
+    generated_at = _datetime.now(tz=_timezone.utc).replace(tzinfo=None)
+
     report = classify_alerts(
         new_alerts=filtered_alerts,
         legacy_alerts=legacy_alerts,
         rule_map=rule_map_dict,
         rule_severities=rule_severities,
+        generated_at=generated_at,
     )
 
     # KPI roll-up.
