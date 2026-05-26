@@ -2433,7 +2433,37 @@ def equivalence_cmd(
 
     new_alerts = unmask_alerts(run_dir)
 
-    # Load the optional new→legacy rule map.
+    # Resolve the source-of-truth spec early so we can pull both per-rule
+    # severities (DIFF detection) and `program.legacy_reference.rule_map`
+    # (correct join keys) from it. Default to the run's
+    # `spec_snapshot.yaml` so the CLI always reproduces the rule mapping
+    # that produced the alerts; `--spec` overrides for the case where
+    # the operator is testing a proposed-spec change against an
+    # existing run.
+    rule_severities: dict[str, str] | None = None
+    spec_rule_map: dict[str, str] = {}
+    effective_spec_path: Path | None = spec_path
+    if effective_spec_path is None:
+        snapshot = run_dir / "spec_snapshot.yaml"
+        if snapshot.exists():
+            effective_spec_path = snapshot
+    if effective_spec_path is not None:
+        spec = load_spec(effective_spec_path)
+        rule_severities = {r.id: r.severity for r in spec.rules}
+        legacy_ref = getattr(spec.program, "legacy_reference", None)
+        if legacy_ref is not None and legacy_ref.rule_map:
+            spec_rule_map = {str(k): str(v) for k, v in legacy_ref.rule_map.items()}
+
+    # Resolve the new→legacy rule map. Precedence (highest first):
+    #   1. `--rule-map <yaml>` if passed (explicit operator override).
+    #   2. `program.legacy_reference.rule_map` from the spec — codex
+    #      pass 3 P2: this is the source-of-truth mapping captured
+    #      alongside the spec, so the CLI must use it before falling
+    #      back to identity. Without this step, runs whose legacy
+    #      system uses different rule_ids report every true MATCH as
+    #      NEW_ONLY + LEGACY_ONLY.
+    #   3. Identity mapping over the rule_ids the new-side alerts
+    #      carry (only safe when new_rule_id == legacy_rule_id).
     rule_map_dict: dict[str, str] = {}
     if rule_map is not None:
         import yaml as _yaml
@@ -2447,11 +2477,9 @@ def equivalence_cmd(
             raise typer.Exit(code=2)
         # Stringify keys/values so a YAML `1: 2` doesn't sneak ints in.
         rule_map_dict = {str(k): str(v) for k, v in loaded.items()}
+    elif spec_rule_map:
+        rule_map_dict = spec_rule_map
 
-    # No map → identity mapping over the rule_ids the new-side alerts
-    # carry, so MATCH is computed against (customer, period, same
-    # rule_id) cells. Without this, every alert would bucket as NEW_ONLY
-    # under the strict join-on-mapped-rule semantics.
     if not rule_map_dict:
         rule_map_dict = {rid: rid for rid in new_alerts}
 
@@ -2463,25 +2491,6 @@ def equivalence_cmd(
     except ValueError as exc:
         console.print(f"[red]Could not parse --legacy CSV[/red] {legacy}: {exc}")
         raise typer.Exit(code=2) from exc
-
-    # Per-rule severity map for DIFF detection. Codex P2 review on
-    # PR-LOOKBACK-3 pass 2: runner alerts don't normally carry
-    # `severity` on the payload, so without a `rule_severities=` map
-    # the classifier silently degrades same-cell severity mismatches
-    # to MATCH and `--max-severity-diff 0` becomes a no-op. Default to
-    # the run's `spec_snapshot.yaml` so the gate works against the
-    # exact spec that produced the alerts; operators can override with
-    # `--spec` (e.g. to test a proposed-spec severity change against
-    # an existing run).
-    rule_severities: dict[str, str] | None = None
-    effective_spec_path: Path | None = spec_path
-    if effective_spec_path is None:
-        snapshot = run_dir / "spec_snapshot.yaml"
-        if snapshot.exists():
-            effective_spec_path = snapshot
-    if effective_spec_path is not None:
-        spec = load_spec(effective_spec_path)
-        rule_severities = {r.id: r.severity for r in spec.rules}
 
     # Filter alerts that lack the comparison-required fields so the
     # classifier doesn't raise on a custom_sql / python_ref payload
