@@ -2433,15 +2433,17 @@ def equivalence_cmd(
 
     new_alerts = unmask_alerts(run_dir)
 
-    # Resolve the source-of-truth spec early so we can pull both per-rule
-    # severities (DIFF detection) and `program.legacy_reference.rule_map`
-    # (correct join keys) from it. Default to the run's
-    # `spec_snapshot.yaml` so the CLI always reproduces the rule mapping
-    # that produced the alerts; `--spec` overrides for the case where
-    # the operator is testing a proposed-spec change against an
-    # existing run.
+    # Resolve the source-of-truth spec early so we can pull per-rule
+    # severities (DIFF detection), `program.legacy_reference.rule_map`
+    # (correct join keys), and the legacy export's declared
+    # `key_columns` (CSV column-name translation) from it. Default to
+    # the run's `spec_snapshot.yaml` so the CLI always reproduces the
+    # rule mapping that produced the alerts; `--spec` overrides for
+    # the case where the operator is testing a proposed-spec change
+    # against an existing run.
     rule_severities: dict[str, str] | None = None
     spec_rule_map: dict[str, str] = {}
+    legacy_key_columns: list[str] = []
     effective_spec_path: Path | None = spec_path
     if effective_spec_path is None:
         snapshot = run_dir / "spec_snapshot.yaml"
@@ -2451,8 +2453,11 @@ def equivalence_cmd(
         spec = load_spec(effective_spec_path)
         rule_severities = {r.id: r.severity for r in spec.rules}
         legacy_ref = getattr(spec.program, "legacy_reference", None)
-        if legacy_ref is not None and legacy_ref.rule_map:
-            spec_rule_map = {str(k): str(v) for k, v in legacy_ref.rule_map.items()}
+        if legacy_ref is not None:
+            if legacy_ref.rule_map:
+                spec_rule_map = {str(k): str(v) for k, v in legacy_ref.rule_map.items()}
+            if legacy_ref.key_columns:
+                legacy_key_columns = list(legacy_ref.key_columns)
 
     # Resolve the new→legacy rule map. Precedence (highest first):
     #   1. `--rule-map <yaml>` if passed (explicit operator override).
@@ -2468,7 +2473,20 @@ def equivalence_cmd(
     if rule_map is not None:
         import yaml as _yaml
 
-        loaded = _yaml.safe_load(rule_map.read_text(encoding="utf-8")) or {}
+        loaded = _yaml.safe_load(rule_map.read_text(encoding="utf-8"))
+        # Codex pass 4 P2: an empty `--rule-map` YAML (or any non-dict
+        # value) used to silently fall through to identity mapping,
+        # which would BYPASS the spec's `legacy_reference.rule_map`
+        # even when the spec carried a correct mapping. An explicit
+        # override that's malformed should error, not degrade.
+        if loaded is None or loaded == {}:
+            console.print(
+                f"[red]--rule-map is empty[/red] ({rule_map}). "
+                "Either remove the flag (the CLI will use the spec's "
+                "`program.legacy_reference.rule_map`, or identity mapping "
+                "when no spec map exists) or populate the YAML."
+            )
+            raise typer.Exit(code=2)
         if not isinstance(loaded, dict):
             console.print(
                 f"[red]--rule-map must be a YAML mapping[/red] "
@@ -2483,11 +2501,23 @@ def equivalence_cmd(
     if not rule_map_dict:
         rule_map_dict = {rid: rid for rid in new_alerts}
 
+    # Translate the legacy CSV's spec-declared column names to the
+    # canonical names `load_legacy_alerts_csv` expects (codex pass 4
+    # P2). Mirrors the dashboard's `_derive_column_mapping` in
+    # `pages/48_Equivalence.py` so the CLI accepts the same legacy
+    # exports the dashboard already loads without forcing the operator
+    # to rename columns. When the spec declares `key_columns:
+    # [rule_id, customer_id, window_start]` (the CA example's spelling),
+    # we translate `rule_id → rule_id_legacy`, `window_start →
+    # period_start`, etc. When the CSV already uses canonical names,
+    # the mapping is empty and the loader reads it directly.
+    column_mapping = _derive_legacy_column_mapping(legacy, legacy_key_columns)
+
     # Surface loader failures (missing header / required column / malformed
     # datetime) as a user-readable CLI error instead of a Python traceback.
     # The loader's messages already name the file and the offending column.
     try:
-        legacy_alerts = load_legacy_alerts_csv(legacy)
+        legacy_alerts = load_legacy_alerts_csv(legacy, column_mapping=column_mapping or None)
     except ValueError as exc:
         console.print(f"[red]Could not parse --legacy CSV[/red] {legacy}: {exc}")
         raise typer.Exit(code=2) from exc
@@ -2588,6 +2618,73 @@ def equivalence_cmd(
             f"[red]DIFF count {diff_count} exceeds --max-severity-diff {max_severity_diff}.[/red]"
         )
         raise typer.Exit(code=1)
+
+
+# Canonical CSV column names → well-known legacy-system synonyms,
+# mirroring `_LEGACY_SYNONYMS` in `pages/48_Equivalence.py`. The CLI
+# uses these to translate spec-declared `key_columns` (e.g. CA's
+# `[rule_id, customer_id, window_start]`) to the canonical names the
+# loader expects (`rule_id_legacy`, `period_start`, etc.), so a CSV
+# exported with native legacy column names loads without renames.
+_EQUIVALENCE_LEGACY_SYNONYMS: dict[str, str] = {
+    # legacy-system column name → canonical loader name
+    "rule_id": "rule_id_legacy",
+    "window_start": "period_start",
+    "window_end": "period_end",
+}
+
+
+def _derive_legacy_column_mapping(
+    legacy_path: Path,
+    key_columns: list[str],
+) -> dict[str, str]:
+    """Build `{canonical: csv_column}` for `load_legacy_alerts_csv`.
+
+    Strategy (matches `pages/48_Equivalence.py::_derive_column_mapping`):
+
+    1. Honor explicit `legacy_reference.key_columns` synonyms first —
+       when the spec declares `key_columns: [rule_id, customer_id,
+       window_start]`, those are the operator's declared legacy
+       column names.
+    2. For any canonical column not yet mapped AND absent from the
+       CSV header, fall back to the well-known synonym if present.
+    3. If the canonical column is in the CSV header, do nothing —
+       the loader's default mapping reads it directly.
+
+    Returns `{}` when no translation is needed; the loader treats that
+    as "use canonical names verbatim".
+    """
+    import csv as _csv
+
+    canonical_cols = ("customer_id", "period_start", "period_end", "rule_id_legacy")
+    try:
+        with legacy_path.open(newline="", encoding="utf-8") as _fh:
+            _reader = _csv.reader(_fh)
+            csv_header = next(_reader, []) or []
+    except OSError:
+        return {}
+
+    mapping: dict[str, str] = {}
+    header_set = set(csv_header)
+    # Step 1: explicit operator declarations from key_columns. Only
+    # apply when (a) the legacy name from key_columns is in the CSV
+    # header AND (b) the canonical name is NOT — preserves the
+    # canonical-header export case.
+    for col in key_columns:
+        canonical = _EQUIVALENCE_LEGACY_SYNONYMS.get(col)
+        if canonical is None or canonical in header_set or col not in header_set:
+            continue
+        mapping[canonical] = col
+    # Step 2: fill gaps with well-known synonyms when the canonical
+    # name is absent and the synonym is present.
+    legacy_for_canonical = {v: k for k, v in _EQUIVALENCE_LEGACY_SYNONYMS.items()}
+    for canonical in canonical_cols:
+        if canonical in mapping or canonical in header_set:
+            continue
+        synonym = legacy_for_canonical.get(canonical)
+        if synonym is not None and synonym in header_set:
+            mapping[canonical] = synonym
+    return mapping
 
 
 def _render_equivalence_markdown(
