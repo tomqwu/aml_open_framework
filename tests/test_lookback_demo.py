@@ -176,15 +176,23 @@ class TestLookbackDemoSmoke:
         # tuple from the run's alerts so the legacy CSV can produce a
         # known MATCH. Without a real alert to pair against, the test
         # would only exercise LEGACY_ONLY + NEW_ONLY.
+        #
+        # Codex pass 5 P2: use `unmask_alerts()` instead of reading
+        # `alerts/*.jsonl` directly so the anchor's `customer_id` is
+        # always plaintext. Under `AML_PII_MASKING=1`, the raw JSONL
+        # carries hashed IDs; the CLI's `aml equivalence` un-hashes
+        # via `unmask_alerts()` before joining. If the test wrote the
+        # raw hash to the legacy CSV, the "MATCH" would only occur by
+        # coincidence (plaintext vs hash never matches).
+        from aml_framework.engine.audit import unmask_alerts
+
         alerts_dir = run_dir / "alerts"
         assert alerts_dir.exists()
+        unmasked = unmask_alerts(run_dir)
         anchor: dict | None = None
         anchor_rule: str | None = None
-        for jsonl in sorted(alerts_dir.glob("*.jsonl")):
-            for line in jsonl.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
-                    continue
-                row = json.loads(line)
+        for rule_id, rows in sorted(unmasked.items()):
+            for row in rows:
                 # Need the canonical cell-key fields to write a paired
                 # legacy row. Some custom_sql alerts in the spec may
                 # omit window_start/window_end; skip those.
@@ -192,7 +200,7 @@ class TestLookbackDemoSmoke:
                     row.get(k) is not None for k in ("customer_id", "window_start", "window_end")
                 ):
                     anchor = row
-                    anchor_rule = jsonl.stem
+                    anchor_rule = rule_id
                     break
             if anchor is not None:
                 break
