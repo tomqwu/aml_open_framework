@@ -34,6 +34,15 @@ evidence chain. Everything Azure-side stays Azure-side.
 > uses only commands that exist today; the equivalence/parallel-run
 > path is gated behind Gap 1 and §10 says so.
 
+!!! tip "Try it now — copy-paste runbook"
+
+    This doc is the architectural overview. If you'd rather skip the
+    framing and run a 60-month lookback against a synthetic dataset on
+    your laptop in under an hour, jump straight to
+    **[How to run a 5-year transaction-monitoring lookback](how-to/run-five-year-lookback.md)** —
+    every command is pinned to the `community_bank_lookback` example
+    spec and verified against the implementation.
+
 ---
 
 ## 1. The 8 properties of a lookback — where the framework delivers each
