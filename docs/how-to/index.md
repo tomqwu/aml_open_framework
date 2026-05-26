@@ -60,6 +60,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     Paste a case_id and trace it back to source rows. CLI: `aml lineage`. Dashboard: Lineage Explorer page. *(Placeholder — to be filled.)*
 
+-   :material-history:{ .lg .middle } **[Run a 5-year transaction-monitoring lookback](run-five-year-lookback.md)**
+
+    ---
+
+    The copy-paste runbook companion to the [5-year lookback architectural overview](../five-year-lookback.md). 60-month replay against the `community_bank_lookback` example + a deterministic synthetic generator. ~30–60 min wall time on a laptop. **Detailed.**
+
 </div>
 
 ## Monitoring + DQ

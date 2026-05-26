@@ -75,7 +75,6 @@ KNOWN_UNDOCUMENTED: frozenset[str] = frozenset(
         "today",
         "typology-import",
         "typology-list",
-        "validate-data",
         "verify-pattern",
     }
 )

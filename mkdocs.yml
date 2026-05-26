@@ -123,6 +123,7 @@ nav:
       - "Add a detection rule": how-to/add-a-rule.md
       - "Wire a python_ref scorer": how-to/python-ref-scorer.md
       - "Verify the audit chain": how-to/verify-audit-chain.md
+      - "Run a 5-year lookback": how-to/run-five-year-lookback.md
       - "Migrate from legacy stack": legacy-import.md
       - "Promote a rule across environments": how-to/promote-rule.md
       - "Export per-case / per-batch evidence": how-to/export-case-pack.md
