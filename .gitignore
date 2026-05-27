@@ -49,3 +49,7 @@ src/aml_framework/_version.py
 # (python -m aml_framework.data.fixtures / make fixtures). Parquet +
 # DuckDB are not byte-deterministic, so they are not committed.
 data/fixtures/
+
+# 5-year-lookback synthetic dataset — regenerated on demand, see
+# docs/how-to/run-five-year-lookback.md + scripts/generate_lookback_dataset.py
+examples/community_bank_lookback/data/

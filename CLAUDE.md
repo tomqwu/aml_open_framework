@@ -119,7 +119,19 @@ and leave a PR comment explaining why.
 - **Lazy imports**: Dashboard modules (audience.py, data_layer.py, pages/) must NOT import `streamlit` at module level. Unit-test CI only installs `.[dev]`.
 - **Skip guards**: Tests needing `jwt`, `fastapi`, or `streamlit` must use `pytest.mark.skipif`.
 - **Spec + schema sync**: When changing the spec shape, update both `schema/aml-spec.schema.json` AND `spec/models.py`.
-- **Every new feature needs**: tests, screenshots (if UI), README section, CLAUDE.md update if architecture changes.
+- **Every new feature needs**:
+  - **Tests** — unit, plus e2e/integration where applicable
+  - **Screenshots** — if the feature has a UI
+  - **Docs updates on every affected surface**:
+    - `README.md` — top-level command, env var, deploy step, persona-facing feature
+    - `CLAUDE.md` (this file) — architecture, conventions, or invariants
+    - `docs/dashboard-tour.md` — new dashboard page (`test_dashboard_tour_coverage.py` enforces page-count + per-page mention)
+    - `docs/spec-reference.md` — new spec field
+    - `docs/api-reference.md` — new REST endpoint
+    - `docs/how-to/<name>.md` — new task-oriented recipe; new CLI command must appear in README OR getting-started OR a how-to (`tests/test_docs_cli_coverage.py` enforces this)
+    - `docs/progress.md` — Round-N entry after deploy
+  - **PR body** — TODO checklist + closes #N + test plan
+  - Enforced mechanically: see `feedback_every_change_needs_tests_and_docs.md` memory + the dashboard / docs-coverage tests above.
 
 ## Commands
 

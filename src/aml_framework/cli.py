@@ -2343,6 +2343,442 @@ def verify_decisions_cmd(
         raise typer.Exit(code=1)
 
 
+@app.command(name="equivalence")
+def equivalence_cmd(
+    run_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="Run directory containing alerts/*.jsonl (the new-side alert export).",
+    ),
+    legacy: Path = typer.Option(
+        ...,
+        "--legacy",
+        exists=True,
+        readable=True,
+        help="CSV of legacy-system alerts. Required columns: customer_id, "
+        "period_start, period_end, rule_id_legacy. Optional: severity. "
+        "Any extra columns become `payload`.",
+    ),
+    rule_map: Path | None = typer.Option(
+        None,
+        "--rule-map",
+        exists=True,
+        readable=True,
+        help="YAML mapping of new_rule_id → legacy_rule_id. When absent, "
+        "MATCH is computed against the identity mapping (new == legacy).",
+    ),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Write the full classification report as JSON (array of cell records).",
+    ),
+    markdown: Path | None = typer.Option(
+        None,
+        "--markdown",
+        help="Render a Markdown report (counts table + top-20 of each decision class). "
+        "Useful for regulator-pack evidence.",
+    ),
+    spec_path: Path | None = typer.Option(
+        None,
+        "--spec",
+        exists=True,
+        readable=True,
+        help="Optional spec path. When given, per-rule severities are passed to the "
+        "classifier so DIFF detection works even when the alert payload lacks severity.",
+    ),
+    max_severity_diff: int | None = typer.Option(
+        None,
+        "--max-severity-diff",
+        help="Exit non-zero if the DIFF count (severity-mismatch cells) exceeds this "
+        "threshold. Default: no threshold (warn-only).",
+    ),
+) -> None:
+    """Classify legacy↔new alert divergence as MATCH / NEW_ONLY / LEGACY_ONLY / DIFF.
+
+    Wraps `engine.equivalence.classify_alerts()` so the 5-year-lookback
+    runbook can produce a regulator-pack divergence report from the CLI
+    without spinning up the dashboard. Reads the new-side alerts from
+    `<run_dir>/alerts/*.jsonl` and the legacy alerts from `--legacy <csv>`.
+
+    With `--max-severity-diff N`, exits non-zero when the DIFF count
+    exceeds N — wire this into a CI gate to keep severity drift in check.
+    Without it, the command always exits 0 (warn-only).
+    """
+    import json as _json
+    from datetime import datetime as _datetime
+    from datetime import timezone as _timezone
+
+    from aml_framework.engine.audit import unmask_alerts
+    from aml_framework.engine.equivalence import (
+        EquivalenceClass,
+        classify_alerts,
+        load_legacy_alerts_csv,
+    )
+
+    # Load new-side alerts. Codex P2 review on PR-LOOKBACK-3: when the
+    # run was produced with `AML_PII_MASKING=1`, `alerts/*.jsonl` stores
+    # 16-hex-char hashes for `customer_id`, while a typical legacy CSV
+    # carries plaintext IDs. Joining hashed vs plaintext keys would
+    # report every true MATCH as NEW_ONLY + LEGACY_ONLY — misleading
+    # evidence under SR 11-7 / OSFI E-23 scrutiny. `unmask_alerts()`
+    # is a no-op when the run isn't masked (returns the raw alerts as
+    # written), so this path is safe for both modes.
+    alerts_dir = run_dir / "alerts"
+    if not alerts_dir.exists():
+        console.print(f"[red]No alerts/ in {run_dir}.[/red] Run `aml run` first.")
+        raise typer.Exit(code=1)
+
+    new_alerts = unmask_alerts(run_dir)
+
+    # Resolve the source-of-truth spec early so we can pull per-rule
+    # severities (DIFF detection), `program.legacy_reference.rule_map`
+    # (correct join keys), and the legacy export's declared
+    # `key_columns` (CSV column-name translation) from it. Default to
+    # the run's `spec_snapshot.yaml` so the CLI always reproduces the
+    # rule mapping that produced the alerts; `--spec` overrides for
+    # the case where the operator is testing a proposed-spec change
+    # against an existing run.
+    rule_severities: dict[str, str] | None = None
+    spec_rule_map: dict[str, str] = {}
+    legacy_key_columns: list[str] = []
+    effective_spec_path: Path | None = spec_path
+    if effective_spec_path is None:
+        snapshot = run_dir / "spec_snapshot.yaml"
+        if snapshot.exists():
+            effective_spec_path = snapshot
+    if effective_spec_path is not None:
+        spec = load_spec(effective_spec_path)
+        rule_severities = {r.id: r.severity for r in spec.rules}
+        legacy_ref = getattr(spec.program, "legacy_reference", None)
+        if legacy_ref is not None:
+            if legacy_ref.rule_map:
+                spec_rule_map = {str(k): str(v) for k, v in legacy_ref.rule_map.items()}
+            if legacy_ref.key_columns:
+                legacy_key_columns = list(legacy_ref.key_columns)
+
+    # Resolve the new→legacy rule map. Precedence (highest first):
+    #   1. `--rule-map <yaml>` if passed (explicit operator override).
+    #   2. `program.legacy_reference.rule_map` from the spec — codex
+    #      pass 3 P2: this is the source-of-truth mapping captured
+    #      alongside the spec, so the CLI must use it before falling
+    #      back to identity. Without this step, runs whose legacy
+    #      system uses different rule_ids report every true MATCH as
+    #      NEW_ONLY + LEGACY_ONLY.
+    #   3. Identity mapping over the rule_ids the new-side alerts
+    #      carry (only safe when new_rule_id == legacy_rule_id).
+    rule_map_dict: dict[str, str] = {}
+    if rule_map is not None:
+        import yaml as _yaml
+
+        loaded = _yaml.safe_load(rule_map.read_text(encoding="utf-8"))
+        # Codex pass 4 P2: an empty `--rule-map` YAML (or any non-dict
+        # value) used to silently fall through to identity mapping,
+        # which would BYPASS the spec's `legacy_reference.rule_map`
+        # even when the spec carried a correct mapping. An explicit
+        # override that's malformed should error, not degrade.
+        if loaded is None or loaded == {}:
+            console.print(
+                f"[red]--rule-map is empty[/red] ({rule_map}). "
+                "Either remove the flag (the CLI will use the spec's "
+                "`program.legacy_reference.rule_map`, or identity mapping "
+                "when no spec map exists) or populate the YAML."
+            )
+            raise typer.Exit(code=2)
+        if not isinstance(loaded, dict):
+            console.print(
+                f"[red]--rule-map must be a YAML mapping[/red] "
+                f"({type(loaded).__name__} parsed from {rule_map})."
+            )
+            raise typer.Exit(code=2)
+        # Stringify keys/values so a YAML `1: 2` doesn't sneak ints in.
+        rule_map_dict = {str(k): str(v) for k, v in loaded.items()}
+    elif spec_rule_map:
+        rule_map_dict = spec_rule_map
+
+    if not rule_map_dict:
+        rule_map_dict = {rid: rid for rid in new_alerts}
+
+    # Translate the legacy CSV's spec-declared column names to the
+    # canonical names `load_legacy_alerts_csv` expects (codex pass 4
+    # P2). Mirrors the dashboard's `_derive_column_mapping` in
+    # `pages/48_Equivalence.py` so the CLI accepts the same legacy
+    # exports the dashboard already loads without forcing the operator
+    # to rename columns. When the spec declares `key_columns:
+    # [rule_id, customer_id, window_start]` (the CA example's spelling),
+    # we translate `rule_id → rule_id_legacy`, `window_start →
+    # period_start`, etc. When the CSV already uses canonical names,
+    # the mapping is empty and the loader reads it directly.
+    column_mapping = _derive_legacy_column_mapping(legacy, legacy_key_columns)
+
+    # Surface loader failures (missing header / required column / malformed
+    # datetime) as a user-readable CLI error instead of a Python traceback.
+    # The loader's messages already name the file and the offending column.
+    try:
+        legacy_alerts = load_legacy_alerts_csv(legacy, column_mapping=column_mapping or None)
+    except ValueError as exc:
+        console.print(f"[red]Could not parse --legacy CSV[/red] {legacy}: {exc}")
+        raise typer.Exit(code=2) from exc
+
+    # Filter alerts that lack the comparison-required fields so the
+    # classifier doesn't raise on a custom_sql / python_ref payload
+    # missing canonical cell keys. Mirrors the page-side filter.
+    _REQUIRED_FIELDS = ("customer_id", "window_start", "window_end")
+    filtered_alerts: dict[str, list[dict]] = {}
+    dropped_per_rule: dict[str, int] = {}
+    for rule_id, alerts in new_alerts.items():
+        keep: list[dict] = []
+        dropped = 0
+        for a in alerts:
+            if all(a.get(k) is not None for k in _REQUIRED_FIELDS):
+                keep.append(a)
+            else:
+                dropped += 1
+        if keep:
+            filtered_alerts[rule_id] = keep
+        if dropped:
+            dropped_per_rule[rule_id] = dropped
+
+    if dropped_per_rule:
+        total_dropped = sum(dropped_per_rule.values())
+        console.print(
+            f"[yellow]⚠ {total_dropped} alert(s) across "
+            f"{len(dropped_per_rule)} rule(s) excluded — missing "
+            f"customer_id / window_start / window_end.[/yellow]"
+        )
+
+    # Codex P2 review on PR-LOOKBACK-3: pass a real wall-clock timestamp
+    # so the Markdown evidence pack carries an honest `Generated at` line
+    # instead of the classifier's deterministic `datetime.min` sentinel
+    # (`0001-01-01T00:00:00`). The sentinel is the right default for
+    # equivalence-of-equivalence library tests, but a regulator-facing
+    # CLI report needs a true generation time.
+    generated_at = _datetime.now(tz=_timezone.utc).replace(tzinfo=None)
+
+    report = classify_alerts(
+        new_alerts=filtered_alerts,
+        legacy_alerts=legacy_alerts,
+        rule_map=rule_map_dict,
+        rule_severities=rule_severities,
+        generated_at=generated_at,
+    )
+
+    # KPI roll-up.
+    table = Table(title=f"Equivalence — {run_dir.name}")
+    table.add_column("Class")
+    table.add_column("Count", justify="right")
+    for cls in (
+        EquivalenceClass.MATCH,
+        EquivalenceClass.NEW_ONLY,
+        EquivalenceClass.LEGACY_ONLY,
+        EquivalenceClass.DIFF,
+    ):
+        table.add_row(cls.value, str(report.counts[cls]))
+    console.print(table)
+    console.print(
+        f"  cells: {sum(report.counts.values())} · "
+        f"rules: {len(report.by_rule)} · "
+        f"legacy: {len(legacy_alerts)} rows · "
+        f"new-side: {sum(len(v) for v in filtered_alerts.values())} alerts"
+    )
+
+    # JSON output (full cell list).
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        cells_json = [
+            {
+                "customer_id": c.customer_id,
+                "period_start": c.period_start.isoformat(),
+                "period_end": c.period_end.isoformat(),
+                "rule_id_new": c.rule_id_new,
+                "rule_id_legacy": c.rule_id_legacy,
+                "classification": c.classification.value,
+                "new_severity": c.new_severity,
+                "legacy_severity": c.legacy_severity,
+                "diff_reason": c.diff_reason,
+            }
+            for c in report.cells
+        ]
+        out.write_text(_json.dumps(cells_json, indent=2), encoding="utf-8")
+        console.print(f"[green]JSON[/green] {out} ({len(cells_json)} cell(s))")
+
+    # Markdown report (counts + top 20 of each decision class).
+    if markdown is not None:
+        markdown.parent.mkdir(parents=True, exist_ok=True)
+        md = _render_equivalence_markdown(report, run_dir=run_dir, legacy_path=legacy)
+        markdown.write_text(md, encoding="utf-8")
+        console.print(f"[green]Markdown[/green] {markdown}")
+
+    # Optional gate: exit non-zero when DIFF count exceeds the threshold.
+    diff_count = report.counts[EquivalenceClass.DIFF]
+    if max_severity_diff is not None and diff_count > max_severity_diff:
+        console.print(
+            f"[red]DIFF count {diff_count} exceeds --max-severity-diff {max_severity_diff}.[/red]"
+        )
+        raise typer.Exit(code=1)
+
+
+# Canonical CSV column names → well-known legacy-system synonyms,
+# mirroring `_LEGACY_SYNONYMS` in `pages/48_Equivalence.py`. The CLI
+# uses these to translate spec-declared `key_columns` (e.g. CA's
+# `[rule_id, customer_id, window_start]`) to the canonical names the
+# loader expects (`rule_id_legacy`, `period_start`, etc.), so a CSV
+# exported with native legacy column names loads without renames.
+_EQUIVALENCE_LEGACY_SYNONYMS: dict[str, str] = {
+    # legacy-system column name → canonical loader name
+    "rule_id": "rule_id_legacy",
+    "window_start": "period_start",
+    "window_end": "period_end",
+}
+
+
+def _derive_legacy_column_mapping(
+    legacy_path: Path,
+    key_columns: list[str],
+) -> dict[str, str]:
+    """Build `{canonical: csv_column}` for `load_legacy_alerts_csv`.
+
+    Strategy (matches `pages/48_Equivalence.py::_derive_column_mapping`):
+
+    1. Honor explicit `legacy_reference.key_columns` synonyms first —
+       when the spec declares `key_columns: [rule_id, customer_id,
+       window_start]`, those are the operator's declared legacy
+       column names.
+    2. For any canonical column not yet mapped AND absent from the
+       CSV header, fall back to the well-known synonym if present.
+    3. If the canonical column is in the CSV header, do nothing —
+       the loader's default mapping reads it directly.
+
+    Returns `{}` when no translation is needed; the loader treats that
+    as "use canonical names verbatim".
+    """
+    import csv as _csv
+
+    canonical_cols = ("customer_id", "period_start", "period_end", "rule_id_legacy")
+    try:
+        with legacy_path.open(newline="", encoding="utf-8") as _fh:
+            _reader = _csv.reader(_fh)
+            csv_header = next(_reader, []) or []
+    except OSError:
+        return {}
+
+    mapping: dict[str, str] = {}
+    header_set = set(csv_header)
+    # Step 1: explicit operator declarations from key_columns. Only
+    # apply when (a) the legacy name from key_columns is in the CSV
+    # header AND (b) the canonical name is NOT — preserves the
+    # canonical-header export case.
+    for col in key_columns:
+        canonical = _EQUIVALENCE_LEGACY_SYNONYMS.get(col)
+        if canonical is None or canonical in header_set or col not in header_set:
+            continue
+        mapping[canonical] = col
+    # Step 2: fill gaps with well-known synonyms when the canonical
+    # name is absent and the synonym is present.
+    legacy_for_canonical = {v: k for k, v in _EQUIVALENCE_LEGACY_SYNONYMS.items()}
+    for canonical in canonical_cols:
+        if canonical in mapping or canonical in header_set:
+            continue
+        synonym = legacy_for_canonical.get(canonical)
+        if synonym is not None and synonym in header_set:
+            mapping[canonical] = synonym
+    return mapping
+
+
+def _render_equivalence_markdown(
+    report,
+    *,
+    run_dir: Path,
+    legacy_path: Path,
+) -> str:
+    """Render an EquivalenceReport as a Markdown evidence-pack snippet.
+
+    Counts table + top 20 cells per class. Kept module-local because
+    every other Markdown renderer in the CLI is also inline — the
+    snippet is short and changes with the CLI flag set, not the
+    classifier API.
+    """
+    from aml_framework.engine.equivalence import EquivalenceClass
+
+    lines: list[str] = []
+    lines.append(f"# Equivalence report — `{run_dir.name}`")
+    lines.append("")
+    lines.append(f"- Run directory: `{run_dir}`")
+    lines.append(f"- Legacy alerts: `{legacy_path}`")
+    lines.append(f"- Generated at: `{report.generated_at.isoformat()}`")
+    lines.append("")
+    lines.append("## Counts")
+    lines.append("")
+    lines.append("| Classification | Count |")
+    lines.append("| --- | ---: |")
+    for cls in (
+        EquivalenceClass.MATCH,
+        EquivalenceClass.NEW_ONLY,
+        EquivalenceClass.LEGACY_ONLY,
+        EquivalenceClass.DIFF,
+    ):
+        lines.append(f"| {cls.value} | {report.counts[cls]} |")
+    lines.append("")
+
+    lines.append("## By rule")
+    lines.append("")
+    if report.by_rule:
+        lines.append("| Rule | MATCH | NEW_ONLY | LEGACY_ONLY | DIFF |")
+        lines.append("| --- | ---: | ---: | ---: | ---: |")
+        for rule_id, bucket in sorted(report.by_rule.items()):
+            lines.append(
+                f"| `{rule_id}` | "
+                f"{bucket[EquivalenceClass.MATCH]} | "
+                f"{bucket[EquivalenceClass.NEW_ONLY]} | "
+                f"{bucket[EquivalenceClass.LEGACY_ONLY]} | "
+                f"{bucket[EquivalenceClass.DIFF]} |"
+            )
+    else:
+        lines.append("_No rules classified._")
+    lines.append("")
+
+    # Top 20 of each class (deterministic — cells are already sorted by
+    # (customer, period, rule) so the head is stable across runs).
+    by_class: dict[EquivalenceClass, list] = {cls: [] for cls in EquivalenceClass}
+    for cell in report.cells:
+        by_class[cell.classification].append(cell)
+
+    for cls in (
+        EquivalenceClass.MATCH,
+        EquivalenceClass.NEW_ONLY,
+        EquivalenceClass.LEGACY_ONLY,
+        EquivalenceClass.DIFF,
+    ):
+        bucket = by_class[cls]
+        lines.append(f"## {cls.value} — first 20 of {len(bucket)}")
+        lines.append("")
+        if not bucket:
+            lines.append("_None._")
+            lines.append("")
+            continue
+        lines.append(
+            "| customer_id | period_start | period_end | rule_id_new | "
+            "rule_id_legacy | new_severity | legacy_severity | diff_reason |"
+        )
+        lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
+        for cell in bucket[:20]:
+            lines.append(
+                f"| {cell.customer_id} | "
+                f"{cell.period_start.isoformat()} | "
+                f"{cell.period_end.isoformat()} | "
+                f"{cell.rule_id_new or ''} | "
+                f"{cell.rule_id_legacy or ''} | "
+                f"{cell.new_severity or ''} | "
+                f"{cell.legacy_severity or ''} | "
+                f"{cell.diff_reason or ''} |"
+            )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 @app.command(name="export-goaml")
 def export_goaml_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

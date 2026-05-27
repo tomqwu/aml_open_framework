@@ -103,7 +103,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 41 operational pages (+2 nav surfaces Welcome/Today) with screenshots (partial coverage) + audience filtering — incl. GenAI assistant on every page. Whitepapers + decks live on the [docs site](https://tomqwu.github.io/aml_open_framework_docs/) |
 | 🤔 [10 Daily Pain Points](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) | The real reasons AML leaders feel stuck — primary-source quotes only |
 | 📁 [Data is the AML Problem](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) | The layer underneath the pain — 11 faces of the data problem, BCBS 239 + 2024-26 enforcement |
-| 📡 [Regulator Pulse — Feb–May 2026](docs/research/2026-05-regulator-pulse.md) | 97-day rolling log of AML/sanctions regulator actions — 32 events, primary-source only |
+| 📡 [Regulator Pulse — Feb–May 2026](docs/research/2026-05-regulator-pulse.md) | 116-day rolling log of AML/sanctions regulator actions — 33 events, primary-source only · *updated 2026-05-27* |
 
 ### How it works
 
@@ -144,6 +144,7 @@ aml export-case spec.yaml <run-dir> <case_id>        # single-case subset of the
 aml export-batch spec.yaml <run-dir> --cases c1,c2   # multi-case subset of the audit pack (PR-D4)
 aml inventory legacy.csv                             # summary of a SAS / Actimize / Mantas rule dump
 aml import-legacy legacy.csv --output spec.yaml      # convert legacy rules to AML spec skeleton
+aml equivalence <run-dir> --legacy legacy-alerts.csv # MATCH/NEW_ONLY/LEGACY_ONLY/DIFF parallel-run report (SR 11-7 / OSFI E-23)
 ```
 
 Full catalogue (incl. `aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md#cli-commands`](docs/getting-started.md). Data sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.

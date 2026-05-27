@@ -187,7 +187,7 @@ Before exposing any deployment to non-demo traffic:
 
 - [ ] Replace `JWT_SECRET` with a long random value (32+ bytes).
 - [ ] Replace `postgres.password` (or move to a managed database).
-- [ ] Replace the demo user backend (`api/main.py`) with OIDC or your IdP.
+- [ ] Replace the demo user backend (`api/auth.py::DEMO_USERS`) with OIDC or your IdP. Demo users are auto-disabled in production mode (`api/auth.py::is_demo_auth_enabled()`) unless `ALLOW_DEMO_AUTH` is explicitly set — verify the env override is unset.
 - [ ] Configure `OIDC_ROLE_CLAIM`, `OIDC_TENANT_CLAIM`, and `OIDC_ALLOWED_TENANTS`.
 - [ ] Set `API_DATA_ROOTS` and leave remote API sources disabled unless explicitly needed.
 - [ ] Set `API_RATE_LIMIT` appropriate to expected load.

@@ -28,6 +28,13 @@ on:
       # `theme.custom_dir`, so changes here MUST trigger a rebuild.
       - "overrides/**"
       - ".github/workflows/docs-deploy.yml"
+    # Codex P2 round 3 — the header release chip reads the latest
+    # `v*` annotated tag. Push of a new release tag without touching
+    # any of the path-filtered branches above would leave the chip
+    # stale until the next docs edit. Tag pushes re-trigger the build
+    # so the chip stays in lockstep with releases.
+    tags:
+      - "v*"
   workflow_dispatch:
 
 concurrency:
@@ -45,7 +52,19 @@ jobs:
       - name: Checkout source repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # Always build from `main`'s tip, regardless of trigger. The
+          # workflow runs on either a path-filtered push to main OR an
+          # annotated `v*` tag push. Tag pushes default the checkout to
+          # the tag ref, which could be older than main and would
+          # publish stale docs — explicit `ref: main` forces fresh tip
+          # for both trigger paths. `git describe --match 'v*'` from
+          # main HEAD still resolves the latest reachable release tag
+          # for the header chip. Codex P2 rounds 4-5.
+          ref: main
+          # Need full history + tags so `git describe` resolves the
+          # latest annotated `v*` tag for the header chip (shallow
+          # clones drop tag refs).
+          fetch-depth: 0
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -56,6 +75,28 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -e ".[docs]"
+
+      - name: Extract release info for header chip
+        run: |
+          # Mirrors the dashboard topbar: latest annotated release tag
+          # + its first-line summary surfaced next to the wordmark so a
+          # reader can see "which build of the docs am I looking at?"
+          # at a glance. mkdocs.yml reads these via `!ENV` substitution.
+          #
+          # Codex P2 round 2 — `git describe --tags` picks up ANY tag
+          # (incl. lightweight `temp` / `wip` etc.), so a non-release
+          # tag closer than the last `vN.N.N` would silently get
+          # published in the chip. `--match 'v*'` + dropping `--tags`
+          # restricts to annotated tags matching the release prefix.
+          TAG=$(git describe --match 'v*' --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$TAG" ]; then
+            SUMMARY=$(git tag -l --format='%(contents:subject)' "$TAG")
+          else
+            SUMMARY=""
+          fi
+          echo "AML_RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "AML_RELEASE_SUMMARY=$SUMMARY" >> "$GITHUB_ENV"
+          echo "Header chip: tag=$TAG summary='$SUMMARY'"
 
       - name: Build static site
         run: mkdocs build

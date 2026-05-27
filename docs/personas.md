@@ -1,134 +1,150 @@
 # Personas & Responsibilities
 
-The framework only earns its keep if five roles with different vocabularies can
-all work from the same spec. This doc describes what each role reads, writes,
-and reviews.
+The framework earns its keep if 13 distinct roles — from board to L1 analyst — can work from the same spec. This doc maps each persona to **what they read**, **what they write**, and the **dashboard pages they own**. Page lists below are the source-of-truth `AUDIENCE_PAGES` table in `src/aml_framework/dashboard/audience.py`; the sidebar **Audience** selector filters to exactly these pages per role (cap: 9 per persona, per `MAX_PAGES_PER_PERSONA`).
 
-## 1. Business Owner / Chief Compliance Officer (CCO)
+Universal pages — Today, Executive Dashboard, North-Star Coverage, FP Analysis, Decision Trail, Experiment Tracking, Equivalence, Threshold Sensitivity, Anomaly Discovery, Drift Monitor, Rule Lifecycle — are visible to every persona regardless of the filter, so the page lists below only enumerate role-specific surfaces.
 
-**Reads**
+---
 
-- `aml.yaml` top-level (`program`, list of rule names and severities).
-- Generated `control_matrix.md` — every rule mapped to a regulation clause.
-- KPI dashboard: alert volume, false-positive rate, SLA breaches, SAR pipeline.
+## Executive lane
 
-**Writes / approves**
+### `svp` — Senior VP of Risk
 
-- Risk appetite (thresholds, windows) via PR review.
-- Regulation citations when scope changes (new jurisdiction, new product).
-- Retention and reporting-cycle overrides.
+Owns the risk function. Cares about board reporting and the regulator relationship.
 
-**Does not touch**
+- **Reads**: Executive Dashboard → Program Maturity → Framework Alignment → Audit & Evidence → Transformation Roadmap
+- **Writes**: board narratives, regulator briefings; approves transformation roadmap
+- **Does not touch**: rule logic, SQL, generated artifacts
 
-- SQL, DAGs, anything generated. Generated artifacts are disposable.
+### `cto` — Chief Technology Officer
 
-## 2. Data Engineer
+Owns the platform. Cares about deployability, deterministic replay, vendor risk.
 
-**Reads**
+- **Reads**: Executive Dashboard → Program Maturity → Framework Alignment → Audit & Evidence → Model Performance → Data Integration → Run History → Transformation Roadmap
+- **Writes**: platform decisions (Helm/Terraform/Postgres), capacity envelope, BCP/DR posture
+- **Key property**: any production run is byte-identical replayable from spec hash + input snapshot
 
-- `data_contracts` in the spec — schema, SLAs, PII flags.
-- Generated DAG stubs and SQL — these are starting points, commit into the
-  warehouse project.
+### `cco` — Chief Compliance Officer
 
-**Writes**
+Owns the AML program. Cares about exam readiness and "can we prove what we did?"
 
-- Source-to-contract mappings (landing zone → contract-compliant view).
-- Infrastructure glue: schedulers, warehouse credentials, alert channels.
+- **Reads**: Executive Dashboard → Program Maturity → Framework Alignment → Risk Assessment → Audit & Evidence → Investigations → Regulator Pulse → Metrics Taxonomy → AI Assistant
+- **Writes**: risk appetite (thresholds, windows) via PR review; regulation citations when scope changes; retention and reporting-cycle overrides
+- **Does not touch**: SQL, DAGs, anything generated
 
-**Constraints**
+### `vp` — VP / MLRO
 
-- Cannot change rule logic without a spec PR. The framework refuses to run if
-  the warehouse schema drifts from the contract.
+Second line of defence. Reads the spec; challenges the rules; signs the STRs.
 
-**Where to start**
+- **Reads**: Executive Dashboard → Rule Performance → Framework Alignment → Audit & Evidence → Sanctions Screening → Comparative Analytics → Regulator Pulse → Metrics Taxonomy → AI Assistant
+- **Writes**: rule challenges (PR review), STR/SAR sign-offs in the audit ledger, AI provenance approvals
+- **Key property**: 2LoD review is captured per case; cannot be silently overwritten
 
-- [Data Integration page](dashboard-tour.md#data-integration) — the
-  30-second answer to *"what data is flowing through this AML
-  program?"*. Source catalogue, contract roll-up in whitepaper
-  vocabulary (completeness / staleness / checks), ISO 20022
-  message-type counts, and a DATA-N → artifact map linking each
-  whitepaper claim to the page / CLI / module that closes it.
-- [Spec Editor](dashboard-tour.md#spec-editor--rule-builder) — edit
-  `data_contracts` declarations + per-attribute freshness pinning
-  (`max_staleness_days` + `last_refreshed_at_column`).
-- [Run History](dashboard-tour.md#run-history) — per-run lineage,
-  spec hashes, ingestion provenance.
+---
 
-## 3. Data / Analytics Team
+## Operations lane
 
-**Reads**
+### `director` — Director of Financial Crime
 
-- Data-quality test results (generated from the spec).
-- Freshness monitors, null-rate trends.
-- Rule output tables (for typology research and tuning).
+Runs the operation. Cares about backlog, SLA breaches, queue health.
 
-**Writes**
+- **Reads**: Executive Dashboard → Alert Queue → Investigations → Framework Alignment → Risk Assessment → Data Quality → Audit & Evidence → Comparative Analytics → Metrics Taxonomy
+- **Writes**: SLA tuning, queue routing, analyst capacity decisions
 
-- New detection hypotheses as draft rules in the spec (marked
-  `status: experimental`, routed to a shadow queue).
-- Tuning recommendations: threshold proposals backed by backtest results.
+### `manager` — AML Operations Manager
 
-## 4. Auditor (Internal & External)
+Triage to escalation. Cares about queue throughput and analyst load balance.
 
-**Reads**
+- **Reads**: Alert Queue → Investigations → My Queue → Analyst Review Queue → Risk Assessment → Live Monitor → Tuning Lab → Typology Catalogue → Metrics Taxonomy
+- **Writes**: tuning proposals (threshold tweaks backed by backtest), reassignments, escalation criteria
+- **Daily arc**: triage → investigate → tune
 
-- `control_matrix.md` — one-page view of controls vs. regulation.
-- Evidence bundle (`aml export`) — zipped, signed, contains:
-  - spec snapshot at the execution time,
-  - input hash manifest,
-  - alert set with deterministic output hash,
-  - reviewer decision log with timestamps,
-  - regulator export (SAR/CTR) if applicable.
+### `analyst` — L1 / L2 Analyst
 
-**Writes**
+Works the alerts. Cares about evidence being pre-attached so they can write the narrative.
 
-- Findings as GitHub issues linked to specific spec clauses or evidence
-  bundles. Findings become tracked remediation items in the spec
-  (`open_findings` section).
+- **Reads**: Alert Queue → Case Investigation → Lineage Explorer → Investigations → Network Explorer → Sanctions Screening → Customer 360 → My Queue → Analyst Review Queue
+- **Writes**: case decisions (escalate / close / request-info) — each with reviewer id, timestamp, free-text reason; STR/SAR draft narratives
+- **Key property**: decisions are written to the audit ledger and cannot be silently overwritten
 
-**Key property**
+---
 
-- Can reproduce any historical run by checking out the `spec_version` SHA and
-  replaying the referenced input snapshot. A mismatched `output_hash` is a
-  reportable control failure.
+## Engineering lane
 
-## 5. Line-of-Defence Reviewers (L1 / L2 Analyst, SAR Filer)
+### `developer` — Engineer / Detection Developer
 
-**Reads**
+Authors the detectors. Cares about the spec, tests, and CI feedback loop.
 
-- Case files routed to their queue, each with:
-  - triggering transactions,
-  - customer KYC snapshot,
-  - prior-alert history,
-  - the spec clause that triggered the alert (so the reviewer knows *why*).
+- **Reads**: Spec Editor → Rule Performance → Rule Tuning → Tuning Lab → Model Performance → Data Integration → Data Quality → Audit & Evidence → AI Assistant
+- **Writes**: rules, `data_contracts`, `python_ref` scorers, tests; never overrides without a spec PR
+- **Constraint**: framework refuses to run if the warehouse schema drifts from the contract
 
-**Writes**
+### `data_engineer` — Data Engineer / Head of Data
 
-- Decisions: escalate / close / request-info. Each decision is written to the
-  audit ledger with reviewer id, timestamp, and free-text reason. Decisions
-  cannot be silently overwritten.
+Owns the pipes. Cares about contracts, freshness, ISO 20022 ingestion, lineage walk-back.
+
+- **Reads**: Data Integration → Data Quality → Customer 360 → Information Sharing → Spec Editor → Run History → Audit & Evidence → AI Assistant
+- **Writes**: source-to-contract mappings, ingestion DAGs (from generator stubs), freshness monitors, ISO 20022 message-type adapters
+- **Lands first on**: Data Integration — the 30-second answer to *"what data is flowing through this AML program?"*
+
+### `pm` — Program / Product Manager
+
+Plans the roadmap. Cares about coverage gaps and where to invest next.
+
+- **Reads**: Rule Performance → Program Maturity → Transformation Roadmap → Model Performance → Risk Assessment → Case Investigation → Tuning Lab → Typology Catalogue → Metrics Taxonomy
+- **Writes**: roadmap, gap analyses, typology investment proposals
+
+---
+
+## Audit + niche lanes
+
+### `auditor` — Auditor (Internal / External)
+
+Replays runs and verifies the chain. Cares about evidence completeness and reproducibility.
+
+- **Reads**: Audit & Evidence → Lineage Explorer → Investigations → Case Investigation → Data Quality → Framework Alignment → Regulator Pulse → Metrics Taxonomy → Information Sharing
+- **Writes**: findings as GitHub issues linked to spec clauses or evidence bundles; tracked in `open_findings`
+- **Key property**: any historical run is byte-identically replayable from `spec_version` SHA + input snapshot. A mismatched `output_hash` is a reportable control failure.
+
+### `business` — Business Stakeholder
+
+Outside FCC. Cares about the headline picture without operational detail.
+
+- **Reads**: Executive Dashboard → Risk Assessment → Framework Alignment → Audit & Evidence
+- **Writes**: nothing in the spec; consumes the regulator-pack summary
+
+### `fintech_mlro` — FinTech / EMI / VASP MLRO
+
+1-MLRO program. Lives with sponsor-bank cure notices and Series-B AML diligence questionnaires.
+
+- **Reads**: FinTech Cockpit → Alert Queue → Audit & Evidence → Investigations → Tuning Lab → Regulator Pulse → Spec Editor → Metrics Taxonomy → AI Assistant
+- **Writes**: everything — 1-MLRO is also the spec author, the tuner, the queue triage. Spec → reviewer → STR loop runs on one person's clock.
+- **Distinctive surface**: FinTech Cockpit pairs a sponsor-bank cure-notice timer with the 8 AML realities + evidence pack the diligence questionnaire asks for.
+
+---
 
 ## Collaboration loop
 
 ```
-             ┌──────── CCO / Compliance ────────┐
-             │  proposes threshold / rule PR    │
-             ▼                                   │
-       aml.yaml (main) ─── PR review ──── approves
-             │
-   ┌─────────┴──────────┐
-   │  generators run    │ ── produces DAG stubs, SQL, docs, control matrix
-   ▼                    ▼
-Data Engineer      Analytics team
-  wires up          backtests,
-  pipelines         proposes tuning
-             │
-             ▼
-        Runtime: alerts → queues → reviewer decisions
-             │
-             ▼
-        Evidence bundle ──► Auditor (internal, then regulator)
+        ┌──────── CCO / SVP / Compliance ────────┐
+        │  proposes threshold / rule PR          │
+        ▼                                         │
+  aml.yaml (main) ─── PR review ──── 2LoD approves
+        │
+   ┌────┴────────────┐
+   │ generators run  │ → DAG stubs, SQL, docs, control matrix, MRM pack
+   ▼                 ▼
+Data Engineer    Developer / PM
+  wires up        authors rules + tests
+  pipelines       proposes tuning
+        │
+        ▼
+  Runtime: alerts → analyst → manager → 2LoD → STR/SAR
+        │
+        ▼
+  Evidence bundle ──► Auditor (internal → regulator)
 ```
 
-The important property: **no role has an unreviewed write path to production
-detection logic.** Every change is a diff on `aml.yaml`. That is the control.
+The important property: **no role has an unreviewed write path to production detection logic.** Every change is a diff on `aml.yaml`. That is the control.
+
+For a deeper read on the daily painpoints driving these roles' workflows, see *[Process Pain whitepaper](research/2026-04-aml-process-pain.md)*.

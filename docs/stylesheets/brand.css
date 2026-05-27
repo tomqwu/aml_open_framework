@@ -27,6 +27,10 @@
   --aml-accent: #dd5c34;
   --aml-accent-deep: #a44b30;
   --aml-accent-bg: #fdeee5;
+  /* Lighter rust for use on dark backgrounds — hits WCAG 4.5:1 on
+   * `#1c2333` (the L2 nav slate bg) at 6.49:1. Same brand-rust hue,
+   * just enough chroma lift to clear the contrast threshold. */
+  --aml-accent-light: #ef8d68;
 
   /* Cyan signal (used sparingly for "live" indicators) */
   --aml-signal: #67e8f9;
@@ -271,6 +275,96 @@ body,
   line-height: 1.5;
 }
 
+/* ── Release chip — version + tag summary next to the wordmark ──── */
+/* Mirrors the dashboard topbar (`dashboard/components.py:248-291`).
+ * Markup is in `overrides/partials/header.html`; env-injected at
+ * docs-deploy time so each published rebuild stamps "v0.1.42 · Round
+ * 32 close: ..." into the header. Hidden on phone widths so it doesn't
+ * compete with the brand for the narrow top row. */
+
+.md-header__release {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 10px;
+  font-family: var(--aml-font-mono);
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.md-header__release-tag {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.md-header__release-summary {
+  font-family: var(--aml-font-serif);
+  font-style: italic;
+  font-size: 12px;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.md-header__release-summary::before {
+  content: "·";
+  margin-right: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@media screen and (max-width: 60em) {
+  .md-header__release-summary {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 30em) {
+  .md-header__release {
+    display: none;
+  }
+}
+
+/* ── R32 follow-up · Clickable header title (wordmark → home) ───── */
+/* The `overrides/partials/header.html` template wraps the site-name
+ * topic in an `<a>` to the home URL (Material's stock template leaves
+ * it as a plain div). These rules style it so it visually inherits
+ * the title typography but gains the affordances of a link. */
+
+.md-header__topic--home {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+
+.md-header__topic--home:hover {
+  opacity: 0.75;
+}
+
+/* Codex P2 on PR #448 — a11y. When Material scrolls the page enough
+ * that `.md-header__title--active` switches topics (site-name slides
+ * up, page-title slides in), Material relies on transform+opacity to
+ * hide the first topic but it stays in the DOM tree — keyboard users
+ * could tab to an invisible "Home" link. `visibility: hidden` removes
+ * the element from the tab order (and from a11y tree) once scrolled;
+ * the fade animation is cut short but the home link is no longer a
+ * focusable phantom. */
+.md-header__title--active .md-header__topic--home {
+  visibility: hidden;
+}
+
 /* ── R32 follow-up · Level-2 horizontal nav + hide primary sidebar ── */
 /* The custom override at overrides/partials/tabs.html adds a second
  * `.md-tabs--secondary` element under the standard tabs bar. This block
@@ -284,6 +378,43 @@ body,
   border-bottom: 1px solid rgba(28, 31, 38, 0.08);
   font-size: 0.72rem;
   color: var(--aml-ink-mute);
+}
+
+/* Dark mode (`slate` scheme) — the cream background + opacity-dimmed
+ * dark-ink text from the light-mode rules above dissolves the L2 nav
+ * into the dark navy header. Explicit overrides give the secondary
+ * bar a distinct (but slightly lighter than the main header) band
+ * with full-opacity light text so every pill is readable. */
+[data-md-color-scheme="slate"] .md-tabs--secondary {
+  background-color: #1c2333;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__link {
+  color: #cbd5e1;
+  opacity: 1;
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__link:hover {
+  color: var(--aml-accent-light);
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__item--active .md-tabs__link {
+  /* Codex P3 round 1 — dark-mode active needed a lighter rust to clear
+   * WCAG 4.5:1. `--aml-accent` (#dd5c34) on `#1c2333` = 4.23:1 ❌;
+   * `--aml-accent-light` (#ef8d68) = 6.49:1 ✅. */
+  color: var(--aml-accent-light);
+  border-bottom-color: var(--aml-accent-light);
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__link--label {
+  color: rgba(203, 213, 225, 0.55);
+}
+
+[data-md-color-scheme="slate"] .md-tabs--secondary .md-tabs__item--group-label {
+  border-left-color: rgba(255, 255, 255, 0.12);
 }
 
 .md-tabs--secondary .md-tabs__list {

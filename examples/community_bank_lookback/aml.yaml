@@ -1,0 +1,680 @@
+# Reference AML spec for the 5-year-lookback runbook.
+#
+# Same rule set as `examples/community_bank/aml.yaml` (US community bank,
+# FinCEN). Distinct example because the lookback runbook
+# (`docs/how-to/run-five-year-lookback.md`) layers a 60-month replay flow
+# on top: synthetic 60-month dataset via `scripts/generate_lookback_dataset.py`,
+# per-month `aml run --as-of`, hash-chain pinning, regulator-ready
+# evidence pack. PR-LOOKBACK-3 will add a `program.legacy_reference`
+# block + a committed `legacy-alerts.csv` here so the Equivalence
+# dashboard page demonstrates legacy↔new parallel-run classification
+# against the same replay.
+
+version: 1
+
+program:
+  name: community_bank_aml_lookback
+  jurisdiction: US
+  regulator: FinCEN
+  owner: chief_compliance_officer
+  effective_date: 2026-01-01
+
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,      type: string,    nullable: false, pii: false }
+      - { name: customer_id, type: string,    nullable: false, pii: true  }
+      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,    type: string,    nullable: false }
+      - { name: channel,     type: string,    enum: [cash, wire, ach, card] }
+      - { name: direction,   type: string,    enum: [in, out] }
+      - { name: booked_at,   type: timestamp, nullable: false }
+      # ISO-20022 purpose code (wire/SEPA/e-transfer rails). Nullable —
+      # cash/card legs leave it empty. Powers the INVS investment-scam
+      # (pig-butchering) typology; additive, no engine/generator change.
+      - { name: purpose_code, type: string,   nullable: true }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id, type: string,    nullable: false, pii: true }
+      - { name: full_name,   type: string,    nullable: false, pii: true }
+      - { name: country,     type: string,    nullable: false }
+      - { name: risk_rating, type: string,    enum: [low, medium, high] }
+      - { name: onboarded_at, type: timestamp, nullable: false }
+
+rules:
+  - id: structuring_cash_deposits
+    name: Cash structuring — just-below-threshold deposits
+    severity: high
+    regulation_refs:
+      - citation: "31 CFR 1010.314"
+        description: "Prohibition on structuring transactions to evade reporting."
+      - citation: "31 CFR 1020.320"
+        description: "SAR filing required for suspected structuring."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+        direction: in
+        amount: { between: [7000, 9999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 25000 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - prior_alerts_90d
+    tags: [structuring, cash]
+    business_intent: >
+      Detect customers depositing cash in the $7,000–$9,999 just-below-CTR
+      band three or more times within 30 days summing to $25,000+ — the
+      classic anti-structuring pattern targeted by 31 CFR 1010.314, where
+      depositors split transactions to avoid the $10,000 CTR filing trigger.
+    out_of_scope:
+      - single cash deposits at or above $10,000 (already captured by large_cash_ctr)
+      - cash structuring on prepaid or stored-value rails (not declared in this spec's channel enum)
+      - cash withdrawals (this rule is inbound-only)
+      - third-party deposits where the depositor differs from the account holder
+
+  - id: rapid_movement_cash_to_wire
+    name: Rapid movement — cash in followed by outgoing wire
+    severity: medium
+    regulation_refs:
+      - citation: "FinCEN Advisory FIN-2014-A005"
+        description: "Pass-through typology associated with layering."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: { in: [cash, wire] }
+      group_by: [customer_id]
+      window: 7d
+      having:
+        sum_amount: { gte: 50000 }
+        count:      { gte: 4 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [rapid_movement, layering]
+    business_intent: >
+      Catch the cash-to-wire layering signature where four or more
+      transactions on the cash and wire channels summing to $50,000+ post in a
+      7-day window. This is the community-bank scale of the FinCEN
+      FIN-2014-A005 pass-through advisory pattern.
+    out_of_scope:
+      - intra-channel velocity bursts (handled by structuring and unusual_volume_spike)
+      - cross-channel movement spread over more than seven days
+      - ACH or card-channel pass-through (not part of this rule's channel filter)
+      - inbound wire activity from a single counterparty (covered by EDD on the customer)
+
+  - id: high_risk_jurisdiction
+    name: Significant activity from FATF high-risk jurisdiction
+    severity: high
+    regulation_refs:
+      - citation: "31 CFR 1010.610"
+        description: "Enhanced due diligence for correspondent accounts."
+      - citation: "FATF Recommendation 19"
+        description: "Higher-risk countries — enhanced measures required."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'high_risk_jurisdiction' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        JOIN customer c ON t.customer_id = c.customer_id
+        WHERE c.country IN ('RU', 'IR', 'KP', 'MM', 'SY')
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 5000
+        ORDER BY t.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - jurisdiction_risk_assessment
+    tags: [high_risk_jurisdiction, geographic_risk]
+    business_intent: >
+      Surface customers domiciled in FATF call-for-action jurisdictions
+      (RU, IR, KP, MM, SY) whose activity exceeds a low $5,000 aggregate
+      floor. Geographic risk under 31 CFR 1010.610 drives EDD obligations
+      on correspondent and direct customer relationships.
+    out_of_scope:
+      - counterparty-side high-risk geography (the join is on customer.country)
+      - customers from FATF grey-list jurisdictions outside the hard-coded set
+      - sanctioned-name matches against an individual (different control surface)
+      - transfers passing through high-risk corridors without a customer in those countries
+
+  # NOTE — PR-ML-1 deferred the community_bank wire-in of
+  # `passthrough_funnel_scorer`. The shared synthetic dataset plants
+  # C0007/C0028/C0019 with `e_transfer`/`crypto`/`prepaid` channels
+  # which aren't in this spec's `txn.channel` enum
+  # `[cash, wire, ach, card]` — `_build_warehouse` doesn't reject
+  # out-of-contract enum values today, so wiring the scorer in here
+  # would open critical cases on rows the spec declares
+  # out-of-contract (Codex P2 round 7). Follow-up: either plant
+  # community-bank-shaped data (cash→wire funnel) in
+  # `data/synthetic.py`, or make the scorer spec-aware (filter by
+  # declared channel enum). The `canadian_schedule_i_bank` spec's
+  # `e_transfer` channel covers the bundled C0007 planted shape
+  # in-contract, so PR-ML-1's R1b-closer ships there.
+
+  - id: large_cash_ctr
+    name: Cash activity exceeding CTR threshold ($10,000/day)
+    severity: medium
+    regulation_refs:
+      - citation: "31 CFR 1010.311"
+        description: "Filing obligations for currency transactions over $10,000."
+      - citation: "31 CFR 1020.315"
+        description: "Aggregation of multiple currency transactions."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+      group_by: [customer_id]
+      window: 1d
+      having:
+        sum_amount: { gte: 10000 }
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [ctr, cash, regulatory_reporting]
+    business_intent: >
+      Provide the regulator-facing trigger for any single-day cash aggregate
+      at or above $10,000 USD per customer per 31 CFR 1010.311 and the
+      aggregation rule at 1020.315. This rule produces the CTR filing
+      surface, not a suspicion signal, so it routes to L1 for ordinary
+      reporting rather than to investigations.
+    out_of_scope:
+      - sub-threshold structuring (handled by structuring_cash_deposits)
+      - cash aggregated across windows longer than one calendar day
+      - non-cash channels even when individually above $10,000 (different form set)
+
+  - id: unusual_volume_spike
+    name: Unusual volume spike — recent activity far exceeds baseline
+    severity: medium
+    regulation_refs:
+      - citation: "FinCEN Advisory FIN-2006-A003"
+        description: "Potential suspicious activity — unusual transactions inconsistent with profile."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH recent AS (
+            SELECT customer_id, SUM(amount) AS recent_total
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{recent_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+            GROUP BY customer_id
+        ),
+        baseline AS (
+            SELECT customer_id, SUM(amount) / 4.0 AS weekly_avg
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{baseline_start}'
+              AND booked_at <  TIMESTAMP '{recent_start}'
+            GROUP BY customer_id
+            HAVING COUNT(*) >= 2
+        )
+        SELECT
+            'unusual_volume_spike' AS rule_id,
+            r.customer_id,
+            r.recent_total AS sum_amount,
+            b.weekly_avg AS baseline_avg,
+            r.recent_total / NULLIF(b.weekly_avg, 0) AS spike_ratio,
+            TIMESTAMP '{recent_start}' AS window_start,
+            TIMESTAMP '{as_of}' AS window_end
+        FROM recent r
+        JOIN baseline b ON r.customer_id = b.customer_id
+        WHERE r.recent_total > b.weekly_avg * 5
+          AND r.recent_total >= 5000
+        ORDER BY r.customer_id
+    escalate_to: l1_analyst
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - historical_transaction_profile
+    tags: [unusual_activity, behavioral]
+    business_intent: >
+      Behavioural baseline rule — flag a customer whose recent-window total
+      exceeds five times their own prior weekly average (with a $5,000 floor
+      so noise on low-volume accounts doesn't dominate). Surfaces activity
+      inconsistent with the customer's profile, matching the suspicious-
+      activity indicators in FinCEN advisory FIN-2006-A003.
+    out_of_scope:
+      - first-month onboarded customers with no baseline (require ≥2 baseline transactions)
+      - dormant-then-active patterns where prior activity is zero (covered by dormant_account_activity)
+      - absolute-large transactions that aren't anomalous against the customer's own baseline
+
+  - id: dormant_account_activity
+    name: Dormant account reactivation with large transaction
+    severity: high
+    regulation_refs:
+      - citation: "FinCEN Advisory FIN-2006-A003"
+        description: "Potential suspicious activity — dormant accounts with sudden large transactions."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH last_activity AS (
+            SELECT customer_id, MAX(booked_at) AS last_txn_date
+            FROM txn
+            WHERE booked_at < TIMESTAMP '{dormant_cutoff}'
+            GROUP BY customer_id
+        ),
+        recent_large AS (
+            SELECT customer_id, SUM(amount) AS sum_amount,
+                   COUNT(*) AS count,
+                   MIN(booked_at) AS window_start,
+                   MAX(booked_at) AS window_end
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{dormant_cutoff}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+              AND amount >= 10000
+            GROUP BY customer_id
+        )
+        SELECT
+            'dormant_account_activity' AS rule_id,
+            r.customer_id,
+            r.sum_amount,
+            r.count,
+            r.window_start,
+            r.window_end
+        FROM recent_large r
+        JOIN last_activity la ON r.customer_id = la.customer_id
+        ORDER BY r.customer_id
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - account_activity_history
+    tags: [dormant_account, behavioral]
+    business_intent: >
+      Detect accounts inactive prior to the dormant cutoff that suddenly
+      book transactions of $10,000+ inside the post-cutoff window. A
+      dormant account coming alive with a single large transfer is a
+      textbook nominee / shell signal aligned with FIN-2006-A003.
+    out_of_scope:
+      - continuously active accounts whose new transaction is large but not preceded by dormancy
+      - small reactivation activity below the $10,000 individual-transaction floor
+      - new customers (no prior history means no dormancy concept)
+      - dormancy ending with structured small transactions (handled by structuring_cash_deposits)
+
+  - id: investment_scam_invs_velocity
+    name: Investment-scam (pig-butchering) — INVS payout velocity
+    severity: high
+    regulation_refs:
+      - citation: "FinCEN FIN-2023-Alert005"
+        description: "Pig-butchering / investment-scam payout indicators (INVS misuse)."
+    # aggregation_window (not custom_sql) so the runner stamps
+    # `matched_row_ids` — the lineage/audit pages + STR bundle can show
+    # the exact INVS payouts behind the alert. Same detection: ≥3
+    # outbound INVS wires summing ≥ $5k within a 14-day window.
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        purpose_code: INVS
+        direction: out
+      group_by: [customer_id]
+      window: 14d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 5000 }
+    escalate_to: l2_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+    tags: [investment_scam, cyber_enabled_fraud]
+    business_intent: >
+      Flag outbound payments carrying ISO 20022 purpose code INVS
+      (investment) — three or more in a 14-day window summing to $5,000+.
+      FinCEN's pig-butchering advisory FIN-2023-Alert005 calls out INVS
+      misuse as a primary payout marker; the rule pairs the purpose-code
+      signal with a velocity floor to suppress one-off legitimate
+      brokerage transfers.
+    out_of_scope:
+      - inbound INVS credits (this rule is direction:out only)
+      - investment activity using purpose codes other than INVS (e.g. SECT, DIVI)
+      - non-payment-rail investment moves (broker-internal trades that don't traverse the txn contract)
+      - high-volume but legitimate retail brokerage funding to a single regulated counterparty
+
+workflow:
+  queues:
+    - id: l1_analyst
+      sla: 24h
+      next: [l2_investigator, closed_no_action]
+    - id: l2_investigator
+      sla: 72h
+      next: [sar_filing, closed_no_action]
+    - id: sar_filing
+      sla: 30d
+      regulator_form: FinCEN_SAR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    FinCEN_SAR:
+      template: fincen_sar_v2
+      mandatory_fields: [subject, narrative, triggering_rules, transactions]
+    FinCEN_CTR:
+      template: fincen_ctr_v1
+      trigger:
+        channel: cash
+        aggregate_day: { gte: 10000 }
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 7y
+
+# ---------------------------------------------------------------------------
+# Business metrics & reporting
+# ---------------------------------------------------------------------------
+# Each metric declares who cares about it (audience) and who is accountable
+# for its RAG colour (owner). Reports stitch metrics into role-specific views
+# so every seat in the program looks at numbers relevant to their decisions.
+# ---------------------------------------------------------------------------
+
+metrics:
+  - id: alert_volume_total
+    name: Total alerts produced
+    category: operational
+    audience: [director, manager, analyst, developer]
+    owner: head_of_financial_crime_ops
+    formula:
+      type: count
+      source: alerts
+    thresholds:
+      green: { lte: 50 }
+      amber: { between: [51, 200] }
+      red:   { gt: 200 }
+
+  - id: high_severity_alert_ratio
+    name: High-severity alert share
+    category: risk
+    audience: [svp, vp, director]
+    owner: chief_compliance_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: alerts
+        # All severity:high rule ids (alert rows carry rule_id, not
+        # severity, so we enumerate). Fixes the pre-existing undercount
+        # (only structuring was counted; high_risk_jurisdiction +
+        # dormant_account_activity were missed) and includes the new
+        # high-severity rules. TODO: migrate to severity-derived once
+        # the metric model supports it (rules/metrics epic M-series).
+        filter:
+          rule_id:
+            in:
+              - structuring_cash_deposits
+              - high_risk_jurisdiction
+              - dormant_account_activity
+              - investment_scam_invs_velocity
+      denominator:
+        type: count
+        source: alerts
+    target: { lte: 0.6 }
+    thresholds:
+      green: { lte: 0.6 }
+      amber: { lte: 0.85 }
+      red:   { gt:  0.85 }
+
+  - id: typology_coverage
+    name: Typology coverage — rules that fired / all tagged rules
+    category: effectiveness
+    audience: [vp, director, manager]
+    owner: mlro
+    unit: "%"
+    formula:
+      type: coverage
+      universe: typologies
+      covered_by: rule_tags
+    target: { gte: 0.5 }
+    thresholds:
+      green: { gte: 0.5 }
+      amber: { gte: 0.25 }
+      red:   { lt:  0.25 }
+
+  - id: cases_opened
+    name: Cases opened this run
+    category: operational
+    audience: [manager, analyst, developer]
+    owner: head_of_financial_crime_ops
+    formula:
+      type: count
+      source: cases
+
+  - id: cases_routed_to_l1
+    name: Cases routed to L1 analyst queue
+    category: operational
+    audience: [manager, pm]
+    owner: l1_team_lead
+    formula:
+      type: count
+      source: cases
+      filter: { queue: l1_analyst }
+
+  - id: distinct_customers_alerted
+    name: Distinct customers alerted
+    category: risk
+    audience: [vp, director, business]
+    owner: chief_compliance_officer
+    formula:
+      type: count
+      source: alerts
+      distinct_by: customer_id
+
+  - id: transaction_volume_usd
+    name: Total transaction volume screened
+    category: operational
+    audience: [director, manager, business, developer]
+    owner: data_platform_lead
+    unit: USD
+    formula:
+      type: sum
+      source: txn
+      field: amount
+
+  - id: high_severity_rules_active
+    name: Active high-severity rules
+    category: delivery
+    audience: [pm, developer, vp]
+    owner: aml_program_manager
+    formula:
+      type: count
+      source: rules
+      # `high` + `critical` together — both severity tiers are
+      # operationally "high severity" for catalogue-health
+      # reporting. (Pre-existing inconsistency the metric name
+      # promised but the filter didn't deliver — kept aligned with
+      # the canadian spec which has the same fix.)
+      filter: { severity: { in: [high, critical] }, status: active }
+    thresholds:
+      green: { gte: 2 }
+      amber: { eq: 1 }
+      red:   { eq: 0 }
+
+  - id: rules_active_count
+    name: Total active rules deployed
+    category: delivery
+    audience: [svp, vp, director, pm, developer]
+    owner: aml_program_manager
+    formula:
+      type: count
+      source: rules
+      filter: { status: active }
+    thresholds:
+      green: { gte: 5 }
+      amber: { gte: 3 }
+      red:   { lt: 3 }
+
+  - id: false_positive_rate
+    name: Estimated false positive rate
+    description: Ratio of alerts not resulting in SAR escalation (proxy in demo)
+    category: effectiveness
+    audience: [svp, vp, director, manager]
+    owner: chief_compliance_officer
+    unit: "%"
+    formula:
+      type: sql
+      sql: "SELECT 1.0 - (CAST(sar_count AS FLOAT) / NULLIF(total, 0)) FROM ..."
+    target: { lte: 0.85 }
+    thresholds:
+      green: { lte: 0.7 }
+      amber: { lte: 0.85 }
+      red:   { gt:  0.85 }
+
+  - id: alert_to_sar_rate
+    name: Alert-to-SAR conversion rate
+    description: Proportion of alerts escalated to SAR filing queue
+    category: regulatory
+    audience: [svp, vp, director]
+    owner: chief_compliance_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: cases
+        filter: { status: sar_filing }
+      denominator:
+        type: count
+        source: alerts
+    target: { gte: 0.1 }
+    thresholds:
+      green: { gte: 0.1 }
+      amber: { gte: 0.05 }
+      red:   { lt:  0.05 }
+
+  - id: sla_compliance_rate
+    name: SLA compliance rate
+    description: Percentage of cases resolved within queue SLA
+    category: operational
+    audience: [manager, director, vp]
+    owner: head_of_financial_crime_ops
+    unit: "%"
+    formula:
+      type: sql
+      sql: "SELECT CAST(on_time AS FLOAT) / NULLIF(total, 0) FROM ..."
+    target: { gte: 0.95 }
+    thresholds:
+      green: { gte: 0.95 }
+      amber: { gte: 0.85 }
+      red:   { lt:  0.85 }
+
+  - id: avg_resolution_hours
+    name: Average case resolution time
+    description: Mean hours from case open to disposition
+    category: operational
+    audience: [manager, director]
+    owner: head_of_financial_crime_ops
+    unit: hours
+    formula:
+      type: sql
+      sql: "SELECT AVG(resolution_hours) FROM ..."
+    target: { lte: 48 }
+    thresholds:
+      green: { lte: 24 }
+      amber: { lte: 48 }
+      red:   { gt:  48 }
+
+reports:
+  - id: svp_exec_brief
+    title: SVP executive brief
+    audience: svp
+    cadence: quarterly
+    sections:
+      - title: Outcomes
+        metrics: [high_severity_alert_ratio, typology_coverage, false_positive_rate]
+        commentary: >
+          Share of alerts coming from our most severe typology, how
+          well the detection catalogue covers the typologies we declared
+          in our risk assessment, and estimated false positive rate.
+      - title: Exposure
+        metrics: [distinct_customers_alerted, transaction_volume_usd]
+      - title: Program scale
+        metrics: [rules_active_count, alert_to_sar_rate]
+
+  - id: vp_compliance_review
+    title: VP compliance review
+    audience: vp
+    cadence: monthly
+    sections:
+      - title: Program effectiveness
+        metrics: [typology_coverage, high_severity_alert_ratio, alert_to_sar_rate]
+      - title: Volume & exposure
+        metrics: [alert_volume_total, distinct_customers_alerted]
+      - title: Catalogue health
+        metrics: [high_severity_rules_active, rules_active_count]
+
+  - id: director_program_health
+    title: Director monthly program health
+    audience: director
+    cadence: monthly
+    sections:
+      - title: Demand
+        metrics: [alert_volume_total, cases_opened, distinct_customers_alerted]
+      - title: Coverage
+        metrics: [typology_coverage]
+      - title: Risk mix
+        metrics: [high_severity_alert_ratio]
+
+  - id: manager_weekly
+    title: Operations manager weekly
+    audience: manager
+    cadence: weekly
+    sections:
+      - title: Queue load
+        metrics: [cases_opened, cases_routed_to_l1, alert_volume_total]
+      - title: Performance
+        metrics: [sla_compliance_rate, avg_resolution_hours]
+
+  - id: pm_delivery
+    title: Program PM delivery view
+    audience: pm
+    cadence: weekly
+    sections:
+      - title: Rule catalogue
+        metrics: [high_severity_rules_active]
+      - title: Throughput
+        metrics: [cases_routed_to_l1]
+
+  - id: developer_runtime
+    title: Platform engineering — rule runtime health
+    audience: developer
+    cadence: daily
+    sections:
+      - title: Throughput
+        metrics: [alert_volume_total, cases_opened, transaction_volume_usd]
+      - title: Catalogue
+        metrics: [high_severity_rules_active]
+
+  - id: business_owner_daily
+    title: Business owner daily pulse
+    audience: business
+    cadence: daily
+    sections:
+      - title: Today's picture
+        metrics: [distinct_customers_alerted, transaction_volume_usd]
