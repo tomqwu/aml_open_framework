@@ -1,0 +1,81 @@
+name: release-on-tag
+
+# Auto-create a GitHub Release whenever a vX.Y.Z tag is pushed.
+# Pairs with the deploy discipline: `git tag -a vX.Y.Z -m "..."` →
+# `git push origin vX.Y.Z` → `az acr build` → `az containerapp update`.
+# Before this workflow existed (pre-v0.1.43), 43 tags were pushed
+# without any Release object, so the GitHub UI showed nothing under
+# Releases. Going forward, every functional tag produces a Release
+# with auto-generated notes from merged PRs since the prior tag.
+
+on:
+  push:
+    tags:
+      # GitHub Actions tag filters are GLOB, not regex — `+` is literal.
+      # `v[0-9]*.[0-9]*.[0-9]*` matches v0.1.43 / v1.2.3 etc.; the
+      # character classes restrict the first char of each segment to a
+      # digit so non-semver tags (e.g. `vNEXT`, `v-rc1`) don't fire.
+      - "v[0-9]*.[0-9]*.[0-9]*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check strict vX.Y.Z shape
+        id: check
+        # Codex P2 round 2: the trigger glob `v[0-9]*.[0-9]*.[0-9]*` still
+        # matches `v1.2.3-rc1`, `v1foo.2bar.3baz` etc. Reject anything
+        # that isn't exact `vMAJOR.MINOR.PATCH` of digits.
+        # Codex P2 round 3: ANY non-zero exit from a `run:` step is a
+        # workflow failure (Actions does not honour exit-78 neutral
+        # semantics). Set an output flag and gate downstream steps on it
+        # so non-semver tags produce a green skip instead of a red fail.
+        run: |
+          if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "semver=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping release for non-semver tag ${GITHUB_REF_NAME}"
+            echo "semver=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read tag annotation
+        id: tag
+        if: steps.check.outputs.semver == 'true'
+        run: |
+          # The annotated tag message is the one-liner the operator passed
+          # via `git tag -m "..."`. Use it as the Release title suffix so
+          # the Release UI shows the same summary as the deploy log.
+          # Write to GITHUB_OUTPUT via a heredoc-delimited form so values
+          # with newlines/quotes don't corrupt the file format. Downstream
+          # readers MUST pull via env (see Codex P2 round 2 below) to avoid
+          # bash interpolation of `$PATH` / `$(...)` / backticks the tagger
+          # might have injected.
+          msg=$(git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}")
+          {
+            echo "summary<<TAG_SUMMARY_EOF"
+            echo "${msg}"
+            echo "TAG_SUMMARY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        if: steps.check.outputs.semver == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Pass the title through env so bash sees a single, fully-quoted
+          # string. Without this, an annotated tag message like
+          # `Fix $(rm -rf /)` would execute the subshell when the Actions
+          # expression `${{ steps.tag.outputs.summary }}` was interpolated
+          # into the `run:` block. `contents: write` makes that a real risk.
+          TAG_NAME: ${{ github.ref_name }}
+          TAG_SUMMARY: ${{ steps.tag.outputs.summary }}
+        run: |
+          gh release create "$TAG_NAME" \
+            --title "$TAG_NAME — $TAG_SUMMARY" \
+            --generate-notes
