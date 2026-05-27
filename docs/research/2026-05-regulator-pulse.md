@@ -1,8 +1,10 @@
-# Regulator Pulse: AML / Sanctions Events, 2026-02-01 → 2026-05-08
+# Regulator Pulse: AML / Sanctions Events, 2026-02-01 → 2026-05-27
 
-This is a CCO/MLRO-facing chronological log of AML, sanctions, and BSA-related regulator actions published between 2026-02-01 and 2026-05-08 (97 days, 32 events). Every event below cites the regulator’s primary source — press releases, signed orders, Federal Register notices, Council of the EU press corner, FATF outcomes, FCA final notices, FINTRAC public-notice pages. Industry briefings were used only as navigation aids; they are not cited here. Each entry states what an MLRO needs to do or know differently because of the action — not generic awareness language.
+This is a CCO/MLRO-facing chronological log of AML, sanctions, and BSA-related regulator actions published between 2026-02-01 and 2026-05-27 (116 days, 33 events). Every event below cites the regulator’s primary source — press releases, signed orders, Federal Register notices, Council of the EU press corner, FATF outcomes, FCA final notices, FINTRAC public-notice pages. Industry briefings were used only as navigation aids; they are not cited here. Each entry states what an MLRO needs to do or know differently because of the action — not generic awareness language.
 
-The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rules, SR 26-2, the first-ever mandatory sanctions compliance program for stablecoin issuers under the GENIUS Act, AMLA’s first wave of CDD/sanctions RTS consultations (two of which closed on the final day of this window, 2026-05-08), the FATF grey-listing of Kuwait and Papua New Guinea, FinCEN’s first Section 311 action in three years, and the EU’s 20th Russia sanctions package all landed inside the window. Five active deadlines extend into June–July 2026; see the Forward Calendar section.
+The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rules, SR 26-2, the first-ever mandatory sanctions compliance program for stablecoin issuers under the GENIUS Act, AMLA’s first wave of CDD/sanctions RTS consultations (two of which closed on 2026-05-08), the FATF grey-listing of Kuwait and Papua New Guinea, FinCEN’s first Section 311 action in three years, and the EU’s 20th Russia sanctions package all landed inside the window. The FinCEN Minnesota GTO temporary relief expired 2026-05-13. Four active deadlines remain within the next 45 days; see the Forward Calendar section.
+
+> **Last updated 2026-05-27.** *Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*
 
 ---
 
@@ -83,6 +85,12 @@ The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rule
 **What it is** (1 sentence): FinCEN and OFAC jointly published a Notice of Proposed Rulemaking implementing the GENIUS Act’s directive to treat permitted payment stablecoin issuers (PPSIs) as financial institutions under the Bank Secrecy Act, and for the first time imposing a mandatory, legally-binding sanctions compliance program obligation on a defined category of payment-system participants under new 31 CFR Part 502.
 **What changed for AML buyers** (2-3 sentences): PPSIs must establish full BSA-program equivalents — risk-based internal policies, independent testing, designated AML/CFT officer, ongoing training, and CDD — alongside a mandatory OFAC-specific sanctions compliance program. Banks sponsoring or providing correspondent services to PPSIs must update their BSA/AML third-party risk assessments: the rule makes PPSI AML/CFT posture a regulatory exposure for the sponsoring bank, not just the PPSI. Comments due 2026-06-09 — the same deadline as the Effectiveness NPRM, compressing the industry’s comment bandwidth.
 **Source:** [Treasury Press Release SB0435](https://home.treasury.gov/news/press-releases/sb0435) · [Federal Register 2026-06963, published 2026-04-10](https://www.federalregister.gov/documents/2026/04/10/2026-06963/permitted-payment-stablecoin-issuer-anti-money-launderingcountering-the-financing-of-terrorism) · [FinCEN PPSI NPRM PDF](https://www.fincen.gov/system/files/2026-04/PPSI-AMLCFT-NPRM.pdf)
+
+### 2026-05-13 · FinCEN — Minnesota GTO temporary relief expires; full filing obligations restored
+
+**What it is** (1 sentence): FinCEN's February 2026 exemptive relief temporarily suspending GTO filing requirements for bank account-holder customers in Hennepin and Ramsey counties (Minnesota) expired as scheduled on 2026-05-13.
+**What changed for AML buyers** (2-3 sentences): Banks in Hennepin and Ramsey counties must now apply the full $3,000 threshold to all qualifying MSB transactions, including those originated by their own account-holder customers — the temporary carve-out no longer applies. MSBs were never covered by the exemptive relief and have had continuous filing obligations throughout the GTO period. Compliance teams should verify their reporting systems were reconfigured prior to May 14 and confirm no filing gaps occurred during the cut-over, as any missed reports fall squarely in scope for the next FINCEN exam cycle.
+**Source:** [FinCEN Minnesota GTO Order, 2026-01-09](https://www.fincen.gov/system/files/2026-01/Minnesota-Fraud-GTO-Order.pdf) · [Minnesota GTO FAQs](https://www.fincen.gov/system/files/2026-01/Minnesota-Fraud-GTO-FAQs.pdf)
 
 ---
 
@@ -252,12 +260,11 @@ The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rule
 
 ## Forward Calendar — Active Deadlines from This Window
 
-Regulatory actions confirmed in the 97-day window that continue to generate compliance obligations beyond 2026-05-08. Ordered by deadline.
+Regulatory actions confirmed in the 116-day window that continue to generate compliance obligations beyond 2026-05-27. Ordered by deadline. *As of 2026-05-27, the May 13 deadline is complete; four active deadlines remain.*
 
-### 2026-05-13 · FinCEN — Minnesota GTO temporary relief expires
+### ~~2026-05-13 · FinCEN — Minnesota GTO temporary relief expires~~ ✓ COMPLETED
 
-**What it is:** FinCEN’s February 27 exemptive relief suspending GTO filing requirements for bank account-holder customers in Hennepin and Ramsey counties expires 2026-05-13. After this date, the full $3,000 reporting threshold applies to all qualifying MSB transactions in those counties, including to qualifying account-holder customers.
-**Action required:** Banks in Hennepin and Ramsey counties must confirm their systems are configured to file on all qualifying transactions from May 14 onward. MSBs were never covered by the relief — their filing obligation has run continuously.
+**Status:** Expired as scheduled. Full $3,000 threshold now applies to all qualifying MSB transactions in Hennepin and Ramsey counties including bank account-holder customers. See the new event entry in Section 2 above for MLRO action items.
 **Source:** [Minnesota GTO Order](https://www.fincen.gov/system/files/2026-01/Minnesota-Fraud-GTO-Order.pdf) · [GTO FAQs](https://www.fincen.gov/system/files/2026-01/Minnesota-Fraud-GTO-FAQs.pdf)
 
 ### 2026-06-01 · FinCEN — Whistleblower Incentives & Protections NPRM comment deadline
@@ -286,7 +293,7 @@ Regulatory actions confirmed in the 97-day window that continue to generate comp
 
 ---
 
-## Themes (97 days: 2026-02-01 → 2026-05-08)
+## Themes (116 days: 2026-02-01 → 2026-05-27)
 
 **1. Enforcement softens, rulemaking accelerates.** New BSA/AML cease-and-desist orders are absent from OCC’s Feb–Mar releases, while the FinCEN/OCC/FDIC/NCUA joint Effectiveness NPRM, the SR 26-2 model-risk rewrite, the reputation-risk final rule, and the GENIUS Act stablecoin NPRM represent the largest US AML-program reset since the AMLA 2020. The Treasury narrative (“stop measuring paperwork”) is consistent across all four federal agencies.
 
@@ -296,6 +303,8 @@ Regulatory actions confirmed in the 97-day window that continue to generate comp
 
 **4. EU AMLA shifts from talking to building.** Three RTS consultations, two final reports, and the data-collection-for-selection exercise all happened inside fourteen weeks. Two consultation periods closed on the final day of this window (2026-05-08); by 2026-07-10, AMLA must submit all final RTS to the Commission. Obliged entities operating in 6+ member states should treat 2026 H2 as the last preparation window before AMLA’s 2027 selection of its first 40 directly-supervised firms.
 
+**5. Calendar obligations compound in June.** The FinCEN Whistleblower NPRM comment deadline (2026-06-01), the dual Effectiveness + GENIUS Act NPRMs deadline (2026-06-09), and the expiry of the Minnesota GTO temporary relief (2026-05-13, now completed) compressed industry bandwidth. AUSTRAC Tranche 2 enforcement (2026-07-01) and AMLA's RTS submission (2026-07-10) follow in quick succession. MLROs should use this window to sequence gap analyses, not defer them.
+
 ---
 
-*Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*
+*Last updated: 2026-05-27 · Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*
