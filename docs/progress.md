@@ -1,8 +1,10 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-05-07. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-05-28. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
-> **Round 12 — Lineage end-to-end** (#222–#232) shipped 2026-05-07: walk_lineage now surfaces rendered SQL + source path + schema hash + rule_version on every event + matched_row_ids per alert. Three dashboard pages (Audit & Evidence, Case Investigation, Data Integration) extended; new Lineage Explorer page (#32) ships the deep walk-back. Landing site adds a third Lineage hero + research deep-dive + technical deck slide. Tests grew 1,985 → ~2,020.
+> **Round 16 Phase A — Azure landing zone** (#255–#258) shipped 2026-05-07: `terraform apply` deploys the framework on Azure Container Apps + Postgres Flexible Server via the user's cloud landing zone. OTel → Application Insights wired. Tests at 2,084.
+>
+> **Research update (2026-05-28):** New [Regulator Pulse — May 2026](research/2026-05-regulator-pulse-may.md) published: AMLA three RTS consultations closed May 8 (July 10 submission deadline); FinCEN Program NPRM comments close June 9; AUSTRAC Tranche 2 enforcement starts July 1; OFAC DeFi sanctions guidance updated; FATF Singapore MER published.
 
 ---
 
@@ -459,3 +461,9 @@ Every doc has a single-line "use when" hook in [`README.md`](../README.md). The 
 - `docs/deployment.md` — Docker + Helm
 - `docs/case-studies/` — TD 2024 enforcement walkthrough
 - `docs/progress.md` — this file
+- `docs/research/2026-04-aml-process-pain.md` — 10 daily pain points (primary-source)
+- `docs/research/2026-04-competitive-positioning.md` — competitive landscape vs. Actimize / Hawk / Marble / Jube
+- `docs/research/2026-04-fintech-aml-reality.md` — FinTech buyer lens
+- `docs/research/2026-04-regulator-pulse.md` — AML/sanctions events Feb 1–Apr 29 2026
+- `docs/research/2026-05-aml-data-problem.md` — 11 faces of the data problem
+- `docs/research/2026-05-regulator-pulse-may.md` — AML/sanctions events Apr 29–May 28 2026 *(new)*
