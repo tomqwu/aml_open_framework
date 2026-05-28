@@ -12,6 +12,7 @@ COPY src/ src/
 COPY schema/ schema/
 COPY examples/ examples/
 COPY data/ data/
+COPY deploy/ deploy/
 COPY docs/ docs/
 COPY tests/ tests/
 
