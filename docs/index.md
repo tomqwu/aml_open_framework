@@ -49,9 +49,9 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Whitepapers — process pain, data problem, regulator pulse.
+    Five May 2026 whitepapers: regulator pulse (116-day log), data problem, process pain, fintech reality, competitive positioning.
 
-    [:octicons-arrow-right-24: Research](research/2026-05-aml-data-problem.md)
+    [:octicons-arrow-right-24: Research](research/2026-05-regulator-pulse.md)
 
 </div>
 
@@ -123,6 +123,7 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
+| `docs` | — | 2026-05-29 | Research whitepapers refreshed to May 2026 editions — regulator-pulse extended to 2026-05-27 (116 days, 33 events); process-pain, fintech, competitive-positioning updated with SR 26-2, GENIUS Act NPRM, AUSTRAC Tranche 2 context |
 | `v0.1.41` | 30 | 2026-05-24 | gap-audit-driven docs polish + page_header guard |
 | `v0.1.40` | 28 | 2026-05-24 | Pillar 2/4/6 closure + legacy-import wizard (8 PRs) |
 | `v0.1.39` | 27 | 2026-05-24 | SLA monitor + cost-volume + monitoring digest |
