@@ -78,8 +78,14 @@ jobs:
             --cov=aml_framework \
             --cov-report=term-missing \
             --cov-report=json:.coverage_report.json \
-            --cov-fail-under=99 \
             -q
+      - name: Enforce coverage floor
+        # NOT `pytest --cov-fail-under`, which silently exits 0 below the
+        # threshold on this runner (plugin quirk) — the gate was non-enforcing.
+        # This reads totals.percent_covered from the JSON report and the floor
+        # from pyproject [tool.coverage.report] fail_under, and exits non-zero
+        # when under it. Platform-independent; cannot silently pass.
+        run: python scripts/check_coverage_floor.py .coverage_report.json
       - name: Write coverage badge JSON
         if: always()
         run: |
