@@ -16,6 +16,16 @@ import pytest
 
 _SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "check_coverage_floor.py"
 
+# scripts/ is a dev/CI utility dir and is intentionally NOT shipped in the
+# runtime Docker image (which runs `pytest tests/` as a smoke check). Skip the
+# whole module when the script isn't on disk so the image build stays green;
+# the gate itself is exercised by the coverage CI job, not this image.
+if not _SCRIPT.exists():  # pragma: no cover
+    pytest.skip(
+        "coverage-gate script not present (stripped runtime image)",
+        allow_module_level=True,
+    )
+
 
 def _load_module():
     spec = importlib.util.spec_from_file_location("check_coverage_floor", _SCRIPT)
