@@ -53,7 +53,7 @@ Each `ci-*` sub-target maps 1:1 to a job in `.github/workflows/ci.yml`:
 |--------------------|-----------------------|----------------------------------------|
 | `ci-lint`          | lint                  | `ruff check` + `ruff format --check`   |
 | `ci-unit`          | unit-tests            | excludes `test_api.py` + e2e           |
-| `ci-coverage`      | coverage              | `--cov-fail-under=99` (matches CI)     |
+| `ci-coverage`      | coverage              | floor in `pyproject` enforced by `scripts/check_coverage_floor.py` |
 | `ci-api`           | api-tests             | `pytest tests/test_api.py`             |
 | `ci-e2e`           | e2e-dashboard         | Playwright, ~15 min                    |
 | `ci-deployment`    | deployment-validation | `helm lint` + template + compose config|

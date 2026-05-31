@@ -19,6 +19,7 @@ site/
 data/api-artifacts/
 data/uploads/
 .coverage
+.coverage_report.json
 htmlcov/
 .DS_Store
 .claude/
