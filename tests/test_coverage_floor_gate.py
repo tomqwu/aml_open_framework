@@ -49,6 +49,18 @@ def test_floor_sourced_from_pyproject():
     assert mod.floor_from_pyproject() == 98.0
 
 
+def test_floor_from_text_regex_fallback():
+    # The Python-3.10-without-tomli path: regex-scan the single fail_under line.
+    text = "[tool.coverage.report]\nexclude_lines = []\nfail_under = 98\n"
+    assert mod._floor_from_text(text) == 98.0
+    assert mod._floor_from_text("  fail_under = 95.5\n") == 95.5
+
+
+def test_floor_from_text_missing_raises():
+    with pytest.raises(RuntimeError, match="fail_under"):
+        mod._floor_from_text("[tool.coverage.report]\n")
+
+
 def test_coverage_percent_reads_totals(tmp_path):
     report = _write_report(tmp_path, 98.99)
     assert mod.coverage_percent(report) == pytest.approx(98.99)

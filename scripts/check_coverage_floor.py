@@ -24,18 +24,41 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
-import tomllib
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
+def _floor_from_text(text: str) -> float:
+    """Regex fallback for environments without any TOML parser (Python 3.10
+    stdlib has no ``tomllib`` and ``tomli`` may be absent). ``fail_under``
+    appears exactly once in pyproject.toml, so a targeted scan is safe."""
+    m = re.search(r"(?m)^\s*fail_under\s*=\s*([0-9.]+)", text)
+    if not m:
+        raise RuntimeError("could not find [tool.coverage.report] fail_under in pyproject.toml")
+    return float(m.group(1))
+
+
 def floor_from_pyproject(pyproject: Path | None = None) -> float:
-    """Read the single-source-of-truth coverage floor from pyproject.toml."""
+    """Read the single-source-of-truth coverage floor from pyproject.toml.
+
+    Uses ``tomllib`` (Python 3.11+) or a ``tomli`` fallback when present; on
+    Python 3.10 without ``tomli`` it falls back to a regex scan. The repo
+    declares ``requires-python >= 3.10``, so the script must not hard-depend
+    on the 3.11-only ``tomllib``.
+    """
     path = pyproject or (_REPO_ROOT / "pyproject.toml")
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
-    return float(data["tool"]["coverage"]["report"]["fail_under"])
+    text = path.read_text(encoding="utf-8")
+    try:
+        import tomllib  # Python 3.11+
+    except ModuleNotFoundError:  # pragma: no cover - exercised only on 3.10
+        try:
+            import tomli as tomllib  # type: ignore[no-redef]
+        except ModuleNotFoundError:
+            return _floor_from_text(text)
+    return float(tomllib.loads(text)["tool"]["coverage"]["report"]["fail_under"])
 
 
 def coverage_percent(report_json: Path) -> float:
