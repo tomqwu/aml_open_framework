@@ -1,20 +1,21 @@
-"""Engine correctness hardening (PR-H6 + nested PII masking).
+"""Engine correctness hardening (PR-H6).
 
-Covers three real defects found in review:
+Covers two real defects found in review:
 1. freshness scan naivized aware datetimes by *wall clock* instead of by
    instant — a non-UTC timestamp produced a wrong staleness age.
 2. (observability) matched_row_ids lookup failures were swallowed silently
-   — exercised indirectly; the fix only adds a log line.
-3. PII masking only masked top-level alert keys, so a network_pattern
-   alert leaked its subject's customer_id inside the nested `subgraph`.
+   — exercised indirectly; the fix only adds a log line (rule_id only, no PII).
+
+(Nested/subgraph PII masking was split out: the network_pattern subgraph
+emits customer ids under generic `id`/`source`/`target` keys, so complete
+masking needs an emitter-level design — tracked as a separate PR.)
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-from aml_framework.engine.audit import AuditLedger, _mask_nested, _pii_mask_value
+from aml_framework.engine.audit import AuditLedger
 from aml_framework.engine.freshness import _to_utc_naive, scan_contract_freshness
 from aml_framework.spec.models import Column, DataContract
 
@@ -82,53 +83,7 @@ def test_freshness_fresh_row_no_violation():
     assert scan_contract_freshness(contract, rows, as_of) == []
 
 
-# --- nested PII masking ---------------------------------------------------
-
-
-def test_mask_nested_replaces_known_plaintext_everywhere():
-    m = {"C0001": "HASH1"}
-    assert _mask_nested("C0001", m) == "HASH1"
-    assert _mask_nested("other", m) == "other"
-    assert _mask_nested({"a": "C0001", "b": "x"}, m) == {"a": "HASH1", "b": "x"}
-    assert _mask_nested(["C0001", "y"], m) == ["HASH1", "y"]
-    assert _mask_nested(("C0001", 2), m) == ("HASH1", 2)
-    assert _mask_nested(5000, m) == 5000  # non-string untouched
-
-
-def _masking_ledger(tmp_path: Path) -> AuditLedger:
-    return AuditLedger(
-        run_dir=tmp_path,
-        spec_path=tmp_path / "spec.yaml",
-        spec_content_hash="deadbeef",
-        as_of=datetime(2026, 1, 1),
-        pii_columns=frozenset({"customer_id", "full_name"}),
-        pii_salt="salt123",
-    )
-
-
-def test_mask_alert_masks_subject_inside_nested_subgraph(tmp_path):
-    """A network_pattern alert embeds its subject's customer_id inside
-    `subgraph.nodes[].id`. The subject must be masked there too, identically
-    to the top-level field — value-based masking guarantees this."""
-    ledger = _masking_ledger(tmp_path)
-    alert = {
-        "customer_id": "C0001",
-        "full_name": "Jane Roe",
-        "amount": 5000,
-        "pattern": "component_size",
-        "subgraph": {"nodes": [{"id": "C0001", "label": "seed"}], "edges": []},
-    }
-    masked = ledger._mask_alert(alert)
-
-    h_cid = _pii_mask_value("C0001", "salt123")
-    assert masked["customer_id"] == h_cid
-    assert masked["full_name"] == _pii_mask_value("Jane Roe", "salt123")
-    # The same id, nested under a different key (`id`), is masked identically.
-    assert masked["subgraph"]["nodes"][0]["id"] == h_cid
-    # Non-PII fields are untouched.
-    assert masked["amount"] == 5000
-    assert masked["pattern"] == "component_size"
-    assert masked["subgraph"]["nodes"][0]["label"] == "seed"
+# --- PII masking (top-level) ----------------------------------------------
 
 
 def test_mask_alert_noop_without_pii_columns(tmp_path):
