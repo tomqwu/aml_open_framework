@@ -78,8 +78,15 @@ jobs:
             --cov=aml_framework \
             --cov-report=term-missing \
             --cov-report=json:.coverage_report.json \
-            --cov-fail-under=99 \
             -q
+      - id: covgate
+        name: Enforce coverage floor
+        # NOT `pytest --cov-fail-under`, which silently exits 0 below the
+        # threshold on this runner (plugin quirk) — the gate was non-enforcing.
+        # This reads totals.percent_covered from the JSON report and the floor
+        # from pyproject [tool.coverage.report] fail_under, and exits non-zero
+        # when under it. Platform-independent; cannot silently pass.
+        run: python scripts/check_coverage_floor.py .coverage_report.json
       - name: Write coverage badge JSON
         if: always()
         run: |
@@ -88,10 +95,13 @@ jobs:
           # float. Fall back to 0 when the file is missing (job didn't
           # reach the test step) so the badge still renders something.
           percent=$(python -c "import json,os; d=json.load(open('.coverage_report.json')) if os.path.exists('.coverage_report.json') else {}; print(d.get('totals',{}).get('percent_covered', 0))")
+          # Badge is green only when BOTH the tests AND the coverage-floor gate
+          # passed — a below-floor run (covgate failure) must not show a success
+          # badge even though pytest itself succeeded.
           python scripts/_make_badge_json.py \
             --label coverage \
             --coverage "$percent" \
-            --status "${{ steps.pytest.outcome == 'success' && 'success' || steps.pytest.outcome }}" \
+            --status "${{ (steps.pytest.outcome == 'success' && steps.covgate.outcome == 'success') && 'success' || 'failure' }}" \
             > .github/badges/coverage.json
           cat .github/badges/coverage.json
       - uses: actions/upload-artifact@v4
