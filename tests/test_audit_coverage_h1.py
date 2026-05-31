@@ -15,6 +15,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from aml_framework.engine.audit import (
     AuditLedger,
     _freeze_snapshot_files,
@@ -134,6 +136,10 @@ def test_unmask_alerts_no_alerts_dir_returns_empty(tmp_path):
 # --- _freeze_snapshot_files -----------------------------------------------
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="POSIX chmod read-only bits; on Windows _freeze_snapshot_files no-ops (ACLs)",
+)
 def test_freeze_snapshot_files_chmods_file_and_dir_children(tmp_path):
     (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
     alerts = tmp_path / "alerts"
