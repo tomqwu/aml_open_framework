@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -52,6 +53,58 @@ def _is_mock_target(arg: str | None) -> bool:
         return False
     a = arg.strip().lower()
     return a in _MOCK_TOKENS or a.startswith("mock:")
+
+
+# --- SQL identifier / literal safety -------------------------------------
+# Table identifiers and file paths get interpolated into ``SELECT * FROM ...``
+# strings because SQL identifiers (and DuckDB file globs) cannot be passed as
+# bound parameters. ``DataContract.id`` is schema-constrained to a safe
+# pattern, but ``DataContract.source`` is free-form — and the legacy-import
+# wizard populates it straight from an untrusted CSV dump — so we validate
+# identifiers and escape path literals at the point of SQL construction.
+# A fully-qualified warehouse table identifier. Each dot-separated segment is
+# EITHER a bare identifier — letters/digits/_/$, with single (non-doubled)
+# hyphens for BigQuery project ids — OR a quoted identifier (backtick /
+# double-quote / bracket) which may itself contain dots/spaces/hyphens. No
+# segment may contain a statement separator (``;``), a comment (``--`` via the
+# no-double-hyphen rule + no unquoted ``-`` run), a newline, or a quote-break,
+# so injection like ``txn; DROP TABLE x; --`` or ``txn UNION SELECT ...`` is
+# rejected while valid Snowflake / BigQuery / Azure SQL names pass:
+#   raw.transactions · DB.SCHEMA.TABLE · my-project.raw.transactions
+#   `my-project.raw.transactions` · "My Schema"."My Table" · [dbo].[My Table]
+_BARE_SEG = r"[A-Za-z_][A-Za-z0-9_$]*(?:-[A-Za-z0-9_$]+)*"
+_QUOTED_SEG = r"`[^`;\n\r]+`|\"[^\"\n\r;]+\"|\[[^\]\n\r;]+\]"
+_ONE_SEG = rf"(?:{_BARE_SEG}|{_QUOTED_SEG})"
+_SQL_IDENTIFIER = re.compile(rf"^{_ONE_SEG}(?:\.{_ONE_SEG})*$")
+
+
+def _assert_safe_sql_identifier(identifier: str, *, field: str) -> str:
+    """Validate a fully-qualified SQL table identifier before interpolation.
+
+    Accepts dot-separated bare identifiers (incl. BigQuery hyphenated project
+    ids) and quoted identifiers (backtick / double-quote / bracket), so real
+    Snowflake / BigQuery / Azure SQL names pass; rejects anything carrying a
+    statement separator, comment, newline, or quote-break. Returns the
+    stripped identifier when safe; raises ``ValueError`` otherwise.
+    """
+    candidate = (identifier or "").strip()
+    if not candidate:
+        raise ValueError(f"{field} must be a non-empty SQL identifier")
+    if not _SQL_IDENTIFIER.match(candidate):
+        raise ValueError(
+            f"{field} {identifier!r} is not a safe SQL identifier "
+            "(expected a dot-separated or quoted warehouse table name without "
+            "statement separators, comments, or quote-breaks)"
+        )
+    return candidate
+
+
+def _sql_str_literal(value: Any) -> str:
+    """Render a value as a single-quoted SQL string literal, doubling any
+    embedded single quotes (SQL-standard escaping) so a path/glob containing a
+    quote cannot break out of ``SELECT * FROM '<path>'``.
+    """
+    return "'" + str(value).replace("'", "''") + "'"
 
 
 def _load_local_mock(
@@ -241,7 +294,7 @@ def load_parquet_source(
                 )
                 continue
 
-            rows = con.execute(f"SELECT * FROM '{parquet_path}'").fetchall()
+            rows = con.execute(f"SELECT * FROM {_sql_str_literal(parquet_path)}").fetchall()
             cols = [d[0] for d in con.description] if con.description else []
             data[contract.id] = [dict(zip(cols, r)) for r in rows]
     finally:
@@ -266,7 +319,11 @@ def load_duckdb_source(
 
     try:
         for contract in spec.data_contracts:
-            sql = (queries or {}).get(contract.id, f"SELECT * FROM {contract.id}")
+            if queries and contract.id in queries:
+                sql = queries[contract.id]
+            else:
+                ident = _assert_safe_sql_identifier(contract.id, field="data_contract.id")
+                sql = f"SELECT * FROM {ident}"
             try:
                 rows = con.execute(sql).fetchall()
                 cols = [d[0] for d in con.description] if con.description else []
@@ -466,9 +523,8 @@ def _load_warehouse_via_duckdb(  # pragma: no cover
     try:
         for contract in spec.data_contracts:
             try:
-                rows = con.execute(
-                    f"SELECT * FROM {contract.source}"
-                ).fetchall()  # pragma: no cover
+                _src = _assert_safe_sql_identifier(contract.source, field="data_contract.source")
+                rows = con.execute(f"SELECT * FROM {_src}").fetchall()  # pragma: no cover
                 cols = [d[0] for d in con.description] if con.description else []
                 data[contract.id] = [dict(zip(cols, r)) for r in rows]
             except Exception as e:
@@ -506,7 +562,7 @@ def _load_cloud_storage(  # pragma: no cover
             for ext in ("csv", "parquet"):
                 path = f"{bucket_path.rstrip('/')}/{contract.id}.{ext}"
                 try:
-                    rows = con.execute(f"SELECT * FROM '{path}'").fetchall()
+                    rows = con.execute(f"SELECT * FROM {_sql_str_literal(path)}").fetchall()
                     cols = [d[0] for d in con.description] if con.description else []
                     data[contract.id] = [dict(zip(cols, r)) for r in rows]
                     break
@@ -562,7 +618,7 @@ def _load_azure_storage(  # pragma: no cover
             for ext in ("csv", "parquet"):
                 path = f"{bucket_path.rstrip('/')}/{contract.id}.{ext}"
                 try:
-                    rows = con.execute(f"SELECT * FROM '{path}'").fetchall()
+                    rows = con.execute(f"SELECT * FROM {_sql_str_literal(path)}").fetchall()
                     cols = [d[0] for d in con.description] if con.description else []
                     data[contract.id] = [dict(zip(cols, r)) for r in rows]
                     break
@@ -618,7 +674,8 @@ def _load_azure_warehouse(  # pragma: no cover
             table = contract.source
             try:
                 cur = con.cursor()
-                cur.execute(f"SELECT * FROM {table}")
+                _table = _assert_safe_sql_identifier(table, field="data_contract.source")
+                cur.execute(f"SELECT * FROM {_table}")
                 cols = [d[0] for d in cur.description] if cur.description else []
                 rows = cur.fetchall()
                 data[contract.id] = [dict(zip(cols, r)) for r in rows]

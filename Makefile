@@ -115,14 +115,15 @@ ci-unit: ## CI mirror: unit-tests job (excludes api + e2e — those have their o
 		--ignore=tests/test_e2e_dashboard_mobile.py \
 		--ignore=tests/test_api.py -q
 
-ci-coverage: ## CI mirror: coverage job. NOTE: CI's YAML asks for --cov-fail-under=99 but pytest-cov on the runner silently exits 0 even when below threshold (plugin quirk on Linux/Python 3.12); CI's effective floor is whatever main is at today (~98%). Local mirrors the effective floor. When src/ coverage actually reaches 99%, bump both this target and the CI YAML.
+ci-coverage: ## CI mirror: coverage job. Floor lives in pyproject [tool.coverage.report] fail_under and is enforced by scripts/check_coverage_floor.py (NOT pytest --cov-fail-under, which silently exits 0 below threshold on the Linux runner). Bump the floor in pyproject as coverage improves; this target and CI both read it.
 	$(PYTEST) tests/ \
 		--ignore=tests/test_e2e_dashboard.py \
 		--ignore=tests/test_e2e_dashboard_mobile.py \
 		--cov=aml_framework \
 		--cov-report=term-missing \
-		--cov-fail-under=98 \
+		--cov-report=json:.coverage_report.json \
 		-q
+	$(PYTHON) scripts/check_coverage_floor.py .coverage_report.json
 
 ci-api: ## CI mirror: api-tests job
 	$(PYTEST) tests/test_api.py -q
