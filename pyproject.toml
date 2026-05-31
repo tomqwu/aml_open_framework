@@ -163,7 +163,8 @@ omit = [
     "*/engine/runner.py",
     "*/engine/tuning.py",
     "*/export.py",
-    "*/generators/audit_pack.py",
+    # generators/audit_pack.py un-omitted (PR-H1b): the regulator evidence
+    # bundle is compliance-critical output — measured, not hidden.
     "*/generators/board_pdf.py",
     "*/generators/goaml_xml.py",
     "*/models/xgboost_scorer.py",
