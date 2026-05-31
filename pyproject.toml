@@ -158,7 +158,8 @@ omit = [
     "*/cases/str_bundle.py",
     "*/compliance/regwatch.py",
     "*/cli.py",
-    "*/engine/audit.py",
+    # engine/audit.py un-omitted (PR-H1a): the tamper-evident ledger is the
+    # most compliance-critical module — it must be measured, not hidden.
     "*/engine/freshness.py",
     "*/engine/runner.py",
     "*/engine/tuning.py",
