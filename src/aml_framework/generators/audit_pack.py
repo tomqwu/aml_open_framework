@@ -44,7 +44,7 @@ import hashlib
 import io
 import json
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -234,11 +234,16 @@ def _audit_trail_verification(
                 chain_intact = False
                 breaks.append(i)
         prev_hash = d.get("hash", "")
+    # NOTE: deliberately no wall-clock `verified_at` here. The audit pack is a
+    # byte-deterministic artifact (see TestDeterminism) — embedding
+    # datetime.now() made two builds straddling a one-second boundary differ,
+    # an intermittent determinism-guarantee violation. The verification result
+    # (chain_intact / breaks / length) is a pure function of the decisions and
+    # can be re-derived at any time; the "when" is not evidence.
     return {
         "chain_intact": chain_intact,
         "chain_length": chain_length,
         "breaks_at_indices": breaks,
-        "verified_at": datetime.now(tz=timezone.utc).isoformat(timespec="seconds"),
     }
 
 
