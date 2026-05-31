@@ -10,7 +10,7 @@ serialisation fallback, malformed-case skips).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -108,7 +108,10 @@ def test_alerts_for_case_empty_when_no_alert():
     assert _alerts_for_case({"case_id": "C1"}, {}) == []
 
 
-def test_verified_at_is_isoformat():
-    # smoke: the verification stamp is a parseable ISO timestamp
-    stamp = _audit_trail_verification([])["verified_at"]
-    assert datetime.fromisoformat(stamp).tzinfo == timezone.utc
+def test_audit_trail_verification_empty_is_intact():
+    # An empty decision log is a (trivially) intact chain. Asserts the result
+    # shape without depending on a wall-clock field — the bundle is
+    # byte-deterministic and carries no `verified_at` (see the determinism fix).
+    result = _audit_trail_verification([])
+    assert result["chain_intact"] is True
+    assert result["chain_length"] == 0
