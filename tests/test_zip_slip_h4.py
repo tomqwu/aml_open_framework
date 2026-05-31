@@ -79,3 +79,31 @@ def test_case_pack_paths_sanitised_for_malicious_case_id():
     # The standard subdirs are still present (just with a safe leaf).
     assert any(p.startswith("cases/") for p in files)
     assert any(p.startswith("lineage/") for p in files)
+
+
+def test_colliding_case_ids_get_distinct_archive_paths():
+    """Two distinct case_ids that sanitise to the same segment must NOT share
+    an archive entry — otherwise build_batch_pack's `files.update(...)` would
+    silently drop one case's evidence."""
+    spec = load_spec(SPEC)
+
+    def _cases_key(case_id):
+        files = _case_pack_files(
+            spec,
+            {"case_id": case_id, "rule_id": "r", "alert": {}, "input_hash": {}},
+            Path("/nonexistent-run-dir"),
+            [],
+            {},
+        )
+        return next(k for k in files if k.startswith("cases/"))
+
+    # `A..B` and `A//B` both sanitise to `A_B`; the disambiguating hash of the
+    # original keeps their archive paths distinct.
+    k1 = _cases_key("r__A..B__t")
+    k2 = _cases_key("r__A//B__t")
+    k3 = _cases_key("r__A_B__t")  # already-safe, unaltered
+    assert k1 != k2
+    assert k1 != k3
+    assert k2 != k3
+    for k in (k1, k2, k3):
+        _assert_safe_zip_path(k)

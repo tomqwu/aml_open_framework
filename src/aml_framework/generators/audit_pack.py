@@ -882,6 +882,14 @@ def _case_pack_files(
     # The lineage/case JSON keep the true masked case_id (line above); only
     # the ZIP entry *path* is rendered separator-safe to block zip-slip.
     safe_case_id = _safe_zip_segment(masked_case_id)
+    if safe_case_id != masked_case_id:
+        # Sanitisation is non-injective (e.g. `A..B` and `A_B` both → `A_B`).
+        # In a batch pack `build_batch_pack` does `files.update(...)` per case,
+        # so colliding filenames would silently overwrite one case's evidence
+        # while batch_summary still lists both. Append a short stable hash of
+        # the original id so distinct case_ids never share an archive entry.
+        suffix = hashlib.sha256(masked_case_id.encode("utf-8")).hexdigest()[:8]
+        safe_case_id = f"{safe_case_id}-{suffix}"
     files: dict[str, bytes] = {
         f"cases/{safe_case_id}.json": _dump_json(masked_case),
         f"decisions/{safe_case_id}.jsonl": (
