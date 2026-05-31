@@ -38,9 +38,20 @@ def _single_contract_spec():
 
 @pytest.mark.parametrize(
     "ident",
-    ["txn", "raw.transactions", "DB.SCHEMA.TABLE", "_private", "a1.b2.c3"],
+    [
+        "txn",
+        "raw.transactions",
+        "DB.SCHEMA.TABLE",
+        "_private",
+        "a1.b2.c3",
+        "my-project.raw.transactions",  # BigQuery hyphenated project id
+        "`my-project.raw.transactions`",  # BigQuery whole-FQN backtick quote
+        '"My Schema"."My Table"',  # quoted Snowflake identifiers (spaces ok)
+        "[dbo].[My Table]",  # Azure SQL bracket-quoted identifiers
+        "a-b",  # single hyphen is valid
+    ],
 )
-def test_safe_identifier_accepts_dotted_names(ident):
+def test_safe_identifier_accepts_warehouse_names(ident):
     assert _assert_safe_sql_identifier(ident, field="x") == ident
 
 
@@ -48,13 +59,15 @@ def test_safe_identifier_accepts_dotted_names(ident):
     "ident",
     [
         "txn; DROP TABLE customers; --",
+        "txn UNION SELECT secret FROM s",  # UNION injection (space)
         "a'b",
         "1abc",  # leading digit
-        "a-b",  # hyphen
-        "a b",  # space
+        "a b",  # bare space
         "raw.transactions; DELETE",
         "raw..transactions",  # empty segment
-        "tbl--comment",
+        "tbl--comment",  # double hyphen / SQL comment
+        "tbl-",  # trailing hyphen
+        "`x`; DROP TABLE y",  # quote-break then statement
     ],
 )
 def test_safe_identifier_rejects_injection(ident):

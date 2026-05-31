@@ -62,26 +62,41 @@ def _is_mock_target(arg: str | None) -> bool:
 # pattern, but ``DataContract.source`` is free-form — and the legacy-import
 # wizard populates it straight from an untrusted CSV dump — so we validate
 # identifiers and escape path literals at the point of SQL construction.
-_SQL_IDENTIFIER_PART = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# A fully-qualified warehouse table identifier. Each dot-separated segment is
+# EITHER a bare identifier — letters/digits/_/$, with single (non-doubled)
+# hyphens for BigQuery project ids — OR a quoted identifier (backtick /
+# double-quote / bracket) which may itself contain dots/spaces/hyphens. No
+# segment may contain a statement separator (``;``), a comment (``--`` via the
+# no-double-hyphen rule + no unquoted ``-`` run), a newline, or a quote-break,
+# so injection like ``txn; DROP TABLE x; --`` or ``txn UNION SELECT ...`` is
+# rejected while valid Snowflake / BigQuery / Azure SQL names pass:
+#   raw.transactions · DB.SCHEMA.TABLE · my-project.raw.transactions
+#   `my-project.raw.transactions` · "My Schema"."My Table" · [dbo].[My Table]
+_BARE_SEG = r"[A-Za-z_][A-Za-z0-9_$]*(?:-[A-Za-z0-9_$]+)*"
+_QUOTED_SEG = r"`[^`;\n\r]+`|\"[^\"\n\r;]+\"|\[[^\]\n\r;]+\]"
+_ONE_SEG = rf"(?:{_BARE_SEG}|{_QUOTED_SEG})"
+_SQL_IDENTIFIER = re.compile(rf"^{_ONE_SEG}(?:\.{_ONE_SEG})*$")
 
 
 def _assert_safe_sql_identifier(identifier: str, *, field: str) -> str:
-    """Validate a (possibly dotted) SQL table identifier before interpolation.
+    """Validate a fully-qualified SQL table identifier before interpolation.
 
-    Each dot-separated segment must be a bare SQL identifier
-    (``[A-Za-z_][A-Za-z0-9_]*``), so ``raw.transactions`` is accepted while
-    ``txn; DROP TABLE customers; --`` is rejected. Returns the identifier
-    unchanged when safe; raises ``ValueError`` otherwise.
+    Accepts dot-separated bare identifiers (incl. BigQuery hyphenated project
+    ids) and quoted identifiers (backtick / double-quote / bracket), so real
+    Snowflake / BigQuery / Azure SQL names pass; rejects anything carrying a
+    statement separator, comment, newline, or quote-break. Returns the
+    stripped identifier when safe; raises ``ValueError`` otherwise.
     """
-    if not identifier or not identifier.strip():
+    candidate = (identifier or "").strip()
+    if not candidate:
         raise ValueError(f"{field} must be a non-empty SQL identifier")
-    parts = identifier.split(".")
-    if not all(_SQL_IDENTIFIER_PART.match(p) for p in parts):
+    if not _SQL_IDENTIFIER.match(candidate):
         raise ValueError(
             f"{field} {identifier!r} is not a safe SQL identifier "
-            "(expected dot-separated [A-Za-z_][A-Za-z0-9_]* segments)"
+            "(expected a dot-separated or quoted warehouse table name without "
+            "statement separators, comments, or quote-breaks)"
         )
-    return identifier
+    return candidate
 
 
 def _sql_str_literal(value: Any) -> str:
