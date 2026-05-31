@@ -302,6 +302,28 @@ def _pii_mask_value(value: Any, salt: str) -> str:
     ]
 
 
+def _mask_nested(value: Any, plaintext_to_hash: dict[str, str]) -> Any:
+    """Recursively replace any string equal to a known PII plaintext with its
+    hash, walking nested dicts/lists/tuples.
+
+    Top-level PII columns are masked by key in ``_mask_alert``, but some alert
+    payloads embed the same identifiers inside nested structures under a
+    different key — e.g. a ``network_pattern`` alert carries a ``subgraph``
+    whose ``nodes[*].id`` are customer_ids. Masking by *value* guarantees a
+    plaintext that was masked at the top level is masked identically wherever
+    it recurs, so the evidence artifact never leaks it through a side door.
+    """
+    if isinstance(value, str):
+        return plaintext_to_hash.get(value, value)
+    if isinstance(value, dict):
+        return {k: _mask_nested(v, plaintext_to_hash) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_mask_nested(v, plaintext_to_hash) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_mask_nested(v, plaintext_to_hash) for v in value)
+    return value
+
+
 def _pii_masking_enabled() -> bool:
     return os.environ.get("AML_PII_MASKING") == "1"
 
@@ -398,12 +420,23 @@ class AuditLedger:
             return alert
         masked = dict(alert)
         sidecar_rows: list[dict[str, str]] = []
+        plaintext_to_hash: dict[str, str] = {}
         for key in self.pii_columns:
             if key in masked and masked[key] not in (None, ""):
                 plaintext = str(masked[key])
                 hashed = _pii_mask_value(plaintext, self.pii_salt)
                 masked[key] = hashed
+                plaintext_to_hash[plaintext] = hashed
                 sidecar_rows.append({"field": key, "hash": hashed, "plaintext": plaintext})
+        # Mask the same plaintexts wherever they recur inside nested payload
+        # structures (e.g. a network_pattern alert's `subgraph.nodes[*].id`),
+        # not just the top-level PII columns. Value-based so it tracks the
+        # identifier even when the nested key differs (`id` vs `customer_id`).
+        if plaintext_to_hash:
+            for key, value in list(masked.items()):
+                if key in self.pii_columns:
+                    continue  # already hash-replaced above
+                masked[key] = _mask_nested(value, plaintext_to_hash)
         if sidecar_rows:
             sidecar = self.run_dir / "pii_map.jsonl"
             with sidecar.open("ab") as f:

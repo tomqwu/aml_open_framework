@@ -80,6 +80,22 @@ def _coerce_datetime(value: Any) -> datetime | None:
         return None
 
 
+def _to_utc_naive(dt: datetime) -> datetime:
+    """Convert a datetime to UTC-naive for safe subtraction.
+
+    Aware datetimes are converted to UTC *by instant* (not by stripping the
+    offset), so a row stamped ``10:00-05:00`` is correctly treated as
+    ``15:00`` UTC rather than ``10:00``. Naive datetimes are assumed to be
+    UTC already and returned unchanged. Without the instant-conversion a
+    non-UTC aware timestamp would be naivized by wall-clock and yield a wrong
+    staleness age — a point-in-time correctness defect for KYC/EDD freshness
+    thresholds.
+    """
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
 def _row_id(row: dict[str, Any], contract: DataContract) -> str | None:
     """Best-effort row identifier — first non-null `*_id` column.
 
@@ -110,12 +126,11 @@ def scan_contract_freshness(
     if not pinned or not rows:
         return []
 
-    # Normalise as_of to UTC-naive comparison space; rows may have naive
-    # or aware timestamps depending on the loader. We compare in seconds,
-    # not dates, so timezone handling isn't strictly necessary, but
-    # stripping tzinfo prevents Python's "can't subtract aware and naive"
-    # ValueError when the data source returns a mix.
-    as_of_naive = as_of.replace(tzinfo=None) if as_of.tzinfo else as_of
+    # Normalise as_of to UTC-naive comparison space; rows may have naive or
+    # aware timestamps depending on the loader. Aware values are converted to
+    # UTC by instant before naivizing so a mix of timezones (and any non-UTC
+    # offset) still produces a correct age — see _to_utc_naive.
+    as_of_naive = _to_utc_naive(as_of)
 
     violations: list[FreshnessViolation] = []
     for col in pinned:
@@ -133,7 +148,7 @@ def scan_contract_freshness(
                 # build (PR-DATA-1); this branch only fires when the
                 # column is present-but-null on a specific row.
                 continue
-            ref_naive = refreshed_at.replace(tzinfo=None) if refreshed_at.tzinfo else refreshed_at
+            ref_naive = _to_utc_naive(refreshed_at)
             age = as_of_naive - ref_naive
             if age >= threshold:
                 violations.append(
