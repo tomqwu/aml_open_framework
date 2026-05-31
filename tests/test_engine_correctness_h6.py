@@ -76,7 +76,9 @@ def test_freshness_uses_instant_not_wallclock():
 def test_freshness_fresh_row_no_violation():
     contract = _freshness_contract(max_days=10)
     as_of = datetime(2026, 1, 20, 0, 0)
-    rows = [{"customer_id": "C1", "risk_rating": "high", "refreshed_at": datetime(2026, 1, 19, 0, 0)}]
+    rows = [
+        {"customer_id": "C1", "risk_rating": "high", "refreshed_at": datetime(2026, 1, 19, 0, 0)}
+    ]
     assert scan_contract_freshness(contract, rows, as_of) == []
 
 
