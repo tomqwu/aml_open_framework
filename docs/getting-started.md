@@ -344,7 +344,7 @@ Every legacy↔new pair is classified into one of four buckets — this *is* you
 | **LEGACY_ONLY** | Legacy alerted; new engine didn't | A coverage **gap** to investigate before cut-over |
 | **DIFF** | Same cell, different severity | A mapping/threshold drift to reconcile |
 
-> Equivalence keys on the **exact** `(customer, window, rule)` cell, so with the starter `legacy-alerts.csv` against a fresh run you'll typically see only **NEW_ONLY** + **LEGACY_ONLY** — that *is* the divergence you triage (each one a **data**, **rule**, or **mapping** defect vs. an intentional change). A guaranteed **MATCH** needs the legacy period to equal a real alert's window exactly; the runbook + `tests/test_lookback_demo.py` show that by anchoring a legacy row to a live alert. Add `--rule-map rule-map.yaml` when legacy rule ids differ from the new ones, and `--max-severity-diff N` to fail a CI gate when severity drift exceeds a threshold.
+> Equivalence keys on the **exact** `(customer, window, rule)` cell, so with the starter `legacy-alerts.csv` against a fresh run you'll typically see only **NEW_ONLY** + **LEGACY_ONLY** — that *is* the divergence you triage (each one a **data**, **rule**, or **mapping** defect vs. an intentional change). A guaranteed **MATCH** needs the legacy period to equal a real alert's window exactly; the runbook + `tests/test_lookback_demo.py` show that by anchoring a legacy row to a live alert. Pass `--rule-map rule-map.yaml` when legacy rule ids differ — but it's the **complete** new→legacy map, so include an identity entry (`rule_x: rule_x`) for every comparable rule too, or you'll see same-id rules reported as false divergence. Omit the flag entirely only when all ids already match. `--max-severity-diff N` fails a CI gate when severity drift exceeds a threshold.
 
 ### d. Verify every month's hash chain against an external pin
 
@@ -358,7 +358,10 @@ In production you'd pin `--expected-hash` from an out-of-band store (the runbook
 ### e. Bundle the regulator evidence
 
 ```bash
-aml auditor-pack examples/community_bank_lookback/aml.yaml \
+# Build from the run's frozen spec_snapshot.yaml — not the live spec — so the
+# pack's metadata always describes the exact run it bundles, even if the spec
+# changed since.
+aml auditor-pack .artifacts/lookback/2025-12/run-*/spec_snapshot.yaml \
   --run-dir .artifacts/lookback/2025-12/run-*/ --out evidence-2025-12.zip
 ```
 

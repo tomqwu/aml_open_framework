@@ -8,7 +8,7 @@
 
 This how-to mirrors [`docs/five-year-lookback.md` §10](../five-year-lookback.md#10-a-5-year-lookback-in-commands-you-can-actually-run-today) but pins every command to the `community_bank_lookback` example so an operator can paste verbatim and watch the artefacts appear under `.artifacts/lookback/<YYYY-MM>/`.
 
-The companion equivalence step — legacy↔new parallel-run classification via `engine/equivalence.py` / `aml equivalence` — ships today; see [§8 · Prove legacy ↔ new equivalence](#8--prove-legacy--new-equivalence) below.
+The companion equivalence step — legacy↔new parallel-run classification via `engine/equivalence.py` / `aml equivalence` — ships today; see [§8 · Prove legacy ↔ new equivalence](#8-prove-legacy-new-equivalence) below.
 
 ---
 
@@ -273,7 +273,7 @@ aml equivalence .artifacts/lookback/2025-12/run-*/ \
 
 The legacy CSV needs `customer_id, period_start, period_end, rule_id_legacy` (optional `severity`; any extra columns become `payload`). The new-side alerts are read from `<run_dir>/alerts/*.jsonl` (un-masked automatically when `AML_PII_MASKING=1`). Options:
 
-- `--rule-map rule-map.yaml` — `new_rule_id: legacy_rule_id` pairs when the ids differ. Omit it for identity matching (`new == legacy`).
+- `--rule-map rule-map.yaml` — `new_rule_id: legacy_rule_id` pairs. A provided map is treated as the **complete** new→legacy mapping, so it must include an identity entry (`rule_x: rule_x`) for *every* comparable rule, not only the ones whose ids differ — otherwise the omitted same-id rules bucket as false `NEW_ONLY`/`LEGACY_ONLY`. Omit the flag entirely for pure identity matching (`new == legacy`).
 - `--spec <yaml>` — pass per-rule severities so same-cell severity mismatches surface as **DIFF** instead of silent MATCH. Omitted above on purpose: the CLI auto-loads `spec_snapshot.yaml` from the run dir.
 - `--max-severity-diff N` — exit non-zero when the DIFF count exceeds `N`. Wire this into a CI gate to keep severity drift in check; without it the command is warn-only (always exits 0).
 
