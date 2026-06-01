@@ -1,8 +1,8 @@
 # Regulator Pulse: AML / Sanctions Events, 2026-02-01 → 2026-05-31
 
-This is a CCO/MLRO-facing chronological log of AML, sanctions, and BSA-related regulator actions published between 2026-02-01 and 2026-05-31 (120 days, 33 events). Every event below cites the regulator's primary source — press releases, signed orders, Federal Register notices, Council of the EU press corner, FATF outcomes, FCA final notices, FINTRAC public-notice pages. Industry briefings were used only as navigation aids; they are not cited here. Each entry states what an MLRO needs to do or know differently because of the action — not generic awareness language.
+This is a CCO/MLRO-facing chronological log of AML, sanctions, and BSA-related regulator actions published between 2026-02-01 and 2026-05-31 (121 days, 33 events). Every event below cites the regulator's primary source — press releases, signed orders, Federal Register notices, Council of the EU press corner, FATF outcomes, FCA final notices, FINTRAC public-notice pages. Industry briefings were used only as navigation aids; they are not cited here. Each entry states what an MLRO needs to do or know differently because of the action — not generic awareness language.
 
-The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rules, SR 26-2, the first-ever mandatory sanctions compliance program for stablecoin issuers under the GENIUS Act, AMLA's first wave of CDD/sanctions RTS consultations (two of which closed on 2026-05-08), the FATF grey-listing of Kuwait and Papua New Guinea, FinCEN's first Section 311 action in three years, and the EU's 20th Russia sanctions package all landed inside the window. The FinCEN Minnesota GTO temporary relief expired 2026-05-13. Four active deadlines remain within the next 45 days; see the Forward Calendar section.
+The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rules, SR 26-2, the first-ever mandatory sanctions compliance program for stablecoin issuers under the GENIUS Act, AMLA's first wave of CDD/sanctions RTS consultations (two of which closed on 2026-05-08), the FATF grey-listing of Kuwait and Papua New Guinea, FinCEN's first Section 311 action in three years, and the EU's 20th Russia sanctions package all landed inside the window. The FinCEN Minnesota GTO temporary relief expired 2026-05-13. Three active deadlines remain within the next 45 days (FinCEN Whistleblower NPRM comment period closed 2026-06-01); see the Forward Calendar section.
 
 > **Last updated 2026-05-31.** *Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*
 
@@ -71,8 +71,8 @@ The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rule
 ### 2026-03-30 · FinCEN — Whistleblower Incentives & Protections NPRM
 
 **What it is** (1 sentence): FinCEN issued the rulemaking that operationalizes its February whistleblower portal, setting award criteria, claim process, and anti-retaliation protections.
-**What changed for AML buyers** (2-3 sentences): Awards of 10–30% of collected sanctions create a strong financial incentive for current and former employees to report — particularly at firms with active SAR backlogs or sanctions-screening tuning gaps. Compliance teams should review their internal reporting channel KPIs (median triage time, attribution to outcome) and ensure escalation paths to the Board's audit committee are documented in the audit ledger. **Comments due 2026-06-01 — TOMORROW** — see the Forward Calendar.
-**Source:** [Federal Register: Whistleblower Incentives and Protections, published 2026-04-01](https://www.federalregister.gov/documents/2026/04/01/2026-06271/whistleblower-incentives-and-protections)
+**Status:** Comment period closed 2026-06-01. FinCEN will now consolidate public responses. The final rule is expected in late 2026 / early 2027. Compliance teams should complete internal reporting channel audits — median triage time, escalation-to-board coverage, audit ledger completeness — before the final rule triggers implementation timelines.
+**Source:** [Federal Register: Whistleblower Incentives & Protections](https://www.federalregister.gov/documents/2026/04/01/2026-06271/whistleblower-incentives-and-protections)
 
 ### 2026-04-07 · FinCEN + OCC + FDIC + NCUA — AML/CFT Program NPRM (the "Effectiveness Rule")
 
@@ -260,17 +260,16 @@ The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rule
 
 ## Forward Calendar — Active Deadlines from This Window
 
-Regulatory actions confirmed in the 120-day window that continue to generate compliance obligations beyond 2026-05-31. Ordered by deadline. *As of 2026-05-31, the May 13 deadline is complete; **the June 1 deadline closes TOMORROW**; three active deadlines remain after June 1.*
+Regulatory actions confirmed in the 120-day window that continue to generate compliance obligations beyond 2026-05-31. Ordered by deadline. *As of 2026-06-01, both the May 13 and June 1 deadlines are complete; three active deadlines remain: 2026-06-09, 2026-07-01, 2026-07-10.*
 
 ### ~~2026-05-13 · FinCEN — Minnesota GTO temporary relief expires~~ ✓ COMPLETED
 
 **Status:** Expired as scheduled. Full $3,000 threshold now applies to all qualifying MSB transactions in Hennepin and Ramsey counties including bank account-holder customers. See the event entry in Section 2 above for MLRO action items.
 **Source:** [Minnesota GTO Order](https://www.fincen.gov/system/files/2026-01/Minnesota-Fraud-GTO-Order.pdf) · [GTO FAQs](https://www.fincen.gov/system/files/2026-01/Minnesota-Fraud-GTO-FAQs.pdf)
 
-### ⚠️ 2026-06-01 · TOMORROW — FinCEN Whistleblower Incentives & Protections NPRM comment deadline
+### ~~2026-06-01 · FinCEN Whistleblower Incentives & Protections NPRM~~ ✓ COMMENT PERIOD CLOSED
 
-**What it is:** The March 30 FinCEN NPRM establishing the whistleblower award process (10–30% of collected sanctions from the $300M Financial Integrity Fund) and anti-retaliation protections closes for public comment on 2026-06-01 — **tomorrow**.
-**Action required:** Compliance teams should review their internal reporting channel KPIs before the rule finalises. A strong external whistleblower incentive makes the adequacy of internal escalation — and the audit ledger's coverage of internal reports — a front-line regulatory concern. If your firm intends to file a comment, it must be submitted today or tomorrow.
+**Status:** Comment period closed 2026-06-01. FinCEN will now consolidate public responses. The final rule is expected in late 2026 / early 2027. Compliance teams should complete internal reporting channel audits — median triage time, escalation-to-board coverage, audit ledger completeness — before the final rule triggers implementation timelines.
 **Source:** [Federal Register: Whistleblower Incentives & Protections](https://www.federalregister.gov/documents/2026/04/01/2026-06271/whistleblower-incentives-and-protections)
 
 ### 2026-06-09 · FinCEN + OCC + FDIC + NCUA + OFAC — Effectiveness NPRM and GENIUS Act stablecoin NPRM comment deadlines (same day)
@@ -303,7 +302,7 @@ Regulatory actions confirmed in the 120-day window that continue to generate com
 
 **4. EU AMLA shifts from talking to building.** Three RTS consultations, two final reports, and the data-collection-for-selection exercise all happened inside fourteen weeks. Two consultation periods closed on the final day of this window (2026-05-08); by 2026-07-10, AMLA must submit all final RTS to the Commission. Obliged entities operating in 6+ member states should treat 2026 H2 as the last preparation window before AMLA's 2027 selection of its first 40 directly-supervised firms.
 
-**5. Calendar obligations compound in June.** The FinCEN Whistleblower NPRM comment deadline (2026-06-01, **tomorrow**), the dual Effectiveness + GENIUS Act NPRMs deadline (2026-06-09), and the expired Minnesota GTO temporary relief (2026-05-13, now complete) compressed industry bandwidth. AUSTRAC Tranche 2 enforcement (2026-07-01) and AMLA's RTS submission (2026-07-10) follow in quick succession. MLROs should use this window to sequence gap analyses, not defer them.
+**5. Calendar obligations compound in June.** The FinCEN Whistleblower NPRM comment period (closed 2026-06-01), the dual Effectiveness + GENIUS Act NPRMs deadline (2026-06-09), and the expired Minnesota GTO temporary relief (2026-05-13, now complete) compressed industry bandwidth. AUSTRAC Tranche 2 enforcement (2026-07-01) and AMLA's RTS submission (2026-07-10) follow in quick succession. MLROs should use this window to sequence gap analyses, not defer them.
 
 ---
 

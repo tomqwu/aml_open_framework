@@ -49,9 +49,9 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five May 2026 whitepapers: regulator pulse (116-day log), data problem, process pain, fintech reality, competitive positioning.
+    Five May 2026 whitepapers + June 2026 regulator-pulse: regulator-pulse extended through June 2026 (active deadlines: Effectiveness + GENIUS Act NPRMs 2026-06-09, AUSTRAC Tranche 2 2026-07-01, AMLA RTS 2026-07-10); process-pain, fintech, competitive-positioning updated with SR 26-2, GENIUS Act NPRM context.
 
-    [:octicons-arrow-right-24: Research](research/2026-05-regulator-pulse.md)
+    [:octicons-arrow-right-24: Research](research/2026-06-regulator-pulse.md)
 
 </div>
 
@@ -123,6 +123,8 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
+| `docs` | — | 2026-06-01 | June 2026 research whitepapers added — regulator-pulse extended to 2026-06-01 (covering 6-month forward calendar: Effectiveness NPRM + GENIUS Act NPRM deadlines 2026-06-09, AUSTRAC Tranche 2 enforcement 2026-07-01, AMLA RTS submission 2026-07-10); competitive-positioning updated post-June-1 deadline |
+| `security` | — | 2026-05-31 | H0–H6 security hardening: coverage gate enforcement (H0), zip-slip sanitisation in audit packs (H4), SQL identifier validation in data sources (H2), audit pack byte-determinism fix, freshness tz-by-instant correctness (H6), matched-row observability (H6) |
 | `docs` | — | 2026-05-29 | Research whitepapers refreshed to May 2026 editions — regulator-pulse extended to 2026-05-27 (116 days, 33 events); process-pain, fintech, competitive-positioning updated with SR 26-2, GENIUS Act NPRM, AUSTRAC Tranche 2 context |
 | `v0.1.41` | 30 | 2026-05-24 | gap-audit-driven docs polish + page_header guard |
 | `v0.1.40` | 28 | 2026-05-24 | Pillar 2/4/6 closure + legacy-import wizard (8 PRs) |
