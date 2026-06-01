@@ -1403,7 +1403,18 @@ def run_spec(
                         cost_timer.increment_queries()
                         alert["matched_row_ids"] = [int(r[0]) for r in rid_rows]
                     except Exception:
-                        pass
+                        # Don't fail the alert on a lineage-lookup miss, but
+                        # don't swallow it silently either — an empty
+                        # matched_row_ids with no trace looks identical to a
+                        # rule that genuinely matched zero evidence rows. Log
+                        # by rule only — customer_id is PII and would leak into
+                        # CI/container logs when AML_PII_MASKING=1 (the alert
+                        # itself is masked later by record_alerts()).
+                        logger.exception(
+                            "rule '%s' matched_row_ids lookup failed — "
+                            "alert kept, matched_row_ids left empty",
+                            rule.id,
+                        )
         stamp_payload_meta(rule, alerts, as_of=as_of)
         alerts_by_rule[rule.id] = alerts
         ledger.record_alerts(rule.id, alerts)

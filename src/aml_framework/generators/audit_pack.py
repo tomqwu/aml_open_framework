@@ -43,8 +43,9 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -234,11 +235,16 @@ def _audit_trail_verification(
                 chain_intact = False
                 breaks.append(i)
         prev_hash = d.get("hash", "")
+    # NOTE: deliberately no wall-clock `verified_at` here. The audit pack is a
+    # byte-deterministic artifact (see TestDeterminism) — embedding
+    # datetime.now() made two builds straddling a one-second boundary differ,
+    # an intermittent determinism-guarantee violation. The verification result
+    # (chain_intact / breaks / length) is a pure function of the decisions and
+    # can be re-derived at any time; the "when" is not evidence.
     return {
         "chain_intact": chain_intact,
         "chain_length": chain_length,
         "breaks_at_indices": breaks,
-        "verified_at": datetime.now(tz=timezone.utc).isoformat(timespec="seconds"),
     }
 
 
@@ -400,6 +406,34 @@ def _dump_json(payload: Any) -> bytes:
     ).encode("utf-8")
 
 
+_ZIP_UNSAFE_SEGMENT = re.compile(r"[/\\]+")
+
+
+def _safe_zip_segment(value: str) -> str:
+    """Render an identifier safe to use as a single ZIP entry path segment.
+
+    ``case_id`` is ``<rule>__<customer>__<ts>`` and ``customer_id`` is
+    data-derived, so a malformed source could carry a path separator or
+    ``..`` into the ZIP entry name (zip-slip on extraction). Replace any
+    separator with ``_`` and neutralise ``..`` traversal. The true (masked)
+    case_id is still recorded inside the lineage/case JSON content — only the
+    archive *path* is sanitised.
+    """
+    seg = _ZIP_UNSAFE_SEGMENT.sub("_", value).replace("..", "_")
+    return seg or "case"
+
+
+def _assert_safe_zip_path(path: str) -> None:
+    """Final guard at the archive boundary: reject absolute paths, backslash
+    separators, and any ``..`` parent-traversal component. Belt-and-suspenders
+    so no data-derived file key can ever escape the extraction directory,
+    regardless of how it was built."""
+    if path.startswith("/") or "\\" in path:
+        raise ValueError(f"unsafe zip entry path (absolute or backslash): {path!r}")
+    if ".." in path.split("/"):
+        raise ValueError(f"unsafe zip entry path (parent traversal): {path!r}")
+
+
 def build_audit_pack(
     spec: AMLSpec,
     cases: list[dict[str, Any]],
@@ -466,6 +500,7 @@ def build_audit_pack(
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(files.keys()):
+            _assert_safe_zip_path(path)
             info = zipfile.ZipInfo(filename=path, date_time=_ZIP_FIXED_TIME)
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, files[path])
@@ -783,6 +818,7 @@ def _assemble_pack(
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(files.keys()):
+            _assert_safe_zip_path(path)
             info = zipfile.ZipInfo(filename=path, date_time=_ZIP_FIXED_TIME)
             info.compress_type = zipfile.ZIP_DEFLATED
             zf.writestr(info, files[path])
@@ -848,16 +884,27 @@ def _case_pack_files(
     lineage = _apply_pii_map(lineage_raw, pii_map)
     masked_case = _apply_pii_map(case, pii_map)
     masked_decisions = [_apply_pii_map(d, pii_map) for d in decisions]
+    # The lineage/case JSON keep the true masked case_id (line above); only
+    # the ZIP entry *path* is rendered separator-safe to block zip-slip.
+    safe_case_id = _safe_zip_segment(masked_case_id)
+    if safe_case_id != masked_case_id:
+        # Sanitisation is non-injective (e.g. `A..B` and `A_B` both → `A_B`).
+        # In a batch pack `build_batch_pack` does `files.update(...)` per case,
+        # so colliding filenames would silently overwrite one case's evidence
+        # while batch_summary still lists both. Append a short stable hash of
+        # the original id so distinct case_ids never share an archive entry.
+        suffix = hashlib.sha256(masked_case_id.encode("utf-8")).hexdigest()[:8]
+        safe_case_id = f"{safe_case_id}-{suffix}"
     files: dict[str, bytes] = {
-        f"cases/{masked_case_id}.json": _dump_json(masked_case),
-        f"decisions/{masked_case_id}.jsonl": (
+        f"cases/{safe_case_id}.json": _dump_json(masked_case),
+        f"decisions/{safe_case_id}.jsonl": (
             "\n".join(json.dumps(d, sort_keys=True) for d in masked_decisions)
             + ("\n" if masked_decisions else "")
         ).encode("utf-8"),
-        f"alerts/{masked_case_id}.jsonl": (
+        f"alerts/{safe_case_id}.jsonl": (
             "\n".join(json.dumps(a, sort_keys=True) for a in alerts) + ("\n" if alerts else "")
         ).encode("utf-8"),
-        f"lineage/{masked_case_id}.json": _dump_json(lineage),
+        f"lineage/{safe_case_id}.json": _dump_json(lineage),
     }
     if rule_sql is not None:
         files[f"rules/{rule_id}.sql"] = rule_sql
