@@ -277,7 +277,7 @@ The legacy CSV needs `customer_id, period_start, period_end, rule_id_legacy` (op
 - `--spec <yaml>` — pass per-rule severities so same-cell severity mismatches surface as **DIFF** instead of silent MATCH. Omitted above on purpose: the CLI auto-loads `spec_snapshot.yaml` from the run dir.
 - `--max-severity-diff N` — exit non-zero when the DIFF count exceeds `N`. Wire this into a CI gate to keep severity drift in check; without it the command is warn-only (always exits 0).
 
-Each divergence class maps to a migration-defect category: **LEGACY_ONLY** is a coverage gap, **NEW_ONLY** is an intentional improvement or an over-firing defect, **DIFF** is a mapping/threshold drift to reconcile. The Markdown report (counts table + top-20 per class) drops straight into the regulator pack. For the analytics layer (segmented divergence, drift over the 60 months) see [`docs/five-year-lookback.md` §4 Pattern 5](../five-year-lookback.md#pattern-5-parallel-validation-legacy-new-planned-tm-gap-1).
+Each divergence class maps to a migration-defect category: **LEGACY_ONLY** is a coverage gap, **NEW_ONLY** is an intentional improvement or an over-firing defect, **DIFF** is a mapping/threshold drift to reconcile. The `--markdown`/`--out` files (counts table + top-20 per class) are written to wherever you point them — `aml auditor-pack` packages the run directory's artefacts, not your working dir, so attach the equivalence report to the regulator pack as a separate exhibit (or write it under `<run_dir>/` before packing). For the analytics layer (segmented divergence, drift over the 60 months) see [`docs/five-year-lookback.md` §4 Pattern 5](../five-year-lookback.md#pattern-5-parallel-validation-legacy-new-shipped).
 
 ---
 
