@@ -31,8 +31,8 @@ evidence chain. Everything Azure-side stays Azure-side.
 > sequences them is the plan file `Roadmap: Transaction-Monitoring
 > feature gaps`, not `progress.md` (which is a chronological progress
 > log, not a roadmap). The "lookback in N commands" runbook at §10
-> uses only commands that exist today; the equivalence/parallel-run
-> path is gated behind Gap 1 and §10 says so.
+> uses only commands that exist today — including `aml equivalence`,
+> which shipped the legacy↔new parallel-run path (formerly TM Gap 1).
 
 !!! tip "Try it now — copy-paste runbook"
 
@@ -60,7 +60,7 @@ mechanism the framework already ships:
 | **Performant** | DuckDB in-memory for the engine; cloud sources (Snowflake/BigQuery/S3/GCS/Parquet) loaded by `data/sources.py`. The loaders pull whole files/tables — there is no source-side predicate pushdown of `{as_of}`/`{window_start}` to the warehouse. Performance for 5-year scale comes from *you* materializing one-month slices upstream (per §4 Pattern 1) and feeding each slice as the run's input. |
 | **Auditable** | `engine/audit.py` writes a SHA-256-hash-chained `decisions.jsonl`. `AuditLedger.verify_decisions()` is regulator-grade *only when called with `--expected-hash`* — the chain head must be stored out-of-band (WORM bucket, signed log) at run time and passed back at verify time (see §10 step 7). Without it, the verifier falls back to comparing against the same directory's `manifest.json`, which an attacker who rewrote `decisions.jsonl` can usually rewrite too. The chain itself is real; the trust anchor is your responsibility. |
 | **Explainable** | `aggregation_window` rules auto-stamp `matched_row_ids` referencing the exact source rows (#341 fix replays the rule filter so audit evidence matches the alert's own SQL). `custom_sql` only carries row IDs if the SQL `SELECT`s them explicitly; `python_ref` only if the scorer implements the optional inspection hook. `walk_lineage` reconstructs alert → rule → data when row IDs are present. |
-| **Reconciled** | **🛠 planned · TM Gap 1.** An `engine/equivalence.py` module is sequenced in [`docs/progress.md`](progress.md) — joins legacy ↔ new outputs and classifies each divergence (`data` / `rule` / `mapping` / `intentional`). Until it lands, reconciliation today is "diff your legacy export against `run_dir/alerts/*.jsonl` in your own SQL/Spark step." |
+| **Reconciled** | `aml equivalence` (`engine/equivalence.py`) joins legacy ↔ new outputs and classifies each `(customer, period, rule)` cell as MATCH / NEW_ONLY / LEGACY_ONLY / DIFF; you triage each divergence as a `data` / `rule` / `mapping` defect vs. an intentional change. See Pattern 5 below. |
 | **Signed off** | Cases carry a disposition + reviewer; `cases/filing.py` enforces a wall-clock sidecar that's *out* of the deterministic-replay contract so signoff timing is preserved without breaking reproducibility. |
 
 ---
@@ -338,34 +338,44 @@ The point-in-time `customer_risk_ratings_pit` table is just another
 declared `data_contract` in `aml.yaml` with `effective_start_date` /
 `effective_end_date` columns; load it the same way as `txn`.
 
-### Pattern 5 — Parallel validation (legacy ↔ new) · **🛠 planned · TM Gap 1**
+### Pattern 5 — Parallel validation (legacy ↔ new) · **shipped**
 
-The framework's TM-roadmap Track A Gap 1 in [`docs/progress.md`](progress.md)
-sequences a `Program.legacy_reference` field + an `engine/equivalence.py`
-module that joins legacy ↔ new alerts and classifies each divergence as:
+`aml equivalence` (PR-LOOKBACK-3, wrapping `engine/equivalence.py`) joins your
+legacy alert export against the framework's per-month `alerts/*.jsonl` and
+classifies every `(customer, period, rule)` cell into four buckets:
 
 ```text
-expected difference
-source data mismatch
-mapping defect
-rule logic defect
-reference data defect
-timing/window defect
-legacy defect exposed by migration
+MATCH        both systems alerted the same cell  → control reproduced
+NEW_ONLY     new engine alerted, legacy didn't   → intentional gain OR over-firing defect
+LEGACY_ONLY  legacy alerted, new engine didn't   → coverage gap to investigate
+DIFF         same cell, different severity        → mapping / threshold drift
 ```
 
-Once merged, classifications will be written as `LEGACY_EQUIV_CHECK`
-audit events in the deterministic ledger (`as_of`-stamped, hash-chained,
-IN the replay contract). The legacy file will be content-hashed into the
-`input_manifest` so future reruns can prove they compared against the
-same legacy snapshot.
+You then triage each non-MATCH cell into a **data**, **rule**, **mapping**,
+**reference-data**, or **timing/window** defect — vs. an intentional change.
 
-**Today, before Gap 1 lands:** the framework's deterministic
-`alerts/*.jsonl` per month is your right-side input — diff it against
-your legacy alert export in a 20-line SQL/Spark/pandas step:
+```bash
+aml equivalence evidence/runs/2021-09/run-*/ \
+    --legacy legacy/tm/2021-09/alerts.csv \
+    --markdown equivalence-2021-09.md --out equivalence-2021-09.json
+```
+
+The legacy CSV needs `customer_id, period_start, period_end, rule_id_legacy`
+(optional `severity`). Pass `--rule-map` (the **complete** new→legacy map)
+when ids differ, and `--max-severity-diff N` to fail a CI gate on drift. The
+matching CLI walkthroughs: [getting-started §8](getting-started.md#8-the-flagship-scenario-5-year-legacy-to-cloud-lookback-10-min)
+and [runbook step 8](how-to/run-five-year-lookback.md#8-prove-legacy-new-equivalence).
+
+The spec also carries a first-class **`program.legacy_reference`** block
+(`spec/models.py:LegacyReference`, validated against the rule corpus). `aml
+equivalence` reads its `rule_map` + `key_columns` automatically, so you don't
+repeat those as flags — but you still pass the legacy export itself via the
+required `--legacy <csv>` (the CLI does not load `legacy_reference.path`).
+
+**Or roll your own** — the alerts are deterministic JSONL, so a pandas
+outer-join works too if you want the divergence inside an existing notebook:
 
 ```python
-# Pseudocode — pandas-style diff once each side is one row per alert
 import pandas as pd
 new = pd.read_json(
     "evidence/runs/2021-09/run-2026-05-20T01-16-00Z/"
@@ -374,13 +384,9 @@ new = pd.read_json(
 )
 old = pd.read_csv("legacy/tm/2021-09/alerts.csv")
 diff = new.merge(old, on=["customer_id", "window_start"], how="outer", indicator=True)
-# diff["_merge"] ∈ {"left_only", "right_only", "both"} → classify by hand
-# until Gap 1 lands the classifier inline.
+# diff["_merge"] ∈ {"left_only", "right_only", "both"} — `aml equivalence`
+# does this join + the four-way classification for you.
 ```
-
-Spec field `Program.legacy_reference` is **not yet a real field**
-(`Program` is `extra="forbid"`); don't add it to your YAML until the
-schema lands.
 
 ---
 
@@ -452,7 +458,7 @@ checklist to where the framework already emits each artefact:
 | Reference-doc artefact | Where the framework emits it |
 |---|---|
 | `run_manifest` (batch_id, source periods/tables, rule versions, parameter versions, code commit hash, status) | `run_dir/manifest.json` — has `engine_version`, `run_dir` (= batch id), `spec_path`, `spec_content_hash` (YAML bytes, not git SHA — see §5), `as_of`, `inputs` (per-contract source_path + row_count + content_hash + earliest_ts/latest_ts + schema_columns + schema_hash), `rule_outputs` (per-rule alert-file hash), `decisions_hash`, `finalised_at`. **Not in the manifest today**: git commit SHA (write `git rev-parse HEAD` to a sidecar), parameter-version field (versioning lives in your git history of the spec), pipeline status flag (your orchestrator owns success/fail status). |
-| `reconciliation_report` (source row count, target row count, totals, exceptions, alert count) | `run_dir/reports/*.md` per spec-declared `report:` carry alert/case totals + counts. **🛠 The legacy-vs-new divergence report is planned · TM Gap 1** — until `engine/equivalence.py` lands you produce that side externally (see Pattern 5 pandas scaffold). |
+| `reconciliation_report` (source row count, target row count, totals, exceptions, alert count) | `run_dir/reports/*.md` per spec-declared `report:` carry alert/case totals + counts. The legacy-vs-new divergence report ships via `aml equivalence` (`--markdown` / `--out` — see Pattern 5). |
 | `rule_output_report` (alert count by month / customer segment / geography / reason code) | `run_dir/alerts/*.jsonl` (raw) + the **Rule Performance** + **Comparative Analytics** dashboard pages (`pages/5_Rule_Performance.py`, `pages/19_Comparative_Analytics.py`) |
 | `dq_report` (completeness, duplicates, validity, referential integrity, PIT coverage) | **Partial.** The framework emits `not_null` + `unique` results via the **Data Quality** dashboard (`pages/14_Data_Quality.py`) and staleness via `engine/freshness.py`. **Referential integrity, PIT-coverage, FX-rate-date, and many-to-many ownership are NOT evaluated by the framework today** (see §5 stitching table) — produce that part of `dq_report` in your upstream Lakeflow/dbt/Spark step and stitch it into evidence alongside `run_dir/`. |
 | `defect_log` (defect_id, severity, root cause, owner, fix version, retest evidence) | **🛠 External / planned.** The framework emits `rule_failed` events (engine/constants.py:Event.RULE_FAILED) for `python_ref` failures with an `error` string — that's the *signal*, not a structured defect_log. The dashboard's `_FAILED` future is specific to AI section-explanation, not rule-execution. A proper defect_log (defect_id, severity, root cause, owner, fix version, retest evidence) is your remediation-system's job today (Jira/ServiceNow). Land it next to `run_dir/` as a wall-clock sidecar per `cases/filing.py`'s `append_to_run_dir` pattern. |
@@ -577,11 +583,11 @@ for ym_dir in /evidence/runs/*/; do
         --out       "${ym_dir}evidence.zip"
 done
 
-# 9. (🛠 Planned · TM Gap 1.) Reconcile against the legacy system per
-#    month — `engine/equivalence.py` is roadmap, not on main today.
-#    Until it lands, diff each month's alerts/*.jsonl against your
-#    legacy alert export in your own SQL/Spark/pandas step. See
-#    Pattern 5 above for the pandas-style scaffold.
+# 9. Reconcile against the legacy system per month:
+#      aml equivalence "$ym_dir"run-*/ --legacy legacy/$ym/alerts.csv \
+#          --markdown "${ym_dir}equivalence.md" --out "${ym_dir}equivalence.json"
+#    Classifies each cell MATCH / NEW_ONLY / LEGACY_ONLY / DIFF. See
+#    Pattern 5 above.
 
 # 10. Build per-rule MRM dossiers when ML scorers are in play.
 #     Same `--artifacts` defaulting as audit-pack:
@@ -604,13 +610,12 @@ Honest boundaries:
 - **You own the medallion data platform.** ADLS / Delta / Lakeflow /
   ADF / Databricks pipelines that produce the Gold rule-ready tables
   are yours. The framework reads from them; it doesn't replace them.
-- **You own the legacy parallel-run extract AND the divergence
-  classification today.** The framework can't generate the legacy
-  side, and the on-`main` engine does not classify divergences either
-  — `engine/equivalence.py` + `Program.legacy_reference` are planned
-  (TM Gap 1 in [`docs/progress.md`](progress.md)). Until that lands,
-  follow §4 Pattern 5's pandas scaffold or your warehouse SQL to
-  produce the diff yourself.
+- **You own the legacy parallel-run extract; the framework classifies
+  the divergence.** The framework can't generate the legacy side — that
+  export is yours. Once you have it, `aml equivalence`
+  (`engine/equivalence.py` + the `Program.legacy_reference` spec block,
+  both on `main`) does the join and the four-way MATCH / NEW_ONLY /
+  LEGACY_ONLY / DIFF classification for you; see §4 Pattern 5.
 - **You own the historical schema-evolution story.** If your
   `transactions` schema changed in 2023, you need versioned
   `data_contracts[]` (the framework supports it; you have to author

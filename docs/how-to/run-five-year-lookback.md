@@ -8,7 +8,7 @@
 
 This how-to mirrors [`docs/five-year-lookback.md` §10](../five-year-lookback.md#10-a-5-year-lookback-in-commands-you-can-actually-run-today) but pins every command to the `community_bank_lookback` example so an operator can paste verbatim and watch the artefacts appear under `.artifacts/lookback/<YYYY-MM>/`.
 
-The companion equivalence step — legacy↔new parallel-run classification via `engine/equivalence.py` — is roadmap (TM Gap 1, PR-LOOKBACK-3); §[Equivalence (planned)](#equivalence-planned) below points forward.
+The companion equivalence step — legacy↔new parallel-run classification via `engine/equivalence.py` / `aml equivalence` — ships today; see [§8 · Prove legacy ↔ new equivalence](#8-prove-legacy-new-equivalence) below.
 
 ---
 
@@ -260,11 +260,24 @@ Re-running step 2 with the same seed + step 4 with the same `--as-of` + `--seed 
 
 ---
 
-## Equivalence (planned)
+### 8 · Prove legacy ↔ new equivalence
 
-Step 8 in the full operator playbook is **legacy↔new equivalence**: load your legacy system's alert export for the same month, join against the framework's `alerts/*.jsonl`, and classify each divergence (`data` / `rule` / `mapping` / `intentional`). The framework's roadmap sequences this as `engine/equivalence.py` + a `Program.legacy_reference` spec field — landing in **PR-LOOKBACK-3** of this series. The PR will also commit a representative `legacy-alerts.csv` alongside `examples/community_bank_lookback/aml.yaml` so the equivalence flow demos end-to-end from the same example spec.
+The migration gate: load your legacy system's alert export for the period and classify every legacy↔new divergence as **MATCH / NEW_ONLY / LEGACY_ONLY / DIFF**. `aml equivalence` (shipped in PR-LOOKBACK-3, wrapping `engine/equivalence.py`) does the join + classification from the CLI — no dashboard needed. A starter `legacy-alerts.csv` ships alongside the example spec.
 
-Until PR-LOOKBACK-3 lands, follow the pandas-style scaffold in [`docs/five-year-lookback.md` §4 Pattern 5](../five-year-lookback.md#pattern-5-parallel-validation-legacy-new-planned-tm-gap-1) — read your legacy export + the framework's `alerts/<rule_id>.jsonl`, outer-join on `(customer_id, window_start)`, and classify by hand.
+```bash
+aml equivalence .artifacts/lookback/2025-12/run-*/ \
+    --legacy examples/community_bank_lookback/legacy-alerts.csv \
+    --markdown equivalence-2025-12.md \
+    --out equivalence-2025-12.json
+```
+
+The legacy CSV needs `customer_id, period_start, period_end, rule_id_legacy` (optional `severity`; any extra columns become `payload`). The new-side alerts are read from `<run_dir>/alerts/*.jsonl` (un-masked automatically when `AML_PII_MASKING=1`). Options:
+
+- `--rule-map rule-map.yaml` — `new_rule_id: legacy_rule_id` pairs. A provided map is treated as the **complete** new→legacy mapping, so it must include an identity entry (`rule_x: rule_x`) for *every* comparable rule, not only the ones whose ids differ — otherwise the omitted same-id rules bucket as false `NEW_ONLY`/`LEGACY_ONLY`. Omit the flag entirely for pure identity matching (`new == legacy`).
+- `--spec <yaml>` — pass per-rule severities so same-cell severity mismatches surface as **DIFF** instead of silent MATCH. Omitted above on purpose: the CLI auto-loads `spec_snapshot.yaml` from the run dir.
+- `--max-severity-diff N` — exit non-zero when the DIFF count exceeds `N`. Wire this into a CI gate to keep severity drift in check; without it the command is warn-only (always exits 0).
+
+Each divergence class maps to a migration-defect category: **LEGACY_ONLY** is a coverage gap, **NEW_ONLY** is an intentional improvement or an over-firing defect, **DIFF** is a mapping/threshold drift to reconcile. The `--markdown`/`--out` files (counts table + top-20 per class) are written to wherever you point them — `aml auditor-pack` packages the run directory's artefacts, not your working dir, so attach the equivalence report to the regulator pack as a separate exhibit (or write it under `<run_dir>/` before packing). For the analytics layer (segmented divergence, drift over the 60 months) see [`docs/five-year-lookback.md` §4 Pattern 5](../five-year-lookback.md#pattern-5-parallel-validation-legacy-new-shipped).
 
 ---
 

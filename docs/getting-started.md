@@ -296,10 +296,84 @@ This is what you hand to your 2nd line of defense or an external auditor. Full s
 
 ---
 
+## 8. The Flagship Scenario: 5-Year Legacy-to-Cloud Lookback (10 min)
+
+Steps 1–7 onboard you to a single run. The scenario the framework is *built* for is bigger: **replay 5 years of history through your modernised rules, prove the new cloud engine reproduces the legacy system's alerts, and walk away with regulator-ready evidence for every month.** This is the "parallel run before you cut over" that an examiner expects when you migrate a SAS / Actimize / Mantas TM stack to the cloud.
+
+End-to-end it is five moves. The full copy-paste runbook (the 60-month loop, WORM-style hash log, per-month verification) lives in [`docs/how-to/run-five-year-lookback.md`](how-to/run-five-year-lookback.md); this is the orientation.
+
+### a. Generate 60 month-end slices
+
+```bash
+python scripts/generate_lookback_dataset.py \
+  --years 5 --end 2025-12-31 --seed 42 \
+  --spec examples/community_bank_lookback/aml.yaml \
+  --out examples/community_bank_lookback/data/
+```
+
+Writes `data/{parquet,csv}/<YYYY-MM>/{txn,customer}.*` for 60 months, with the synthetic seed pinned so planted-positive customers stay reproducible month to month. (Needs the `dashboard` extra for pyarrow; `--formats csv` skips it.)
+
+### b. Run one business month (loop the rest)
+
+```bash
+aml run examples/community_bank_lookback/aml.yaml \
+  --as-of 2026-01-01T00:00:00 \
+  --data-source parquet \
+  --data-dir examples/community_bank_lookback/data/parquet/2025-12 \
+  --seed 42 --artifacts .artifacts/lookback/2025-12
+```
+
+Each month gets its own `run-<ts>/` with an independent manifest, alerts, decisions ledger, and hash chain. The runbook wraps this in a 60-iteration `for` loop.
+
+### c. Prove legacy ↔ new equivalence (the migration gate)
+
+This is the move that separates "we rewrote the rules" from "we *proved* the rewrite is equivalent." Point `aml equivalence` at the run's alerts and your legacy system's export for the same period — a starter export ships with the example:
+
+```bash
+aml equivalence .artifacts/lookback/2025-12/run-*/ \
+  --legacy examples/community_bank_lookback/legacy-alerts.csv \
+  --markdown equivalence-2025-12.md
+```
+
+Every legacy↔new pair is classified into one of four buckets — this *is* your migration-defect triage:
+
+| Class | Meaning | What it tells the examiner |
+|---|---|---|
+| **MATCH** | Both systems alerted the same customer/period/rule | The migration reproduced the control |
+| **NEW_ONLY** | New engine alerted; legacy didn't | An *intentional* improvement — or an over-firing defect to tune |
+| **LEGACY_ONLY** | Legacy alerted; new engine didn't | A coverage **gap** to investigate before cut-over |
+| **DIFF** | Same cell, different severity | A mapping/threshold drift to reconcile |
+
+> Equivalence keys on the **exact** `(customer, window, rule)` cell, so with the starter `legacy-alerts.csv` against a fresh run you'll typically see only **NEW_ONLY** + **LEGACY_ONLY** — that *is* the divergence you triage (each one a **data**, **rule**, or **mapping** defect vs. an intentional change). A guaranteed **MATCH** needs the legacy period to equal a real alert's window exactly; the runbook + `tests/test_lookback_demo.py` show that by anchoring a legacy row to a live alert. Pass `--rule-map rule-map.yaml` when legacy rule ids differ — but it's the **complete** new→legacy map, so include an identity entry (`rule_x: rule_x`) for every comparable rule too, or you'll see same-id rules reported as false divergence. Omit the flag entirely only when all ids already match. `--max-severity-diff N` fails a CI gate when severity drift exceeds a threshold.
+
+### d. Verify every month's hash chain against an external pin
+
+```bash
+aml verify-decisions --run-dir .artifacts/lookback/2025-12/run-*/ \
+  --expected-hash "$(jq -r .decisions_hash .artifacts/lookback/2025-12/run-*/manifest.json)"
+```
+
+In production you'd pin `--expected-hash` from an out-of-band store (the runbook's §5 covers the WORM threat model). Exit 0 = the decisions ledger recomputes to the trusted head.
+
+### e. Bundle the regulator evidence
+
+```bash
+# Build from the run's frozen spec_snapshot.yaml — not the live spec — so the
+# pack's metadata always describes the exact run it bundles, even if the spec
+# changed since.
+aml auditor-pack .artifacts/lookback/2025-12/run-*/spec_snapshot.yaml \
+  --run-dir .artifacts/lookback/2025-12/run-*/ --out evidence-2025-12.zip
+```
+
+**Why this is the north-star flow:** it exercises the framework's whole thesis in one pass — *equivalence before optimization* (c), *evidence as a product* (b, d, e), *point-in-time correctness* (a's month-end slices), and *DQ/reconciliation/defect* triage (c's classification). See [`docs/five-year-lookback.md`](five-year-lookback.md) for the analytics patterns layered on top.
+
+---
+
 ## What Next?
 
 | If you want to... | Read |
 |---|---|
+| Run the full 5-year lookback end-to-end | [`docs/how-to/run-five-year-lookback.md`](how-to/run-five-year-lookback.md) — the 60-month loop, WORM hash log, per-month verification (the runbook behind §8) |
 | Import from a legacy SAS / Actimize / Mantas dump | [`docs/legacy-import.md`](legacy-import.md) — supported shapes, header aliases, manual-conversion workflow |
 | Understand the architecture end-to-end | [`docs/architecture.md`](architecture.md) |
 | See every dashboard page | [`docs/dashboard-tour.md`](dashboard-tour.md) |
