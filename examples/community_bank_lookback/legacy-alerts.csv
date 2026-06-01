@@ -1,0 +1,6 @@
+customer_id,period_start,period_end,rule_id_legacy,severity
+C0007,2025-12-01T00:00:00,2025-12-31T23:59:59,rapid_movement_cash_to_wire,high
+C0019,2025-12-01T00:00:00,2025-12-31T23:59:59,structuring_cash_deposits,high
+C0028,2025-12-01T00:00:00,2025-12-31T23:59:59,high_risk_jurisdiction,medium
+C0003,2025-12-01T00:00:00,2025-12-31T23:59:59,large_cash_ctr,medium
+C8888,2025-12-01T00:00:00,2025-12-31T23:59:59,legacy_retired_velocity_rule,low
