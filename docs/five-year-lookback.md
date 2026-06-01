@@ -367,8 +367,10 @@ matching CLI walkthroughs: [getting-started §8](getting-started.md#8-the-flagsh
 and [runbook step 8](how-to/run-five-year-lookback.md#8-prove-legacy-new-equivalence).
 
 The spec also carries a first-class **`program.legacy_reference`** block
-(`spec/models.py:LegacyReference`, validated against the rule corpus) so the
-legacy CSV path + rule_map can live in the spec rather than CLI flags.
+(`spec/models.py:LegacyReference`, validated against the rule corpus). `aml
+equivalence` reads its `rule_map` + `key_columns` automatically, so you don't
+repeat those as flags — but you still pass the legacy export itself via the
+required `--legacy <csv>` (the CLI does not load `legacy_reference.path`).
 
 **Or roll your own** — the alerts are deterministic JSONL, so a pandas
 outer-join works too if you want the divergence inside an existing notebook:
