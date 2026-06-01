@@ -4,7 +4,7 @@ This is a CCO/MLRO-facing chronological log of AML, sanctions, and BSA-related r
 
 The window is unusually dense: a joint US AML/CFT NPRM, two reputation-risk rules, SR 26-2, the first-ever mandatory sanctions compliance program for stablecoin issuers under the GENIUS Act, AMLA's first wave of CDD/sanctions RTS consultations (two of which closed on 2026-05-08), the FATF grey-listing of Kuwait and Papua New Guinea, FinCEN's first Section 311 action in three years, and the EU's 20th Russia sanctions package all landed inside the window. The FinCEN Minnesota GTO temporary relief expired 2026-05-13. Three active deadlines remain within the next 45 days (FinCEN Whistleblower NPRM comment period closed 2026-06-01); see the Forward Calendar section.
 
-> **Last updated 2026-05-31.** *Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*
+> **Last updated 2026-06-01** (coverage window unchanged: 2026-02-01 → 2026-05-31; revised post-June-1 to mark the whistleblower-NPRM comment deadline complete). *Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*
 
 ---
 
@@ -306,4 +306,4 @@ Regulatory actions confirmed in the 120-day window that continue to generate com
 
 ---
 
-*Last updated: 2026-05-31 · Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*
+*Last updated: 2026-06-01 (coverage window 2026-02-01 → 2026-05-31, revised post-June-1) · Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — covers 2026-02-01 → 2026-04-29 (89 days, 30 events)*
