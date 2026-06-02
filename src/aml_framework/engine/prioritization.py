@@ -14,6 +14,7 @@ identical scores (and therefore identical hashes).
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -102,9 +103,19 @@ class PriorityReport(BaseModel):
 
 
 def build_priority_report(
-    alerts_by_rule: dict[str, list[dict[str, Any]]], *, enabled: bool, top_n: int = 20
+    alerts_by_rule: dict[str, list[dict[str, Any]]],
+    *,
+    enabled: bool,
+    top_n: int = 20,
+    mask_customer_id: Callable[[str], str] | None = None,
 ) -> PriorityReport:
-    """Deterministic distribution summary for the run's priority scores."""
+    """Deterministic distribution summary for the run's priority scores.
+
+    `alerts_by_rule` holds the in-memory (UN-masked) alert dicts, so when PII
+    masking is active the caller must pass `mask_customer_id` — the same
+    masking function the audit ledger applies to `alerts/*.jsonl` — so this
+    frozen, regulator-facing artifact never persists a plaintext customer_id.
+    """
     scored: list[dict[str, Any]] = []
     by_rule: dict[str, int] = {}
     for rule_id in sorted(alerts_by_rule):
@@ -112,9 +123,12 @@ def build_priority_report(
         if rows:
             by_rule[rule_id] = len(rows)
         for a in rows:
+            cid = a.get("customer_id")
+            if mask_customer_id is not None and cid is not None:
+                cid = mask_customer_id(cid)
             scored.append(
                 {
-                    "customer_id": a.get("customer_id"),
+                    "customer_id": cid,
                     "rule_id": rule_id,
                     "priority_score": a["priority_score"],
                 }

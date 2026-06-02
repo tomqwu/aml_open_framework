@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import importlib
 import json
 import logging
@@ -14,7 +15,7 @@ from typing import Any, TypedDict
 import duckdb
 
 from aml_framework import __version__ as ENGINE_VERSION
-from aml_framework.engine.audit import AuditLedger, rule_version_hash
+from aml_framework.engine.audit import AuditLedger, _pii_mask_value, rule_version_hash
 from aml_framework.engine.constants import Event, Queue
 from aml_framework.engine.cost_volume import (
     CostVolumeTimer,
@@ -1502,7 +1503,15 @@ def _finalize_run(
     # changes alert counts, cases, or dispositions).
     _prioritization_cfg = getattr(spec.program, "prioritization", None)
     if _prioritization_cfg and _prioritization_cfg.enabled:
-        _priority_report = build_priority_report(alerts_by_rule, enabled=True)
+        # `alerts_by_rule` holds the un-masked alert dicts; when PII masking is
+        # active, mask customer_id in the report the same way the ledger masks
+        # `alerts/*.jsonl` so this frozen artifact never leaks a plaintext id.
+        _mask_cid = None
+        if "customer_id" in ledger.pii_columns:
+            _mask_cid = functools.partial(_pii_mask_value, salt=ledger.pii_salt)
+        _priority_report = build_priority_report(
+            alerts_by_rule, enabled=True, mask_customer_id=_mask_cid
+        )
         _write_priority_report(ledger.run_dir, _priority_report)
 
     metric_results = evaluate_metrics(
