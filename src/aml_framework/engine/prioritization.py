@@ -38,14 +38,17 @@ class PriorityResult:
 
 
 def _coerce_float(value: Any) -> float:
-    """Best-effort float for an optional scoring feature. Prioritization is
-    ADVISORY — a custom_sql/python_ref alert may carry a formatted or redacted
-    `sum_amount`/`count`, and an unparseable value must NEVER abort the run.
-    Treat it as 0 (no contribution from that feature)."""
+    """Best-effort finite float for an optional scoring feature. Prioritization
+    is ADVISORY — a custom_sql/python_ref alert may carry a formatted, redacted,
+    or non-finite (`"NaN"`/`"inf"`) `sum_amount`/`count`, and such a value must
+    NEVER abort the run or produce a NaN/inf score (which would break the 0-1
+    contract and emit non-standard JSON). Treat anything unparseable OR
+    non-finite as 0 (no contribution from that feature)."""
     try:
-        return float(value)
+        parsed = float(value)
     except (TypeError, ValueError):
         return 0.0
+    return parsed if math.isfinite(parsed) else 0.0
 
 
 def _feature_value(alert: dict[str, Any], rule: Any) -> dict[str, float]:

@@ -367,3 +367,16 @@ def test_volume_falls_back_to_matched_row_ids_when_count_absent():
     assert a_hi.score > a_lo.score  # more supporting txns -> higher volume -> higher score
     lo_vol = {c["feature"]: c["value"] for c in a_lo.explanation}["volume"]
     assert lo_vol > 0.0  # not zeroed out when count is absent but evidence exists
+
+
+def test_scorer_rejects_non_finite_features():
+    """NaN/inf sentinels parse as valid floats but must NOT yield a NaN/inf
+    score — that would break the 0-1 contract and emit non-standard JSON."""
+    import math as _m
+
+    cfg = ProgramPrioritization(enabled=True)
+    for bad in ("NaN", "inf", "-inf", float("nan"), float("inf")):
+        res = score_alert({"sum_amount": bad, "count": bad}, _rule("high"), cfg)
+        assert _m.isfinite(res.score) and 0.0 <= res.score <= 1.0, bad
+        for c in res.explanation:
+            assert _m.isfinite(c["contribution"])
