@@ -160,3 +160,18 @@ def test_runner_no_priority_when_absent(tmp_path):
         for line in f.read_text().splitlines():
             if line.strip():
                 assert "priority_score" not in json.loads(line)
+
+
+def test_priority_report_is_manifest_pinned_and_frozen(tmp_path):
+    import json
+    import os
+
+    import yaml
+
+    base = yaml.safe_load(SPEC.read_text())
+    base["program"]["prioritization"] = {"enabled": True}
+    run_dir = _run(tmp_path, yaml.safe_dump(base))
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert manifest.get("priority_report_hash"), "priority_report_hash must be pinned"
+    if os.name != "nt":
+        assert (os.stat(run_dir / "priority_report.json").st_mode & 0o222) == 0
