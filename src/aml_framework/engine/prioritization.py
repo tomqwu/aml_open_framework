@@ -72,3 +72,17 @@ def score_alert(alert: dict[str, Any], rule: Any, config: Any) -> PriorityResult
     logit = sum(c["contribution"] for c in explanation)
     score = 1.0 / (1.0 + math.exp(-logit))
     return PriorityResult(score=score, explanation=explanation)
+
+
+def stamp_priority(rule: Any, alerts: list[dict[str, Any]], config: Any) -> None:
+    """Mutate each alert in place, adding `priority_score` +
+    `priority_explanation`. No-op when config is None or disabled. ADVISORY:
+    only ADDS fields — never removes or alters existing keys, never touches
+    disposition/queue/state.
+    """
+    if config is None or not getattr(config, "enabled", False):
+        return
+    for alert in alerts:
+        result = score_alert(alert, rule, config)
+        alert["priority_score"] = result.score
+        alert["priority_explanation"] = result.explanation

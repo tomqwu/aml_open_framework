@@ -50,3 +50,33 @@ def test_deterministic():
     a = score_alert(alert, _rule("medium"), cfg)
     b = score_alert(alert, _rule("medium"), cfg)
     assert a.score == b.score and a.explanation == b.explanation
+
+
+from aml_framework.engine.prioritization import stamp_priority  # noqa: E402
+
+
+def test_stamp_priority_adds_fields_and_preserves_others():
+    cfg = ProgramPrioritization(enabled=True)
+    alerts = [
+        {"customer_id": "C1", "rule_id": "r1", "sum_amount": 50000, "count": 8},
+        {"customer_id": "C2", "rule_id": "r1", "sum_amount": 100, "count": 1},
+    ]
+    stamp_priority(_rule("high"), alerts, cfg)
+    for a in alerts:
+        assert 0.0 <= a["priority_score"] <= 1.0
+        assert isinstance(a["priority_explanation"], list) and a["priority_explanation"]
+        assert a["customer_id"] in {"C1", "C2"}
+    assert alerts[0]["priority_score"] > alerts[1]["priority_score"]
+
+
+def test_stamp_priority_noop_when_disabled():
+    cfg = ProgramPrioritization(enabled=False)
+    alerts = [{"customer_id": "C1", "rule_id": "r1", "sum_amount": 50000, "count": 8}]
+    stamp_priority(_rule("high"), alerts, cfg)
+    assert "priority_score" not in alerts[0]
+
+
+def test_stamp_priority_noop_when_config_none():
+    alerts = [{"customer_id": "C1", "rule_id": "r1", "sum_amount": 50000, "count": 8}]
+    stamp_priority(_rule("high"), alerts, None)
+    assert "priority_score" not in alerts[0]
