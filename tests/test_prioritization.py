@@ -311,3 +311,46 @@ def test_prioritization_change_surfaces_in_spec_diff(tmp_path):
     c_path.write_text(yaml.safe_dump(raw_c))
     toggle_changes = compute_spec_diff(c_path, a).program_changes
     assert any(c.field == "prioritization.enabled" for c in toggle_changes)
+
+
+def test_scorer_tolerates_non_numeric_features():
+    """Advisory invariant: a custom_sql/python_ref alert may carry a
+    formatted/redacted sum_amount or count — scoring must NOT raise/abort."""
+    cfg = ProgramPrioritization(enabled=True)
+    res = score_alert({"sum_amount": "1,234.56", "count": "many"}, _rule("high"), cfg)
+    assert 0.0 <= res.score <= 1.0
+    feats = {c["feature"]: c["value"] for c in res.explanation if c["feature"] != "bias"}
+    assert feats["amount"] == 0.0 and feats["volume"] == 0.0  # unparseable -> 0
+
+
+def test_field_lineage_includes_priority_fields_when_enabled(tmp_path):
+    """field_lineage.jsonl must account for the persisted priority fields so
+    an auditor can trace the governed score back to program.prioritization."""
+    import json
+
+    import yaml
+
+    base = yaml.safe_load(SPEC.read_text())
+    base["program"]["prioritization"] = {"enabled": True}
+    run_dir = _run(tmp_path, yaml.safe_dump(base))
+    lineage = [
+        json.loads(line)
+        for line in (run_dir / "field_lineage.jsonl").read_text().splitlines()
+        if line.strip()
+    ]
+    fields = {e["alert_field"] for e in lineage}
+    assert {"priority_score", "priority_explanation"} <= fields
+    prio_rows = [e for e in lineage if e["alert_field"] == "priority_score"]
+    assert prio_rows and all(e["source_column"] == "spec.program.prioritization" for e in prio_rows)
+
+
+def test_field_lineage_no_priority_when_disabled(tmp_path):
+    import json
+
+    run_dir = _run(tmp_path)  # stock spec, no prioritization block
+    lineage = [
+        json.loads(line)
+        for line in (run_dir / "field_lineage.jsonl").read_text().splitlines()
+        if line.strip()
+    ]
+    assert "priority_score" not in {e["alert_field"] for e in lineage}

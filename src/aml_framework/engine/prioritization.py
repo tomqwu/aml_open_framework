@@ -37,13 +37,24 @@ class PriorityResult:
     explanation: list[dict[str, Any]]  # [{feature, value, contribution}]
 
 
+def _coerce_float(value: Any) -> float:
+    """Best-effort float for an optional scoring feature. Prioritization is
+    ADVISORY — a custom_sql/python_ref alert may carry a formatted or redacted
+    `sum_amount`/`count`, and an unparseable value must NEVER abort the run.
+    Treat it as 0 (no contribution from that feature)."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _feature_value(alert: dict[str, Any], rule: Any) -> dict[str, float]:
     """Extract the normalised [0,1] feature values used by the scorer."""
     severity = _SEVERITY_RANK.get(str(getattr(rule, "severity", "") or "").lower(), 0.25)
     risk_tier = _RISK_TIER_RANK.get(str(getattr(rule, "risk_tier", "") or "").lower(), 0.0)
-    amount = float(alert.get("sum_amount") or alert.get("amount") or 0.0)
+    amount = _coerce_float(alert.get("sum_amount") or alert.get("amount") or 0.0)
     amount_n = min(math.log1p(max(amount, 0.0)) / math.log1p(_AMOUNT_CAP), 1.0)
-    count = float(alert.get("count") or 0.0)
+    count = _coerce_float(alert.get("count") or 0.0)
     volume_n = min(count / _VOLUME_CAP, 1.0)
     return {"severity": severity, "risk_tier": risk_tier, "amount": amount_n, "volume": volume_n}
 
