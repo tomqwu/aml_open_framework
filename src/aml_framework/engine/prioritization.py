@@ -17,6 +17,8 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict, Field
+
 # Ordinal severity -> [0, 1]. Unknown severities map to the lowest band so a
 # typo can never silently inflate priority.
 _SEVERITY_RANK = {"low": 0.25, "medium": 0.5, "high": 0.75, "critical": 1.0}
@@ -86,3 +88,43 @@ def stamp_priority(rule: Any, alerts: list[dict[str, Any]], config: Any) -> None
         result = score_alert(alert, rule, config)
         alert["priority_score"] = result.score
         alert["priority_explanation"] = result.explanation
+
+
+class PriorityReport(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    enabled: bool
+    scored_alerts: int
+    by_rule: dict[str, int] = Field(default_factory=dict)  # rule_id -> count scored
+    top_alerts: list[dict[str, Any]] = Field(
+        default_factory=list
+    )  # [{customer_id, rule_id, priority_score}]
+
+
+def build_priority_report(
+    alerts_by_rule: dict[str, list[dict[str, Any]]], *, enabled: bool, top_n: int = 20
+) -> PriorityReport:
+    """Deterministic distribution summary for the run's priority scores."""
+    scored: list[dict[str, Any]] = []
+    by_rule: dict[str, int] = {}
+    for rule_id in sorted(alerts_by_rule):
+        rows = [a for a in alerts_by_rule[rule_id] if "priority_score" in a]
+        if rows:
+            by_rule[rule_id] = len(rows)
+        for a in rows:
+            scored.append(
+                {
+                    "customer_id": a.get("customer_id"),
+                    "rule_id": rule_id,
+                    "priority_score": a["priority_score"],
+                }
+            )
+    # Sort by score desc, then (rule_id, customer_id) for a stable tiebreak —
+    # determinism contract: no dependence on dict iteration order.
+    scored.sort(key=lambda r: (-r["priority_score"], str(r["rule_id"]), str(r["customer_id"])))
+    return PriorityReport(
+        enabled=enabled,
+        scored_alerts=len(scored),
+        by_rule=by_rule,
+        top_alerts=scored[:top_n],
+    )

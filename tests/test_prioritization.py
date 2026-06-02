@@ -80,3 +80,29 @@ def test_stamp_priority_noop_when_config_none():
     alerts = [{"customer_id": "C1", "rule_id": "r1", "sum_amount": 50000, "count": 8}]
     stamp_priority(_rule("high"), alerts, None)
     assert "priority_score" not in alerts[0]
+
+
+from aml_framework.engine.prioritization import build_priority_report  # noqa: E402
+
+
+def test_priority_report_summary():
+    by_rule = {
+        "r1": [
+            {"customer_id": "C1", "priority_score": 0.9},
+            {"customer_id": "C2", "priority_score": 0.2},
+        ],
+        "r2": [{"customer_id": "C3", "priority_score": 0.5}],
+    }
+    report = build_priority_report(by_rule, enabled=True, top_n=2)
+    assert report.enabled is True
+    assert report.scored_alerts == 3
+    assert [t["customer_id"] for t in report.top_alerts] == ["C1", "C3"]
+    assert (
+        report.model_dump_json()
+        == build_priority_report(by_rule, enabled=True, top_n=2).model_dump_json()
+    )
+
+
+def test_priority_report_empty_when_disabled():
+    report = build_priority_report({}, enabled=False, top_n=2)
+    assert report.enabled is False and report.scored_alerts == 0
