@@ -277,3 +277,37 @@ def test_priority_report_does_not_leak_plaintext_customer_id_under_masking(tmp_p
         assert not raw.match(cid), f"plaintext customer_id leaked into report: {cid}"
         assert hex16.match(cid), f"expected masked 16-hex id, got {cid!r}"
         assert cid in masked_in_alerts, "report mask must match the alerts/*.jsonl mask"
+
+
+def test_prioritization_change_surfaces_in_spec_diff(tmp_path):
+    """Codex P2: a prioritization-only change (enabled toggle or weight tweak)
+    must appear in compute_spec_diff().program_changes — governed triage
+    scoring is regulator-facing and can't be invisible to reviewers."""
+    import yaml
+
+    from aml_framework.diff import compute_spec_diff
+
+    raw = yaml.safe_load(SPEC.read_text())
+    raw_a = {**raw, "program": {**raw["program"], "prioritization": {"enabled": True}}}
+    raw_b = {
+        **raw,
+        "program": {
+            **raw["program"],
+            "prioritization": {"enabled": True, "weights": {"severity": 3.0}},
+        },
+    }
+    a = tmp_path / "a.yaml"
+    b = tmp_path / "b.yaml"
+    a.write_text(yaml.safe_dump(raw_a))
+    b.write_text(yaml.safe_dump(raw_b))
+    weight_changes = [
+        c for c in compute_spec_diff(a, b).program_changes if c.field.startswith("prioritization.")
+    ]
+    assert any(c.field == "prioritization.weights.severity" for c in weight_changes), weight_changes
+
+    # enabled toggle also surfaces
+    raw_c = {**raw, "program": {**raw["program"], "prioritization": {"enabled": False}}}
+    c_path = tmp_path / "c.yaml"
+    c_path.write_text(yaml.safe_dump(raw_c))
+    toggle_changes = compute_spec_diff(c_path, a).program_changes
+    assert any(c.field == "prioritization.enabled" for c in toggle_changes)
