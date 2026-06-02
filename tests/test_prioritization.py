@@ -118,15 +118,16 @@ from aml_framework.cli import app  # noqa: E402
 SPEC = Path(__file__).resolve().parents[1] / "examples" / "community_bank" / "aml.yaml"
 
 
-def _run(tmp_path, spec_text=None):
+def _run(tmp_path, spec_text=None, *, as_of: str | None = None):
     runner = CliRunner()
     spec = SPEC
     if spec_text is not None:
         spec = tmp_path / "aml.yaml"
         spec.write_text(spec_text, encoding="utf-8")
-    res = runner.invoke(
-        app, ["run", str(spec), "--seed", "42", "--artifacts", str(tmp_path / "art")]
-    )
+    cmd = ["run", str(spec), "--seed", "42", "--artifacts", str(tmp_path / "art")]
+    if as_of is not None:
+        cmd += ["--as-of", as_of]
+    res = runner.invoke(app, cmd)
     assert res.exit_code == 0, res.output
     return sorted((tmp_path / "art").glob("run-*"))[-1]
 
@@ -175,3 +176,47 @@ def test_priority_report_is_manifest_pinned_and_frozen(tmp_path):
     assert manifest.get("priority_report_hash"), "priority_report_hash must be pinned"
     if os.name != "nt":
         assert (os.stat(run_dir / "priority_report.json").st_mode & 0o222) == 0
+
+
+_FIXED_AS_OF = "2026-04-23T12:00:00"
+
+
+def test_prioritization_is_deterministic_across_runs(tmp_path):
+    import json
+    import yaml
+
+    base = yaml.safe_load(SPEC.read_text())
+    base["program"]["prioritization"] = {"enabled": True}
+    text = yaml.safe_dump(base)
+    p_a = tmp_path / "a"
+    p_b = tmp_path / "b"
+    p_a.mkdir()
+    p_b.mkdir()
+    rd1 = _run(p_a, text, as_of=_FIXED_AS_OF)
+    rd2 = _run(p_b, text, as_of=_FIXED_AS_OF)
+    h1 = json.loads((rd1 / "manifest.json").read_text())["decisions_hash"]
+    h2 = json.loads((rd2 / "manifest.json").read_text())["decisions_hash"]
+    assert h1 == h2  # advisory score must not break the determinism contract
+
+
+def test_prioritization_does_not_change_dispositions(tmp_path):
+    import json
+    import yaml
+
+    p_off = tmp_path / "off"
+    p_on = tmp_path / "on"
+    p_off.mkdir()
+    p_on.mkdir()
+    off = _run(p_off, as_of=_FIXED_AS_OF)
+    base = yaml.safe_load(SPEC.read_text())
+    base["program"]["prioritization"] = {"enabled": True}
+    on = _run(p_on, yaml.safe_dump(base), as_of=_FIXED_AS_OF)
+
+    def case_dispositions(rd):
+        out = {}
+        for f in sorted((rd / "cases").glob("*.json")):
+            c = json.loads(f.read_text())
+            out[c["case_id"]] = (c.get("rule_id"), c.get("queue"), c.get("status"))
+        return out
+
+    assert case_dispositions(off) == case_dispositions(on)
