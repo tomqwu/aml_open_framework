@@ -354,3 +354,16 @@ def test_field_lineage_no_priority_when_disabled(tmp_path):
         if line.strip()
     ]
     assert "priority_score" not in {e["alert_field"] for e in lineage}
+
+
+def test_volume_falls_back_to_matched_row_ids_when_count_absent():
+    """aggregation_window sum-only rules don't project `count`, but their
+    alerts carry matched_row_ids — volume must reflect the txn count, not 0."""
+    cfg = ProgramPrioritization(enabled=True)
+    a_lo = score_alert({"sum_amount": 10000, "matched_row_ids": [1]}, _rule("high"), cfg)
+    a_hi = score_alert(
+        {"sum_amount": 10000, "matched_row_ids": list(range(20))}, _rule("high"), cfg
+    )
+    assert a_hi.score > a_lo.score  # more supporting txns -> higher volume -> higher score
+    lo_vol = {c["feature"]: c["value"] for c in a_lo.explanation}["volume"]
+    assert lo_vol > 0.0  # not zeroed out when count is absent but evidence exists

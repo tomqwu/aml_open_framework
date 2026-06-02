@@ -54,7 +54,15 @@ def _feature_value(alert: dict[str, Any], rule: Any) -> dict[str, float]:
     risk_tier = _RISK_TIER_RANK.get(str(getattr(rule, "risk_tier", "") or "").lower(), 0.0)
     amount = _coerce_float(alert.get("sum_amount") or alert.get("amount") or 0.0)
     amount_n = min(math.log1p(max(amount, 0.0)) / math.log1p(_AMOUNT_CAP), 1.0)
-    count = _coerce_float(alert.get("count") or 0.0)
+    # Volume = txns behind the alert. Prefer the projected `count`; when a rule
+    # doesn't project one (e.g. a sum_amount-only CTR aggregation_window rule),
+    # fall back to the already-stamped `matched_row_ids` so high- and low-volume
+    # alerts still rank differently instead of both scoring volume 0.
+    count_raw = alert.get("count")
+    if count_raw is None:
+        matched = alert.get("matched_row_ids")
+        count_raw = len(matched) if isinstance(matched, list) else 0
+    count = _coerce_float(count_raw)
     volume_n = min(count / _VOLUME_CAP, 1.0)
     return {"severity": severity, "risk_tier": risk_tier, "amount": amount_n, "volume": volume_n}
 
