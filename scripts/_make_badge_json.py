@@ -1,9 +1,11 @@
 """Emit a shields.io endpoint-badge JSON to stdout.
 
 Called from `.github/workflows/ci.yml` test jobs to write per-type
-badge JSON to `.github/badges/<label>.json`. The shields.io
-endpoint badge in the README reads the raw GitHub URL of that
-file and renders `<label> · <message>` with the color we emit.
+badge JSON, which the `tests-badge` job publishes to the unprotected
+`badges` branch (NOT main — pushing to protected main is declined,
+GH006). The shields.io endpoint badge in the README reads the raw
+GitHub URL on the `badges` branch and renders `<label> · <message>`
+with the color we emit.
 
 Schema reference:
 https://shields.io/badges/endpoint-badge

@@ -6,9 +6,9 @@ on:
   pull_request:
     branches: [main]
   # Daily refresh + on-demand: auto-merge by GITHUB_TOKEN doesn't fire
-  # `push` events, so the `tests-badge` job (which commits refreshed
-  # JSONs to main) never ran on those merges. The schedule + manual
-  # dispatch give a recovery path.
+  # `push` events, so the `tests-badge` job (which publishes refreshed
+  # JSONs to the `badges` branch) never ran on those merges. The schedule
+  # + manual dispatch give a recovery path.
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
@@ -192,13 +192,12 @@ jobs:
           if-no-files-found: warn
 
   tests-badge:
-    # Consolidate per-job badge JSONs and commit them to main so the
-    # README's shields.io endpoint badges render fresh counts. The job
-    # only PUSHES on main; on PR runs it just validates the artifacts
-    # exist + lints the JSON (lets reviewers see the artifact in the
-    # run summary without a side-effect commit). [skip ci] on the
-    # commit message keeps the auto-commit from triggering another
-    # full CI run.
+    # Consolidate per-job badge JSONs and publish them to the unprotected
+    # `badges` branch so the README's shields.io endpoint badges render
+    # fresh counts. The job only PUSHES for main-originated runs; on PR
+    # runs it just stages the artifacts (lets reviewers see them in the
+    # run summary without a side-effect commit). [skip ci] on the commit
+    # message keeps the badge commit from triggering another full CI run.
     needs: [unit-tests, api-tests, coverage, e2e-dashboard]
     if: always()
     runs-on: ubuntu-latest
@@ -223,16 +222,20 @@ jobs:
               echo "Updated .github/badges/${label}.json:"
               cat ".github/badges/${label}.json"
             else
-              echo "WARN: ${src} missing — keeping committed copy of ${label}.json"
+              echo "WARN: ${src} missing — badges-branch copy of ${label}.json kept as-is"
             fi
           done
           rm -rf .github/badges/_incoming
-      - name: Commit + push (main only)
-        # schedule + workflow_dispatch refresh badges even when GitHub
-        # auto-merge (GITHUB_TOKEN) skips the push event — see issue #389.
-        # workflow_dispatch is ref-gated so a manual run on a feature
-        # branch can't commit badge JSONs back to that branch; main is
-        # the only source of truth for the README endpoint.
+      - name: Publish badges to the (unprotected) badges branch
+        # The README's shields.io endpoints read the badge JSONs from the
+        # `badges` branch, NOT main. Pushing them to main is declined on
+        # every merge (GH006: protected branch hook declined) because the
+        # default GITHUB_TOKEN has no bypass on the main branch protection.
+        # `badges` is an orphan, unprotected branch holding only the four
+        # JSONs at its root, so GITHUB_TOKEN (contents: write) can push it.
+        # See issue #389. [skip ci] keeps the badge commit from re-running CI.
+        # schedule + workflow_dispatch (ref-gated to main) give a recovery
+        # path since GITHUB_TOKEN auto-merge doesn't fire push events.
         if: |
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           github.event_name == 'schedule' ||
@@ -240,29 +243,46 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if git diff --quiet .github/badges/; then
+          # Preserve the freshly-staged JSONs across the branch switch.
+          tmp="$(mktemp -d)"
+          for label in unit api coverage e2e; do
+            [ -f ".github/badges/${label}.json" ] && cp ".github/badges/${label}.json" "${tmp}/${label}.json"
+          done
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Drop the in-tree badge edits so the branch switch is clean; we
+          # restore them onto the badges branch from $tmp below.
+          git checkout -- . 2>/dev/null || true
+          if git ls-remote --exit-code --heads origin badges >/dev/null 2>&1; then
+            git fetch origin badges
+            git checkout -B badges FETCH_HEAD
+          else
+            git checkout --orphan badges
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          # Missing JSONs (e.g. e2e SKIPPED on a run) keep the branch's
+          # existing copy instead of being wiped.
+          for label in unit api coverage e2e; do
+            [ -f "${tmp}/${label}.json" ] && cp "${tmp}/${label}.json" "./${label}.json"
+          done
+          git add unit.json api.json coverage.json e2e.json 2>/dev/null || true
+          if git diff --quiet --cached; then
             echo "No badge JSON changes — skipping commit."
             exit 0
           fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Pull recent diff into the commit body so `git log` reads
-          # like a changelog of test-count moves.
-          summary=$(for f in .github/badges/{unit,api,coverage,e2e}.json; do
-            [ -f "$f" ] && python -c "import json,sys; d=json.load(open('$f')); print(f\"- {d['label']}: {d['message']}\")"
+          summary=$(for label in unit api coverage e2e; do
+            [ -f "./${label}.json" ] && python -c "import json; d=json.load(open('${label}.json')); print(f\"- {d['label']}: {d['message']}\")"
           done)
-          git add .github/badges/
           git commit -m "chore(ci): refresh test-count badges [skip ci]" -m "$summary"
-          # Up to 3 push attempts to survive a PR-merge race
-          # (e.g. another PR squash-merge lands between our checkout
-          # and our push — common during gate-drain sessions).
+          # Up to 3 push attempts to survive a race on the badges branch
+          # (concurrent main merges each refresh badges).
           for attempt in 1 2 3; do
-            if git push; then
+            if git push origin badges; then
               echo "Push succeeded on attempt $attempt"
               exit 0
             fi
-            echo "Push failed on attempt $attempt — rebasing on main"
-            git pull --rebase origin main
+            echo "Push failed on attempt $attempt — syncing badges"
+            git fetch origin badges && git rebase FETCH_HEAD || true
           done
           echo "Push failed after 3 attempts" >&2
           exit 1
