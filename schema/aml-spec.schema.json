@@ -70,6 +70,7 @@
         "legacy_reference": { "$ref": "#/$defs/legacy_reference" },
         "nfrs":             { "$ref": "#/$defs/nfrs" },
         "sla":              { "$ref": "#/$defs/program_sla" },
+        "prioritization":   { "$ref": "#/$defs/prioritization" },
         "environment": {
           "type": "string",
           "enum": ["dev", "test", "uat", "prod"],
@@ -80,6 +81,24 @@
           "type": "boolean",
           "default": false,
           "description": "PR-D3 (#376): when true, the engine raises `EnvironmentGatingError` for any rule whose `environments` list does not include `program.environment`. Defaults to false — institutions opt into strict gating once their promotion process is wired up."
+        }
+      }
+    },
+    "prioritization": {
+      "type": "object",
+      "description": "Advisory alert-prioritization config. When enabled, the engine stamps priority_score (0-1) + priority_explanation onto every alert. Score is advisory only — never changes disposition/queue/state.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "weights": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "severity":  { "type": "number", "minimum": 0 },
+            "risk_tier": { "type": "number", "minimum": 0 },
+            "amount":    { "type": "number", "minimum": 0 },
+            "volume":    { "type": "number", "minimum": 0 }
+          }
         }
       }
     },

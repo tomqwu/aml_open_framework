@@ -153,6 +153,24 @@ def derive_field_lineage(spec: "AMLSpec", at: datetime) -> list[FieldLineageEntr
                 at=at,
             )
         )
+        # N1: when governed prioritization is enabled, every alert (all rule
+        # shapes) gains `priority_score` + `priority_explanation`, stamped by
+        # `stamp_priority`. Trace them to `program.prioritization` + the scorer
+        # so the lineage artifact matches the real persisted alert shape and an
+        # auditor can follow the advisory score back to its config + logic.
+        prioritization = getattr(spec.program, "prioritization", None)
+        if prioritization is not None and prioritization.enabled:
+            for _priority_field in ("priority_explanation", "priority_score"):
+                entries.append(
+                    FieldLineageEntry(
+                        rule_id=rule.id,
+                        alert_field=_priority_field,
+                        source_contract_id="*",
+                        source_column="spec.program.prioritization",
+                        transform="prioritization:advisory_score",
+                        at=at,
+                    )
+                )
         if logic_type == "list_match":
             entries.append(
                 FieldLineageEntry(

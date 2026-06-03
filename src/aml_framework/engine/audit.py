@@ -220,6 +220,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # so the breach inventory + batch-lateness signal can't be edited
     # after the run is sealed (same posture as field_lineage / dq).
     "sla_report.json",
+    # feat(audit) — Pillar-8 alert-prioritization report. Frozen
+    # post-finalize so the scored/ranked alert inventory can't be
+    # edited after the run is sealed (same posture as sla_report).
+    "priority_report.json",
     # PR-LF2 (#384) — run cost + data volume artifact freezes for the
     # same reason: a regulator should see the row counts / wall-clock
     # the engine actually measured, not an edited rewrite.
@@ -529,6 +533,16 @@ class AuditLedger:
         sla_path = self.run_dir / "sla_report.json"
         sla_report_hash = _sha256(sla_path.read_bytes()) if sla_path.exists() else None
 
+        # feat(audit): same posture for `priority_report.json` — the
+        # Pillar-8 alert-prioritization report is regulator-facing
+        # evidence; without a manifest hash a post-finalize edit would
+        # slip past tamper detection. File written by the runner before
+        # this call; older runs that predate this feature leave it None.
+        priority_path = self.run_dir / "priority_report.json"
+        priority_report_hash = (
+            _sha256(priority_path.read_bytes()) if priority_path.exists() else None
+        )
+
         # PR-LF2 (#384): same posture for `run_cost_volume.json` — the
         # row counts and wall-clock are regulator-facing evidence ("this
         # run scanned N rows in T seconds"). Pinning the hash means an
@@ -575,6 +589,7 @@ class AuditLedger:
             "dq_exceptions_hash": dq_exceptions_hash,
             "field_lineage_hash": field_lineage_hash,
             "sla_report_hash": sla_report_hash,
+            "priority_report_hash": priority_report_hash,
             "run_cost_volume_hash": run_cost_volume_hash,
             "monitoring_digest_hash": monitoring_digest_hash,
             "defect_log_hash": defect_log_hash,
