@@ -239,14 +239,18 @@ class ProgramSLA(_Base):
 
 class PrioritizationWeights(_Base):
     """Per-feature weights for the governed alert-prioritization score.
-    All non-negative; a higher weight raises that feature's contribution.
+    All non-negative AND finite; a higher weight raises that feature's
+    contribution. `allow_inf_nan=False` rejects a YAML `.inf`/`.nan` weight at
+    validation time — otherwise it would propagate through scoring into a
+    NaN/Infinity `priority_score`, breaking the 0-1 contract and emitting
+    non-standard JSON in the regulator-facing report.
     Fully transparent — every contribution is echoed in priority_explanation.
     """
 
-    severity: float = Field(default=1.0, ge=0.0)
-    risk_tier: float = Field(default=1.0, ge=0.0)
-    amount: float = Field(default=0.5, ge=0.0)
-    volume: float = Field(default=0.5, ge=0.0)
+    severity: float = Field(default=1.0, ge=0.0, allow_inf_nan=False)
+    risk_tier: float = Field(default=1.0, ge=0.0, allow_inf_nan=False)
+    amount: float = Field(default=0.5, ge=0.0, allow_inf_nan=False)
+    volume: float = Field(default=0.5, ge=0.0, allow_inf_nan=False)
 
 
 class ProgramPrioritization(_Base):

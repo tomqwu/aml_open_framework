@@ -55,7 +55,14 @@ def _feature_value(alert: dict[str, Any], rule: Any) -> dict[str, float]:
     """Extract the normalised [0,1] feature values used by the scorer."""
     severity = _SEVERITY_RANK.get(str(getattr(rule, "severity", "") or "").lower(), 0.25)
     risk_tier = _RISK_TIER_RANK.get(str(getattr(rule, "risk_tier", "") or "").lower(), 0.0)
-    amount = _coerce_float(alert.get("sum_amount") or alert.get("amount") or 0.0)
+    # Prefer `sum_amount` by KEY PRESENCE, not truthiness — a legitimate
+    # `sum_amount: 0` must not silently fall through to `amount` (which would
+    # inflate the amount feature). Only when `sum_amount` is absent do we fall
+    # back to a projected `amount`.
+    amount_raw = alert.get("sum_amount")
+    if amount_raw is None:
+        amount_raw = alert.get("amount")
+    amount = _coerce_float(amount_raw if amount_raw is not None else 0.0)
     amount_n = min(math.log1p(max(amount, 0.0)) / math.log1p(_AMOUNT_CAP), 1.0)
     # Volume = txns behind the alert. Prefer the projected `count`; when a rule
     # doesn't project one (e.g. a sum_amount-only CTR aggregation_window rule),
@@ -65,7 +72,10 @@ def _feature_value(alert: dict[str, Any], rule: Any) -> dict[str, float]:
     if count_raw is None:
         matched = alert.get("matched_row_ids")
         count_raw = len(matched) if isinstance(matched, list) else 0
-    count = _coerce_float(count_raw)
+    # Clamp at 0 — a malformed negative `count` must not yield a negative
+    # normalised volume (which would violate the documented [0, 1] feature
+    # contract and subtract from the score).
+    count = max(_coerce_float(count_raw), 0.0)
     volume_n = min(count / _VOLUME_CAP, 1.0)
     return {"severity": severity, "risk_tier": risk_tier, "amount": amount_n, "volume": volume_n}
 

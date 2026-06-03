@@ -380,3 +380,33 @@ def test_scorer_rejects_non_finite_features():
         assert _m.isfinite(res.score) and 0.0 <= res.score <= 1.0, bad
         for c in res.explanation:
             assert _m.isfinite(c["contribution"])
+
+
+def test_weights_reject_non_finite():
+    """A YAML `.inf`/`.nan` weight must be rejected at validation time — left
+    unchecked it would propagate into a NaN/Infinity priority_score and emit
+    non-standard JSON in the regulator-facing report."""
+    for bad in (float("inf"), float("-inf"), float("nan")):
+        with pytest.raises(Exception):
+            ProgramPrioritization(enabled=True, weights={"severity": bad})
+        with pytest.raises(Exception):
+            ProgramPrioritization(enabled=True, weights={"amount": bad})
+
+
+def test_sum_amount_zero_not_dropped_to_amount():
+    """A legitimate `sum_amount: 0` must be honoured by key presence, not fall
+    through truthiness to a projected `amount` (which would inflate the feature)."""
+    cfg = ProgramPrioritization(enabled=True)
+    res = score_alert({"sum_amount": 0, "amount": 100000, "count": 1}, _rule("high"), cfg)
+    amount_val = {c["feature"]: c["value"] for c in res.explanation}["amount"]
+    assert amount_val == 0.0  # used sum_amount=0, did NOT borrow amount=100000
+
+
+def test_negative_count_clamped_to_zero_volume():
+    """A malformed negative `count` must clamp to 0 volume — never produce a
+    negative normalised feature that subtracts from the score."""
+    cfg = ProgramPrioritization(enabled=True)
+    res = score_alert({"sum_amount": 1000, "count": -5}, _rule("high"), cfg)
+    feats = {c["feature"]: c["value"] for c in res.explanation}
+    assert feats["volume"] == 0.0
+    assert all(0.0 <= c["value"] <= 1.0 for c in res.explanation if c["feature"] != "bias")
