@@ -387,10 +387,9 @@ def test_weights_reject_non_finite():
     unchecked it would propagate into a NaN/Infinity priority_score and emit
     non-standard JSON in the regulator-facing report."""
     for bad in (float("inf"), float("-inf"), float("nan")):
-        with pytest.raises(Exception):
-            ProgramPrioritization(enabled=True, weights={"severity": bad})
-        with pytest.raises(Exception):
-            ProgramPrioritization(enabled=True, weights={"amount": bad})
+        for field in ("severity", "risk_tier", "amount", "volume"):
+            with pytest.raises(Exception):
+                ProgramPrioritization(enabled=True, weights={field: bad})
 
 
 def test_sum_amount_zero_not_dropped_to_amount():
