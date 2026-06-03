@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import importlib
 import json
 import logging
@@ -14,7 +15,7 @@ from typing import Any, TypedDict
 import duckdb
 
 from aml_framework import __version__ as ENGINE_VERSION
-from aml_framework.engine.audit import AuditLedger, rule_version_hash
+from aml_framework.engine.audit import AuditLedger, _pii_mask_value, rule_version_hash
 from aml_framework.engine.constants import Event, Queue
 from aml_framework.engine.cost_volume import (
     CostVolumeTimer,
@@ -33,6 +34,7 @@ from aml_framework.engine.monitoring_digest import (
     write_monitoring_digest,
 )
 from aml_framework.engine.payload_meta import stamp_payload_meta
+from aml_framework.engine.prioritization import build_priority_report, stamp_priority
 from aml_framework.engine.promotion import (
     EnvironmentGatingError,
     is_rule_approved_for_environment,
@@ -928,6 +930,15 @@ def _write_sla_report(run_dir: Path, report: SLAReport) -> None:
     path.write_bytes(json.dumps(payload, indent=2, sort_keys=True, default=str).encode("utf-8"))
 
 
+def _write_priority_report(run_dir: Path, report) -> None:
+    """Persist the priority distribution as `priority_report.json` (frozen +
+    manifest-pinned, same posture as sla_report.json). Always written when
+    prioritization is enabled so the artifact is present for the evidence pack."""
+    (run_dir / "priority_report.json").write_text(
+        report.model_dump_json(indent=2), encoding="utf-8"
+    )
+
+
 def _write_defect_log_snapshot(
     ledger: AuditLedger,
     *,
@@ -1144,6 +1155,11 @@ def run_spec(
     case_ids: list[str] = []
     python_ref_failures: dict[str, str] = {}
 
+    # PR-PRIO: resolve the advisory prioritization config once. ADVISORY —
+    # only ADDS `priority_score` / `priority_explanation` to alerts; never
+    # changes alert counts, cases, or dispositions. No-op when absent/disabled.
+    _prioritization_cfg = getattr(spec.program, "prioritization", None)
+
     for rule in spec.rules:
         if rule.status != "active":
             continue
@@ -1276,6 +1292,7 @@ def run_spec(
                     ) from exc
                 continue
             stamp_payload_meta(rule, alerts, as_of=as_of)
+            stamp_priority(rule, alerts, _prioritization_cfg)
             alerts_by_rule[rule.id] = alerts
             ledger.record_alerts(rule.id, alerts)
             _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)
@@ -1304,6 +1321,7 @@ def run_spec(
                 as_of=as_of,
                 reference_data_version_override=list_version,
             )
+            stamp_priority(rule, alerts, _prioritization_cfg)
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1325,6 +1343,7 @@ def run_spec(
             with cost_timer.rule(rule.id):
                 alerts = _execute_network_pattern(rule, con, as_of, cost_timer)
             stamp_payload_meta(rule, alerts, as_of=as_of)
+            stamp_priority(rule, alerts, _prioritization_cfg)
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1416,6 +1435,7 @@ def run_spec(
                             rule.id,
                         )
         stamp_payload_meta(rule, alerts, as_of=as_of)
+        stamp_priority(rule, alerts, _prioritization_cfg)
         alerts_by_rule[rule.id] = alerts
         ledger.record_alerts(rule.id, alerts)
 
@@ -1476,6 +1496,23 @@ def _finalize_run(
         ledger.run_dir,
         evaluate_sla(spec, decisions_rows, data, ledger.as_of),
     )
+
+    # PR-PRIO: emit `priority_report.json` ONLY when advisory prioritization
+    # is enabled. When absent/disabled, no file is written so the run is
+    # byte-identical to pre-feature behaviour (the advisory layer never
+    # changes alert counts, cases, or dispositions).
+    _prioritization_cfg = getattr(spec.program, "prioritization", None)
+    if _prioritization_cfg and _prioritization_cfg.enabled:
+        # `alerts_by_rule` holds the un-masked alert dicts; when PII masking is
+        # active, mask customer_id in the report the same way the ledger masks
+        # `alerts/*.jsonl` so this frozen artifact never leaks a plaintext id.
+        _mask_cid = None
+        if "customer_id" in ledger.pii_columns:
+            _mask_cid = functools.partial(_pii_mask_value, salt=ledger.pii_salt)
+        _priority_report = build_priority_report(
+            alerts_by_rule, enabled=True, mask_customer_id=_mask_cid
+        )
+        _write_priority_report(ledger.run_dir, _priority_report)
 
     metric_results = evaluate_metrics(
         spec=spec,

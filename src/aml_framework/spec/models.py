@@ -237,6 +237,36 @@ class ProgramSLA(_Base):
     batch_lateness_grace_days: int = Field(default=1, ge=0)
 
 
+class PrioritizationWeights(_Base):
+    """Per-feature weights for the governed alert-prioritization score.
+    All non-negative AND finite; a higher weight raises that feature's
+    contribution. `allow_inf_nan=False` rejects a YAML `.inf`/`.nan` weight at
+    validation time — otherwise it would propagate through scoring into a
+    NaN/Infinity `priority_score`, breaking the 0-1 contract and emitting
+    non-standard JSON in the regulator-facing report.
+    Fully transparent — every contribution is echoed in priority_explanation.
+    """
+
+    severity: float = Field(default=1.0, ge=0.0, allow_inf_nan=False)
+    risk_tier: float = Field(default=1.0, ge=0.0, allow_inf_nan=False)
+    amount: float = Field(default=0.5, ge=0.0, allow_inf_nan=False)
+    volume: float = Field(default=0.5, ge=0.0, allow_inf_nan=False)
+
+
+class ProgramPrioritization(_Base):
+    """Advisory alert-prioritization config (governed augmentation).
+
+    When `enabled`, the engine stamps `priority_score` (0-1) +
+    `priority_explanation` onto every alert. The score is ADVISORY — it never
+    changes an alert's disposition, queue, or open/close state; it only lets
+    investigators sort a triage queue by risk. Transparent + deterministic by
+    construction, so it satisfies the same evidence contract as the rules.
+    """
+
+    enabled: bool = False
+    weights: PrioritizationWeights = Field(default_factory=PrioritizationWeights)
+
+
 class Program(_Base):
     name: str
     jurisdiction: str
@@ -265,6 +295,11 @@ class Program(_Base):
     # in the run dir; absent block means the monitor is disabled (empty
     # report). Backward-compatible: every existing spec validates unchanged.
     sla: ProgramSLA | None = None
+    # feat(spec): optional governed alert-prioritization config. See
+    # `ProgramPrioritization`. When enabled, engine stamps `priority_score`
+    # (0-1) + `priority_explanation` onto every alert — advisory only, never
+    # alters disposition/queue/state. Default None = prioritization disabled.
+    prioritization: ProgramPrioritization | None = None
     # PR-D3 (#376): environment promotion lane this spec is running in.
     # Defaults to `dev` so existing specs validate unchanged. The engine
     # WARNs (and, with `strict_environment_gating`, raises) when a rule

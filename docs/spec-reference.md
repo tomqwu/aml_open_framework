@@ -76,6 +76,17 @@ Engine never raises on SLA breach; it records the breach in `sla_report.json` fo
 
 **`nfrs`** (default `None`) — non-functional requirements declaration. Six optional fields: `rto_minutes`, `rpo_minutes`, `sla_p95_ms`, `throughput_per_min`, `retention_days`, `notes` (free-form prose for MRM context, validation cadence, regulatory commitments). Surfaces feed it into capacity planning, BCP/DR posture, and the regulator audit pack. Engine ignores at runtime. *PR-D2 / Round 27.*
 
+**`prioritization`** (default `None`) — governed alert triage score. Advisory, explainable scoring that ranks alerts by risk without ever changing their disposition. Two sub-fields:
+
+- `enabled` (default `false`) — activate the scorer. When `false` (or the block is omitted), the engine runs unchanged and no `priority_score` fields appear.
+- `weights` (default `{severity: 1.0, risk_tier: 1.0, amount: 0.5, volume: 0.5}`) — per-feature multipliers for the logistic scorer. Four features:
+  - `severity` — ordinal urgency of the rule (`low=0.25 / medium=0.5 / high=0.75 / critical=1.0`).
+  - `risk_tier` — risk-based-controls posture of the rule (`low=0.33 / medium=0.66 / high=1.0`; `None`→0).
+  - `amount` — log-scaled transaction amount, capped at $100 000 → [0, 1].
+  - `volume` — transaction count behind the alert, capped at 50 → [0, 1].
+
+Each scored alert gains two fields: `priority_score` (float 0–1, sigmoid of the weighted sum) and `priority_explanation` (list of `{feature, value, contribution}` dicts — one per feature plus a bias term). The engine emits `priority_report.json` in the run directory (frozen read-only, SHA-256 hash pinned in `manifest.json` as `priority_report_hash`). Score is deterministic: same spec + same data + same seed → identical scores → identical hash. *PR-PRIO / Round 33.*
+
 ## `data_contracts`
 
 Declared inputs. The engine refuses to run if the warehouse schema does not

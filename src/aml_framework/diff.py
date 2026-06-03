@@ -207,6 +207,32 @@ def compute_spec_diff(path_a: Path, path_b: Path) -> SpecDiffResult:
                 program_changes.append(
                     FieldChange(field=f"sla.{field}", before=before, after=after)
                 )
+        # N1: same posture for `program.prioritization` — a prioritization-only
+        # change (the enabled toggle or a weight tweak) alters governed triage
+        # scoring and is regulator-facing, so it must land in `program_changes`.
+        prio_a = spec_a.program.prioritization
+        prio_b = spec_b.program.prioritization
+        if prio_a != prio_b:
+            ea = getattr(prio_a, "enabled", None) if prio_a is not None else None
+            eb = getattr(prio_b, "enabled", None) if prio_b is not None else None
+            e_before = "" if ea is None else str(ea)
+            e_after = "" if eb is None else str(eb)
+            if e_before != e_after:
+                program_changes.append(
+                    FieldChange(field="prioritization.enabled", before=e_before, after=e_after)
+                )
+            wa = getattr(prio_a, "weights", None) if prio_a is not None else None
+            wb = getattr(prio_b, "weights", None) if prio_b is not None else None
+            for field in ("severity", "risk_tier", "amount", "volume"):
+                va = getattr(wa, field, None) if wa is not None else None
+                vb = getattr(wb, field, None) if wb is not None else None
+                before = "" if va is None else str(va)
+                after = "" if vb is None else str(vb)
+                if before == after:
+                    continue
+                program_changes.append(
+                    FieldChange(field=f"prioritization.weights.{field}", before=before, after=after)
+                )
 
     rules_a = {r.id: r for r in spec_a.rules}
     rules_b = {r.id: r for r in spec_b.rules}

@@ -271,6 +271,26 @@ rules:
 
 Spec model: `src/aml_framework/spec/models.py::Rule` (`business_intent`, `out_of_scope`). Test: [`tests/test_program_intent_wiring.py`](../tests/test_program_intent_wiring.py).
 
+### `program.prioritization` — governed alert triage score
+
+Advisory, explainable ML-style scoring that ranks alerts by risk so
+investigators triage highest-first — **without ever changing an alert's
+disposition**. Off by default.
+
+```yaml
+program:
+  prioritization:
+    enabled: true
+    weights: { severity: 1.0, risk_tier: 1.0, amount: 0.5, volume: 0.5 }
+```
+
+Each alert gains `priority_score` (0–1) + `priority_explanation` (per-feature
+contributions); the run emits a frozen, manifest-pinned `priority_report.json`.
+The score is deterministic and in the hash-chained ledger — governed
+augmentation, not a black box. See [`tests/test_prioritization.py`](../tests/test_prioritization.py).
+
+Spec model: `src/aml_framework/spec/models.py::ProgramPrioritization`. Test: [`tests/test_prioritization.py`](../tests/test_prioritization.py).
+
 ---
 
 ## 7. Generate the Audit Bundle (1 min)
