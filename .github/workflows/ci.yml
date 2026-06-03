@@ -284,8 +284,11 @@ jobs:
             return 0
           }
 
+          # `rc=0; cmd || rc=$?` keeps the call in a tested context so the
+          # job's `bash -e` errexit doesn't abort on the intentional 1/2
+          # return codes before $rc is captured.
           checkout_badges
-          stage_and_commit; rc=$?
+          rc=0; stage_and_commit || rc=$?
           if [ "$rc" -eq 2 ]; then
             echo "No badge JSON changes — skipping commit."
             exit 0
@@ -305,7 +308,7 @@ jobs:
             echo "Push failed on attempt $attempt — resyncing badges branch"
             git fetch origin badges
             git checkout -B badges FETCH_HEAD
-            stage_and_commit; rc=$?
+            rc=0; stage_and_commit || rc=$?
             if [ "$rc" -eq 2 ]; then
               echo "Remote already current — nothing to push."
               exit 0
