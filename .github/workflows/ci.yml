@@ -268,24 +268,30 @@ jobs:
           }
           # Lay the freshly-built JSONs onto the current branch and commit.
           # Missing JSONs (e.g. e2e SKIPPED on a run) keep the branch's
-          # existing copy instead of being wiped. Returns non-zero when there
-          # is nothing to commit.
+          # existing copy instead of being wiped. Distinct return codes so a
+          # real failure is never mistaken for the clean no-op:
+          #   0 = committed, 2 = nothing to commit, 1 = commit failed.
           stage_and_commit() {
             for label in unit api coverage e2e; do
               [ -f "${tmp}/${label}.json" ] && cp "${tmp}/${label}.json" "./${label}.json"
             done
             git add unit.json api.json coverage.json e2e.json 2>/dev/null || true
-            git diff --quiet --cached && return 1
+            git diff --quiet --cached && return 2
             summary=$(for label in unit api coverage e2e; do
               [ -f "./${label}.json" ] && python -c "import json; d=json.load(open('${label}.json')); print(f\"- {d['label']}: {d['message']}\")"
             done)
-            git commit -m "chore(ci): refresh test-count badges [skip ci]" -m "$summary"
+            git commit -m "chore(ci): refresh test-count badges [skip ci]" -m "$summary" || return 1
+            return 0
           }
 
           checkout_badges
-          if ! stage_and_commit; then
+          stage_and_commit; rc=$?
+          if [ "$rc" -eq 2 ]; then
             echo "No badge JSON changes — skipping commit."
             exit 0
+          elif [ "$rc" -ne 0 ]; then
+            echo "Failed to commit badge JSONs" >&2
+            exit 1
           fi
           # Up to 3 push attempts to survive a race on the badges branch
           # (concurrent main merges each refresh badges). On rejection, reset
@@ -299,7 +305,14 @@ jobs:
             echo "Push failed on attempt $attempt — resyncing badges branch"
             git fetch origin badges
             git checkout -B badges FETCH_HEAD
-            stage_and_commit || { echo "Remote already current — nothing to push."; exit 0; }
+            stage_and_commit; rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "Remote already current — nothing to push."
+              exit 0
+            elif [ "$rc" -ne 0 ]; then
+              echo "Failed to re-commit badge JSONs after resync" >&2
+              exit 1
+            fi
           done
           echo "Push failed after 3 attempts" >&2
           exit 1
