@@ -2,7 +2,7 @@
 
 This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed in the May 2026 window that generate compliance deadlines between 2026-06-01 and 2026-08-31. It is a living forward-calendar companion to the full chronological log in [`2026-05-regulator-pulse.md`](2026-05-regulator-pulse.md), which covers the 120-day event window 2026-02-01 → 2026-05-31.
 
-> **Last updated 2026-06-01.** *Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events. Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — 89 days, 30 events.*
+> **Last updated 2026-06-03.** *Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events. Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — 89 days, 30 events.*
 
 ---
 
@@ -18,13 +18,14 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-06-09 · FinCEN / OCC / FDIC / NCUA + OFAC — Effectiveness NPRM AND GENIUS Act Stablecoin NPRM comment deadlines (same day)
 
-**What it is:** Two major NPRMs share a single comment deadline.
+**What it is:** Two major NPRMs share a single comment deadline. **6 days remain.**
 
 1. **AML/CFT Program "Effectiveness" NPRM (Federal Register 2026-07033):** FinCEN, OCC, FDIC, and NCUA jointly reframe the BSA program rule around an "effective, risk-based, reasonably designed" standard implementing the AMLA 2020 mandate. A documented enterprise-wide risk assessment becomes a pillar (not just expected practice), and FinCEN national priorities must be incorporated into the program. "Effectiveness" is split into (1) program established and (2) program maintained — distinguishing technical from systemic failure. Proposed implementation period: 12 months after a final rule. Expected final rule late 2026 / early 2027.
 
 2. **GENIUS Act PPSI NPRM (Federal Register 2026-06963):** FinCEN and OFAC jointly propose treating permitted payment stablecoin issuers (PPSIs) as financial institutions under the Bank Secrecy Act, and — for the first time — imposing mandatory, legally-binding OFAC sanctions compliance programs under new 31 CFR Part 502.
 
-**What MLROs need to do by June 9:**
+**What MLROs need to do by June 9 (6 days):**
+- **Complete gap analyses now.** The last realistic business-day window for completing, reviewing, and filing a comment letter is Thursday June 5 / Friday June 6 for most firms. Gap analyses started after today may not finish before the concurrent deadline compresses industry filing bandwidth.
 - Complete a gap analysis against the Effectiveness NPRM's risk-assessment and program-structure requirements. The 12-month implementation clock starts at the final rule — late 2026 gap analyses may not leave enough time.
 - Stablecoin issuers and banks sponsoring PPSIs: assess BSA-program equivalence and OFAC-sanctions-program gaps against the PPSI NPRM framework.
 - File comment letters if your firm has positions. The concurrent deadline compresses industry comment bandwidth.
@@ -39,7 +40,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-01 · AUSTRAC — Tranche 2 enforcement begins for Australian DNFBPs
 
-**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brings Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, enforceable from 2026-07-01. **30 days remain.**
+**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brings Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, enforceable from 2026-07-01. **28 days remain.**
 
 **What MLROs need to do:**
 - Australian DNFBPs must be enrolled with AUSTRAC and have a documented, board-approved AML/CTF program before July 1.
@@ -54,7 +55,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-10 · AMLA — Statutory deadline to submit all final RTS to European Commission
 
-**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **39 days remain.**
+**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **37 days remain.**
 
 **What MLROs need to do:**
 - EU-supervised obliged entities should treat July 10 as the "locked-in" date for the RTS framework. Post-July amendments require a full new legislative cycle.
@@ -97,4 +98,4 @@ These are not operational niceties — they are the controls regulators will ins
 
 ---
 
-*Last updated: 2026-06-01 · Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*
+*Last updated: 2026-06-03 · Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*
