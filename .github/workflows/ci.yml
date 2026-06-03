@@ -243,46 +243,63 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Preserve the freshly-staged JSONs across the branch switch.
+          # Preserve the freshly-staged JSONs across the branch switch, then
+          # remove the working-tree dir: these files are UNTRACKED at HEAD
+          # (the committed copies were dropped from main), so a branch switch
+          # would otherwise carry them along as clutter.
           tmp="$(mktemp -d)"
           for label in unit api coverage e2e; do
             [ -f ".github/badges/${label}.json" ] && cp ".github/badges/${label}.json" "${tmp}/${label}.json"
           done
+          rm -rf .github/badges
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Drop the in-tree badge edits so the branch switch is clean; we
-          # restore them onto the badges branch from $tmp below.
-          git checkout -- . 2>/dev/null || true
-          if git ls-remote --exit-code --heads origin badges >/dev/null 2>&1; then
-            git fetch origin badges
-            git checkout -B badges FETCH_HEAD
-          else
-            git checkout --orphan badges
-            git rm -rf . >/dev/null 2>&1 || true
-          fi
+
+          # Switch to the badges branch — its remote head if it exists, else a
+          # fresh orphan holding only the four JSONs at root.
+          checkout_badges() {
+            if git ls-remote --exit-code --heads origin badges >/dev/null 2>&1; then
+              git fetch origin badges
+              git checkout -B badges FETCH_HEAD
+            else
+              git checkout --orphan badges
+              git rm -rf . >/dev/null 2>&1 || true
+            fi
+          }
+          # Lay the freshly-built JSONs onto the current branch and commit.
           # Missing JSONs (e.g. e2e SKIPPED on a run) keep the branch's
-          # existing copy instead of being wiped.
-          for label in unit api coverage e2e; do
-            [ -f "${tmp}/${label}.json" ] && cp "${tmp}/${label}.json" "./${label}.json"
-          done
-          git add unit.json api.json coverage.json e2e.json 2>/dev/null || true
-          if git diff --quiet --cached; then
+          # existing copy instead of being wiped. Returns non-zero when there
+          # is nothing to commit.
+          stage_and_commit() {
+            for label in unit api coverage e2e; do
+              [ -f "${tmp}/${label}.json" ] && cp "${tmp}/${label}.json" "./${label}.json"
+            done
+            git add unit.json api.json coverage.json e2e.json 2>/dev/null || true
+            git diff --quiet --cached && return 1
+            summary=$(for label in unit api coverage e2e; do
+              [ -f "./${label}.json" ] && python -c "import json; d=json.load(open('${label}.json')); print(f\"- {d['label']}: {d['message']}\")"
+            done)
+            git commit -m "chore(ci): refresh test-count badges [skip ci]" -m "$summary"
+          }
+
+          checkout_badges
+          if ! stage_and_commit; then
             echo "No badge JSON changes — skipping commit."
             exit 0
           fi
-          summary=$(for label in unit api coverage e2e; do
-            [ -f "./${label}.json" ] && python -c "import json; d=json.load(open('${label}.json')); print(f\"- {d['label']}: {d['message']}\")"
-          done)
-          git commit -m "chore(ci): refresh test-count badges [skip ci]" -m "$summary"
           # Up to 3 push attempts to survive a race on the badges branch
-          # (concurrent main merges each refresh badges).
+          # (concurrent main merges each refresh badges). On rejection, reset
+          # hard to the remote head and re-commit on top — no rebase, so a
+          # mid-rebase state can never strand the job.
           for attempt in 1 2 3; do
             if git push origin badges; then
               echo "Push succeeded on attempt $attempt"
               exit 0
             fi
-            echo "Push failed on attempt $attempt — syncing badges"
-            git fetch origin badges && git rebase FETCH_HEAD || true
+            echo "Push failed on attempt $attempt — resyncing badges branch"
+            git fetch origin badges
+            git checkout -B badges FETCH_HEAD
+            stage_and_commit || { echo "Remote already current — nothing to push."; exit 0; }
           done
           echo "Push failed after 3 attempts" >&2
           exit 1
