@@ -89,6 +89,19 @@ Each scored alert gains two fields: `priority_score` (float 0–1, sigmoid of th
 
 **Champion-challenger outcome analysis (M3).** When prioritization is enabled and `aml run` is given `--labels <csv>` (a `customer_id,is_true_positive` ground-truth file), the engine additionally emits `priority_outcome.json` — a deterministic SR-26-2 outcome artifact scoring every alert with the champion (the spec's weights) and a challenger (`--challenger-weights '{"amount": 5.0}'`), reporting `precision@k` + `recall` per config and a `winner`. Frozen read-only and pinned in `manifest.json` as `priority_outcome_hash`, like `priority_report.json`. The scorer reads only as-of alert features (no future-dated lookups) — a temporal-leakage guard proven by `test_score_is_invariant_to_a_future_dated_field`.
 
+**`risk_segmentation`** (default `None`) — governed advisory alert suppression via customer-risk segments. De-prioritizes (NEVER auto-closes) alerts that fall in a low-risk segment and score below a per-segment threshold. **Requires `prioritization` enabled** — it gates on the `priority_score` that the scorer produces; when prioritization is off the suppression pass is a no-op with an explicit recorded reason. Two sub-fields:
+
+- `enabled` (default `false`) — activate the suppression pass. When `false` (or the block is omitted), the engine runs unchanged and no `suppression` fields appear on alerts.
+- `segments` (default `[]`) — list of customer-risk segments. Each segment has six fields:
+  - `id` (required) — stable segment identifier, used in the report and the audit trail.
+  - `field` (default `customer_risk_rating`) — the customer attribute the segment matches on. v1 supports ONLY `customer_risk_rating` (resolved to the customer `risk_rating` column at run time); any other value is rejected at validation time so the spec can never declare an attribute the engine silently ignores.
+  - `values` (required, ≥1) — the `field` values that put a customer in this segment (e.g. `[low]`).
+  - `deprioritize_below` (required, `0.0`–`1.0`) — the advisory `priority_score` threshold. An alert whose customer is in the segment AND whose `priority_score` is **strictly below** this value is flagged `suppression.applied=true`.
+  - `rationale` (required) — the documented reason for the segment; the audit paper-trail for why these alerts may be triaged later.
+  - `owner` (required) — who owns the segment decision (a 2LoD / MLRO accountability anchor).
+
+Each alert that goes through the pass gains a `suppression` dict — `{applied, segment_id, reason, threshold, score, reversible}`. This is **ADVISORY de-prioritization only**: the rule alert still lands in the ledger, its disposition / queue / open-close state is never changed, and an investigator can override it on the Triage Queue. The engine emits `suppression_report.json` in the run directory (frozen read-only, PII-masked `customer_id`, SHA-256 hash pinned in `manifest.json`). Deterministic: same spec + same data + same seed → identical flags → identical hash. Surfaced on the Triage Queue (page 52) + FP Analysis (page 45) dashboards. *#495.*
+
 ## `data_contracts`
 
 Declared inputs. The engine refuses to run if the warehouse schema does not

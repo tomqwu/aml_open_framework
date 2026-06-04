@@ -84,6 +84,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     Round 28's 11-category classifier + data/rule/mapping decision tree. *(Placeholder — to be filled.)*
 
+-   :material-layers-triple:{ .lg .middle } **[Configure risk segmentation + governed suppression](configure-risk-segmentation.md)**
+
+    ---
+
+    Advisory de-prioritization of low-score alerts on low-risk customers via `program.risk_segmentation`. Never auto-closes; emits `suppression_report.json`. Requires `program.prioritization`. ~10 min. **Detailed.**
+
 </div>
 
 ## Deploying

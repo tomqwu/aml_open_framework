@@ -40,7 +40,7 @@ Filterable, sortable alert triage view for L1 analysts. Filter by rule or severi
 
 ### Triage Queue
 
-Ranks scored alerts by the advisory N1 `priority_score` (highest first) so an investigator works the highest-SAR-likelihood alerts before the long tail. Each row's score is colour-graded (red = urgent); a "Why this score?" panel renders the per-alert `priority_explanation` — the bias baseline plus each feature's contribution, largest first, with `score = sigmoid(Σ contributions)`. **Advisory only:** the sort never changes an alert's disposition or open/close state; the deterministic rules stay authoritative. Routed universally so every investigator persona can reach it. Enabled by a `program.prioritization` block in the spec.
+Ranks scored alerts by the advisory N1 `priority_score` (highest first) so an investigator works the highest-SAR-likelihood alerts before the long tail. Each row's score is colour-graded (red = urgent); a "Why this score?" panel renders the per-alert `priority_explanation` — the bias baseline plus each feature's contribution, largest first, with `score = sigmoid(Σ contributions)`. **Advisory only:** the sort never changes an alert's disposition or open/close state; the deterministic rules stay authoritative. When a `program.risk_segmentation` block is enabled (#495), alerts on low-risk customers scoring below a segment threshold are flagged `suppression.applied` and visually de-emphasized here — still present and openable, with a per-row override so an investigator can reverse the advisory de-prioritization. Routed universally so every investigator persona can reach it. Enabled by a `program.prioritization` block in the spec.
 
 ![Triage Queue](screenshots/52_triage_queue.png)
 
@@ -225,7 +225,7 @@ Pareto-frontier exploration of rule threshold combinations. Loads labelled histo
 
 ### FP Analysis
 
-Per-rule false-positive rate (`closed_no_action ÷ total cases`) derived at render time from the cached `df_cases`. High-FP rules above 70% surface as a coloured callout at the top with a Tuning Lab cross-link; the per-rule table is sortable on the numeric `fp_rate_pct` column so AG Grid orders worst-offenders first. Filing queues are derived from the live spec workflow (any `regulator_form`-bearing queue counts as escalated), so custom STR/SAR/CTR queue ids classify correctly. The Pillar 7 ("DS as governed augmentation") surface that the North-Star coverage page flags as missing. PR-E1 (closes #378). Universally routed — every persona sees it.
+Per-rule false-positive rate (`closed_no_action ÷ total cases`) derived at render time from the cached `df_cases`. High-FP rules above 70% surface as a coloured callout at the top with a Tuning Lab cross-link; the per-rule table is sortable on the numeric `fp_rate_pct` column so AG Grid orders worst-offenders first. Filing queues are derived from the live spec workflow (any `regulator_form`-bearing queue counts as escalated), so custom STR/SAR/CTR queue ids classify correctly. The Pillar 7 ("DS as governed augmentation") surface that the North-Star coverage page flags as missing. PR-E1 (closes #378). When the run emitted a `suppression_report.json` (i.e. `program.risk_segmentation` was enabled, #495), an advisory-suppression section appears here showing how many alerts each risk segment / rule de-prioritized — the tuning evidence for `deprioritize_below`, advisory only and never an auto-close. Universally routed — every persona sees it.
 
 ![FP Analysis](screenshots/45_fp_analysis.png)
 

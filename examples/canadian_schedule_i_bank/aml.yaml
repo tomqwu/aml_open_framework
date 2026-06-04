@@ -25,6 +25,27 @@ program:
     format: csv
     dataset: mantas_v2
     key_columns: [rule_id, customer_id, window_start]
+  # N1 governed-augmentation seam: advisory alert triage score. Ranks
+  # alerts by SAR-likelihood without ever changing disposition.
+  prioritization:
+    enabled: true
+  # #495: governed advisory suppression. De-prioritizes (NEVER auto-closes)
+  # low-score alerts on low-risk customers so investigators reach the urgent
+  # tail first. Requires `prioritization` (the score it gates on). Advisory,
+  # explainable, reversible, evidenced in `suppression_report.json`.
+  # Illustrative — operators tune `deprioritize_below` off their FP analysis.
+  risk_segmentation:
+    enabled: true
+    segments:
+      - id: low_risk_retail
+        field: customer_risk_rating
+        values: [low]
+        deprioritize_below: 0.25
+        rationale: >
+          Low-risk retail customers scoring below the 0.25 advisory threshold
+          are worked after the urgent tail. Advisory only — never auto-closed;
+          the rule alert stays in the ledger and is investigator-overridable.
+        owner: chief_anti_money_laundering_officer
 
 # ---------------------------------------------------------------------------
 # Data contracts — one per channel to enforce channel-level coverage.
