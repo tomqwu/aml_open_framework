@@ -20,6 +20,24 @@ Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a
 
 ---
 
+> **Mobile Direction-C redesign** (`v0.1.48`–`v0.1.50`, 2026-06-04): the three-version mobile-UX evolution that shipped the current production UI across both Azure Container Apps (`ca-aml-api-dev` + `ca-aml-dashboard-dev`), smoke-verified at 375 px.
+>
+> - **Discoverability arc**: a faint chevron on the Start screen → an explicit in-canvas ☰ Menu button (v0.1.48/49) → a persistent **bottom tab bar** (v0.1.50, Direction-C). The nav surface got progressively more obvious because tap-testing on physical 375 px devices showed users didn't find the sidebar reliably.
+>
+> - **Direction-C selection** (v0.1.50): a `/huashu-design` session mocked three mobile-nav directions (A: sidebar overlay, B: collapsible top bar, C: bottom tab bar). Direction C was chosen — a persistent **bottom tab bar** (Today · Alerts · Cases · Audit · More) injected in `app.py` as `target="_top"` anchor links, with the active tab computed server-side from `pg.url_path`. Direction C tests best for thumb-reach on tall phones and mirrors iOS/Android app conventions the investigator persona already knows.
+>
+> - **Full-bleed mobile**: the dark side-gutters that appeared on narrow viewports (an artefact of the `.stApp` background bleed) were removed; the layout is now edge-to-edge on all screen widths.
+>
+> - **Minimal mobile topbar**: the `.dna-topbar` height was reduced for narrow screens so it doesn't eat vertical real estate when combined with the bottom tab bar.
+>
+> - **Start ink-hero band + live stat cards** (landed alongside v0.1.49): the Start screen got a high-contrast ink-hero headline band ("An AML program you can show.") plus three live stat cards (alerts / cases / audit entries) computed from the cached session state — turning a static marketing blurb into a live proof point.
+>
+> - **Testing lesson**: an earlier Playwright e2e that tapped a nav link by CSS selector gave a false green — the tap registered on an off-screen element. Replaced with assertions that use `is_visible()` + in-viewport bounding-box checks; the new test fails correctly when the element is outside the viewport.
+>
+> **Deploys**: `v0.1.48` (Start screen skeleton) → `v0.1.49` (☰ Menu + ink-hero + stat cards) → `v0.1.50` (Direction-C bottom tab bar + full-bleed + topbar trim). All three tags pushed to `main`, each followed by `az acr build` → both Container Apps updated → smoke at `/api/v1/health` + 375 px viewport.
+
+---
+
 > **First-run Start screen + mobile nav fix** (2026-06-04, `feat/first-run-golden-thread`, spec: `docs/superpowers/specs/2026-06-04-first-run-golden-thread-design.md`): replaced the confusing cold-open (the old legacy Welcome page) with a purpose-built first-run experience.
 >
 > - **Start screen** (`pages/0_Start.py` + `dashboard/golden_thread.py`): one sentence establishes what the framework does; a "▶ Show me it's real" button drives a live 4-beat Golden Thread — **alert → case → audit → doors** — through the planted C0001 structuring case in the default `community_bank` spec. Each beat renders progressively: first the alert fires, then the case is built, then the audit hash-chain entry is shown, then the action doors (SAR filing / tuning / export). The page is universally routed and set as the Streamlit default landing page (`app.py` initial page). The legacy `pages/0_Welcome.py` was retired — its content scrubbed from README and dashboard-tour.
