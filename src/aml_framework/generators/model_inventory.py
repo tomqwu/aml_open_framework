@@ -25,6 +25,13 @@ from aml_framework.spec.models import AMLSpec
 _TIER_ORDER = {"high": 0, "medium": 1, "low": 2}
 
 
+def _md_cell(value: str) -> str:
+    """Escape a value for a GitHub-markdown table cell so spec-controlled text
+    (a rule name / business_intent / citation containing `|`, `\\`, or a
+    newline) can't break column alignment."""
+    return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
 def _rule_entry(rule: Any, program_owner: str) -> dict[str, Any]:
     is_pyref = rule.logic.type == "python_ref"
     external = None
@@ -130,9 +137,9 @@ def render_model_inventory_markdown(inv: dict[str, Any]) -> str:
         "|---|---|---|---|---|---|---|",
     ]
     for m in inv["models"]:
-        refs = "; ".join(m["conceptual_soundness"])
+        refs = _md_cell("; ".join(m["conceptual_soundness"]))
         lines.append(
-            f"| `{m['model_key']}` | {m['kind']} | {m['tier']} | {m['cadence_months']} "
-            f"| {m['owner']} | {m['purpose']} | {refs} |"
+            f"| `{_md_cell(m['model_key'])}` | {m['kind']} | {m['tier']} | {m['cadence_months']} "
+            f"| {_md_cell(m['owner'])} | {_md_cell(m['purpose'])} | {refs} |"
         )
     return "\n".join(lines) + "\n"

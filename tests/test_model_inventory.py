@@ -56,6 +56,33 @@ def test_markdown_renders_header_and_table():
     assert "| Model | Kind | Tier |" in md
 
 
+def test_markdown_escapes_pipe_in_cell_values():
+    from aml_framework.generators.model_inventory import render_model_inventory_markdown
+
+    inv = {
+        "programme": {"name": "p", "jurisdiction": "US", "regulator": "FinCEN", "owner": "o"},
+        "_guidance": "g",
+        "_guidance_effective": "2026-04-17",
+        "summary": {"total_models": 1, "by_kind": {"rule": 1}},
+        "models": [
+            {
+                "model_key": "r1",
+                "kind": "rule",
+                "tier": "low",
+                "cadence_months": 36,
+                "owner": "o",
+                "purpose": "catch A | B structuring",  # raw pipe must be escaped
+                "conceptual_soundness": ["31 CFR 1020 | note"],
+            }
+        ],
+    }
+    md = render_model_inventory_markdown(inv)
+    row = [ln for ln in md.splitlines() if ln.startswith("| `r1`")][0]
+    # one data row = exactly 7 columns => 8 unescaped pipes; raw pipes escaped to \|
+    assert row.count("|") - row.count("\\|") == 8
+    assert "A \\| B" in row
+
+
 def _spec_with_prioritization(tmp_path):
     import pathlib
 
