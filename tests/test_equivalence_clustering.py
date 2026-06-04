@@ -128,3 +128,21 @@ def test_deterministic_same_input_same_output():
     r1 = cluster_divergences(_report(cells))
     r2 = cluster_divergences(_report(cells))
     assert r1.model_dump() == r2.model_dump()
+
+
+def test_equal_size_clusters_break_ties_by_signature_deterministically():
+    cells = [
+        _cell("C1", EquivalenceClass.NEW_ONLY, rn="B", ns="high"),
+        _cell("C2", EquivalenceClass.NEW_ONLY, rn="B", ns="high"),
+        _cell("C3", EquivalenceClass.NEW_ONLY, rn="A", ns="high"),
+        _cell("C4", EquivalenceClass.NEW_ONLY, rn="A", ns="high"),
+    ]
+    clusters = cluster_divergences(_report(cells)).clusters
+    assert [c.rule_id for c in clusters] == ["A", "B"]
+    assert clusters[0].size == 2 and clusters[1].size == 2
+
+
+def test_window_days_truncates_and_can_be_zero():
+    cells = [_cell("C1", EquivalenceClass.NEW_ONLY, rn="A", ns="high", ps=PS, pe=PS)]
+    cluster = cluster_divergences(_report(cells)).clusters[0]
+    assert cluster.window_days == 0

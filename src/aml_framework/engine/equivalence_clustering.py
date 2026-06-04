@@ -85,6 +85,8 @@ def _signature(cell: EquivalenceCell) -> tuple[EquivalenceClass, str, str, int]:
     else:  # LEGACY_ONLY
         rule_id = cell.rule_id_legacy or _UNMAPPED_RULE
         severity = cell.legacy_severity or _UNSPECIFIED_SEVERITY
+    # ``.days`` truncates to whole days on purpose: window_days is a coarse
+    # triage bucket, not an exact duration.
     window_days = (cell.period_end - cell.period_start).days
     return (cell.classification, rule_id, severity, window_days)
 
@@ -94,15 +96,6 @@ def _label(sig: tuple[EquivalenceClass, str, str, int], size: int) -> str:
     return (
         f"{classification.value} · {rule_id} · {severity} severity · "
         f"{window_days}-day window ({size})"
-    )
-
-
-def _signature_of(cluster: DivergenceCluster) -> tuple[str, str, str, int]:
-    return (
-        cluster.classification.value,
-        cluster.rule_id,
-        cluster.severity,
-        cluster.window_days,
     )
 
 
@@ -140,7 +133,9 @@ def cluster_divergences(report: EquivalenceReport) -> DivergenceClusterReport:
         )
         for sig, members in grouped.items()
     ]
-    clusters.sort(key=lambda c: (-c.size, str(_signature_of(c))))
+    clusters.sort(
+        key=lambda c: (-c.size, c.classification.value, c.rule_id, c.severity, c.window_days)
+    )
 
     total = sum(c.size for c in clusters)
     return DivergenceClusterReport(
