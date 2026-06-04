@@ -224,6 +224,9 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # post-finalize so the scored/ranked alert inventory can't be
     # edited after the run is sealed (same posture as sla_report).
     "priority_report.json",
+    # M3 (N1 follow-on) — champion-challenger outcome analysis. Frozen so the
+    # precision@k / recall evidence can't be edited after the run is sealed.
+    "priority_outcome.json",
     # PR-LF2 (#384) — run cost + data volume artifact freezes for the
     # same reason: a regulator should see the row counts / wall-clock
     # the engine actually measured, not an edited rewrite.
@@ -543,6 +546,15 @@ class AuditLedger:
             _sha256(priority_path.read_bytes()) if priority_path.exists() else None
         )
 
+        # M3 (N1 follow-on): same posture for `priority_outcome.json` — the
+        # champion-challenger precision@k / recall evidence. Written by the
+        # runner before this call only when ground-truth labels are supplied;
+        # otherwise absent and pinned as None.
+        outcome_path = self.run_dir / "priority_outcome.json"
+        priority_outcome_hash = (
+            _sha256(outcome_path.read_bytes()) if outcome_path.exists() else None
+        )
+
         # PR-LF2 (#384): same posture for `run_cost_volume.json` — the
         # row counts and wall-clock are regulator-facing evidence ("this
         # run scanned N rows in T seconds"). Pinning the hash means an
@@ -590,6 +602,7 @@ class AuditLedger:
             "field_lineage_hash": field_lineage_hash,
             "sla_report_hash": sla_report_hash,
             "priority_report_hash": priority_report_hash,
+            "priority_outcome_hash": priority_outcome_hash,
             "run_cost_volume_hash": run_cost_volume_hash,
             "monitoring_digest_hash": monitoring_digest_hash,
             "defect_log_hash": defect_log_hash,

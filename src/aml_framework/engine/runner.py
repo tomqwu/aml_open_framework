@@ -994,6 +994,8 @@ def run_spec(
     artifacts_root: Path,
     strict_python_ref: bool | None = None,
     data_sources: dict[str, str] | None = None,
+    labels: dict[str, bool] | None = None,
+    challenger_weights: dict[str, float] | None = None,
 ) -> RunResult:
     """Execute every active rule, persist alerts + cases + audit ledger.
 
@@ -1455,6 +1457,8 @@ def run_spec(
         python_ref_failures,
         cost_timer=cost_timer,
         dq_exceptions=dq_exceptions,
+        labels=labels,
+        challenger_weights=challenger_weights,
     )
 
 
@@ -1468,6 +1472,8 @@ def _finalize_run(
     *,
     cost_timer: CostVolumeTimer | None = None,
     dq_exceptions: list[DQException] | None = None,
+    labels: dict[str, bool] | None = None,
+    challenger_weights: dict[str, float] | None = None,
 ) -> RunResult:
     """Evaluate metrics, render reports, and write the final manifest.
 
@@ -1513,6 +1519,32 @@ def _finalize_run(
             alerts_by_rule, enabled=True, mask_customer_id=_mask_cid
         )
         _write_priority_report(ledger.run_dir, _priority_report)
+
+        # M3 (N1 follow-on): when ground-truth `labels` are supplied, emit a
+        # champion-vs-challenger `priority_outcome.json` (precision@k / recall).
+        # Deterministic; written before `ledger.finalize()` so its hash is
+        # pinned + the file frozen, exactly like `priority_report.json`.
+        if labels:
+            from aml_framework.engine.priority_outcome import build_priority_outcome
+            from aml_framework.spec.models import ProgramPrioritization
+
+            challenger = _prioritization_cfg
+            if challenger_weights:
+                _merged = {
+                    **_prioritization_cfg.weights.model_dump(),
+                    **challenger_weights,
+                }
+                challenger = ProgramPrioritization(enabled=True, weights=_merged)
+            _outcome = build_priority_outcome(
+                alerts_by_rule,
+                {r.id: r for r in spec.rules},
+                labels,
+                champion=_prioritization_cfg,
+                challenger=challenger,
+            )
+            (ledger.run_dir / "priority_outcome.json").write_text(
+                _outcome.model_dump_json(indent=2) + "\n"
+            )
 
     metric_results = evaluate_metrics(
         spec=spec,

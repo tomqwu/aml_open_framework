@@ -2155,6 +2155,22 @@ def run(
             "Opt-in; default behaviour unchanged."
         ),
     ),
+    labels: Path | None = typer.Option(
+        None,
+        "--labels",
+        exists=True,
+        readable=True,
+        help=(
+            "Ground-truth CSV (customer_id,is_true_positive). When given + "
+            "prioritization enabled, writes a champion-challenger "
+            "priority_outcome.json (precision@k / recall)."
+        ),
+    ),
+    challenger_weights: str | None = typer.Option(
+        None,
+        "--challenger-weights",
+        help="JSON weight overrides for the challenger scorer, e.g. '{\"amount\": 5.0}'.",
+    ),
 ) -> None:
     """End-to-end: load data, execute rules, emit cases + audit bundle."""
     from aml_framework.data.sources import resolve_source
@@ -2195,6 +2211,18 @@ def run(
 
     data_sources = infer_source_paths(data_source, spec, data_dir=data_dir)
 
+    _labels = None
+    if labels is not None:
+        from aml_framework.engine.priority_outcome import load_labels_csv
+
+        _labels = load_labels_csv(labels)
+    if challenger_weights:
+        import json as _json
+
+        _challenger = _json.loads(challenger_weights)
+    else:
+        _challenger = None
+
     result = run_spec(
         spec=spec,
         spec_path=spec_path,
@@ -2202,6 +2230,8 @@ def run(
         as_of=as_of_dt,
         artifacts_root=artifacts,
         data_sources=data_sources,
+        labels=_labels,
+        challenger_weights=_challenger,
     )
 
     table = Table(title="Alerts by rule")

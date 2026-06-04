@@ -70,3 +70,94 @@ def test_load_labels_csv(tmp_path):
     p.write_text("customer_id,is_true_positive\nC0001,true\nC9999,false\nC0002,1\n")
     labels = load_labels_csv(p)
     assert labels == {"C0001": True, "C9999": False, "C0002": True}
+
+
+def _prio_spec_and_labels(tmp_path):
+    import pathlib
+
+    s = pathlib.Path("examples/community_bank/aml.yaml").read_text()
+    s = s.replace(
+        "  effective_date: 2026-01-01\n",
+        "  effective_date: 2026-01-01\n  prioritization:\n    enabled: true\n",
+        1,
+    )
+    spec = tmp_path / "p.yaml"
+    spec.write_text(s)
+    labels = tmp_path / "labels.csv"
+    labels.write_text("customer_id,is_true_positive\nC0001,true\nC0002,true\n")
+    return spec, labels
+
+
+def _run_with_labels(tmp_path, spec, labels, artifacts):
+    from typer.testing import CliRunner
+
+    from aml_framework.cli import app
+
+    res = CliRunner().invoke(
+        app,
+        [
+            "run",
+            str(spec),
+            "--seed",
+            "42",
+            "--as-of",
+            "2026-02-01T00:00:00",
+            "--artifacts",
+            str(artifacts),
+            "--labels",
+            str(labels),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    return sorted(artifacts.glob("run-*"))[-1]
+
+
+def test_priority_outcome_written_pinned_and_frozen(tmp_path):
+    import json
+    import os
+
+    spec, labels = _prio_spec_and_labels(tmp_path)
+    run_dir = _run_with_labels(tmp_path, spec, labels, tmp_path / "a")
+    oc = run_dir / "priority_outcome.json"
+    assert oc.exists()
+    data = json.loads(oc.read_text())
+    assert data["winner"] in ("champion", "challenger", "tie")
+    assert data["n_labelled_positives"] == 2
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert manifest.get("priority_outcome_hash")
+    if os.name != "nt":
+        assert (os.stat(oc).st_mode & 0o222) == 0  # frozen read-only
+
+
+def test_priority_outcome_absent_without_labels(tmp_path):
+    import pathlib
+
+    s = pathlib.Path("examples/community_bank/aml.yaml").read_text()
+    s = s.replace(
+        "  effective_date: 2026-01-01\n",
+        "  effective_date: 2026-01-01\n  prioritization:\n    enabled: true\n",
+        1,
+    )
+    spec = tmp_path / "p.yaml"
+    spec.write_text(s)
+    from typer.testing import CliRunner
+
+    from aml_framework.cli import app
+
+    res = CliRunner().invoke(
+        app, ["run", str(spec), "--seed", "42", "--artifacts", str(tmp_path / "a")]
+    )
+    assert res.exit_code == 0, res.output
+    run_dir = sorted((tmp_path / "a").glob("run-*"))[-1]
+    assert not (run_dir / "priority_outcome.json").exists()  # no labels -> no artifact
+
+
+def test_priority_outcome_hash_deterministic_across_runs(tmp_path):
+    import json
+
+    spec, labels = _prio_spec_and_labels(tmp_path)
+    rd1 = _run_with_labels(tmp_path, spec, labels, tmp_path / "a")
+    rd2 = _run_with_labels(tmp_path, spec, labels, tmp_path / "b")
+    h1 = json.loads((rd1 / "manifest.json").read_text())["priority_outcome_hash"]
+    h2 = json.loads((rd2 / "manifest.json").read_text())["priority_outcome_hash"]
+    assert h1 == h2  # same spec+seed+as_of+labels -> byte-identical outcome
