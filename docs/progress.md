@@ -6,6 +6,10 @@ Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a
 
 ---
 
+> **#494 — Equivalence divergence clustering** (`feat/equivalence-divergence-clustering`, 2026-06-04, Next-tier ML/AI roadmap): deterministic shape-signature grouping of an `EquivalenceReport`'s NEW_ONLY/LEGACY_ONLY divergences. A new pure-stdlib engine module `engine/equivalence_clustering.py` (`cluster_divergences(report) -> DivergenceClusterReport`) buckets every divergent cell by the signature `(classification, rule_id, severity, window_days)`, surfaced as a `## Divergence clusters` table in the `aml equivalence --markdown` report and as a "Divergence clusters" section with a per-cluster drill-down on dashboard page 48 (Equivalence). Governed as an **explanation**: the four-way MATCH/NEW_ONLY/LEGACY_ONLY/DIFF classification stays authoritative in the ledger; clusters are a triage lens. **No sklearn** — pure stdlib+pydantic keeps the determinism invariant and the `.[dev]`-only unit CI intact. Closes #494.
+
+---
+
 > **M1–M4 — ML/AI roadmap Now tier, drained in one 24h marathon** (`v0.1.46` + `v0.1.47`, #481–#488, 2026-06-04): the four Now-tier initiatives off the N1 governed-augmentation seam, each plan → TDD → Codex → CI → merge. All four GH issues opened and closed in the same session; 0 open issues at close.
 >
 > - **M1 — Triage Queue** (`v0.1.46`, #485): dashboard page (`pages/52_Triage_Queue.py` + Streamlit-free `dashboard/triage.py` helpers) ranking alerts by the advisory N1 `priority_score` with a per-alert "Why this score?" explanation panel (data_grid red=urgent gradient + section_explainer). Universally routed; advisory-only framing explicit; e2e + screenshot. The user-facing payoff of N1 — investigators can finally sort the queue by SAR-likelihood. Caught a `.[dev]`-only CI gap (test imported pandas unguarded) → `pytest.importorskip`.

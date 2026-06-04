@@ -315,7 +315,7 @@ Per-rule alert-volume curve across {0.5×, 0.75×, 1.0×, 1.25×, 1.5×, 2.0×} 
 
 ### Equivalence
 
-Legacy↔new parallel-run divergence: loads the legacy CSV declared in `program.legacy_reference` and classifies every cell as MATCH / NEW_ONLY / LEGACY_ONLY / DIFF (via `engine/equivalence.py` shipped in PR-EQ-2). Universal-routed via `EQUIVALENCE_PAGES`. PR-EQ-3 (closes pillar 1 gap on the north-star page).
+Legacy↔new parallel-run divergence: loads the legacy CSV declared in `program.legacy_reference` and classifies every cell as MATCH / NEW_ONLY / LEGACY_ONLY / DIFF (via `engine/equivalence.py` shipped in PR-EQ-2). Universal-routed via `EQUIVALENCE_PAGES`. PR-EQ-3 (closes pillar 1 gap on the north-star page). A **Divergence clusters** section groups the NEW_ONLY/LEGACY_ONLY cells by shape (rule + severity + window length) with a per-cluster drill-down, so a data scientist triages defects by pattern rather than scrolling the flat cell list.
 
 ![Equivalence](screenshots/48_equivalence.png)
 

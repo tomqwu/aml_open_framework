@@ -94,6 +94,18 @@ aml run aml.yaml --seed 42
 
 The next `defect_log.jsonl` shouldn't contain the same defect. If it does, the fix was incomplete.
 
+### 6 · Triage equivalence divergences by cluster
+
+When the defect is a **legacy↔new divergence** (a cell the legacy system fired that the new spec didn't, or vice versa), run the equivalence comparison and render the Markdown report:
+
+```bash
+aml equivalence .artifacts/run-2026-05-25T10-15-30Z --legacy legacy_alerts.csv --markdown report.md
+```
+
+Open `report.md` and read the **`## Divergence clusters`** table. Work the **largest cluster first** (rows are sorted by size descending): each cluster is one defect shape — same rule, severity, and window length — so a single root cause (data, rule logic, or mapping) usually explains the whole cluster, and one fix clears many cells.
+
+The same clusters appear on **dashboard page 48 (Equivalence)** with a per-cluster drill-down into the member customers. Clustering is a **triage lens only** — the four-way MATCH / NEW_ONLY / LEGACY_ONLY / DIFF classification is what lands in the ledger.
+
 ---
 
 ## Verify it worked

@@ -169,6 +169,7 @@ aml.yaml (spec)
 - **Deterministic runs**: Same spec + same data + same seed = identical output hashes. Tested by `test_run_is_reproducible`.
 - **Custom SQL templates**: Placeholders `{as_of}`, `{window_start}`, `{recent_start}`, `{baseline_start}`, `{dormant_cutoff}` auto-substituted.
 - **Point-in-time joins (M4 / #484, Pillar 3)**: a `DataContract` may declare `effective_dated: {valid_from, valid_to}`; an `aggregation_window` rule's optional `enrich: {contract, key, where}` makes the SQL generator emit an as-of JOIN (`ref.valid_from <= booked_at < ref.valid_to`) inside the `filtered` CTE, so a rule resolves reference state contemporaneous with each txn, not the latest row. (`enrich.key`, not `on` — YAML 1.1 coerces a bare `on:` to boolean `true`.)
+- **Equivalence divergence clustering (#494):** `engine/equivalence_clustering.py` groups an `EquivalenceReport`'s NEW_ONLY/LEGACY_ONLY cells by a deterministic shape signature `(classification, rule_id, severity, window_days)` — a triage lens, pure stdlib+pydantic, no sklearn (determinism + `.[dev]`-only unit CI forbid stochastic clustering). The four-way classification stays authoritative in the ledger; clusters are explanations surfaced in the `aml equivalence` markdown and on dashboard page 48.
 - **Audit hash chain**: `decisions.jsonl` is append-only. Each line hashed with previous hash. `AuditLedger.verify_decisions()` detects tampering.
 
 ### Data Flow
