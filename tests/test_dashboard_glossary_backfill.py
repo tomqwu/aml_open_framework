@@ -24,7 +24,6 @@ PAGES = Path(__file__).resolve().parent.parent / "src" / "aml_framework" / "dash
 # lenient about positioning (legend can be anywhere on the page) but
 # strict about presence.
 EXPECTED_LEGEND_TERMS: dict[str, set[str]] = {
-    "0_Welcome.py": {"1LoD", "2LoD", "STR", "KYC", "SLA"},
     "7_Audit_Evidence.py": {"STR", "SAR", "FINTRAC", "OSFI", "FCA", "AMLA", "FinCEN", "MRM"},
     "24_Investigations.py": {"SLA", "STR", "SAR", "MLRO"},
     "23_Tuning_Lab.py": {"MRM", "2LoD"},

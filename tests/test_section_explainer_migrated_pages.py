@@ -31,7 +31,6 @@ EXPECTED_CALL_COUNTS = {
 _EXPECTED_PAGE_LEVEL = {
     "0_Start.py",
     "0_Today.py",
-    "0_Welcome.py",
     "10_Network_Explorer.py",
     "11_Live_Monitor.py",
     "12_Sanctions_Screening.py",

@@ -1,18 +1,20 @@
-"""Tests for the Welcome (page #0) plain-English orientation surface.
+"""Tests for persona/audience invariants and leader-surface page quality.
 
 Process invariants guarded:
-- The Welcome page exists at position 0 (alphabetical sort puts it first)
 - Persona codes carry full human-readable titles, not bare abbreviations
-- The page text contains zero of the banned-on-leader-surfaces jargon
+- Leader-facing pages avoid technical jargon
   (YAML, spec, Pydantic, DuckDB, FastAPI, hash, deterministic) per
   the style guide in docs/research/2026-04-aml-process-pain.md
-- Each PAIN-N reference in the page resolves to a real anchor in the
+- Each PAIN-N reference in a page resolves to a real anchor in the
   pain doc — so the "see PAIN-X" links don't 404 a leader
+
+Note: 0_Welcome.py was retired in favour of 0_Start.py (the first-run
+wizard, default landing). The Welcome-specific content tests have been
+removed along with the file.
 """
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from aml_framework.dashboard.audience import (
@@ -23,8 +25,6 @@ from aml_framework.dashboard.audience import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-WELCOME = REPO_ROOT / "src" / "aml_framework" / "dashboard" / "pages" / "0_Welcome.py"
-PAIN_DOC = REPO_ROOT / "docs" / "research" / "2026-04-aml-process-pain.md"
 
 
 # ---------------------------------------------------------------------------
@@ -62,90 +62,6 @@ def test_persona_options_format_includes_title_and_code() -> None:
 def test_persona_description_lookup() -> None:
     assert persona_description("cco")
     assert persona_description("nonexistent") == ""
-
-
-# ---------------------------------------------------------------------------
-# Welcome page content
-# ---------------------------------------------------------------------------
-
-
-BANNED_ON_LEADER_SURFACES = (
-    "YAML",
-    "Pydantic",
-    "DuckDB",
-    "FastAPI",
-    "JSON Schema",
-    "deterministic",  # appears in the doc but not on this page
-)
-
-
-def test_welcome_page_file_exists() -> None:
-    assert WELCOME.exists(), "0_Welcome.py must be in dashboard/pages/"
-
-
-def test_welcome_page_has_three_orientation_sections() -> None:
-    text = WELCOME.read_text()
-    assert "What problem does this solve" in text
-    assert "How does it work, in 30 seconds" in text
-    assert "Where should I go next" in text
-
-
-def test_welcome_page_has_no_banned_jargon() -> None:
-    """Per docs/research/2026-04-aml-process-pain.md style guide,
-    leader-facing pages must avoid spec/YAML/Pydantic/DuckDB/FastAPI/
-    hash/deterministic. The Welcome page is the most leader-facing
-    surface in the app — zero tolerance."""
-    text = WELCOME.read_text()
-    # Strip docstring + comments first so banned terms in the *internal
-    # docstring* (which leaders never see) don't fail the test.
-    body = re.sub(r'""".*?"""', "", text, count=1, flags=re.DOTALL)
-    body = re.sub(r"^\s*#.*$", "", body, flags=re.MULTILINE)
-    for term in BANNED_ON_LEADER_SURFACES:
-        assert term.lower() not in body.lower(), (
-            f"Welcome page body contains banned leader-surface term: {term!r}"
-        )
-
-
-def test_welcome_page_pain_links_resolve() -> None:
-    """Every PAIN-N anchor referenced in the Welcome page must exist
-    as an anchor heading in the research doc. Otherwise the 'see PAIN-X'
-    links 404 for the leader who clicks them.
-
-    Skipped when the pain doc is absent — this PR depends on PR-1
-    (process-pain research doc) and the test only meaningfully runs
-    after PR-1 has merged. Until then, the test passes vacuously to
-    avoid a CI red on this branch.
-    """
-    if not PAIN_DOC.exists():
-        import pytest
-
-        pytest.skip(
-            "Pain doc not present on this branch — depends on PR #105 "
-            "(feat/aml-process-pain-research). Re-runs once that PR merges."
-        )
-    text = WELCOME.read_text()
-    pain_doc = PAIN_DOC.read_text()
-    pain_refs = re.findall(r"#pain-(\d+)--", text)
-    assert pain_refs, "Welcome page should reference at least one PAIN-N"
-    for n in pain_refs:
-        # Headings in the doc render as anchors; for "## PAIN-1 · ..."
-        # GitHub generates anchors like #pain-1--we-cant-prove-what-we-did
-        assert f"### PAIN-{n} ·" in pain_doc, (
-            f"Welcome links to PAIN-{n} but no such heading exists in the pain doc"
-        )
-
-
-def test_welcome_page_persona_routing_covers_every_persona() -> None:
-    """If a leader picks a persona from the sidebar, the Welcome page's
-    'where to go next' section must have a recommendation for them.
-    Otherwise the persona selector silently fails for that role."""
-    text = WELCOME.read_text()
-    # Extract persona keys from the NEXT_BY_PERSONA dict literal.
-    next_keys = set(re.findall(r'"(\w+)":\s*\[', text))
-    # Personas defined in the audience module that should always be routed.
-    must_route = set(AUDIENCE_PAGES.keys())
-    missing = must_route - next_keys
-    assert not missing, f"Welcome page missing next-step routing for personas: {missing}"
 
 
 # ---------------------------------------------------------------------------

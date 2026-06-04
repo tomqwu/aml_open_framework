@@ -23,9 +23,11 @@ SPEC = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_i_b
 APP = Path(__file__).resolve().parents[1] / "src" / "aml_framework" / "dashboard" / "app.py"
 PORT = 8599  # Use a non-standard port to avoid conflicts.
 
-# All page titles as they appear in the sidebar navigation. "Today" is
-# the post-PR-3 default landing — every persona sees it first.
+# All page titles as they appear in the sidebar navigation. "Start here" is
+# the first-run wizard and default landing; "Today" is the personalised
+# daily checklist every persona sees next.
 PAGES = [
+    "Start here",
     "Today",
     "Executive Dashboard",
     "Program Maturity",
@@ -190,6 +192,7 @@ _PAGE_TO_SECTION: dict[str, str] = {
     # Mirrors the 7-category dict in app.py:ALL_PAGES (PR-NAV-1).
     # Used by _navigate to expand only the target's section header
     # rather than toggling every section blindly.
+    "Start here": "",
     "Today": "",
     "Alert Queue": "Operations",
     "Case Investigation": "Operations",

@@ -69,10 +69,11 @@ logging.getLogger("aml.dashboard").info("Persistence backend: %s", _active_backe
 # category for the PR-DATAVIZ surfaces and "FinTech" as a niche
 # 1-MLRO surface.
 ALL_PAGES: dict[str, list[st.Page]] = {
-    # Welcome + Today are ungrouped above the first category header.
-    # Welcome (page 0) is currently orphaned (on disk, not wired);
-    # only Today is registered here, matching pre-PR-NAV-1 behaviour.
+    # Start here + Today are ungrouped above the first category header.
+    # Start here (page 0) is the first-run wizard and default landing.
+    # Today is the personalised daily checklist every persona sees next.
     "": [
+        st.Page("pages/0_Start.py", title="Start here", icon=":material/play_circle:"),
         st.Page("pages/0_Today.py", title="Today", icon=":material/today:"),
     ],
     "Operations": [

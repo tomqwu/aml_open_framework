@@ -17,13 +17,12 @@ PAGES_DIR = PROJECT_ROOT / "src" / "aml_framework" / "dashboard" / "pages"
 TOUR = PROJECT_ROOT / "docs" / "dashboard-tour.md"
 
 # Pages that intentionally don't appear as standalone tour entries.
-# `0_Welcome.py` and `0_Today.py` are navigation surfaces (welcome page
-# + today checklist) — they're documented elsewhere, not in the
-# per-page tour. Add a page to this set with a one-line justification
-# rather than leaving the tour silently incomplete.
+# `0_Start.py` is the first-run wizard (default landing), and `0_Today.py`
+# is the personalised daily checklist — both are navigation surfaces
+# documented separately, not in the per-page tour. Add a page to this set
+# with a one-line justification rather than leaving the tour silently incomplete.
 TOUR_EXEMPT = {
     "0_Start.py",
-    "0_Welcome.py",
     "0_Today.py",
 }
 
