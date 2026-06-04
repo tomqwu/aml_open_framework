@@ -25,7 +25,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 2. **GENIUS Act PPSI NPRM (Federal Register 2026-06963):** FinCEN and OFAC jointly propose treating permitted payment stablecoin issuers (PPSIs) as financial institutions under the Bank Secrecy Act, and — for the first time — imposing mandatory, legally-binding OFAC sanctions compliance programs under new 31 CFR Part 502.
 
 **What MLROs need to do by June 9 (5 days):**
-- **Complete gap analyses now.** The last realistic business-day window for completing, reviewing, and filing a comment letter is Friday June 5 / Saturday June 6 for most firms. Gap analyses started after today may not finish before the concurrent deadline compresses industry filing bandwidth.
+- **Complete gap analyses now.** The last realistic working window for completing, reviewing, and filing a comment letter is Friday June 5, with Monday June 8 the final business day before the Tuesday June 9 deadline for most firms. Gap analyses started after today may not finish before the concurrent deadline compresses industry filing bandwidth.
 - Complete a gap analysis against the Effectiveness NPRM's risk-assessment and program-structure requirements. The 12-month implementation clock starts at the final rule — late 2026 gap analyses may not leave enough time.
 - Stablecoin issuers and banks sponsoring PPSIs: assess BSA-program equivalence and OFAC-sanctions-program gaps against the PPSI NPRM framework.
 - File comment letters if your firm has positions. The concurrent deadline compresses industry comment bandwidth.

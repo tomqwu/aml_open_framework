@@ -22,7 +22,7 @@
 
 ## What changed since June 1
 
-**June 9 comment deadline is now 5 days away.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline has moved from "8 days" to "5 days." The last realistic business-day window for completing, reviewing, and filing comment letters is Friday June 5 / Saturday June 6 for most firms. Any firm still relying on informal program frameworks for the PPSI NPRM is at high risk of filing no comment at all.
+**June 9 comment deadline is now 5 days away.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline has moved from "8 days" to "5 days." The last realistic working window for completing, reviewing, and filing comment letters is Friday June 5, with Monday June 8 the final business day before the Tuesday June 9 deadline for most firms. Any firm still relying on informal program frameworks for the PPSI NPRM is at high risk of filing no comment at all.
 
 **SR 26-2 is 48 days examination-active** (up from 45 on June 1). Q2 2026 examination cycles are ongoing — second-line MRM teams are mid-presentation to boards, not starting gap analyses. The framework's challenger-model documentation bundle is the gap-filler for Q3 model-risk committee reports.
 
@@ -80,7 +80,7 @@ No OSS competitor has shipped: (a) an AUSTRAC Tranche 2 example spec, (b) a PPSI
 
 | Priority | Feature | Days | Why now |
 |---|---|---|---|
-| #1 | **GENIUS Act / PPSI compliance template** (`examples/genius_act_ppsi/`) | 4 | **5 days to June 9 comment deadline.** Template during comment window = PPSI baseline positioning. Window closes Friday. |
+| #1 | **GENIUS Act / PPSI compliance template** (`examples/genius_act_ppsi/`) | 4 | **5 days to June 9 comment deadline.** Template during comment window = PPSI baseline positioning. Window closes Tuesday June 9. |
 | #2 | **AUSTRAC Tranche 2 example spec** (`examples/austrac_tranche2/`) | 4 | 27 days to July 1 enforcement. No OSS competitor. First-mover in an uncontested buyer segment. |
 | ~~#3~~ | ~~**SR 26-2 model inventory CLI** (`aml model-inventory`)~~ | ~~3~~ | **✅ SHIPPED v0.1.47** — `aml model-inventory --markdown` covers all rules, `python_ref` models, and the N1 prioritization scorer. |
 | #3 | **FinCEN Whistleblower internal-channel audit tool** | 2 | Comment period closed June 1. Final rule coming late 2026. Internal-escalation audit is the pre-implementation action. |
