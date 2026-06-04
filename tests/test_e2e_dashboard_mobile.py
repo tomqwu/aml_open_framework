@@ -574,6 +574,13 @@ def test_mobile_css_present_in_dom(_playwright, dashboard_server):
         assert "@media (max-width: 480px)" in html, (
             "Phone-specific CSS overlay missing from injected theme"
         )
+        # The 640px breakpoint carries the mobile-nav carve-out that makes
+        # the collapsed-sidebar expand control tappable (the brand bar no
+        # longer intercepts the tap). Assert both the breakpoint AND the
+        # `.dna-topbar-brand` pointer-events carve-out so a future refactor
+        # can't silently drop the headline phone-nav fix.
+        assert "640px" in html, "mobile nav carve-out media query missing"
+        assert "dna-topbar-brand" in html, "topbar pointer-events carve-out missing"
     finally:
         browser.close()
 
