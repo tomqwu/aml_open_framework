@@ -12,7 +12,12 @@ import streamlit as st
 
 from aml_framework.dashboard import triage
 from aml_framework.dashboard.audience import show_audience_context
-from aml_framework.dashboard.components import data_grid, page_footer, page_header
+from aml_framework.dashboard.components import (
+    data_grid,
+    page_footer,
+    page_header,
+    section_explainer,
+)
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
@@ -30,6 +35,22 @@ st.caption(
 )
 
 df_alerts = st.session_state.df_alerts
+
+_enabled = triage.has_priority(df_alerts)
+_scored = triage.triage_view(df_alerts) if _enabled else df_alerts.iloc[0:0]
+section_explainer(
+    page="Triage Queue",
+    section_id="triage.page",
+    section_title="Triage Queue",
+    data_summary={
+        "prioritization_enabled": bool(_enabled),
+        "total_alerts": int(len(df_alerts)),
+        "scored_alerts": int(len(_scored)),
+        "top_score": (
+            round(float(_scored[triage.PRIORITY_COL].iloc[0]), 4) if len(_scored) else None
+        ),
+    },
+)
 
 if df_alerts.empty:
     st.info("No alerts in this run.")
