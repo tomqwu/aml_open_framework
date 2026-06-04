@@ -1564,6 +1564,43 @@ def mrm_bundle_cmd(
         )
 
 
+@app.command(name="model-inventory")
+def model_inventory_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    out: Path | None = typer.Option(None, "--out", help="Write the inventory JSON here."),
+    markdown: Path | None = typer.Option(
+        None, "--markdown", help="Write an MRM-review markdown table here."
+    ),
+) -> None:
+    """Emit the SR-26-2 model-population inventory (rules + python_ref models +
+    the N1 prioritization scorer) from the spec alone. Deterministic."""
+    import json as _json
+
+    from aml_framework.generators.model_inventory import (
+        build_model_inventory,
+        render_model_inventory_markdown,
+    )
+    from aml_framework.spec import load_spec
+
+    spec = load_spec(spec_path)
+    inv = build_model_inventory(spec)
+
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(_json.dumps(inv, indent=2, sort_keys=True) + "\n")
+        typer.echo(f"Wrote model inventory JSON -> {out}")
+    if markdown is not None:
+        markdown.parent.mkdir(parents=True, exist_ok=True)
+        markdown.write_text(render_model_inventory_markdown(inv))
+        typer.echo(f"Wrote model inventory markdown -> {markdown}")
+
+    s = inv["summary"]
+    typer.echo(
+        f"{s['total_models']} models "
+        f"(by kind: {dict(sorted(s['by_kind'].items()))}; by tier: {s['by_tier']})"
+    )
+
+
 @app.command(name="audit-pack")
 def audit_pack_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

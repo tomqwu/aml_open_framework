@@ -36,6 +36,10 @@ from aml_framework.generators.mrm import (
     export_bundle_from_run_dir as export_mrm_bundle,
     render_dossier_markdown,
 )
+from aml_framework.generators.model_inventory import (
+    build_model_inventory,
+    render_model_inventory_markdown,
+)
 from aml_framework.generators.legacy_import import (
     LegacyRuleRow,
     ParseWarning,
@@ -78,6 +82,8 @@ __all__ = [
     "build_dossier",
     "build_dossier_json",
     "build_inventory",
+    "build_model_inventory",
+    "render_model_inventory_markdown",
     "export_mrm_bundle",
     "render_dossier_markdown",
     "LegacyRuleRow",
