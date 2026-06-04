@@ -18,6 +18,8 @@ Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a
 >
 > **Result**: 4 issues + 8 PRs (incl. the badge-branch CI fix #480 and docs PRs) merged, 2 Azure deploys, 0 open issues at close. The N1 governed seam now has its triage UI (M1), its model-inventory governance companion (M2), its outcome-analysis + leakage guard (M3), and its point-in-time data foundation (M4).
 
+---
+
 > **N1 — governed alert-prioritization layer** (`v0.1.45`, #477, 2026-06-03): first of the ML/AI roadmap ("governed augmentation") initiatives (the N1 plan). Establishes the **governed seam** an advisory ML triage score plugs into: explainable, deterministic, and constitutionally incapable of changing a disposition.
 >
 > - **What shipped**: an optional `program.prioritization` spec block (off by default) + JSON schema; `engine/prioritization.py` — a transparent weighted scorer (`score_alert`, every contribution echoed in `priority_explanation`), `stamp_priority` (per-rule, additive), and `build_priority_report` (deterministic, **mask-aware**). The runner stamps `priority_score` + `priority_explanation` on every alert and writes a frozen, manifest-pinned `priority_report.json`; the audit ledger freezes + pins `priority_report_hash` (mirrors `sla_report.json`).
