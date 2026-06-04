@@ -498,6 +498,13 @@ st.caption(
     "classification above is what lands in the ledger."
 )
 cluster_report = cluster_divergences(report)
+_by_classification: dict[str, int] = {}
+for _cl in cluster_report.clusters:
+    # Accumulate per classification — multiple clusters can share a
+    # classification (different rule/severity/window), so sum their sizes.
+    _by_classification[_cl.classification.value] = (
+        _by_classification.get(_cl.classification.value, 0) + _cl.size
+    )
 section_explainer(
     page="Equivalence",
     section_id="equivalence.divergence_clusters",
@@ -505,7 +512,7 @@ section_explainer(
     data_summary={
         "clusters": len(cluster_report.clusters),
         "total_divergences": cluster_report.total_divergences,
-        "by_classification": {cl.classification.value: cl.size for cl in cluster_report.clusters},
+        "by_classification": _by_classification,
     },
 )
 if not cluster_report.clusters:
