@@ -1084,9 +1084,19 @@ button[data-baseweb="tab"] {
     position: relative;
     margin: 0;
 }
-.dna-start-h1 em {
+/* Reverse-type fix: the headline sits on the dark ink band, so it MUST
+ * render cream — NOT the page's default dark ink. Streamlit styles the
+ * heading's descendant text nodes/spans with its own `!important` color,
+ * so the parent `color` alone loses; force every descendant cream too.
+ * Only the accent word `<em>show</em>` keeps the brighter rust. */
+.dna-start-hero h1,
+.dna-start-hero .dna-start-h1 { color: #f3efe6 !important; }
+.dna-start-hero h1 *,
+.dna-start-hero .dna-start-h1 * { color: #f3efe6 !important; }
+.dna-start-hero h1 em,
+.dna-start-hero .dna-start-h1 em {
+    color: #c4623f !important;
     font-style: italic;
-    color: var(--dna-accent);
 }
 .dna-start-lede {
     margin-top: 16px;
@@ -1095,6 +1105,23 @@ button[data-baseweb="tab"] {
     color: #c8c3b8 !important;
     max-width: 34ch;
     position: relative;
+}
+/* Same reverse-type guard for the one-liner: it's a <p> on the ink band,
+ * so it inherits Streamlit's dark markdown `p` rule
+ * (`[data-testid="stAppViewContainer"] [data-testid="stMarkdownContainer"] p`).
+ * That selector out-specifies a bare `.dna-start-lede`, so we re-qualify
+ * with the SAME stMarkdownContainer ancestry to win the cascade and force
+ * the lede + wordmark light on the ink band. */
+.dna-start-hero .dna-start-lede,
+.dna-start-hero .dna-start-lede *,
+[data-testid="stMarkdownContainer"] .dna-start-hero .dna-start-lede,
+[data-testid="stMarkdownContainer"] .dna-start-hero p.dna-start-lede {
+    color: #c8c3b8 !important;
+}
+.dna-start-hero .dna-start-wordmark,
+.dna-start-hero .dna-start-wordmark *,
+[data-testid="stMarkdownContainer"] .dna-start-hero .dna-start-wordmark {
+    color: #f3efe6 !important;
 }
 .dna-start-stats {
     display: flex;
