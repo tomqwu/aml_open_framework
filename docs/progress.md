@@ -24,7 +24,7 @@ Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a
 >
 > - **Discoverability arc**: a faint chevron on the Start screen → an explicit in-canvas ☰ Menu button (v0.1.48/49) → a persistent **bottom tab bar** (v0.1.50, Direction-C). The nav surface got progressively more obvious because tap-testing on physical 375 px devices showed users didn't find the sidebar reliably.
 >
-> - **Direction-C selection** (v0.1.50): a `/huashu-design` session mocked three mobile-nav directions (A: sidebar overlay, B: collapsible top bar, C: bottom tab bar). Direction C was chosen — a persistent **bottom tab bar** (Today · Alerts · Cases · Audit · More) injected in `app.py` as `target="_top"` anchor links, with the active tab computed server-side from `pg.url_path`. Direction C tests best for thumb-reach on tall phones and mirrors iOS/Android app conventions the investigator persona already knows.
+> - **Direction-C selection** (v0.1.50): a `/huashu-design` session mocked three full mobile directions in the real brand (A: editorial calm — full-bleed serif + minimal chrome; B: thread-card — a numbered "golden thread" teaser card on the landing; C: immersive ink-hero + a persistent bottom tab bar). Direction C was chosen — a persistent **bottom tab bar** (Today · Alerts · Cases · Audit · More) injected in `app.py` as `target="_top"` anchor links, with the active tab computed server-side from `pg.url_path`. Direction C tests best for thumb-reach on tall phones and mirrors iOS/Android app conventions the investigator persona already knows.
 >
 > - **Full-bleed mobile**: the dark side-gutters that appeared on narrow viewports (an artefact of the `.stApp` background bleed) were removed; the layout is now edge-to-edge on all screen widths.
 >
