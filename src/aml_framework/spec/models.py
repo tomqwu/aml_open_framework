@@ -274,10 +274,17 @@ class RiskSegment(_Base):
     `field` value is in `values` AND whose advisory `priority_score` is below
     `deprioritize_below` is flagged `suppression.applied=True` — never closed,
     never re-disposed. `rationale`/`owner` are the audit paper-trail.
+
+    `field` is constrained to a `Literal`: v1 supports ONLY
+    `customer_risk_rating` (resolved to the customer `risk_rating` column at
+    run time). A free string would let a spec declare an attribute the engine
+    never reads — a silent no-op that wouldn't survive an audit — so any other
+    value is rejected at validation time. Additional attributes are a future
+    extension (widen the Literal + teach the engine to resolve them together).
     """
 
     id: str = Field(min_length=1)
-    field: str = "customer_risk_rating"
+    field: Literal["customer_risk_rating"] = "customer_risk_rating"
     values: list[str] = Field(min_length=1)
     deprioritize_below: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
     rationale: str = Field(min_length=1)

@@ -117,7 +117,7 @@
             "required": ["id", "values", "deprioritize_below", "rationale", "owner"],
             "properties": {
               "id":       { "type": "string", "minLength": 1 },
-              "field":    { "type": "string", "default": "customer_risk_rating" },
+              "field":    { "type": "string", "enum": ["customer_risk_rating"], "default": "customer_risk_rating" },
               "values":   { "type": "array", "minItems": 1, "items": { "type": "string" } },
               "deprioritize_below": { "type": "number", "minimum": 0, "maximum": 1 },
               "rationale": { "type": "string", "minLength": 1 },

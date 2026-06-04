@@ -58,3 +58,15 @@ def test_extra_forbidden():
         RiskSegment(
             id="x", values=["low"], deprioritize_below=0.3, rationale="r", owner="o", bogus=1
         )
+
+
+def test_field_rejects_unsupported_value():
+    with pytest.raises(ValidationError):
+        RiskSegment(
+            id="x",
+            field="some_other_col",
+            values=["low"],
+            deprioritize_below=0.3,
+            rationale="r",
+            owner="o",
+        )
