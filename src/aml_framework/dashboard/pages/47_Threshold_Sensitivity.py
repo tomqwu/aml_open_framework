@@ -203,6 +203,7 @@ def _alerts_at(rule: Rule, logic: AggregationWindowLogic, having: dict) -> int:
         group_by=list(logic.group_by),
         window=logic.window,
         having=having,
+        enrich=logic.enrich,  # M4: preserve the point-in-time as-of join
     )
     swapped_rule = Rule(
         id=rule.id,

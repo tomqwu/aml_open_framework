@@ -173,6 +173,19 @@ def test_enrich_key_must_exist_on_both_contracts(tmp_path):
         load_spec(p)
 
 
+def test_enrich_key_present_on_ref_but_not_source_rejected(tmp_path):
+    from aml_framework.spec import load_spec
+
+    # 'risk_rating' is a column of customer (ref) but NOT of txn (source).
+    bad = _BASE_SPEC.format(customer_effective=_EFFECTIVE, enrich_block=_ENRICH).replace(
+        "key: customer_id", "key: risk_rating"
+    )
+    p = tmp_path / "bad.yaml"
+    p.write_text(bad)
+    with pytest.raises(Exception, match="source"):
+        load_spec(p)
+
+
 def test_enrich_sql_emits_asof_join_predicate(tmp_path):
     from datetime import datetime
 

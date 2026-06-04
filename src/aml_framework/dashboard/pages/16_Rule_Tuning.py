@@ -138,6 +138,7 @@ modified_logic = AggregationWindowLogic(
     group_by=list(logic.group_by),
     window=logic.window,
     having=adjusted_having,
+    enrich=logic.enrich,  # M4: preserve the point-in-time as-of join in previews
 )
 modified_rule = Rule(
     id=rule.id,
@@ -204,6 +205,7 @@ if main_metric and isinstance(having[main_metric], dict):
                     group_by=list(logic.group_by),
                     window=logic.window,
                     having=test_having,
+                    enrich=logic.enrich,  # M4: preserve the point-in-time as-of join
                 )
                 test_rule = Rule(
                     id=rule.id,
