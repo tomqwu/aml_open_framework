@@ -100,7 +100,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 🎥 [Live Deck](https://tomqwu.github.io/aml_open_framework_demo/) | Board briefing (12 exhibits) + Technical deck (22 slides) + primary-source research · runs in browser |
 | 📖 [Getting Started](docs/getting-started.md) | First install through your first audit bundle (15 min) |
 | 👥 [Personas & Workflows](docs/personas.md) | Map your role (CCO / MLRO / Analyst / Auditor / Developer) to the framework |
-| 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 41 operational pages (+2 nav surfaces Start here/Today) with screenshots (partial coverage) + audience filtering — incl. GenAI assistant on every page. Whitepapers + decks live on the [docs site](https://tomqwu.github.io/aml_open_framework_docs/) |
+| 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 42 operational pages (+2 nav surfaces Start here/Today) with screenshots (partial coverage) + audience filtering — incl. GenAI assistant on every page. Whitepapers + decks live on the [docs site](https://tomqwu.github.io/aml_open_framework_docs/) |
 | 🤔 [10 Daily Pain Points](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) | The real reasons AML leaders feel stuck — primary-source quotes only |
 | 📁 [Data is the AML Problem](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) | The layer underneath the pain — 11 faces of the data problem, BCBS 239 + 2024-26 enforcement |
 | 📡 [Regulator Pulse — Feb–May 2026](docs/research/2026-05-regulator-pulse.md) | 116-day rolling log of AML/sanctions regulator actions — 33 events, primary-source only · *updated 2026-05-27* |
@@ -176,7 +176,7 @@ src/aml_framework/
   cases/                        Investigation aggregator, SLA timer, STR bundling, fraud↔AML linkage
   data/                         Synthetic generator + ISO 20022 ingestion
   models/                       ML scoring callables for python_ref rules + travel-rule validator
-  dashboard/                    Streamlit web dashboard (43 pages: 41 operational + Start here/Today, persona-aware, GenAI co-pilot)
+  dashboard/                    Streamlit web dashboard (44 pages: 42 operational + Start here/Today, persona-aware, GenAI co-pilot)
   assistant/                    GenAI assistant — pluggable backend (template / ollama / openai)
   narratives/                   STR/SAR narrative drafter — same backend abstraction
   pkyc/                         Perpetual KYC trigger engine
