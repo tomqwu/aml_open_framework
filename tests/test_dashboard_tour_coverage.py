@@ -22,6 +22,7 @@ TOUR = PROJECT_ROOT / "docs" / "dashboard-tour.md"
 # per-page tour. Add a page to this set with a one-line justification
 # rather than leaving the tour silently incomplete.
 TOUR_EXEMPT = {
+    "0_Start.py",
     "0_Welcome.py",
     "0_Today.py",
 }

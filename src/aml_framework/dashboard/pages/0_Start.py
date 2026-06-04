@@ -21,16 +21,6 @@ page_header(
     "Start here",
     "An anti-money-laundering program you can show your regulator — without a six-week reconstruction.",
 )
-section_explainer(
-    page="Start here",
-    section_id="start.page",
-    section_title="Start here",
-    data_summary={
-        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
-        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
-    },
-)
-
 st.caption(
     "You write the rules once. It runs them, builds the cases, and keeps a "
     "tamper-proof record of everything."
@@ -61,10 +51,20 @@ def _go(i: int) -> None:
 
 if idx < 0:
     # Hero screen: one sentence (header) + one button.
-    st.button("▶  Show me it's real (90 seconds)", type="primary", on_click=_go, args=(0,))
+    st.button("▶  Show me it's real", type="primary", on_click=_go, args=(0,))
     st.page_link("pages/0_Today.py", label="Skip to the app →")
     page_footer()
     st.stop()
+
+section_explainer(
+    page="Start here",
+    section_id="start.page",
+    section_title="Start here",
+    data_summary={
+        "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
+        "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),
+    },
+)
 
 beat = beats[min(idx, len(beats) - 1)]
 st.subheader(beat["title"])
@@ -72,7 +72,7 @@ st.write(beat["narration"])
 
 if beat["panel_kind"] == gt.PANEL_ALERT:
     a = beat["payload"]
-    st.metric("Customer", a.get("customer_id", "—"))
+    st.write(f"**Customer:** {a.get('customer_id', '—')}")
     st.json({k: a.get(k) for k in ("rule_id", "severity", "sum_amount", "count", "priority_score")})
 elif beat["panel_kind"] == gt.PANEL_CASE:
     if beat["payload"]:
@@ -92,7 +92,7 @@ if beat["panel_kind"] == gt.PANEL_DOORS:
     st.button("↻ Replay the tour", on_click=_go, args=(-1,))
 elif beat["panel_kind"] != gt.PANEL_EMPTY and idx < len(beats) - 1:
     st.button("Next →", type="primary", on_click=_go, args=(idx + 1,))
-    st.button("Skip to the app →", on_click=_go, args=(len(beats) - 1,))
+    st.button("Skip to the end →", on_click=_go, args=(len(beats) - 1,))
 else:
     st.button("↻ Replay the tour", on_click=_go, args=(-1,))
 
