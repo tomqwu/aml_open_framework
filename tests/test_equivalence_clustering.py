@@ -146,3 +146,19 @@ def test_window_days_truncates_and_can_be_zero():
     cells = [_cell("C1", EquivalenceClass.NEW_ONLY, rn="A", ns="high", ps=PS, pe=PS)]
     cluster = cluster_divergences(_report(cells)).clusters[0]
     assert cluster.window_days == 0
+
+
+def test_member_order_is_input_order_independent():
+    cells = [
+        _cell("C3", EquivalenceClass.NEW_ONLY, rn="A", ns="high"),
+        _cell("C1", EquivalenceClass.NEW_ONLY, rn="A", ns="high"),
+        _cell("C2", EquivalenceClass.NEW_ONLY, rn="A", ns="high"),
+        _cell("C5", EquivalenceClass.LEGACY_ONLY, rl="B", ls="low"),
+        _cell("C4", EquivalenceClass.LEGACY_ONLY, rl="B", ls="low"),
+    ]
+    r1 = cluster_divergences(_report(cells))
+    r2 = cluster_divergences(_report(list(reversed(cells))))
+    assert r1.model_dump() == r2.model_dump()
+    # 3+ member cluster so member ordering actually matters.
+    big = next(c for c in r1.clusters if c.size == 3)
+    assert [m.customer_id for m in big.members] == ["C1", "C2", "C3"]

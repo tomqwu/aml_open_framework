@@ -104,7 +104,9 @@ def cluster_divergences(report: EquivalenceReport) -> DivergenceClusterReport:
 
     Returns a ``DivergenceClusterReport`` whose clusters are sorted by
     ``size`` descending, then by the signature ascending (stable). Member
-    cells keep their original ``report.cells`` order.
+    cells within each cluster are sorted by ``(customer_id, period_start,
+    period_end, rule_id_new, rule_id_legacy)`` so the output is independent
+    of the order cells arrived in ``report.cells``.
     """
     grouped: dict[tuple[EquivalenceClass, str, str, int], list[DivergenceMember]] = {}
     for cell in report.cells:
@@ -118,6 +120,19 @@ def cluster_divergences(report: EquivalenceReport) -> DivergenceClusterReport:
                 period_end=cell.period_end,
                 rule_id_new=cell.rule_id_new,
                 rule_id_legacy=cell.rule_id_legacy,
+            )
+        )
+
+    for members in grouped.values():
+        # Sort members by a stable key so cluster output never depends on the
+        # order identical cells happened to arrive in ``report.cells``.
+        members.sort(
+            key=lambda m: (
+                m.customer_id,
+                m.period_start,
+                m.period_end,
+                m.rule_id_new or "",
+                m.rule_id_legacy or "",
             )
         )
 
