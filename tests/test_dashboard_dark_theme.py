@@ -73,7 +73,15 @@ class TestDarkMediaQueryPresent:
         translucent general `--dna-rule` hairline which can't reach
         3:1 on the near-black canvas."""
         body = COMPONENTS_FILE.read_text(encoding="utf-8")
-        for rule_start in ('div[data-testid="stMetric"] {', ".metric-card {"):
+        # `.dna-start-stat` is the Start ink-hero's KPI tile — same 3:1
+        # non-text bar as the native metric tiles, so it's pinned to the
+        # opaque border var at the source level (the rendered e2e check
+        # can't see an alpha regression; this guard can).
+        for rule_start in (
+            'div[data-testid="stMetric"] {',
+            ".metric-card {",
+            ".dna-start-stat {",
+        ):
             i = body.index(rule_start)
             rule = body[i : body.index("}", i)]
             assert "var(--dna-card-border)" in rule, (
