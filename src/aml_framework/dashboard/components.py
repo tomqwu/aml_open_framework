@@ -456,6 +456,13 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
     .dna-topbar-brand { pointer-events: none !important; }
     .dna-topbar-brand a,
     .dna-topbar-brand .dna-topbar-home { pointer-events: auto !important; }
+    /* Direction-C minimal mobile topbar: drop the secondary chrome
+     * (the "Spec-driven · Audit-ready" tag, the version chip, the deploy
+     * summary) that otherwise overlaps + wraps on a phone. Keep ONLY the
+     * `● AML Open Framework` wordmark (dot + name), matching mockup C. */
+    .dna-topbar-tag,
+    .dna-topbar-summary,
+    .dna-topbar-release { display: none !important; }
 }
 
 /* ---- Mobile: make the sidebar expand control an OBVIOUS hamburger
