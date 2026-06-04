@@ -458,6 +458,62 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
     .dna-topbar-brand .dna-topbar-home { pointer-events: auto !important; }
 }
 
+/* ---- Mobile: make the sidebar expand control an OBVIOUS hamburger
+ * button (discoverability fix — "where is the menu?") ----
+ * The tappability fix above made the control hittable but left it as
+ * Streamlit's default faint chevron (`keyboard_double_arrow_right`,
+ * ~28x28px, rgba(49,51,63,0.6) on a transparent background). Worse,
+ * with `position:static` it renders at the very top-left and is
+ * vertically half-clipped under the fixed `.dna-topbar` (empirically
+ * y≈-14px) — a thumb-only user genuinely cannot find it.
+ *
+ * The live control in this Streamlit build is `stExpandSidebarButton`
+ * (verified 2026-06: `stSidebarCollapsedControl` no longer exists);
+ * `stSidebarCollapseButton` is the *collapse* control inside the open
+ * sidebar and must NOT be restyled here (it'd float a stray button
+ * once the sidebar is open). So we scope the floating-hamburger look
+ * to `stExpandSidebarButton` ONLY.
+ *
+ * Restyle it into a solid burnt-orange (--dna-accent) 44x44px rounded
+ * floating button sitting just below the topbar at top-left, with a
+ * drop shadow so it clearly reads as a tappable affordance, and swap
+ * the faint chevron for a white ☰ glyph. Keeps the z-index:999999 +
+ * pointer-events from the tappability fix above. Phone-scoped (≤640px)
+ * so desktop — which shows the full sidebar — is untouched. */
+@media (max-width: 640px) {
+    [data-testid="stExpandSidebarButton"] {
+        position: fixed !important;
+        top: calc(var(--dna-topbar-h) + 8px) !important;
+        left: 10px !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        background: var(--dna-accent) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 14px rgba(28, 31, 38, 0.28) !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 999999 !important;
+        pointer-events: auto !important;
+    }
+    /* Hide the faint Material chevron and any wrapping spans/button
+     * chrome so only our hamburger glyph shows. */
+    [data-testid="stExpandSidebarButton"] svg,
+    [data-testid="stExpandSidebarButton"] .stIconMaterial,
+    [data-testid="stExpandSidebarButton"] [data-testid="stIconMaterial"] {
+        display: none !important;
+    }
+    /* Clear, unmistakable hamburger (☰) in white on the accent fill. */
+    [data-testid="stExpandSidebarButton"]::before {
+        content: "\\2630";
+        color: #fff;
+        font-size: 24px;
+        line-height: 1;
+        font-weight: 700;
+    }
+}
+
 /* ---- Main canvas: cream from landing site ---- */
 [data-testid="stAppViewContainer"] > .main,
 [data-testid="stAppViewContainer"] section.main {

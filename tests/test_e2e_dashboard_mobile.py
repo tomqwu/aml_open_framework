@@ -617,6 +617,67 @@ def test_mobile_menu_tap_navigates(_playwright, dashboard_server):
         browser.close()
 
 
+def test_mobile_menu_control_visible_on_non_start_page(_playwright, dashboard_server):
+    """DISCOVERABILITY: the menu control must be an OBVIOUS, on-screen,
+    tappable button on a NON-Start page (the original "where is the
+    menu?" complaint was that on every page other than Start the only
+    affordance was a faint, top-clipped chevron).
+
+    The restyle in `components.py` turns the live control
+    (`stExpandSidebarButton`) into a fixed 44x44 burnt-orange floating
+    hamburger just below the topbar. This test lands directly on the
+    Today page (NOT Start), then asserts:
+      * the control is `is_visible()` (rendered, not display:none);
+      * its bounding box is fully inside the 375x667 viewport
+        (0 <= x, x+width <= 375, y >= 0) — i.e. NOT half-clipped above
+        the top edge the way the default static chevron was;
+      * it meets the 44px tap-target floor;
+      * a real tap on it followed by a nav-link tap changes the route
+        (proves it opens the real sidebar with the full nav).
+
+    Pure user-tap navigation (no URL slugs) — guards both the
+    discoverability restyle AND the underlying tappability fix.
+    """
+    browser, page = _open_mobile_page(_playwright, dashboard_server, {"width": 375, "height": 667})
+    try:
+        # Land on a NON-Start page via URL, then nav ONLY by tapping.
+        page.goto(
+            f"http://localhost:{PORT}/Today",
+            wait_until="domcontentloaded",
+            timeout=60000,
+        )
+        page.wait_for_selector("[data-testid='stHeading'], h1", state="visible", timeout=60000)
+        page.wait_for_timeout(5000)
+
+        before = page.url
+        ctrl = page.locator("[data-testid='stExpandSidebarButton']").first
+        assert ctrl.is_visible(), "menu control not visible on Today (non-Start) page"
+
+        box = ctrl.bounding_box()
+        assert box is not None, "menu control has no measurable bounding box"
+        # Fully inside the 375x667 viewport — not the top-clipped (y<0)
+        # static chevron the user couldn't find.
+        assert box["x"] >= 0, f"menu control off-screen left: x={box['x']}"
+        assert box["x"] + box["width"] <= 375, (
+            f"menu control overflows right edge: x+w={box['x'] + box['width']}"
+        )
+        assert box["y"] >= 0, f"menu control clipped above top edge: y={box['y']}"
+        # Thumb target floor.
+        assert box["height"] >= 44 and box["width"] >= 44, (
+            f"menu control below 44px tap-target floor: {box['width']}x{box['height']}"
+        )
+
+        # A real tap opens the sidebar; a nav-link tap changes route.
+        ctrl.click(timeout=8000)
+        page.get_by_role("link", name="Alert Queue").first.click(timeout=8000)
+        page.wait_for_function("u => location.href !== u", arg=before, timeout=8000)
+        assert page.url != before, (
+            f"tapping the visible hamburger did not navigate: stayed on {before}"
+        )
+    finally:
+        browser.close()
+
+
 # ---------------------------------------------------------------------------
 # Acceptance: page renders without a Streamlit error banner on mobile
 # ---------------------------------------------------------------------------
