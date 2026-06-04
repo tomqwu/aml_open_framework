@@ -138,6 +138,7 @@ aml dashboard examples/community_bank/aml.yaml
 aml dashboard spec.yaml                              # launch web UI (start here)
 aml validate spec.yaml                               # check the spec is internally consistent
 aml run spec.yaml [--data-source csv --data-dir ./]  # execute detectors on data
+aml run spec.yaml --labels labels.csv --challenger-weights '{"amount": 5.0}'  # champion-challenger priority_outcome.json (precision@k / recall, frozen + pinned)
 aml auditor-pack spec.yaml --run-dir <run-dir>       # one-ZIP auditor self-service bundle
 aml audit-pack spec.yaml --run-dir <run-dir> --jurisdiction CA-FINTRAC  # regulator pre-exam ZIP (per jurisdiction)
 aml export-case spec.yaml <run-dir> <case_id>        # single-case subset of the audit pack (PR-D4)
