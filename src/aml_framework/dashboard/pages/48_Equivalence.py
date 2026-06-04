@@ -46,6 +46,7 @@ from aml_framework.engine.equivalence import (
     classify_alerts,
     load_legacy_alerts_csv,
 )
+from aml_framework.engine.equivalence_clustering import cluster_divergences
 
 ensure_initialized()
 
@@ -482,6 +483,67 @@ if report.cells:
         )
 else:
     st.caption("No cells to classify on this run.")
+
+# ---------------------------------------------------------------------------
+# Divergence clusters (shape-signature triage lens) — group the
+# NEW_ONLY / LEGACY_ONLY cells by (rule, severity, window length) so
+# operators triage defects by pattern. This is a triage lens; the
+# four-way classification above is what lands in the ledger.
+# ---------------------------------------------------------------------------
+st.subheader("Divergence clusters")
+st.caption(
+    "Shape-signature grouping of the NEW_ONLY / LEGACY_ONLY cells — "
+    "same rule, severity, and window length cluster together so you "
+    "triage defects by pattern. This is a triage lens; the four-way "
+    "classification above is what lands in the ledger."
+)
+cluster_report = cluster_divergences(report)
+section_explainer(
+    page="Equivalence",
+    section_id="equivalence.divergence_clusters",
+    section_title="Divergence clusters",
+    data_summary={
+        "clusters": len(cluster_report.clusters),
+        "total_divergences": cluster_report.total_divergences,
+        "by_classification": {cl.classification.value: cl.size for cl in cluster_report.clusters},
+    },
+)
+if not cluster_report.clusters:
+    st.info("No NEW_ONLY / LEGACY_ONLY divergences to cluster — the runs agree.")
+else:
+    clusters_df = pd.DataFrame(
+        [
+            {
+                "classification": cl.classification.value,
+                "rule": cl.rule_id,
+                "severity": cl.severity,
+                "window_days": cl.window_days,
+                "size": cl.size,
+            }
+            for cl in cluster_report.clusters
+        ]
+    )
+    st.dataframe(clusters_df, use_container_width=True, hide_index=True)
+    st.caption(
+        f"{len(cluster_report.clusters)} cluster(s) over "
+        f"{cluster_report.total_divergences} divergent cell(s)."
+    )
+    labels = [cl.label for cl in cluster_report.clusters]
+    chosen = st.selectbox("Drill into a cluster", labels, key="equiv_cluster_pick")
+    picked = cluster_report.clusters[labels.index(chosen)]
+    members_df = pd.DataFrame(
+        [
+            {
+                "customer_id": m.customer_id,
+                "period_start": m.period_start.isoformat(),
+                "period_end": m.period_end.isoformat(),
+                "rule_id_new": m.rule_id_new or "",
+                "rule_id_legacy": m.rule_id_legacy or "",
+            }
+            for m in picked.members
+        ]
+    )
+    st.dataframe(members_df, use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------------------------
 # Cross-links — Run History (new-side trail), Audit & Evidence
