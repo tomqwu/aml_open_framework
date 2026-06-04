@@ -157,7 +157,7 @@ aml.yaml (spec)
   → metrics/engine.py      Compute metrics → RAG bands
   → engine/audit.py        Immutable evidence ledger (SHA-256 hash chain)
   → export.py              Regulator-ready ZIP bundle
-  → dashboard/             32-page Streamlit web app
+  → dashboard/             44-page Streamlit web app
   → api/                   FastAPI REST layer with JWT/OIDC auth
 ```
 
