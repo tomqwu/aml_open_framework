@@ -216,7 +216,12 @@ def _alerts_at(rule: Rule, logic: AggregationWindowLogic, having: dict) -> int:
         tags=list(rule.tags),
     )
     try:
-        sql = compile_rule_sql(swapped_rule, as_of=as_of, source_table=logic.source)
+        sql = compile_rule_sql(
+            swapped_rule,
+            as_of=as_of,
+            source_table=logic.source,
+            contracts={c.id: c for c in spec.data_contracts},
+        )
         return len(con.execute(sql).fetchall())
     except Exception:
         return -1

@@ -160,6 +160,19 @@ def test_effective_dated_enrich_spec_loads(tmp_path):
     assert spec.data_contracts[1].effective_dated is not None
 
 
+def test_enrich_key_must_exist_on_both_contracts(tmp_path):
+    from aml_framework.spec import load_spec
+
+    # key 'nope' exists on neither txn nor customer -> rejected at cross-ref.
+    bad = _BASE_SPEC.format(customer_effective=_EFFECTIVE, enrich_block=_ENRICH).replace(
+        "key: customer_id", "key: nope"
+    )
+    p = tmp_path / "bad.yaml"
+    p.write_text(bad)
+    with pytest.raises(Exception, match="enrich key"):
+        load_spec(p)
+
+
 def test_enrich_sql_emits_asof_join_predicate(tmp_path):
     from datetime import datetime
 
@@ -174,10 +187,22 @@ def test_enrich_sql_emits_asof_join_predicate(tmp_path):
     )
     low = sql.lower()
     assert "join customer" in low
-    assert "customer.valid_from <= txn.booked_at" in low
+    assert "customer.valid_from <= src.booked_at" in low
     assert "valid_to is null" in low
-    assert "txn.booked_at < customer.valid_to" in low
-    assert "customer.risk_rating = 'high'" in low  # enrich.where carried into the join
+    assert "src.booked_at < customer.valid_to" in low
+    assert "(customer.risk_rating = 'high')" in low  # enrich.where parenthesized into the join
+
+
+def test_enrich_without_contracts_raises(tmp_path):
+    from datetime import datetime
+
+    from aml_framework.generators.sql import compile_rule_sql
+    from aml_framework.spec import load_spec
+
+    spec = load_spec(_write_spec(tmp_path, effective=True, enrich=True))
+    rule = spec.rules[0]
+    with pytest.raises(ValueError, match="contracts"):
+        compile_rule_sql(rule, as_of=datetime(2026, 6, 1), source_table="txn")
 
 
 def test_no_enrich_sql_unchanged(tmp_path):

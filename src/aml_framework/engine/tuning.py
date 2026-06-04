@@ -176,13 +176,17 @@ def _grid_combinations(grid: dict[str, list[Any]]) -> list[dict[str, Any]]:
 
 
 def _execute_rule_only(
-    rule: Rule, con: duckdb.DuckDBPyConnection, as_of: datetime
+    rule: Rule,
+    con: duckdb.DuckDBPyConnection,
+    as_of: datetime,
+    contracts: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Run one rule against the prepared warehouse.
 
     Mirrors the dispatch in `runner.run_spec` for the supported logic
     types. Skips python_ref (those are scorers — the tuner doesn't
-    sweep model versions; that's a separate concern).
+    sweep model versions; that's a separate concern). `contracts` is
+    threaded for M4 point-in-time `enrich` rules (id -> DataContract).
     """
     logic_type = rule.logic.type
     if logic_type == "list_match":
@@ -192,7 +196,7 @@ def _execute_rule_only(
     if logic_type in ("aggregation_window", "custom_sql"):
         # Source table = the data_contract id (engine convention).
         source_table = getattr(rule.logic, "source", None) or "txn"
-        sql = compile_rule_sql(rule, as_of=as_of, source_table=source_table)
+        sql = compile_rule_sql(rule, as_of=as_of, source_table=source_table, contracts=contracts)
         try:
             rows = con.execute(sql).fetchall()
             cols = [d[0] for d in con.description] if con.description else []
@@ -251,7 +255,7 @@ def sweep_rule(
     resolve_entities(con, spec)
 
     # Baseline: production thresholds (the rule as declared in the spec).
-    baseline_alerts = _execute_rule_only(rule, con, as_of)
+    baseline_alerts = _execute_rule_only(rule, con, as_of, {c.id: c for c in spec.data_contracts})
     baseline_ids = frozenset(a["customer_id"] for a in baseline_alerts if "customer_id" in a)
     baseline = ScenarioResult(
         parameters={"_baseline": True},
@@ -268,7 +272,9 @@ def sweep_rule(
         scenario_rule = rule
         for path, value in params.items():
             scenario_rule = _set_by_path(scenario_rule, path, value)
-        alerts = _execute_rule_only(scenario_rule, con, as_of)
+        alerts = _execute_rule_only(
+            scenario_rule, con, as_of, {c.id: c for c in spec.data_contracts}
+        )
         ids = frozenset(a["customer_id"] for a in alerts if "customer_id" in a)
         scenarios.append(
             ScenarioResult(

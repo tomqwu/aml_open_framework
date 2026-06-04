@@ -111,7 +111,9 @@ def _render_custom_sql_model(rule: Rule, as_of: datetime, spec_path: Path) -> st
     return f"{header}\n{sql_body}\n"
 
 
-def _render_aggregation_window_model(rule: Rule, as_of: datetime, spec_path: Path) -> str:
+def _render_aggregation_window_model(
+    rule: Rule, as_of: datetime, spec_path: Path, contracts: dict | None = None
+) -> str:
     """Inline an aggregation_window rule as dbt SQL by piggybacking on
     the reference SQL renderer. We strip the `-- rule_id` etc. header
     the engine renderer adds and replace with the dbt config block."""
@@ -129,7 +131,9 @@ def _render_aggregation_window_model(rule: Rule, as_of: datetime, spec_path: Pat
             f"Rule {rule.id!r} is aggregation_window but has empty/missing "
             "`logic.source`; cannot emit a dbt model for it."
         )
-    engine_sql = compile_rule_sql(rule, as_of=as_of, source_table=rule.logic.source)
+    engine_sql = compile_rule_sql(
+        rule, as_of=as_of, source_table=rule.logic.source, contracts=contracts
+    )
     # The engine's `_rule_header` prefixes the SQL with `-- rule_id:`
     # lines — strip those so the dbt model has clean SQL after our
     # own dbt-config header.
@@ -246,7 +250,9 @@ models:
         if logic_type == "custom_sql":
             sql = _render_custom_sql_model(rule, as_of, spec_path)
         elif logic_type == "aggregation_window":
-            sql = _render_aggregation_window_model(rule, as_of, spec_path)
+            sql = _render_aggregation_window_model(
+                rule, as_of, spec_path, {c.id: c for c in spec.data_contracts}
+            )
         else:
             # python_ref, list_match, network_pattern — skip with a
             # README note instead of emitting a broken model.

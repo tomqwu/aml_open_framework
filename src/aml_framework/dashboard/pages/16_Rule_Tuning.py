@@ -125,7 +125,9 @@ con = duckdb.connect(":memory:")
 _build_warehouse(con, spec, data)
 
 # Run original rule.
-original_sql = compile_rule_sql(rule, as_of=as_of, source_table=logic.source)
+original_sql = compile_rule_sql(
+    rule, as_of=as_of, source_table=logic.source, contracts={c.id: c for c in spec.data_contracts}
+)
 original_count = len(con.execute(original_sql).fetchall())
 
 # Build modified rule (swap having thresholds).
@@ -150,7 +152,12 @@ modified_rule = Rule(
 )
 
 try:
-    modified_sql = compile_rule_sql(modified_rule, as_of=as_of, source_table=logic.source)
+    modified_sql = compile_rule_sql(
+        modified_rule,
+        as_of=as_of,
+        source_table=logic.source,
+        contracts={c.id: c for c in spec.data_contracts},
+    )
     modified_count = len(con.execute(modified_sql).fetchall())
 except Exception as e:
     modified_count = 0
@@ -206,7 +213,12 @@ if main_metric and isinstance(having[main_metric], dict):
                     logic=test_logic,
                     escalate_to=rule.escalate_to,
                 )
-                sql = compile_rule_sql(test_rule, as_of=as_of, source_table=logic.source)
+                sql = compile_rule_sql(
+                    test_rule,
+                    as_of=as_of,
+                    source_table=logic.source,
+                    contracts={c.id: c for c in spec.data_contracts},
+                )
                 test_counts.append(len(con2.execute(sql).fetchall()))
             except Exception:
                 test_counts.append(0)

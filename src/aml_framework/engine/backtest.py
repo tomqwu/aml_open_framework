@@ -202,7 +202,7 @@ def backtest_rule(
         _build_warehouse(con, spec, data)
         resolve_entities(con, spec)
 
-        alerts = _execute_rule_only(rule, con, period.as_of)
+        alerts = _execute_rule_only(rule, con, period.as_of, {c.id: c for c in spec.data_contracts})
         ids = frozenset(a["customer_id"] for a in alerts if "customer_id" in a)
         precision = _precision(ids, labels)
         recall = _recall(ids, labels)

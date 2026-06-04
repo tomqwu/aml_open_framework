@@ -692,6 +692,19 @@ class AMLSpec(_Base):
                         f"rule '{rule.id}' enriches '{ref.id}' which is not "
                         "effective_dated (declare valid_from/valid_to on it)"
                     )
+                # The join key must exist on BOTH the source and the ref
+                # contract, or the as-of JOIN fails only at execution time.
+                src = contracts_by_id.get(getattr(rule.logic, "source", None))
+                ref_cols = {c.name for c in ref.columns}
+                if enrich.key not in ref_cols:
+                    raise ValueError(
+                        f"rule '{rule.id}' enrich key '{enrich.key}' is not a column of '{ref.id}'"
+                    )
+                if src is not None and enrich.key not in {c.name for c in src.columns}:
+                    raise ValueError(
+                        f"rule '{rule.id}' enrich key '{enrich.key}' is not a "
+                        f"column of source '{src.id}'"
+                    )
 
         # Freshness-pinning cross-reference: a column with
         # `max_staleness_days` set must also point at a sibling column
