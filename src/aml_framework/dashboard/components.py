@@ -1131,7 +1131,11 @@ button[data-baseweb="tab"] {
 .dna-start-stat {
     flex: 1;
     background: var(--dna-bg-card);
-    border: 1px solid var(--dna-rule);
+    /* Use the dedicated card-boundary token (not the faint hairline
+     * `--dna-rule`) so these KPI tiles clear the WCAG 1.4.11 non-text
+     * 3:1 contrast bar against the dark canvas in OS dark mode — same
+     * boundary token the native `.metric-card` / stMetric tiles use. */
+    border: 1px solid var(--dna-card-border);
     border-radius: 14px;
     padding: 14px 12px;
 }
