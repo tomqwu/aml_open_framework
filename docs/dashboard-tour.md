@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **41 purpose-built pages** (43 page files on disk — the two extras, Welcome and Today, are navigation surfaces documented separately). The sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **42 purpose-built pages** (44 page files on disk — the two extras, Welcome and Today, are navigation surfaces documented separately). The sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 The sidebar carries two external links — **Research & whitepapers** and **How-to recipes** — pointing at the MkDocs docs site at `tomqwu.github.io/aml_open_framework_docs/` (`AML_DOCS_URL` env override). Round 32 (2026-05-24) retired the in-app Knowledge category — the 10 pages 33–42 ported from the old GH-Pages site in PR-U2/U3 — once the docs site shipped in Round 31. Knowledge content lives in one canonical place now; the dashboard owns the operational/run-coupled surfaces only.
 
@@ -27,6 +27,10 @@ Program-level KPIs, alert-by-rule breakdown with severity coloring, RAG status g
 Filterable, sortable alert triage view for L1 analysts. Filter by rule or severity, view aggregated amounts and time windows, and drill into individual alerts. Charts show alert volume by rule and severity distribution.
 
 ![Alert Queue](screenshots/03_alert_queue.png)
+
+### Triage Queue
+
+Ranks scored alerts by the advisory N1 `priority_score` (highest first) so an investigator works the highest-SAR-likelihood alerts before the long tail. Each row's score is colour-graded (red = urgent); a "Why this score?" panel renders the per-alert `priority_explanation` — the bias baseline plus each feature's contribution, largest first, with `score = sigmoid(Σ contributions)`. **Advisory only:** the sort never changes an alert's disposition or open/close state; the deterministic rules stay authoritative. Routed universally so every investigator persona can reach it. Enabled by a `program.prioritization` block in the spec.
 
 ### Case Investigation
 
@@ -305,7 +309,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The 41 operational pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the cross-cutting synthesis surfaces (North-Star Coverage, FP Analysis, Threshold Sensitivity, Anomaly Discovery, Drift Monitor, Rule Lifecycle, Decision Trail, Experiment Tracking, Equivalence) stay visible to every persona regardless of the filter:
+The 42 operational pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the cross-cutting synthesis surfaces (North-Star Coverage, FP Analysis, Threshold Sensitivity, Anomaly Discovery, Drift Monitor, Rule Lifecycle, Decision Trail, Experiment Tracking, Equivalence, Triage Queue) stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|
