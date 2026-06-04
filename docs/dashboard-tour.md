@@ -356,6 +356,7 @@ The 42 operational pages serve 13 distinct personas. The sidebar **Audience** se
 | **L1 Analyst** | Alert Queue → Case Investigation → Investigations → Network Explorer → Sanctions Screening → Customer 360 → My Queue → Analyst Review Queue |
 | **Product Manager** | Rule Performance → Program Maturity → Transformation Roadmap → Model Performance → Risk Assessment → Case Investigation → Tuning Lab → Typology Catalogue → Metrics Taxonomy |
 | **Developer** | Spec Editor → Rule Performance → Rule Tuning → Tuning Lab → Model Performance → Data Quality → Analyst Review Queue → Run History → AI Assistant |
+| **Data Engineer / Head of Data** | Data Integration → Data Quality → Customer 360 → Information Sharing → Spec Editor → Run History → Audit & Evidence → AI Assistant |
 | **Auditor** | Audit & Evidence → Investigations → Case Investigation → Data Quality → Framework Alignment → Regulator Pulse → Metrics Taxonomy → AI Assistant |
 | **Business Owner** | Executive Dashboard → Risk Assessment → Framework Alignment → Audit & Evidence |
 | **FinTech MLRO** | FinTech Cockpit → Audit & Evidence → Investigations → Tuning Lab → Regulator Pulse → Spec Editor → Metrics Taxonomy → AI Assistant |
