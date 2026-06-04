@@ -939,6 +939,188 @@ button[data-baseweb="tab"] {
         min-height: 44px;
     }
 }
+
+/* ---- Mobile Direction C: persistent bottom tab bar + full-bleed ----
+ * The approved mobile redesign ("C · Immersive + bottom nav"). The real
+ * fix for the "where's the menu?" complaint: a mobile-native bottom tab
+ * bar that's always visible, so the primary surfaces (Today / Alerts /
+ * Cases / Audit) are one thumb-tap away and "More" opens the Start front
+ * door. The ☰ hamburger still opens the full sidebar (all 44 pages).
+ *
+ * The bar is injected once per page in app.py (a <nav class="dna-tabbar">
+ * of anchor links with target="_top"). It is hidden on desktop — where
+ * the sidebar is the nav — and revealed only inside the ≤640px phone
+ * query below. */
+.dna-tabbar { display: none; }
+
+@media (max-width: 640px) {
+    /* --- Full-bleed: kill the dark side-gutters (#66 follow-on) ---
+     * Phone users saw the content float as a card with dark margins
+     * either side. Own the whole canvas with cream and let the block
+     * container run edge-to-edge with only a small reading inset. */
+    body,
+    [data-testid="stApp"],
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"],
+    [data-testid="stAppViewContainer"] > .main,
+    [data-testid="stAppViewContainer"] section.main {
+        background: var(--dna-bg) !important;
+    }
+    .block-container {
+        max-width: 100vw !important;
+        width: 100% !important;
+        padding-left: 18px !important;
+        padding-right: 18px !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    /* Leave room for the fixed tab bar so it never covers content. */
+    [data-testid="stMain"] {
+        padding-bottom: 76px !important;
+    }
+
+    /* --- The bottom tab bar itself --- */
+    .dna-tabbar {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(253, 251, 245, 0.94);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid var(--dna-rule);
+        padding: 9px 6px 22px;
+        z-index: 999990;
+    }
+    .dna-tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        color: var(--dna-ink-faint);
+        font-size: 10.5px;
+        font-weight: 600;
+        text-decoration: none;
+        min-height: 0;  /* override the global 44px tap floor stacking */
+    }
+    .dna-tab:hover,
+    .dna-tab:visited,
+    .dna-tab:active { text-decoration: none; }
+    .dna-tab .dna-tab-ic {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        border: 2px solid currentColor;
+    }
+    .dna-tab.on { color: var(--dna-accent); }
+    .dna-tab.on .dna-tab-ic {
+        background: var(--dna-accent);
+        border-color: var(--dna-accent);
+    }
+}
+
+/* ---- Direction C: Start-page ink hero band + stat cards ----
+ * The landing hero on the Start page's hero screen (idx<0 branch of
+ * pages/0_Start.py). Injected as HTML there; styled here. Full-bleed
+ * ink band with reverse-type wordmark + serif H1, then three stat cards.
+ * Negative margins pull the band out of the .block-container reading
+ * inset so it runs edge-to-edge (true full-bleed on phones; on desktop
+ * it stays a contained band, which is acceptable per the brief). */
+.dna-start-hero {
+    background: var(--dna-ink);
+    color: #f3efe6;
+    padding: 26px 24px 34px;
+    margin: 0 -18px 0 -18px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 0;
+}
+.dna-start-hero::after {
+    content: "";
+    position: absolute;
+    right: -60px;
+    top: -60px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(164, 75, 48, 0.35), transparent 70%);
+    pointer-events: none;
+}
+.dna-start-hbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+    position: relative;
+}
+.dna-start-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dna-accent);
+}
+.dna-start-wordmark {
+    font-family: var(--dna-display, 'Source Serif 4', Georgia, serif);
+    font-weight: 600;
+    font-size: 16px;
+    color: #f3efe6;
+}
+.dna-start-h1 {
+    font-family: var(--dna-display, 'Source Serif 4', Georgia, serif) !important;
+    font-weight: 600;
+    font-size: 36px;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: #f3efe6 !important;
+    position: relative;
+    margin: 0;
+}
+.dna-start-h1 em {
+    font-style: italic;
+    color: var(--dna-accent);
+}
+.dna-start-lede {
+    margin-top: 16px;
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: #c8c3b8 !important;
+    max-width: 34ch;
+    position: relative;
+}
+.dna-start-stats {
+    display: flex;
+    gap: 10px;
+    margin: 24px 0 6px;
+}
+.dna-start-stat {
+    flex: 1;
+    background: var(--dna-bg-card);
+    border: 1px solid var(--dna-rule);
+    border-radius: 14px;
+    padding: 14px 12px;
+}
+.dna-start-n {
+    font-family: var(--dna-display, 'Source Serif 4', Georgia, serif);
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--dna-accent);
+}
+.dna-start-l {
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dna-ink-faint);
+    margin-top: 2px;
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    /* Stretch the hero band fully edge-to-edge to match the 18px
+     * full-bleed block-container inset on phones. */
+    .dna-start-hero { margin-left: -18px; margin-right: -18px; }
+}
 </style>
 """
 

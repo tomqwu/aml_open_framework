@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<title>B · Thread card</title>
+<style>
+  :root{
+    --bg:#f7f4ec; --card:#fdfbf5; --ink:#1c1f26; --ink-dim:#5f6b78; --ink-faint:#9aa3ad;
+    --accent:#a44b30; --rule:rgba(28,31,38,.10);
+    --display:'Source Serif 4',Georgia,serif; --body:'Inter',-apple-system,system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:#2a2d33}
+  .phone{width:390px;min-height:844px;margin:0 auto;background:var(--bg);
+    font-family:var(--body);color:var(--ink);position:relative;display:flex;flex-direction:column}
+  .topbar{height:60px;display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid var(--rule)}
+  .menu{width:40px;height:40px;border-radius:11px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 3px 10px rgba(28,31,38,.18)}
+  .brand{display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .wordmark{font-family:var(--display);font-weight:600;font-size:17px}
+  .content{flex:1;padding:32px 22px 28px}
+  .eyebrow{font-size:11px;letter-spacing:.18em;color:var(--accent);font-weight:600;text-transform:uppercase;margin-bottom:16px}
+  h1{font-family:var(--display);font-weight:600;font-size:32px;line-height:1.1;letter-spacing:-.02em;margin-bottom:12px}
+  h1 em{font-style:italic;color:var(--accent)}
+  .lede{font-size:14px;line-height:1.5;color:var(--ink-dim);margin-bottom:26px}
+  /* the golden-thread teaser card */
+  .card{background:var(--card);border:1px solid var(--rule);border-radius:18px;padding:22px 20px 8px;
+    box-shadow:0 1px 0 rgba(255,255,255,.6),0 10px 30px -18px rgba(28,31,38,.25);margin-bottom:26px}
+  .card-h{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-bottom:18px}
+  .step{display:flex;gap:14px;padding-bottom:20px;position:relative}
+  .step:not(:last-child)::before{content:"";position:absolute;left:13px;top:30px;bottom:0;width:2px;background:var(--rule)}
+  .num{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:14px;font-weight:600;z-index:1}
+  .step-b .t{font-family:var(--display);font-size:16px;font-weight:600;line-height:1.25;margin-bottom:3px}
+  .step-b .d{font-size:12.5px;line-height:1.45;color:var(--ink-dim)}
+  .cta{display:block;width:100%;padding:17px;border-radius:14px;background:var(--accent);color:#fff;font-weight:600;font-size:16px;text-align:center;border:none;box-shadow:0 6px 18px rgba(164,75,48,.28)}
+  .skip{display:block;text-align:center;margin-top:16px;color:var(--ink-dim);font-size:14px;font-weight:500}
+</style></head>
+<body><div class="phone">
+  <div class="topbar">
+    <div class="menu">&#9776;</div>
+    <div class="brand"><span class="dot"></span><span class="wordmark">AML Open Framework</span></div>
+  </div>
+  <div class="content">
+    <div class="eyebrow">Start here</div>
+    <h1>See it <em>show</em>, in 90 seconds.</h1>
+    <p class="lede">One real case, end to end — the proof, not a feature list.</p>
+    <div class="card">
+      <div class="card-h">The golden thread · live</div>
+      <div class="step"><div class="num">1</div><div class="step-b"><div class="t">The engine caught this.</div><div class="d">12 cash deposits just under $10k in 6 days — structuring.</div></div></div>
+      <div class="step"><div class="num">2</div><div class="step-b"><div class="t">The case your team works.</div><div class="d">Customer, evidence, timeline — already assembled.</div></div></div>
+      <div class="step"><div class="num">3</div><div class="step-b"><div class="t">What you hand the regulator.</div><div class="d">Every decision replayable, byte-for-byte.</div></div></div>
+    </div>
+    <button class="cta">&#9654;&nbsp;&nbsp;Walk the thread</button>
+    <a class="skip">Skip to the app &rarr;</a>
+  </div>
+</div></body></html>

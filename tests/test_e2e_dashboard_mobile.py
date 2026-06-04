@@ -679,6 +679,72 @@ def test_mobile_menu_control_visible_on_non_start_page(_playwright, dashboard_se
 
 
 # ---------------------------------------------------------------------------
+# Acceptance: the Direction-C persistent BOTTOM TAB BAR is the primary
+# mobile nav — VISIBLE and in-viewport, and a tab tap actually navigates.
+#
+# This is the headline of the mobile-redesign ("Direction C"): the real
+# answer to "where's the menu?" is a persistent bottom tab bar, always
+# on screen, so the primary surfaces (Today / Alerts / Cases / Audit) are
+# one thumb-tap away. The bar is injected in `app.py` and revealed only
+# inside the ≤640px phone CSS query. This test asserts FINDABILITY (it is
+# visible AND pinned to the bottom edge within the viewport width), not
+# just presence, then taps "Alerts" and asserts the route changes to the
+# Alert Queue slug.
+# ---------------------------------------------------------------------------
+
+
+def test_bottom_tabbar_visible_and_navigates(_playwright, dashboard_server):
+    """The bottom tab bar is VISIBLE and in-viewport on the Today page
+    (375x667), and tapping the "Alerts" tab navigates to /Alert_Queue."""
+    browser, page = _open_mobile_page(_playwright, dashboard_server, {"width": 375, "height": 667})
+    try:
+        # Land on the Today page (a non-Start surface) and settle.
+        page.goto(
+            f"http://localhost:{PORT}/Today",
+            wait_until="domcontentloaded",
+            timeout=60000,
+        )
+        page.wait_for_selector("[data-testid='stHeading'], h1", state="visible", timeout=60000)
+        page.wait_for_timeout(5000)
+
+        tabbar = page.locator(".dna-tabbar").first
+        # FINDABILITY, not just presence: the bar must be rendered
+        # (not display:none from the desktop fallback) AND on-screen.
+        assert tabbar.is_visible(), "bottom tab bar not visible on the Today page at 375x667"
+
+        box = tabbar.bounding_box()
+        assert box is not None, "bottom tab bar has no measurable bounding box"
+        # Pinned to the bottom edge: its bottom sits at the viewport
+        # bottom (667), within a small slop for the fixed-position
+        # blur bar. Spans the full width (left at 0, within 375).
+        bottom = box["y"] + box["height"]
+        assert abs(bottom - 667) <= 2, (
+            f"bottom tab bar not pinned to the viewport bottom: bottom={bottom} (want ~667)"
+        )
+        assert box["x"] <= 1, f"bottom tab bar not flush-left: x={box['x']}"
+        assert box["x"] + box["width"] <= 376, (
+            f"bottom tab bar overflows the viewport width: right={box['x'] + box['width']}"
+        )
+
+        # All five tabs present, and exactly one marked active (.on).
+        tabs = page.locator(".dna-tab")
+        assert tabs.count() == 5, f"expected 5 tabs, found {tabs.count()}"
+        assert page.locator(".dna-tab.on").count() == 1, "expected exactly one active tab"
+
+        # Tap the "Alerts" tab — a real user thumb-tap — and assert the
+        # route changed to the Alert Queue slug (proves the anchor's
+        # target="_top" full-reload nav works, not just that it's there).
+        before = page.url
+        page.locator(".dna-tab", has_text="Alerts").first.click(timeout=8000)
+        page.wait_for_function("u => location.href !== u", arg=before, timeout=8000)
+        assert "/Alert_Queue" in page.url, (
+            f"tapping the Alerts tab did not reach the Alert Queue slug: {page.url}"
+        )
+    finally:
+        browser.close()
+
+
+# ---------------------------------------------------------------------------
 # Acceptance: page renders without a Streamlit error banner on mobile
 # ---------------------------------------------------------------------------
 

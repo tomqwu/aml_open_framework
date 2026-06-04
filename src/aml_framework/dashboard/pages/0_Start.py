@@ -69,7 +69,40 @@ def _go(i: int) -> None:
 
 
 if idx < 0:
-    # Hero screen: one sentence (header) + one button.
+    # Hero screen — Direction C landing: an ink full-bleed hero band with
+    # reverse-type wordmark + serif H1 (cream, rust *show*), three stat
+    # cards (Rules / Alerts / Cases from the live cached run), then the
+    # rust "Show me it's real" CTA. Injected as HTML so it reads great on
+    # a phone (and acceptably on desktop). The `page_header()` above is
+    # kept (it mounts the AI assistant + satisfies the source-guard test);
+    # its visual title is superseded by this band on the hero screen.
+    _spec = st.session_state.get("spec")
+    _result = st.session_state.get("result")
+    _n_rules = len(getattr(_spec, "rules", []) or [])
+    _n_alerts = int(getattr(_result, "total_alerts", 0) or 0)
+    _n_cases = len(_records("df_cases"))
+    st.markdown(
+        f"""
+<div class="dna-start-hero">
+  <div class="dna-start-hbar">
+    <span class="dna-start-dot"></span>
+    <span class="dna-start-wordmark">AML Open Framework</span>
+  </div>
+  <h1 class="dna-start-h1">An AML program you can <em>show</em>.</h1>
+  <p class="dna-start-lede">Not just describe — shown to your regulator
+     without a six-week reconstruction.</p>
+</div>
+<div class="dna-start-stats">
+  <div class="dna-start-stat"><div class="dna-start-n">{_n_rules}</div>
+     <div class="dna-start-l">Rules</div></div>
+  <div class="dna-start-stat"><div class="dna-start-n">{_n_alerts}</div>
+     <div class="dna-start-l">Alerts</div></div>
+  <div class="dna-start-stat"><div class="dna-start-n">{_n_cases}</div>
+     <div class="dna-start-l">Cases</div></div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
     st.button("▶  Show me it's real", type="primary", on_click=_go, args=(0,))
     st.page_link("pages/0_Today.py", label="Skip to the app →")
     page_footer()

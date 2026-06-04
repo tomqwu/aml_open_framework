@@ -408,6 +408,47 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ---------------------------------------------------------------------------
+# Mobile bottom tab bar — Direction C (the "where's the menu?" fix).
+#
+# A persistent 5-tab bar pinned to the bottom of the viewport on phones
+# (≤640px; CSS in components.py hides it on desktop, where the sidebar
+# is the primary nav). Each tab is an anchor with `target="_top"` so it
+# breaks out of Streamlit's iframe and triggers a real full-page nav —
+# the same mechanism the topbar home link proves works (Streamlit strips
+# inline <script>, so no JS). The slugs were verified empirically against
+# the live app (see feat/mobile-direction-c probe):
+#   Today  -> /Today
+#   Alerts -> /Alert_Queue
+#   Cases  -> /Case_Investigation
+#   Audit  -> /Audit_Evidence   (the "&" in the title is dropped, not encoded)
+#   More   -> /                 (the Start front door — full menu + tour;
+#                                the ☰ control still opens all 44 pages)
+#
+# The active tab is computed SERVER-SIDE from `pg.url_path` (no JS): the
+# default page (Start) reports an empty url_path and lights "More".
+_active_path = pg.url_path or ""
+_TABS = (
+    ("Today", "Today"),
+    ("Alert_Queue", "Alerts"),
+    ("Case_Investigation", "Cases"),
+    ("Audit_Evidence", "Audit"),
+    ("", "More"),  # /  -> Start front door
+)
+_tab_html = "".join(
+    '<a class="dna-tab{on}" href="/{slug}" target="_top" aria-label="{label}">'
+    '<span class="dna-tab-ic"></span><span class="dna-tab-lbl">{label}</span></a>'.format(
+        on=" on" if _active_path == slug else "",
+        slug=slug,
+        label=label,
+    )
+    for slug, label in _TABS
+)
+st.markdown(
+    f'<nav class="dna-tabbar" aria-label="Primary mobile navigation">{_tab_html}</nav>',
+    unsafe_allow_html=True,
+)
+
 spec = st.session_state.spec
 result = st.session_state.result
 
