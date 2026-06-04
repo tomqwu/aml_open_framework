@@ -12,6 +12,7 @@ from aml_framework.dashboard.audience import (
     NORTH_STAR_PAGES,
     PERSONA_LABELS,
     TRACKING_PAGES,
+    TRIAGE_PAGES,
     TUNING_PAGES,
     persona_description,
 )
@@ -95,6 +96,11 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             icon=":material/inbox:",
         ),
         st.Page("pages/11_Live_Monitor.py", title="Live Monitor", icon=":material/monitor_heart:"),
+        st.Page(
+            "pages/52_Triage_Queue.py",
+            title="Triage Queue",
+            icon=":material/sort:",
+        ),
     ],
     "Risk & Compliance": [
         # 2LoD lane — exposure, sanctions screening, regulator-side
@@ -339,6 +345,8 @@ if selected_audience:
     relevant_titles.update(TRACKING_PAGES)
     # PR-EQ-3 — Equivalence (legacy↔new divergence) surface.
     relevant_titles.update(EQUIVALENCE_PAGES)
+    # M1 (N1 follow-on) — Triage Queue advisory priority-sort surface.
+    relevant_titles.update(TRIAGE_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()

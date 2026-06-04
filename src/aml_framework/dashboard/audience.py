@@ -423,6 +423,17 @@ LIFECYCLE_PAGES = [
 ]
 
 
+# M1 (N1 follow-on). Triage Queue ranks alerts by the advisory N1
+# priority_score. It's a cross-cutting investigator surface (analysts,
+# managers, MLROs, examiners all benefit), so it's routed UNIVERSALLY via
+# the same idiom as NORTH_STAR_PAGES / TUNING_PAGES (app.py adds these
+# titles to the visible set for every persona), NOT via AUDIENCE_PAGES —
+# that preserves MAX_PAGES_PER_PERSONA=9 for the operational arcs.
+TRIAGE_PAGES = [
+    "Triage Queue",
+]
+
+
 def show_audience_context(page_title: str) -> None:
     """Show a subtle context line if an audience is selected."""
     import streamlit as st
