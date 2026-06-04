@@ -2806,6 +2806,30 @@ def _render_equivalence_markdown(
         lines.append("_No rules classified._")
     lines.append("")
 
+    # Divergence clusters (NEW_ONLY / LEGACY_ONLY grouped by shape).
+    # A triage lens — the four-way classification above is authoritative.
+    from aml_framework.engine.equivalence_clustering import cluster_divergences
+
+    cluster_report = cluster_divergences(report)
+    lines.append("## Divergence clusters")
+    lines.append("")
+    lines.append(
+        "_Shape-signature grouping of NEW_ONLY / LEGACY_ONLY cells "
+        "(a triage lens; the four-way classification above is authoritative)._"
+    )
+    lines.append("")
+    if cluster_report.clusters:
+        lines.append("| Classification | Rule | Severity | Window (days) | Size |")
+        lines.append("| --- | --- | --- | ---: | ---: |")
+        for cl in cluster_report.clusters:
+            lines.append(
+                f"| {cl.classification.value} | `{cl.rule_id}` | {cl.severity} | "
+                f"{cl.window_days} | {cl.size} |"
+            )
+    else:
+        lines.append("_No divergences to cluster._")
+    lines.append("")
+
     # Top 20 of each class (deterministic — cells are already sorted by
     # (customer, period, rule) so the head is stable across runs).
     by_class: dict[EquivalenceClass, list] = {cls: [] for cls in EquivalenceClass}
