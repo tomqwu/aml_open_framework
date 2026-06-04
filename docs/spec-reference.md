@@ -87,6 +87,8 @@ Engine never raises on SLA breach; it records the breach in `sla_report.json` fo
 
 Each scored alert gains two fields: `priority_score` (float 0–1, sigmoid of the weighted sum) and `priority_explanation` (list of `{feature, value, contribution}` dicts — one per feature plus a bias term). The engine emits `priority_report.json` in the run directory (frozen read-only, SHA-256 hash pinned in `manifest.json` as `priority_report_hash`). Score is deterministic: same spec + same data + same seed → identical scores → identical hash. *PR-PRIO / Round 33.*
 
+**Champion-challenger outcome analysis (M3).** When prioritization is enabled and `aml run` is given `--labels <csv>` (a `customer_id,is_true_positive` ground-truth file), the engine additionally emits `priority_outcome.json` — a deterministic SR-26-2 outcome artifact scoring every alert with the champion (the spec's weights) and a challenger (`--challenger-weights '{"amount": 5.0}'`), reporting `precision@k` + `recall` per config and a `winner`. Frozen read-only and pinned in `manifest.json` as `priority_outcome_hash`, like `priority_report.json`. The scorer reads only as-of alert features (no future-dated lookups) — a temporal-leakage guard proven by `test_score_is_invariant_to_a_future_dated_field`.
+
 ## `data_contracts`
 
 Declared inputs. The engine refuses to run if the warehouse schema does not
