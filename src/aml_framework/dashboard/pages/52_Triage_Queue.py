@@ -37,7 +37,15 @@ st.caption(
 df_alerts = st.session_state.df_alerts
 
 _enabled = triage.has_priority(df_alerts)
+_suppression_on = triage.has_suppression(df_alerts)
 _scored = triage.triage_view(df_alerts) if _enabled else df_alerts.iloc[0:0]
+if _suppression_on and len(_scored):
+    _scored = triage.with_suppression_cols(_scored)
+_suppressed_count = (
+    int(_scored[triage.SUPPRESSED_COL].sum())
+    if len(_scored) and triage.SUPPRESSED_COL in _scored.columns
+    else 0
+)
 section_explainer(
     page="Triage Queue",
     section_id="triage.page",
@@ -49,6 +57,8 @@ section_explainer(
         "top_score": (
             round(float(_scored[triage.PRIORITY_COL].iloc[0]), 4) if len(_scored) else None
         ),
+        "suppression_enabled": bool(_suppression_on),
+        "suppressed_count": _suppressed_count,
     },
 )
 
@@ -67,6 +77,26 @@ if not triage.has_priority(df_alerts):
     st.stop()
 
 view = triage.triage_view(df_alerts)
+
+if _suppression_on:
+    view = triage.with_suppression_cols(view)
+    st.caption(
+        "🛈 **Suppression is advisory** — flagged alerts are de-prioritized, "
+        "never closed; an investigator can override. The rule alert remains in "
+        "the ledger."
+    )
+    hide_suppressed = st.checkbox(
+        "Hide suppressed (advisory)",
+        value=False,
+        help=(
+            "OFF by default — all alerts stay visible. Toggle on to focus the "
+            "queue on alerts that were NOT advisory-suppressed. Suppressed "
+            "alerts are never removed from the run, only filtered from this view."
+        ),
+    )
+    if hide_suppressed:
+        view = view[~view[triage.SUPPRESSED_COL]]
+
 available = [c for c in triage.DISPLAY_COLS if c in view.columns]
 
 st.subheader(f"{len(view)} scored alerts")

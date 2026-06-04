@@ -17,6 +17,9 @@ import pandas as pd
 
 PRIORITY_COL = "priority_score"
 EXPLANATION_COL = "priority_explanation"
+SUPPRESSION_COL = "suppression"
+SUPPRESSED_COL = "suppressed"
+SUPPRESSION_SEGMENT_COL = "suppression_segment"
 
 # Columns to surface in the queue table, in display order, when present.
 DISPLAY_COLS = [
@@ -27,6 +30,8 @@ DISPLAY_COLS = [
     "amount",
     "sum_amount",
     "count",
+    SUPPRESSED_COL,
+    SUPPRESSION_SEGMENT_COL,
 ]
 
 
@@ -49,6 +54,36 @@ def triage_view(df: pd.DataFrame) -> pd.DataFrame:
         kind="mergesort",  # stable
     ).reset_index(drop=True)
     return scored
+
+
+def has_suppression(df: pd.DataFrame) -> bool:
+    """True when the alert frame carries at least one alert that went through
+    the advisory suppression pass (a `suppression` dict with a non-null
+    `applied` flag). Off-by-default: returns False when the column is absent."""
+    if df is None or df.empty or SUPPRESSION_COL not in df.columns:
+        return False
+    return bool(
+        df[SUPPRESSION_COL]
+        .apply(lambda s: isinstance(s, dict) and s.get("applied") is not None)
+        .any()
+    )
+
+
+def with_suppression_cols(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy of `df` with flattened advisory-suppression columns
+    (`suppressed` bool, `suppression_segment` str) derived from the per-alert
+    `suppression` dict. No-op copy when the column is absent. ADVISORY — these
+    columns only annotate the view; nothing is removed or re-disposed."""
+    out = df.copy()
+    if SUPPRESSION_COL not in out.columns:
+        return out
+    out[SUPPRESSED_COL] = out[SUPPRESSION_COL].apply(
+        lambda s: bool(s.get("applied")) if isinstance(s, dict) else False
+    )
+    out[SUPPRESSION_SEGMENT_COL] = out[SUPPRESSION_COL].apply(
+        lambda s: s.get("segment_id") if isinstance(s, dict) else None
+    )
+    return out
 
 
 def explanation_rows(explanation: Any) -> list[dict[str, Any]]:

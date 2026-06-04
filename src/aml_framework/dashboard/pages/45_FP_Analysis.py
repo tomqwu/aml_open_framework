@@ -26,6 +26,9 @@ Tuning Lab, and Rule Performance so the operator can jump from
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
 
@@ -242,6 +245,60 @@ data_grid(
         "Column is numeric — click the header to re-sort numerically."
     ),
 )
+
+# ---------------------------------------------------------------------------
+# Suppression summary (#495) — advisory risk-segment de-prioritization. The
+# runner emits `suppression_report.json` ONLY when risk-segmentation is
+# enabled (off by default), so the file usually won't exist — handle absent
+# gracefully with a one-line note. When present, surface the aggregate
+# suppressed / scored counts plus the per-segment and per-rule breakdowns.
+# ADVISORY: suppression de-prioritizes, it never closes an alert; the rule
+# alert stays in the ledger. No customer_id in this aggregate view.
+# ---------------------------------------------------------------------------
+st.markdown("---")
+st.markdown("### Suppression summary")
+
+_supp_report = None
+_supp_path = Path(st.session_state.run_dir) / "suppression_report.json"
+if _supp_path.exists():
+    _supp_report = json.loads(_supp_path.read_text(encoding="utf-8"))
+
+if not _supp_report or not _supp_report.get("enabled"):
+    st.caption(
+        "Risk segmentation is not enabled for this program — no advisory "
+        "suppression ran. Add a `program.risk_segmentation` block to "
+        "de-prioritize low-risk-segment alerts (advisory; never auto-closed)."
+    )
+else:
+    st.caption(
+        "⚖️ **Advisory only.** These alerts were de-prioritized for low-risk "
+        "segments — they are NOT closed and remain in the ledger; an "
+        "investigator can override. Counts are aggregate (no customer_id)."
+    )
+    _scored = int(_supp_report.get("scored_alerts", 0))
+    _suppressed = int(_supp_report.get("suppressed", 0))
+    _c1, _c2 = st.columns(2)
+    _c1.metric("Suppressed (advisory)", _suppressed)
+    _c2.metric("Scored alerts", _scored)
+
+    _by_segment = _supp_report.get("by_segment") or {}
+    _by_rule = _supp_report.get("by_rule") or {}
+    if _by_segment:
+        st.markdown("**By segment**")
+        st.dataframe(
+            pd.DataFrame([{"segment_id": k, "suppressed": v} for k, v in _by_segment.items()]),
+            hide_index=True,
+            use_container_width=True,
+        )
+    if _by_rule:
+        st.markdown("**By rule**")
+        st.dataframe(
+            pd.DataFrame([{"rule_id": k, "suppressed": v} for k, v in _by_rule.items()]),
+            hide_index=True,
+            use_container_width=True,
+        )
+    if not _by_segment and not _by_rule:
+        st.caption("Suppression ran but no alert fell below a segment threshold.")
 
 # ---------------------------------------------------------------------------
 # Cross-links — the operator's next moves. Same `link_to_page` discipline
