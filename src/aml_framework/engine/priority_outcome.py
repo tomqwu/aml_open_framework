@@ -50,12 +50,13 @@ class PriorityOutcome(BaseModel):
 
 
 def precision_at_k(ranked_ids: list[str], labels: dict[str, bool], k: int) -> float:
-    """Fraction of the top-k ranked alerts whose customer is a labelled positive."""
-    top = ranked_ids[:k]
-    if not top:
+    """Textbook precision@k: labelled positives in the top-k divided by `k`.
+    The denominator is `k` (not the slice length) so a short ranking is not
+    flattered — precision@20 over 3 alerts can be at most 3/20."""
+    if k <= 0:
         return 0.0
-    hits = sum(1 for cid in top if labels.get(cid) is True)
-    return round(hits / len(top), 6)
+    hits = sum(1 for cid in ranked_ids[:k] if labels.get(cid) is True)
+    return round(hits / k, 6)
 
 
 def recall_at_labels(ranked_ids: list[str], labels: dict[str, bool]) -> float:
@@ -92,7 +93,11 @@ def _score_rows(
         if rule is None:
             continue
         for a in alerts:
-            score = score_alert(a, rule, config).score
+            # ENFORCE the leakage guard: the scorer only ever sees the as-of
+            # feature keys — never a post-as_of field that happens to ride on
+            # the alert dict. customer_id is carried separately for ranking.
+            safe = {k: a[k] for k in LEAKAGE_SAFE_FEATURES if k in a}
+            score = score_alert(safe, rule, config).score
             rows.append((score, str(rule_id), str(a.get("customer_id"))))
     return rows
 

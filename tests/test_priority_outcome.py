@@ -26,6 +26,28 @@ def test_precision_at_k_counts_true_positives_in_top_k():
     assert precision_at_k(ranked, labels, 4) == 0.5  # 2 true of 4
 
 
+def test_precision_at_k_edge_cases():
+    labels = {"C0001": True, "C0002": True}
+    assert precision_at_k([], labels, 5) == 0.0  # empty ranking
+    assert precision_at_k(["C0001"], {}, 5) == 0.0  # no positives
+    assert precision_at_k(["C0001"], labels, 0) == 0.0  # k=0 guarded
+    # k > len(ranking): denominator is k (textbook), not the slice length.
+    assert precision_at_k(["C0001", "C0002"], labels, 20) == round(2 / 20, 6)
+
+
+def test_outcome_score_ignores_non_allowlisted_alert_fields():
+    # A post-as_of field riding on the alert must not change the backtest
+    # score — the builder filters to LEAKAGE_SAFE_FEATURES before scoring.
+    rule = _rule()
+    clean = {"r1": [_alert("C0001", 90000, 9)]}
+    leaked = {"r1": [{**_alert("C0001", 90000, 9), "future_balance": 10_000_000}]}
+    labels = {"C0001": True}
+    cfg = ProgramPrioritization(enabled=True)
+    a = build_priority_outcome(clean, {"r1": rule}, labels, champion=cfg, challenger=cfg)
+    b = build_priority_outcome(leaked, {"r1": rule}, labels, champion=cfg, challenger=cfg)
+    assert a.champion.mean_score == b.champion.mean_score
+
+
 def test_recall_counts_labelled_positives_surfaced():
     ranked = ["C0001", "C9999"]
     labels = {"C0001": True, "C0002": True}  # 2 positives, only C0001 surfaced

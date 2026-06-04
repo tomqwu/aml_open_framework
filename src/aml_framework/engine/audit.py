@@ -602,13 +602,17 @@ class AuditLedger:
             "field_lineage_hash": field_lineage_hash,
             "sla_report_hash": sla_report_hash,
             "priority_report_hash": priority_report_hash,
-            "priority_outcome_hash": priority_outcome_hash,
             "run_cost_volume_hash": run_cost_volume_hash,
             "monitoring_digest_hash": monitoring_digest_hash,
             "defect_log_hash": defect_log_hash,
             "reconciliation_report_hash": reconciliation_report_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
+        # Pin the outcome hash only when the artifact exists (labels supplied) —
+        # a run without champion-challenger labels stays manifest-key-identical
+        # to the pre-M3 baseline rather than carrying a `None` placeholder.
+        if priority_outcome_hash is not None:
+            manifest["priority_outcome_hash"] = priority_outcome_hash
         (self.run_dir / "manifest.json").write_bytes(
             json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
         )
