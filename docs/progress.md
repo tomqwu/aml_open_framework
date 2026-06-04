@@ -1,6 +1,22 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-03. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **M1–M4 — ML/AI roadmap Now tier, drained in one 24h marathon** (`v0.1.46` + `v0.1.47`, #481–#488, 2026-06-04): the four Now-tier initiatives off the N1 governed-augmentation seam, each plan → TDD → Codex → CI → merge. All four GH issues opened and closed in the same session; 0 open issues at close.
+>
+> - **M1 — Triage Queue** (`v0.1.46`, #485): dashboard page (`pages/52_Triage_Queue.py` + Streamlit-free `dashboard/triage.py` helpers) ranking alerts by the advisory N1 `priority_score` with a per-alert "Why this score?" explanation panel (data_grid red=urgent gradient + section_explainer). Universally routed; advisory-only framing explicit; e2e + screenshot. The user-facing payoff of N1 — investigators can finally sort the queue by SAR-likelihood. Caught a `.[dev]`-only CI gap (test imported pandas unguarded) → `pytest.importorskip`.
+>
+> - **M2 — `aml model-inventory`** (`v0.1.47`, #486): spec-only, deterministic SR-26-2 model-population inventory (`generators/model_inventory.py`) covering every rule, every `python_ref` external model, **and** the N1 prioritization scorer (which the rule-centric `build_inventory` misses) — `--out` JSON + `--markdown` table. CLI-only, no deploy of its own. Codex: markdown pipe-escaping.
+>
+> - **M3 — champion-challenger `priority_outcome.json`** (`v0.1.47`, #487): `aml run --labels labels.csv [--challenger-weights '{...}']` scores labelled alerts with champion vs challenger, reports precision@k / recall, picks a `winner`; frozen + manifest-pinned like `priority_report.json`. **Temporal-leakage guard enforced at runtime** — the scorer is fed only an allowlist of as-of features, proven by an invariance test. Codex (1 round): conditional manifest pin (no-label runs stay baseline-identical), precision@k denominator, enforced allowlist.
+>
+> - **M4 — point-in-time effective-dated joins** (`v0.1.47`, #488, **Pillar 3 PARTIAL→COVERED**): `DataContract.effective_dated: {valid_from, valid_to}` + `aggregation_window.enrich: {contract, key, where}` make the SQL generator emit an as-of JOIN (pre-filtered base subquery → `ref.valid_from <= booked_at < ref.valid_to`) so a rule resolves reference state contemporaneous with each txn. The proof: a customer whose risk goes low→high mid-window is counted only for the txns booked **while high** (`count==2`, not the latest-row `count==4`). `key` not `on` — YAML 1.1 coerces a bare `on:` to boolean `true`. Codex (2 rounds): OR-precedence parens, raise-don't-silently-drop the join when `contracts` absent (threaded through runner/dbt/tuning/backtest/2 tuning pages), column-ambiguity base-subquery, key cross-ref validation, and preserving `enrich` in dashboard what-if previews.
+>
+> **Azure deploys**: `v0.1.46` (M1, dashboard) rolled mid-marathon — live `/Triage_Queue` 200, `/api/v1/health` → `0.1.46`. `v0.1.47` (M2/M3/M4) batched after the M4 merge — M2 is CLI-only, M3 is an engine artifact, M4 flips the North-Star Pillar-3 card live. Both Container Apps + smoke at `/api/v1/health`.
+>
+> **Process notes**: the user set a standing "don't prompt me while issues/PRs are in the queue" directive for the marathon (`project_marathon_autonomy_2026-06` memory). One mid-flight recovery: after the M2 merge switched HEAD to `main`, M3's Task-3 edits landed on `main` by mistake — caught via `'Rule' object has no attribute 'owner'` at import, stashed + rebased the M3 branch onto current main, re-applied cleanly, no work lost.
+>
+> **Result**: 4 issues + 8 PRs (incl. the badge-branch CI fix #480 and docs PRs) merged, 2 Azure deploys, 0 open issues at close. The N1 governed seam now has its triage UI (M1), its model-inventory governance companion (M2), its outcome-analysis + leakage guard (M3), and its point-in-time data foundation (M4).
 
 > **N1 — governed alert-prioritization layer** (`v0.1.45`, #477, 2026-06-03): first of the ML/AI roadmap ("governed augmentation") initiatives (the N1 plan). Establishes the **governed seam** an advisory ML triage score plugs into: explainable, deterministic, and constitutionally incapable of changing a disposition.
 >
