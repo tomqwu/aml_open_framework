@@ -2,7 +2,7 @@
 
 This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed in the May 2026 window that generate compliance deadlines between 2026-06-01 and 2026-08-31. It is a living forward-calendar companion to the full chronological log in [`2026-05-regulator-pulse.md`](2026-05-regulator-pulse.md), which covers the 120-day event window 2026-02-01 → 2026-05-31.
 
-> **Last updated 2026-06-03.** *Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events. Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — 89 days, 30 events.*
+> **Last updated 2026-06-04.** *Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events. Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — 89 days, 30 events.*
 
 ---
 
@@ -18,7 +18,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-06-09 · FinCEN / OCC / FDIC / NCUA + OFAC — Effectiveness NPRM AND GENIUS Act Stablecoin NPRM comment deadlines (same day)
 
-**What it is:** Two major NPRMs share a single comment deadline. **6 days remain.**
+**What it is:** Two major NPRMs share a single comment deadline. **5 days remain.**
 
 1. **AML/CFT Program "Effectiveness" NPRM (Federal Register 2026-07033):** FinCEN, OCC, FDIC, and NCUA jointly reframe the BSA program rule around an "effective, risk-based, reasonably designed" standard implementing the AMLA 2020 mandate. A documented enterprise-wide risk assessment becomes a pillar (not just expected practice), and FinCEN national priorities must be incorporated into the program. "Effectiveness" is split into (1) program established and (2) program maintained — distinguishing technical from systemic failure. Proposed implementation period: 12 months after a final rule. Expected final rule late 2026 / early 2027.
 
@@ -40,7 +40,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-01 · AUSTRAC — Tranche 2 enforcement begins for Australian DNFBPs
 
-**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brings Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, enforceable from 2026-07-01. **28 days remain.**
+**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brings Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, enforceable from 2026-07-01. **27 days remain.**
 
 **What MLROs need to do:**
 - Australian DNFBPs must be enrolled with AUSTRAC and have a documented, board-approved AML/CTF program before July 1.
@@ -55,7 +55,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-10 · AMLA — Statutory deadline to submit all final RTS to European Commission
 
-**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **37 days remain.**
+**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **36 days remain.**
 
 **What MLROs need to do:**
 - EU-supervised obliged entities should treat July 10 as the "locked-in" date for the RTS framework. Post-July amendments require a full new legislative cycle.
@@ -67,6 +67,21 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 - [AMLA business-relationships RTS consultation](https://www.amla.europa.eu/policy/public-consultations/consultation-draft-rts-criteria-identifying-business-relationships-occasional-and-linked_en)
 - [AMLA pecuniary-sanctions RTS consultation](https://www.amla.europa.eu/policy/public-consultations/consultation-draft-rts-pecuniary-sanctions-administrative-measures-and-periodic-penalty-payments_en)
 - [AMLA selection exercise press release](https://www.amla.europa.eu/amla-advances-preparations-2027-selection-exercise_en)
+
+---
+
+## What the Framework Shipped in June 2026 (to date)
+
+Four ML/AI roadmap features delivered 2026-06-04 across `v0.1.46` + `v0.1.47`:
+
+| Feature | Version | SR 26-2 / Effectiveness NPRM relevance |
+|---------|---------|----------------------------------------|
+| **M1 — Triage Queue** dashboard page | v0.1.46 | Advisory `priority_score` with per-alert explanation panel; deterministic, explainable, off-by-default — satisfies MRM advisory-only requirement for ML-assisted alert ranking |
+| **M2 — `aml model-inventory`** CLI | v0.1.47 | SR 26-2 model-population inventory covering every rule + every `python_ref` external model + the N1 prioritization scorer; `--markdown` table ready for model-risk committee reports |
+| **M3 — champion-challenger `priority_outcome.json`** | v0.1.47 | Precision@k / recall comparison between champion and challenger weights; temporal-leakage guard enforced at runtime — satisfies SR 26-2's independent-challenger validation requirement |
+| **M4 — point-in-time effective-dated joins** | v0.1.47 | `DataContract.effective_dated` + `aggregation_window.enrich` emit as-of SQL JOINs so rules resolve reference state contemporaneous with each transaction; closes Pillar 3 (PARTIAL → COVERED) |
+
+These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (48 days from April 17): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, and a model inventory that can be produced on demand.
 
 ---
 
@@ -98,4 +113,4 @@ These are not operational niceties — they are the controls regulators will ins
 
 ---
 
-*Last updated: 2026-06-03 · Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*
+*Last updated: 2026-06-04 · Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*

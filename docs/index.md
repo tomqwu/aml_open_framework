@@ -49,7 +49,7 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five May 2026 whitepapers + June 2026 regulator-pulse: regulator-pulse and competitive-positioning refreshed 2026-06-03 (active deadlines: Effectiveness + GENIUS Act NPRMs **2026-06-09 — 6 days**, AUSTRAC Tranche 2 **2026-07-01 — 28 days**, AMLA RTS **2026-07-10 — 37 days**; SR 26-2 47 days examination-active).
+    Five May 2026 whitepapers + June 2026 regulator-pulse: all four June docs refreshed 2026-06-04 (active deadlines: Effectiveness + GENIUS Act NPRMs **2026-06-09 — 5 days**, AUSTRAC Tranche 2 **2026-07-01 — 27 days**, AMLA RTS **2026-07-10 — 36 days**; SR 26-2 48 days examination-active). M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
 
     [:octicons-arrow-right-24: Research](research/2026-06-regulator-pulse.md)
 
@@ -123,6 +123,7 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
+| `v0.1.47` + `docs` | M1–M4 | 2026-06-04 | ML/AI roadmap Now tier fully delivered: Triage Queue dashboard (M1), SR 26-2 model-inventory CLI `aml model-inventory` (M2), champion-challenger `priority_outcome.json` with temporal-leakage guard (M3), point-in-time effective-dated joins (M4, Pillar 3 COVERED). All four June 2026 research docs refreshed: June 9 NPRM deadline **5 days away** (file Thu/Fri June 5–6); AUSTRAC 27 days; AMLA RTS 36 days; SR 26-2 48 days active |
 | `docs` | — | 2026-06-03 | June 2026 research refresh — regulator-pulse + competitive-positioning updated to 2026-06-03: June 9 Effectiveness NPRM + GENIUS Act NPRM dual deadline now **6 days away** (last viable filing window Thu/Fri June 5–6); AUSTRAC Tranche 2 28 days; AMLA RTS 37 days; SR 26-2 47 days examination-active |
 | `docs` | — | 2026-06-01 | June 2026 research whitepapers added — regulator-pulse extended to 2026-06-01 (covering a three-month forward calendar, Jun–Aug 2026: Effectiveness NPRM + GENIUS Act NPRM deadlines 2026-06-09, AUSTRAC Tranche 2 enforcement 2026-07-01, AMLA RTS submission 2026-07-10); competitive-positioning updated post-June-1 deadline |
 | `security` | — | 2026-05-31 | H0–H6 security hardening: coverage gate enforcement (H0), zip-slip sanitisation in audit packs (H4), SQL identifier validation in data sources (H2), audit pack byte-determinism fix, freshness tz-by-instant correctness (H6), matched-row observability (H6) |
