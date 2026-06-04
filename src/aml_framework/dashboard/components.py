@@ -475,7 +475,10 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
  * to `stExpandSidebarButton` ONLY.
  *
  * Restyle it into a solid burnt-orange (--dna-accent) 44x44px rounded
- * floating button sitting just below the topbar at top-left, with a
+ * floating button seated inside the topbar's cleared left lane
+ * (top:10px → spans 10–54px within the 64px topbar; left:10px → spans
+ * 10–54px within the 56px lane the `.dna-topbar` padding clears, so it
+ * overlaps neither the brand wordmark nor the page breadcrumb), with a
  * drop shadow so it clearly reads as a tappable affordance, and swap
  * the faint chevron for a white ☰ glyph. Keeps the z-index:999999 +
  * pointer-events from the tappability fix above. Phone-scoped (≤640px)
@@ -483,7 +486,7 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
 @media (max-width: 640px) {
     [data-testid="stExpandSidebarButton"] {
         position: fixed !important;
-        top: calc(var(--dna-topbar-h) + 8px) !important;
+        top: 10px !important;  /* seat inside the 64px topbar lane (spans 10–54px) */
         left: 10px !important;
         width: 44px !important;
         height: 44px !important;
