@@ -85,7 +85,7 @@ aml dashboard examples/community_bank/aml.yaml
 
 > **macOS note:** the system `python3` is 3.9, which fails the `>=3.10` pin. Install a current Python first: `brew install python` then re-run the venv step. Verified working on 3.12 and 3.14.
 
-`aml demo` runs validate → engine → audit pack against the canonical Canadian Schedule-I bank spec, narrates each step, and prints persona-specific next-step commands (`--persona cco|mlro|analyst|auditor`). It exists so a CCO who has 5 minutes between meetings can self-serve a real regulator-ready audit pack — no vendor demo cycle required. The dashboard opens on a **Start here** screen — one sentence + a 90-second live "Golden Thread" (alert → case → audit) over a real planted case — then hands you the full 41-page toolkit.
+`aml demo` runs validate → engine → audit pack against the canonical Canadian Schedule-I bank spec, narrates each step, and prints persona-specific next-step commands (`--persona cco|mlro|analyst|auditor`). It exists so a CCO who has 5 minutes between meetings can self-serve a real regulator-ready audit pack — no vendor demo cycle required. The dashboard opens on a **Start here** screen — one sentence + a 90-second live "Golden Thread" (alert → case → audit) over a real planted case — then hands you the full toolkit.
 
 **5-minute path with no prior context:** [`docs/getting-started.md`](docs/getting-started.md) — install, pick a spec, run, launch dashboard, bring your own data, write your first detector, generate an audit bundle.
 

@@ -98,3 +98,8 @@ def test_case_beat_uses_any_matching_customer_when_rule_differs():
 def test_non_planted_hero_gets_generic_narration():
     beats = build_beats([_alert("C0050", rule_id="layering")], [], _AUDIT)
     assert "structuring" not in beats[0]["narration"].lower()
+
+
+def test_c0001_with_non_structuring_rule_gets_generic_narration():
+    beats = build_beats([_alert("C0001", rule_id="wire_to_high_risk")], [], _AUDIT)
+    assert "structuring" not in beats[0]["narration"].lower()

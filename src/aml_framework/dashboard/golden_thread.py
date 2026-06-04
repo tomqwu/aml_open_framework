@@ -74,11 +74,14 @@ def build_beats(
             }
         ]
     case = _case_for(cases, hero)
-    is_planted = str(hero.get("customer_id")) == _HERO_CUSTOMER
+    is_structuring = (
+        str(hero.get("customer_id")) == _HERO_CUSTOMER
+        and "structuring" in str(hero.get("rule_id", "")).lower()
+    )
     alert_narration = (
         "A rule flagged a suspicious pattern — here, repeated cash deposits "
         "just under the reporting threshold. Classic structuring."
-        if is_planted
+        if is_structuring
         else "A rule flagged a suspicious pattern that crossed a detection threshold."
     )
     return [
