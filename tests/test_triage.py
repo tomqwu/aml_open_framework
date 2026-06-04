@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-import pandas as pd
+import pytest
 
-from aml_framework.dashboard import triage
+# Unit-test CI installs only `.[dev]` (no pandas); the Triage Queue helpers
+# live behind the dashboard extra. Skip the whole module when pandas is
+# absent — same guard as test_chart_helpers.py.
+pd = pytest.importorskip("pandas")
+
+from aml_framework.dashboard import triage  # noqa: E402
 
 
 def _df(rows):
