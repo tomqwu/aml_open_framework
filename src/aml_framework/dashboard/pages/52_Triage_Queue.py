@@ -1,0 +1,78 @@
+"""Triage Queue — sort alerts by the advisory N1 priority_score.
+
+ADVISORY ONLY: this page re-orders a view of alerts by SAR-likelihood so an
+investigator can work the highest-risk first. It never changes an alert's
+disposition, queue, or open/close state — the deterministic rules stay
+authoritative (governed-augmentation thesis).
+"""
+
+from __future__ import annotations
+
+import streamlit as st
+
+from aml_framework.dashboard import triage
+from aml_framework.dashboard.audience import show_audience_context
+from aml_framework.dashboard.components import data_grid, page_footer, page_header
+from aml_framework.dashboard.state import ensure_initialized
+
+ensure_initialized()
+
+page_header(
+    "Triage Queue",
+    "Work the highest-risk alerts first — sorted by the advisory priority score.",
+)
+show_audience_context("Triage Queue")
+
+st.caption(
+    "⚖️ **Advisory only.** The priority score re-orders this queue by "
+    "SAR-likelihood; it never changes an alert's disposition or open/close "
+    "state. Deterministic rules remain authoritative."
+)
+
+df_alerts = st.session_state.df_alerts
+
+if df_alerts.empty:
+    st.info("No alerts in this run.")
+    page_footer()
+    st.stop()
+
+if not triage.has_priority(df_alerts):
+    st.warning(
+        "Alert prioritization is not enabled for this program. Add a "
+        "`program.prioritization` block (enabled: true) to the spec to rank "
+        "alerts by SAR-likelihood. See the N1 governed alert-prioritization layer."
+    )
+    page_footer()
+    st.stop()
+
+view = triage.triage_view(df_alerts)
+available = [c for c in triage.DISPLAY_COLS if c in view.columns]
+
+st.subheader(f"{len(view)} scored alerts")
+data_grid(
+    view[available],
+    key="triage_queue_table",
+    severity_col="severity" if "severity" in available else None,
+    gradient_cols=[triage.PRIORITY_COL],
+    gradient_invert=True,  # high score = red = urgent
+    pinned_left=[triage.PRIORITY_COL],
+    drill_target="pages/17_Customer_360.py" if "customer_id" in available else None,
+    drill_param="customer_id",
+    drill_column="customer_id",
+    height=420,
+    hint="Click a row to open the customer's 360 view. Sort is advisory.",
+)
+
+st.divider()
+st.subheader("Why this score?")
+labels = [triage.alert_label(r) for _, r in view.iterrows()]
+choice = st.selectbox("Pick a scored alert to see its explanation", labels, index=0)
+selected = view.iloc[labels.index(choice)]
+rows = triage.explanation_rows(selected.get(triage.EXPLANATION_COL))
+if rows:
+    st.caption("score = sigmoid(Σ contributions). Largest absolute contributions first.")
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+else:
+    st.caption("No explanation recorded for this alert.")
+
+page_footer()
