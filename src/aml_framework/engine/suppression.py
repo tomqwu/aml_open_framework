@@ -17,8 +17,11 @@ reason and suppresses nothing.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 @dataclass(frozen=True)
@@ -68,3 +71,80 @@ def stamp_suppression(rule, alerts, cfg, customer_risk: dict[str, str]) -> None:
         return
     for alert in alerts:
         alert["suppression"] = asdict(score_suppression(alert, cfg, customer_risk))
+
+
+class SuppressionReport(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    enabled: bool
+    scored_alerts: int  # alerts that went through the suppression pass
+    suppressed: int  # subset flagged suppression.applied = True
+    by_segment: dict[str, int] = Field(default_factory=dict)  # segment_id -> suppressed count
+    by_rule: dict[str, int] = Field(default_factory=dict)  # rule_id -> suppressed count
+    sample: list[dict[str, Any]] = Field(
+        default_factory=list
+    )  # [{customer_id, rule_id, segment_id, priority_score}]
+
+
+def build_suppression_report(
+    alerts_by_rule: dict[str, list[dict[str, Any]]],
+    *,
+    enabled: bool,
+    top_n: int = 20,
+    mask_customer_id: Callable[[str], str] | None = None,
+) -> SuppressionReport:
+    """Deterministic summary of the run's advisory suppression pass.
+
+    Mirrors ``prioritization.build_priority_report``: ``alerts_by_rule`` holds
+    the in-memory (UN-masked) alert dicts, so when PII masking is active the
+    caller must pass ``mask_customer_id`` — the same masking function the audit
+    ledger applies to ``alerts/*.jsonl`` — so this frozen, regulator-facing
+    artifact never persists a plaintext customer_id.
+
+    Only alerts that actually carry a ``suppression`` dict (i.e. the pass ran)
+    are counted as scored; a never-stamped alert is ignored.
+    """
+    scored = 0
+    by_segment: dict[str, int] = {}
+    by_rule: dict[str, int] = {}
+    sample: list[dict[str, Any]] = []
+    for rule_id in sorted(alerts_by_rule):
+        for a in alerts_by_rule[rule_id]:
+            supp = a.get("suppression")
+            if not isinstance(supp, dict):
+                continue
+            scored += 1
+            if not supp.get("applied"):
+                continue
+            seg_id = supp.get("segment_id")
+            if seg_id is not None:
+                by_segment[seg_id] = by_segment.get(seg_id, 0) + 1
+            by_rule[rule_id] = by_rule.get(rule_id, 0) + 1
+            cid = a.get("customer_id")
+            if mask_customer_id is not None and cid is not None:
+                cid = mask_customer_id(cid)
+            sample.append(
+                {
+                    "customer_id": cid,
+                    "rule_id": rule_id,
+                    "segment_id": seg_id,
+                    "priority_score": supp.get("score"),
+                }
+            )
+    # Stable order: lowest score first (most-confidently suppressed), then
+    # (rule_id, customer_id) — no dependence on dict iteration order.
+    sample.sort(
+        key=lambda r: (
+            r["priority_score"] if r["priority_score"] is not None else 0.0,
+            str(r["rule_id"]),
+            str(r["customer_id"]),
+        )
+    )
+    return SuppressionReport(
+        enabled=enabled,
+        scored_alerts=scored,
+        suppressed=sum(by_rule.values()),
+        by_segment=dict(sorted(by_segment.items())),
+        by_rule=dict(sorted(by_rule.items())),
+        sample=sample[:top_n],
+    )

@@ -227,6 +227,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # M3 (N1 follow-on) — champion-challenger outcome analysis. Frozen so the
     # precision@k / recall evidence can't be edited after the run is sealed.
     "priority_outcome.json",
+    # #495 — advisory risk-segment suppression summary. Frozen post-finalize
+    # so the de-prioritization inventory can't be edited after the run is
+    # sealed (same posture as priority_report.json).
+    "suppression_report.json",
     # PR-LF2 (#384) — run cost + data volume artifact freezes for the
     # same reason: a regulator should see the row counts / wall-clock
     # the engine actually measured, not an edited rewrite.
@@ -555,6 +559,16 @@ class AuditLedger:
             _sha256(outcome_path.read_bytes()) if outcome_path.exists() else None
         )
 
+        # #495: same posture for `suppression_report.json` — the advisory
+        # risk-segment de-prioritization summary. Written by the runner before
+        # this call ONLY when `risk_segmentation` is enabled; otherwise absent.
+        # Pinned conditionally below (like `priority_outcome_hash`) so a run
+        # without the feature stays manifest-key-identical to the baseline.
+        suppression_path = self.run_dir / "suppression_report.json"
+        suppression_report_hash = (
+            _sha256(suppression_path.read_bytes()) if suppression_path.exists() else None
+        )
+
         # PR-LF2 (#384): same posture for `run_cost_volume.json` — the
         # row counts and wall-clock are regulator-facing evidence ("this
         # run scanned N rows in T seconds"). Pinning the hash means an
@@ -613,6 +627,11 @@ class AuditLedger:
         # to the pre-M3 baseline rather than carrying a `None` placeholder.
         if priority_outcome_hash is not None:
             manifest["priority_outcome_hash"] = priority_outcome_hash
+        # #495: pin only when the artifact exists (risk_segmentation enabled) —
+        # a run without the feature stays manifest-key-identical to the
+        # pre-feature baseline rather than carrying a `None` placeholder.
+        if suppression_report_hash is not None:
+            manifest["suppression_report_hash"] = suppression_report_hash
         (self.run_dir / "manifest.json").write_bytes(
             json.dumps(manifest, indent=2, sort_keys=True).encode("utf-8")
         )

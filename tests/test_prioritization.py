@@ -409,3 +409,103 @@ def test_negative_count_clamped_to_zero_volume():
     feats = {c["feature"]: c["value"] for c in res.explanation}
     assert feats["volume"] == 0.0
     assert all(0.0 <= c["value"] <= 1.0 for c in res.explanation if c["feature"] != "bias")
+
+
+# ---------------------------------------------------------------------------
+# #495 — risk-segmentation advisory suppression: runner wiring + determinism.
+# Mirrors the prioritization runner tests above. The community_bank fixture
+# carries low/medium/high `risk_rating` customers, so a `low` segment with a
+# high `deprioritize_below` flags some low-score alerts as advisory-suppressed.
+# ---------------------------------------------------------------------------
+
+
+def _spec_with_suppression():
+    import yaml
+
+    base = yaml.safe_load(SPEC.read_text())
+    base["program"]["prioritization"] = {"enabled": True}
+    base["program"]["risk_segmentation"] = {
+        "enabled": True,
+        "segments": [
+            {
+                "id": "low_kyc",
+                "field": "customer_risk_rating",
+                "values": ["low"],
+                "deprioritize_below": 1.0,  # high floor -> low-risk alerts get flagged
+                "rationale": "low-risk retail customers — defer below threshold",
+                "owner": "MLRO",
+            }
+        ],
+    }
+    return yaml.safe_dump(base)
+
+
+def test_runner_emits_suppression_report_when_enabled(tmp_path):
+    import json
+
+    run_dir = _run(tmp_path, _spec_with_suppression())
+    report = run_dir / "suppression_report.json"
+    assert report.exists(), "suppression_report.json must be written when enabled"
+    data = json.loads(report.read_text())
+    assert data["enabled"] is True
+    assert data["scored_alerts"] > 0
+    # at least one low-risk alert is advisory-suppressed by the low_kyc segment
+    assert data["suppressed"] >= 1
+    assert data["by_segment"].get("low_kyc", 0) >= 1
+    # the advisory dict is stamped on the persisted alerts
+    any_supp = False
+    for f in (run_dir / "alerts").glob("*.jsonl"):
+        for line in f.read_text().splitlines():
+            if line.strip() and "suppression" in json.loads(line):
+                any_supp = True
+    assert any_supp
+
+
+def test_runner_no_suppression_report_when_absent(tmp_path):
+    """A spec WITHOUT risk_segmentation stays manifest-key-identical: no file,
+    no manifest key, no `suppression` stamped on alerts."""
+    import json
+
+    run_dir = _run(tmp_path)  # stock spec, no risk_segmentation block
+    assert not (run_dir / "suppression_report.json").exists()
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert "suppression_report_hash" not in manifest
+    for f in (run_dir / "alerts").glob("*.jsonl"):
+        for line in f.read_text().splitlines():
+            if line.strip():
+                assert "suppression" not in json.loads(line)
+
+
+def test_suppression_report_is_manifest_pinned_and_frozen(tmp_path):
+    import json
+    import os
+
+    run_dir = _run(tmp_path, _spec_with_suppression())
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert manifest.get("suppression_report_hash"), "suppression_report_hash must be pinned"
+    if os.name != "nt":
+        assert (os.stat(run_dir / "suppression_report.json").st_mode & 0o222) == 0
+
+
+def test_suppression_is_deterministic_across_runs(tmp_path):
+    import json
+
+    text = _spec_with_suppression()
+    p_a = tmp_path / "a"
+    p_b = tmp_path / "b"
+    p_a.mkdir()
+    p_b.mkdir()
+    rd1 = _run(p_a, text, as_of=_FIXED_AS_OF)
+    rd2 = _run(p_b, text, as_of=_FIXED_AS_OF)
+    m1 = json.loads((rd1 / "manifest.json").read_text())
+    m2 = json.loads((rd2 / "manifest.json").read_text())
+    assert m1["decisions_hash"] == m2["decisions_hash"]  # determinism contract intact
+    # the suppression artifact itself is byte-stable across runs
+    assert (
+        m1["suppression_report_hash"] == m2["suppression_report_hash"]
+        and m1["suppression_report_hash"]
+    )
+    # and the file content is byte-identical
+    assert (rd1 / "suppression_report.json").read_bytes() == (
+        rd2 / "suppression_report.json"
+    ).read_bytes()

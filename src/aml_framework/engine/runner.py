@@ -35,6 +35,7 @@ from aml_framework.engine.monitoring_digest import (
 )
 from aml_framework.engine.payload_meta import stamp_payload_meta
 from aml_framework.engine.prioritization import build_priority_report, stamp_priority
+from aml_framework.engine.suppression import build_suppression_report, stamp_suppression
 from aml_framework.engine.promotion import (
     EnvironmentGatingError,
     is_rule_approved_for_environment,
@@ -939,6 +940,16 @@ def _write_priority_report(run_dir: Path, report) -> None:
     )
 
 
+def _write_suppression_report(run_dir: Path, report) -> None:
+    """Persist the advisory suppression summary as `suppression_report.json`
+    (frozen + manifest-pinned, same posture as priority_report.json). Written
+    only when risk_segmentation is enabled so the artifact is present for the
+    evidence pack."""
+    (run_dir / "suppression_report.json").write_text(
+        report.model_dump_json(indent=2), encoding="utf-8"
+    )
+
+
 def _write_defect_log_snapshot(
     ledger: AuditLedger,
     *,
@@ -1162,6 +1173,21 @@ def run_spec(
     # changes alert counts, cases, or dispositions. No-op when absent/disabled.
     _prioritization_cfg = getattr(spec.program, "prioritization", None)
 
+    # #495: resolve the advisory risk-segmentation config once, mirroring the
+    # prioritization resolve. ADVISORY — `stamp_suppression` only ADDS a
+    # `suppression` dict to alerts; never removes/closes/re-disposes. No-op
+    # when absent/disabled. Build the customer_id -> risk_rating map ONCE from
+    # the customer table already loaded in `data`. The actual data column is
+    # `risk_rating` (the byod-canonical name; `RiskSegment.field`'s default
+    # `customer_risk_rating` is the spec-side semantic alias) — read the same
+    # way `cases/triage.py` resolves per-case customer risk.
+    _segmentation_cfg = getattr(spec.program, "risk_segmentation", None)
+    customer_risk: dict[str, str] = {
+        cid: str(row.get("risk_rating"))
+        for row in data.get("customer", [])
+        if (cid := row.get("customer_id")) is not None and row.get("risk_rating") is not None
+    }
+
     for rule in spec.rules:
         if rule.status != "active":
             continue
@@ -1295,6 +1321,7 @@ def run_spec(
                 continue
             stamp_payload_meta(rule, alerts, as_of=as_of)
             stamp_priority(rule, alerts, _prioritization_cfg)
+            stamp_suppression(rule, alerts, _segmentation_cfg, customer_risk)
             alerts_by_rule[rule.id] = alerts
             ledger.record_alerts(rule.id, alerts)
             _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)
@@ -1324,6 +1351,7 @@ def run_spec(
                 reference_data_version_override=list_version,
             )
             stamp_priority(rule, alerts, _prioritization_cfg)
+            stamp_suppression(rule, alerts, _segmentation_cfg, customer_risk)
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1346,6 +1374,7 @@ def run_spec(
                 alerts = _execute_network_pattern(rule, con, as_of, cost_timer)
             stamp_payload_meta(rule, alerts, as_of=as_of)
             stamp_priority(rule, alerts, _prioritization_cfg)
+            stamp_suppression(rule, alerts, _segmentation_cfg, customer_risk)
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1443,6 +1472,7 @@ def run_spec(
                         )
         stamp_payload_meta(rule, alerts, as_of=as_of)
         stamp_priority(rule, alerts, _prioritization_cfg)
+        stamp_suppression(rule, alerts, _segmentation_cfg, customer_risk)
         alerts_by_rule[rule.id] = alerts
         ledger.record_alerts(rule.id, alerts)
 
@@ -1550,6 +1580,21 @@ def _finalize_run(
             (ledger.run_dir / "priority_outcome.json").write_text(
                 _outcome.model_dump_json(indent=2) + "\n"
             )
+
+    # #495: emit `suppression_report.json` ONLY when advisory risk-segmentation
+    # is enabled — mirrors the priority_report gate so a run WITHOUT the feature
+    # is byte-identical to pre-feature behaviour (no file, no manifest key). The
+    # `suppression` dicts were stamped on `alerts_by_rule` during the run loop;
+    # here we just summarize them. Same masking source as priority_report.
+    _segmentation_cfg = getattr(spec.program, "risk_segmentation", None)
+    if _segmentation_cfg and _segmentation_cfg.enabled:
+        _supp_mask_cid = None
+        if "customer_id" in ledger.pii_columns:
+            _supp_mask_cid = functools.partial(_pii_mask_value, salt=ledger.pii_salt)
+        _suppression_report = build_suppression_report(
+            alerts_by_rule, enabled=True, mask_customer_id=_supp_mask_cid
+        )
+        _write_suppression_report(ledger.run_dir, _suppression_report)
 
     metric_results = evaluate_metrics(
         spec=spec,
