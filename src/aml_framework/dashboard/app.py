@@ -60,8 +60,8 @@ logging.getLogger("aml.dashboard").info("Persistence backend: %s", _active_backe
 #
 # The "" (empty-string) section renders flush at the top of the
 # sidebar without a header — the standard Streamlit idiom for
-# "ungrouped, always at the top." Today lives there because it's the
-# personalised landing every persona sees first.
+# "ungrouped, always at the top." Start here is the first-run wizard
+# and default landing; Today is the daily checklist persona sees next.
 #
 # Categories below match the existing tour prose groupings in
 # `docs/dashboard-tour.md` (Operational / Strategic / Engineering /
@@ -69,10 +69,11 @@ logging.getLogger("aml.dashboard").info("Persistence backend: %s", _active_backe
 # category for the PR-DATAVIZ surfaces and "FinTech" as a niche
 # 1-MLRO surface.
 ALL_PAGES: dict[str, list[st.Page]] = {
-    # Welcome + Today are ungrouped above the first category header.
-    # Welcome (page 0) is currently orphaned (on disk, not wired);
-    # only Today is registered here, matching pre-PR-NAV-1 behaviour.
+    # Start here + Today are ungrouped above the first category header.
+    # Start here (page 0) is the first-run wizard and default landing.
+    # Today is the personalised daily checklist every persona sees next.
     "": [
+        st.Page("pages/0_Start.py", title="Start here", icon=":material/play_circle:"),
         st.Page("pages/0_Today.py", title="Today", icon=":material/today:"),
     ],
     "Operations": [
@@ -324,6 +325,8 @@ if selected_audience:
     # "Today" + Executive Dashboard are universal — every persona sees
     # them (Today is the personalised landing; Executive Dashboard is
     # the strategic-view fallback when no persona is selected).
+    # Start is the first-run front door + Replay-tour home — always reachable.
+    relevant_titles.add("Start here")
     relevant_titles.add("Today")
     relevant_titles.add("Executive Dashboard")
     # PR-NS-1: the North-Star pillar coverage page is the cross-cutting
@@ -402,6 +405,47 @@ st.markdown(
     f"{_summary_html}"
     "</div>"
     "</div>",
+    unsafe_allow_html=True,
+)
+
+# ---------------------------------------------------------------------------
+# Mobile bottom tab bar — Direction C (the "where's the menu?" fix).
+#
+# A persistent 5-tab bar pinned to the bottom of the viewport on phones
+# (≤640px; CSS in components.py hides it on desktop, where the sidebar
+# is the primary nav). Each tab is an anchor with `target="_top"` so it
+# breaks out of Streamlit's iframe and triggers a real full-page nav —
+# the same mechanism the topbar home link proves works (Streamlit strips
+# inline <script>, so no JS). The slugs were verified empirically against
+# the live app (see feat/mobile-direction-c probe):
+#   Today  -> /Today
+#   Alerts -> /Alert_Queue
+#   Cases  -> /Case_Investigation
+#   Audit  -> /Audit_Evidence   (the "&" in the title is dropped, not encoded)
+#   More   -> /                 (the Start front door — full menu + tour;
+#                                the ☰ control still opens all 44 pages)
+#
+# The active tab is computed SERVER-SIDE from `pg.url_path` (no JS): the
+# default page (Start) reports an empty url_path and lights "More".
+_active_path = pg.url_path or ""
+_TABS = (
+    ("Today", "Today"),
+    ("Alert_Queue", "Alerts"),
+    ("Case_Investigation", "Cases"),
+    ("Audit_Evidence", "Audit"),
+    ("", "More"),  # /  -> Start front door
+)
+_tab_html = "".join(
+    '<a class="dna-tab{on}" href="/{slug}" target="_top" aria-label="{label}">'
+    '<span class="dna-tab-ic"></span><span class="dna-tab-lbl">{label}</span></a>'.format(
+        on=" on" if _active_path == slug else "",
+        slug=slug,
+        label=label,
+    )
+    for slug, label in _TABS
+)
+st.markdown(
+    f'<nav class="dna-tabbar" aria-label="Primary mobile navigation">{_tab_html}</nav>',
     unsafe_allow_html=True,
 )
 

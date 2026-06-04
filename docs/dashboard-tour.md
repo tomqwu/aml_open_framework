@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **42 purpose-built pages** (44 page files on disk — the two extras, Welcome and Today, are navigation surfaces documented separately). The sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **42 purpose-built pages** (44 page files on disk — the two extras, Start here and Today, are navigation surfaces documented separately). The sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec.
 
 The sidebar carries two external links — **Research & whitepapers** and **How-to recipes** — pointing at the MkDocs docs site at `tomqwu.github.io/aml_open_framework_docs/` (`AML_DOCS_URL` env override). Round 32 (2026-05-24) retired the in-app Knowledge category — the 10 pages 33–42 ported from the old GH-Pages site in PR-U2/U3 — once the docs site shipped in Round 31. Knowledge content lives in one canonical place now; the dashboard owns the operational/run-coupled surfaces only.
 
@@ -11,6 +11,16 @@ aml dashboard examples/community_bank/aml.yaml
 ```
 
 For multi-tenant deployments showing more than one program in the same dashboard process, see the **Tenant** selector at the top of the sidebar (configured via `dashboard_tenants.yaml`).
+
+---
+
+## Navigation Surfaces
+
+### Start here
+
+The default landing page (first-run Golden Thread). One sentence establishes what the framework does; a "▶ Show me it's real" button runs a live 4-beat walkthrough — alert → case → audit → doors — driven by the planted C0001 structuring case in the `community_bank` spec. Replaces the legacy Welcome cold-open. Universally routed so it is always reachable regardless of audience filter; `0_Start.py` is TOUR_EXEMPT (navigation surface, not an operational page).
+
+![Start here](screenshots/0_start.png)
 
 ---
 
@@ -32,6 +42,8 @@ Filterable, sortable alert triage view for L1 analysts. Filter by rule or severi
 
 Ranks scored alerts by the advisory N1 `priority_score` (highest first) so an investigator works the highest-SAR-likelihood alerts before the long tail. Each row's score is colour-graded (red = urgent); a "Why this score?" panel renders the per-alert `priority_explanation` — the bias baseline plus each feature's contribution, largest first, with `score = sigmoid(Σ contributions)`. **Advisory only:** the sort never changes an alert's disposition or open/close state; the deterministic rules stay authoritative. Routed universally so every investigator persona can reach it. Enabled by a `program.prioritization` block in the spec.
 
+![Triage Queue](screenshots/52_triage_queue.png)
+
 ### Case Investigation
 
 Per-case investigation workspace with entity profile (customer details, risk rating, country), alert details (regulation citations, evidence requested), transaction timeline with alert window highlighting, Sankey flow diagram showing channel-level fund movement, and evidence panel.
@@ -46,6 +58,8 @@ Aggregates per-alert cases into **investigation units** that FinCEN's effectiven
 - Drill-down with per-constituent-case live SLA state + escalation recommendation
 
 Sidebar exposes aggregation strategy (`per_customer_window` / `per_customer_per_run` / `per_case`) and an "evaluate SLA against now()" toggle for live-ops vs backtest view.
+
+![Investigations](screenshots/24_investigations.png)
 
 ### My Queue (Analyst Dashboard)
 
@@ -195,17 +209,25 @@ Full run manifest with JSON viewer, SHA-256 hash verification for every rule out
 
 End-to-end "source → DuckDB table → rendered SQL → matched rows → alert → case → STR" walk-back, deep-linkable from Audit & Evidence and Case Investigation via `?case_id=...`. Mermaid graph + run anchors + source provenance (path + schema_hash + content_hash) + collapsible rule SQL + matched-rows AG Grid + decision timeline + JSON download. Powered by `walk_lineage()` after PR-LIN-1..4 lifted rule_sql, source_path, schema_hash, rule_version (every event), and matched_row_ids into the lineage chain.
 
+![Lineage Explorer](screenshots/32_lineage_explorer.png)
+
 ### Analyst Review Queue
 
 Network-pattern alerts get an explainability surface: the matched subgraph rendered as a Mermaid diagram, alongside the alert payload and an analyst decision form (escalate / close / request more evidence). Composes with `engine/explain.py:to_mermaid`.
+
+![Analyst Review Queue](screenshots/22_analyst_review_queue.png)
 
 ### Tuning Lab
 
 Pareto-frontier exploration of rule threshold combinations. Loads labelled historical alerts, sweeps thresholds across the spec's `tuning_grid`, and plots true-positive rate × false-positive rate. Used to defend threshold choices in model risk management reviews.
 
+![Tuning Lab](screenshots/23_tuning_lab.png)
+
 ### FP Analysis
 
 Per-rule false-positive rate (`closed_no_action ÷ total cases`) derived at render time from the cached `df_cases`. High-FP rules above 70% surface as a coloured callout at the top with a Tuning Lab cross-link; the per-rule table is sortable on the numeric `fp_rate_pct` column so AG Grid orders worst-offenders first. Filing queues are derived from the live spec workflow (any `regulator_form`-bearing queue counts as escalated), so custom STR/SAR/CTR queue ids classify correctly. The Pillar 7 ("DS as governed augmentation") surface that the North-Star coverage page flags as missing. PR-E1 (closes #378). Universally routed — every persona sees it.
+
+![FP Analysis](screenshots/45_fp_analysis.png)
 
 ---
 
@@ -277,25 +299,37 @@ The dashboard sidebar carries two external links (Research & whitepapers · How-
 
 Investigator-facing per-case event chain: case_opened → escalated → STR/SAR filing. Pure read of cached `df_cases` + `df_decisions`. Universal-routed via `AUDIT_TRAIL_PAGES`. PR-F3 (#385).
 
+![Decision Trail](screenshots/44_decision_trail.png)
+
 ### Experiment Tracking
 
 MLflow-style overview of every persisted run — spec_content_hash, seed, as_of, total_alerts, total_cases sortable. Universal-routed via `TRACKING_PAGES`. PR-E4 (#381).
+
+![Experiment Tracking](screenshots/46_experiment_tracking.png)
 
 ### Threshold Sensitivity
 
 Per-rule alert-volume curve across {0.5×, 0.75×, 1.0×, 1.25×, 1.5×, 2.0×} the spec threshold — every tunable `aggregation_window` rule's sensitivity at a glance. Universal-routed via `TUNING_PAGES`. PR-E2 (#379).
 
+![Threshold Sensitivity](screenshots/47_threshold_sensitivity.png)
+
 ### Equivalence
 
 Legacy↔new parallel-run divergence: loads the legacy CSV declared in `program.legacy_reference` and classifies every cell as MATCH / NEW_ONLY / LEGACY_ONLY / DIFF (via `engine/equivalence.py` shipped in PR-EQ-2). Universal-routed via `EQUIVALENCE_PAGES`. PR-EQ-3 (closes pillar 1 gap on the north-star page).
+
+![Equivalence](screenshots/48_equivalence.png)
 
 ### Anomaly Discovery
 
 Unsupervised z-score outlier detection on per-customer transaction features. Surfaces customers the spec's deterministic rules don't catch — discovery candidates for new rule typologies. Universal-routed via `TUNING_PAGES`. PR-E5 (#382).
 
+![Anomaly Discovery](screenshots/49_anomaly_discovery.png)
+
 ### Drift Monitor
 
 Per-scorer alert-volume drift across recent runs. Last-run vs median-of-priors with ≥2× / ≤0.5× thresholds flagged as "high drift". Universal-routed via `TUNING_PAGES`. PR-E3 (#380).
+
+![Drift Monitor](screenshots/50_drift_monitor.png)
 
 ---
 
@@ -322,6 +356,7 @@ The 42 operational pages serve 13 distinct personas. The sidebar **Audience** se
 | **L1 Analyst** | Alert Queue → Case Investigation → Investigations → Network Explorer → Sanctions Screening → Customer 360 → My Queue → Analyst Review Queue |
 | **Product Manager** | Rule Performance → Program Maturity → Transformation Roadmap → Model Performance → Risk Assessment → Case Investigation → Tuning Lab → Typology Catalogue → Metrics Taxonomy |
 | **Developer** | Spec Editor → Rule Performance → Rule Tuning → Tuning Lab → Model Performance → Data Quality → Analyst Review Queue → Run History → AI Assistant |
+| **Data Engineer / Head of Data** | Data Integration → Data Quality → Customer 360 → Information Sharing → Spec Editor → Run History → Audit & Evidence → AI Assistant |
 | **Auditor** | Audit & Evidence → Investigations → Case Investigation → Data Quality → Framework Alignment → Regulator Pulse → Metrics Taxonomy → AI Assistant |
 | **Business Owner** | Executive Dashboard → Risk Assessment → Framework Alignment → Audit & Evidence |
 | **FinTech MLRO** | FinTech Cockpit → Audit & Evidence → Investigations → Tuning Lab → Regulator Pulse → Spec Editor → Metrics Taxonomy → AI Assistant |

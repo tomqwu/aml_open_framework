@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<title>C · Immersive + bottom nav</title>
+<style>
+  :root{
+    --bg:#f7f4ec; --card:#fdfbf5; --ink:#1c1f26; --ink-2:#2b3641; --ink-dim:#5f6b78; --ink-faint:#9aa3ad;
+    --accent:#a44b30; --accent-bright:#c4623f; --rule:rgba(28,31,38,.10);
+    --display:'Source Serif 4',Georgia,serif; --body:'Inter',-apple-system,system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:#2a2d33}
+  .phone{width:390px;min-height:844px;margin:0 auto;background:var(--bg);
+    font-family:var(--body);color:var(--ink);position:relative;display:flex;flex-direction:column}
+  /* ink hero band, full-bleed, reverse type */
+  .hero{background:var(--ink);color:#f3efe6;padding:26px 24px 34px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;
+    background:radial-gradient(circle,rgba(164,75,48,.35),transparent 70%)}
+  .hbar{display:flex;align-items:center;gap:8px;margin-bottom:34px;position:relative}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent-bright)}
+  .wordmark{font-family:var(--display);font-weight:600;font-size:16px;color:#f3efe6}
+  .hero h1{font-family:var(--display);font-weight:600;font-size:36px;line-height:1.08;letter-spacing:-.02em;position:relative}
+  .hero h1 em{font-style:italic;color:var(--accent-bright)}
+  .hero .lede{margin-top:16px;font-size:14.5px;line-height:1.55;color:#c8c3b8;max-width:30ch;position:relative}
+  .body{flex:1;padding:30px 24px 24px}
+  .stat-row{display:flex;gap:10px;margin-bottom:28px}
+  .stat{flex:1;background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:14px 12px}
+  .stat .n{font-family:var(--display);font-size:26px;font-weight:600;color:var(--accent)}
+  .stat .l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px;font-weight:600}
+  .cta{display:block;width:100%;padding:17px;border-radius:14px;background:var(--accent);color:#fff;font-weight:600;font-size:16px;text-align:center;border:none;box-shadow:0 6px 18px rgba(164,75,48,.28)}
+  .how{font-size:13px;line-height:1.5;color:var(--ink-faint);text-align:center;margin-top:16px;max-width:32ch;margin-left:auto;margin-right:auto}
+  /* mobile-native bottom tab bar — the real "where's the menu" answer */
+  .tabbar{position:sticky;bottom:0;display:flex;background:rgba(253,251,245,.94);backdrop-filter:blur(10px);
+    border-top:1px solid var(--rule);padding:9px 6px 22px}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--ink-faint);font-size:10.5px;font-weight:600}
+  .tab .ic{width:22px;height:22px;border-radius:6px;border:2px solid currentColor}
+  .tab.on{color:var(--accent)}
+  .tab.on .ic{background:var(--accent);border-color:var(--accent)}
+</style></head>
+<body><div class="phone">
+  <div class="hero">
+    <div class="hbar"><span class="dot"></span><span class="wordmark">AML Open Framework</span></div>
+    <h1>An AML program you can <em>show</em>.</h1>
+    <p class="lede">Not just describe — shown to your regulator without a six-week reconstruction.</p>
+  </div>
+  <div class="body">
+    <div class="stat-row">
+      <div class="stat"><div class="n">14</div><div class="l">Rules</div></div>
+      <div class="stat"><div class="n">19</div><div class="l">Alerts</div></div>
+      <div class="stat"><div class="n">19</div><div class="l">Cases</div></div>
+    </div>
+    <button class="cta">&#9654;&nbsp;&nbsp;Show me it's real</button>
+    <p class="how">One real case, end to end: alert &rarr; case &rarr; replayable audit trail.</p>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><span class="ic"></span>Today</div>
+    <div class="tab"><span class="ic"></span>Alerts</div>
+    <div class="tab"><span class="ic"></span>Cases</div>
+    <div class="tab"><span class="ic"></span>Audit</div>
+    <div class="tab"><span class="ic"></span>More</div>
+  </div>
+</div></body></html>

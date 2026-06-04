@@ -574,6 +574,172 @@ def test_mobile_css_present_in_dom(_playwright, dashboard_server):
         assert "@media (max-width: 480px)" in html, (
             "Phone-specific CSS overlay missing from injected theme"
         )
+        # The 640px breakpoint carries the mobile-nav carve-out that makes
+        # the collapsed-sidebar expand control tappable (the brand bar no
+        # longer intercepts the tap). Assert both the breakpoint AND the
+        # `.dna-topbar-brand` pointer-events carve-out so a future refactor
+        # can't silently drop the headline phone-nav fix.
+        assert "640px" in html, "mobile nav carve-out media query missing"
+        assert "dna-topbar-brand" in html, "topbar pointer-events carve-out missing"
+    finally:
+        browser.close()
+
+
+# ---------------------------------------------------------------------------
+# Acceptance: a real user can REACH another page on a phone by TAPPING.
+#
+# This is the headline mobile-nav fix. Every other test in this file
+# navigates by typing URL slugs (`_nav_to`) because the fixed
+# `.dna-topbar` brand overlay used to INTERCEPT the tap on Streamlit's
+# collapsed-sidebar expand control — a real user with a thumb (no URL
+# bar) was stranded on the landing page. This test does ONLY what a
+# real user can do: tap the native expand control, then tap a nav link.
+# No URL-slug navigation. It must be tappable (no overlay interception).
+# ---------------------------------------------------------------------------
+
+
+def test_mobile_menu_tap_navigates(_playwright, dashboard_server):
+    """A phone user lands on the default page, TAPS the real sidebar
+    expand control (not a typed URL), then TAPS a nav link to another
+    page — and the route actually changes. Guards against the
+    `.dna-topbar` overlay re-intercepting the collapsed-sidebar control."""
+    browser, page = _open_mobile_page(_playwright, dashboard_server, {"width": 375, "height": 667})
+    try:
+        before = page.url
+        ctrl = page.locator(
+            "[data-testid='stSidebarCollapsedControl'], [data-testid='stExpandSidebarButton']"
+        ).first
+        ctrl.click(timeout=8000)  # must be tappable — no overlay interception
+        page.get_by_role("link", name="Today").first.click(timeout=8000)
+        page.wait_for_function("u => location.href !== u", arg=before, timeout=8000)
+        assert page.url != before, f"phone tap-nav did not change route: stayed on {before}"
+    finally:
+        browser.close()
+
+
+def test_mobile_menu_control_visible_on_non_start_page(_playwright, dashboard_server):
+    """DISCOVERABILITY: the menu control must be an OBVIOUS, on-screen,
+    tappable button on a NON-Start page (the original "where is the
+    menu?" complaint was that on every page other than Start the only
+    affordance was a faint, top-clipped chevron).
+
+    The restyle in `components.py` turns the live control
+    (`stExpandSidebarButton`) into a fixed 44x44 burnt-orange floating
+    hamburger just below the topbar. This test lands directly on the
+    Today page (NOT Start), then asserts:
+      * the control is `is_visible()` (rendered, not display:none);
+      * its bounding box is fully inside the 375x667 viewport
+        (0 <= x, x+width <= 375, y >= 0) — i.e. NOT half-clipped above
+        the top edge the way the default static chevron was;
+      * it meets the 44px tap-target floor;
+      * a real tap on it followed by a nav-link tap changes the route
+        (proves it opens the real sidebar with the full nav).
+
+    Pure user-tap navigation (no URL slugs) — guards both the
+    discoverability restyle AND the underlying tappability fix.
+    """
+    browser, page = _open_mobile_page(_playwright, dashboard_server, {"width": 375, "height": 667})
+    try:
+        # Land on a NON-Start page via URL, then nav ONLY by tapping.
+        page.goto(
+            f"http://localhost:{PORT}/Today",
+            wait_until="domcontentloaded",
+            timeout=60000,
+        )
+        page.wait_for_selector("[data-testid='stHeading'], h1", state="visible", timeout=60000)
+        page.wait_for_timeout(5000)
+
+        before = page.url
+        ctrl = page.locator("[data-testid='stExpandSidebarButton']").first
+        assert ctrl.is_visible(), "menu control not visible on Today (non-Start) page"
+
+        box = ctrl.bounding_box()
+        assert box is not None, "menu control has no measurable bounding box"
+        # Fully inside the 375x667 viewport — not the top-clipped (y<0)
+        # static chevron the user couldn't find.
+        assert box["x"] >= 0, f"menu control off-screen left: x={box['x']}"
+        assert box["x"] + box["width"] <= 375, (
+            f"menu control overflows right edge: x+w={box['x'] + box['width']}"
+        )
+        assert box["y"] >= 0, f"menu control clipped above top edge: y={box['y']}"
+        # Thumb target floor.
+        assert box["height"] >= 44 and box["width"] >= 44, (
+            f"menu control below 44px tap-target floor: {box['width']}x{box['height']}"
+        )
+
+        # A real tap opens the sidebar; a nav-link tap changes route.
+        ctrl.click(timeout=8000)
+        page.get_by_role("link", name="Alert Queue").first.click(timeout=8000)
+        page.wait_for_function("u => location.href !== u", arg=before, timeout=8000)
+        assert page.url != before, (
+            f"tapping the visible hamburger did not navigate: stayed on {before}"
+        )
+    finally:
+        browser.close()
+
+
+# ---------------------------------------------------------------------------
+# Acceptance: the Direction-C persistent BOTTOM TAB BAR is the primary
+# mobile nav — VISIBLE and in-viewport, and a tab tap actually navigates.
+#
+# This is the headline of the mobile-redesign ("Direction C"): the real
+# answer to "where's the menu?" is a persistent bottom tab bar, always
+# on screen, so the primary surfaces (Today / Alerts / Cases / Audit) are
+# one thumb-tap away. The bar is injected in `app.py` and revealed only
+# inside the ≤640px phone CSS query. This test asserts FINDABILITY (it is
+# visible AND pinned to the bottom edge within the viewport width), not
+# just presence, then taps "Alerts" and asserts the route changes to the
+# Alert Queue slug.
+# ---------------------------------------------------------------------------
+
+
+def test_bottom_tabbar_visible_and_navigates(_playwright, dashboard_server):
+    """The bottom tab bar is VISIBLE and in-viewport on the Today page
+    (375x667), and tapping the "Alerts" tab navigates to /Alert_Queue."""
+    browser, page = _open_mobile_page(_playwright, dashboard_server, {"width": 375, "height": 667})
+    try:
+        # Land on the Today page (a non-Start surface) and settle.
+        page.goto(
+            f"http://localhost:{PORT}/Today",
+            wait_until="domcontentloaded",
+            timeout=60000,
+        )
+        page.wait_for_selector("[data-testid='stHeading'], h1", state="visible", timeout=60000)
+        page.wait_for_timeout(5000)
+
+        tabbar = page.locator(".dna-tabbar").first
+        # FINDABILITY, not just presence: the bar must be rendered
+        # (not display:none from the desktop fallback) AND on-screen.
+        assert tabbar.is_visible(), "bottom tab bar not visible on the Today page at 375x667"
+
+        box = tabbar.bounding_box()
+        assert box is not None, "bottom tab bar has no measurable bounding box"
+        # Pinned to the bottom edge: its bottom sits at the viewport
+        # bottom (667), within a small slop for the fixed-position
+        # blur bar. Spans the full width (left at 0, within 375).
+        bottom = box["y"] + box["height"]
+        assert abs(bottom - 667) <= 2, (
+            f"bottom tab bar not pinned to the viewport bottom: bottom={bottom} (want ~667)"
+        )
+        assert box["x"] <= 1, f"bottom tab bar not flush-left: x={box['x']}"
+        assert box["x"] + box["width"] <= 376, (
+            f"bottom tab bar overflows the viewport width: right={box['x'] + box['width']}"
+        )
+
+        # All five tabs present, and exactly one marked active (.on).
+        tabs = page.locator(".dna-tab")
+        assert tabs.count() == 5, f"expected 5 tabs, found {tabs.count()}"
+        assert page.locator(".dna-tab.on").count() == 1, "expected exactly one active tab"
+
+        # Tap the "Alerts" tab — a real user thumb-tap — and assert the
+        # route changed to the Alert Queue slug (proves the anchor's
+        # target="_top" full-reload nav works, not just that it's there).
+        before = page.url
+        page.locator(".dna-tab", has_text="Alerts").first.click(timeout=8000)
+        page.wait_for_function("u => location.href !== u", arg=before, timeout=8000)
+        assert "/Alert_Queue" in page.url, (
+            f"tapping the Alerts tab did not reach the Alert Queue slug: {page.url}"
+        )
     finally:
         browser.close()
 

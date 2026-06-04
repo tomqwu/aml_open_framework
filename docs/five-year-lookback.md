@@ -111,7 +111,7 @@ ADLS Gold (rule-ready Delta tables)  ←─── framework reads here via
 │    export.py            → regulator-ready ZIP bundle              │
 │                                                                   │
 │  Analytics / Review Layer                                         │
-│    dashboard/ (40 Streamlit pages, persona-routed by audience.py) │
+│    dashboard/ (44 Streamlit pages, persona-routed by audience.py) │
 │    api/main.py + /api/v1/health for ops                           │
 │                                                                   │
 └───────────────────────────────────────────────────────────────────┘

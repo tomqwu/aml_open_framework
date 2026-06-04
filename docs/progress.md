@@ -24,6 +24,34 @@ Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a
 
 ---
 
+> **Mobile Direction-C redesign** (`v0.1.48`–`v0.1.50`, 2026-06-04): the three-version mobile-UX evolution that shipped the current production UI across both Azure Container Apps (`ca-aml-api-dev` + `ca-aml-dashboard-dev`), smoke-verified at 375 px.
+>
+> - **Discoverability arc**: a faint chevron on the Start screen → an explicit in-canvas ☰ Menu button (v0.1.48/49) → a persistent **bottom tab bar** (v0.1.50, Direction-C). The nav surface got progressively more obvious because tap-testing on physical 375 px devices showed users didn't find the sidebar reliably.
+>
+> - **Direction-C selection** (v0.1.50): a `/huashu-design` session mocked three full mobile directions in the real brand (A: editorial calm — full-bleed serif + minimal chrome; B: thread-card — a numbered "golden thread" teaser card on the landing; C: immersive ink-hero + a persistent bottom tab bar). Direction C was chosen — a persistent **bottom tab bar** (Today · Alerts · Cases · Audit · More) injected in `app.py` as `target="_top"` anchor links, with the active tab computed server-side from `pg.url_path`. Direction C tests best for thumb-reach on tall phones and mirrors iOS/Android app conventions the investigator persona already knows.
+>
+> - **Full-bleed mobile**: the dark side-gutters that appeared on narrow viewports (an artefact of the `.stApp` background bleed) were removed; the layout is now edge-to-edge on all screen widths.
+>
+> - **Minimal mobile topbar**: the `.dna-topbar` height was reduced for narrow screens so it doesn't eat vertical real estate when combined with the bottom tab bar.
+>
+> - **Start ink-hero band + live stat cards** (landed alongside v0.1.49): the Start screen got a high-contrast ink-hero headline band ("An AML program you can show.") plus three live stat cards (alerts / cases / audit entries) computed from the cached session state — turning a static marketing blurb into a live proof point.
+>
+> - **Testing lesson**: an earlier Playwright e2e that tapped a nav link by CSS selector gave a false green — the tap registered on an off-screen element. Replaced with assertions that use `is_visible()` + in-viewport bounding-box checks; the new test fails correctly when the element is outside the viewport.
+>
+> **Deploys**: `v0.1.48` (Start screen skeleton) → `v0.1.49` (☰ Menu + ink-hero + stat cards) → `v0.1.50` (Direction-C bottom tab bar + full-bleed + topbar trim). All three tags pushed to `main`, each followed by `az acr build` → both Container Apps updated → smoke at `/api/v1/health` + 375 px viewport.
+
+---
+
+> **First-run Start screen + mobile nav fix** (2026-06-04, `feat/first-run-golden-thread`, spec: `docs/superpowers/specs/2026-06-04-first-run-golden-thread-design.md`): replaced the confusing cold-open (the old legacy Welcome page) with a purpose-built first-run experience.
+>
+> - **Start screen** (`pages/0_Start.py` + `dashboard/golden_thread.py`): one sentence establishes what the framework does; a "▶ Show me it's real" button drives a live 4-beat Golden Thread — **alert → case → audit → doors** — through the planted C0001 structuring case in the default `community_bank` spec. Each beat renders progressively: first the alert fires, then the case is built, then the audit hash-chain entry is shown, then the action doors (SAR filing / tuning / export). The page is universally routed and set as the Streamlit default landing page (`app.py` initial page). The legacy `pages/0_Welcome.py` was retired — its content scrubbed from README and dashboard-tour.
+>
+> - **Mobile nav fix**: the `.dna-topbar` CSS overlay was intercepting the Streamlit sidebar expand control on narrow (≤640 px) screens — the hamburger tap opened the topbar menu instead of the sidebar. Fixed: z-index lowered below Streamlit's sidebar layer so the native expand control remains tappable. An in-canvas ☰ Menu button was added as a fallback for browsers where `stSidebar` itself is hidden. A Playwright e2e test asserts the 640 px nav carve-out CSS is present and the tap-to-navigate flow reaches `Alert_Queue` from the in-canvas Menu.
+>
+> **Result**: dashboard opens on a single clear sentence + a live proof-of-concept beat instead of a static marketing blurb; mobile users can navigate without fighting the topbar overlay.
+
+---
+
 > **N1 — governed alert-prioritization layer** (`v0.1.45`, #477, 2026-06-03): first of the ML/AI roadmap ("governed augmentation") initiatives (the N1 plan). Establishes the **governed seam** an advisory ML triage score plugs into: explainable, deterministic, and constitutionally incapable of changing a disposition.
 >
 > - **What shipped**: an optional `program.prioritization` spec block (off by default) + JSON schema; `engine/prioritization.py` — a transparent weighted scorer (`score_alert`, every contribution echoed in `priority_explanation`), `stamp_priority` (per-rule, additive), and `build_priority_report` (deterministic, **mask-aware**). The runner stamps `priority_score` + `priority_explanation` on every alert and writes a frozen, manifest-pinned `priority_report.json`; the audit ledger freezes + pins `priority_report_hash` (mirrors `sla_report.json`).
@@ -218,7 +246,7 @@ src/aml_framework/
 ├── attestations/     MLRO sign-off ledger — hash-chained attestations.jsonl (Round 10)
 ├── cases/            Investigation aggregator, SLA timer, STR bundling, filing sidecars (Round 6/10)
 ├── assistant/        GenAI co-pilot (template/ollama/openai backends, sidebar on every page)
-├── dashboard/        32-page Streamlit web app (mobile-responsive, multi-tenant, GenAI panel)
+├── dashboard/        44-page Streamlit web app (mobile-responsive, multi-tenant, GenAI panel)
 ├── data/             Synthetic generator + 8 source loaders + ISO 20022 parser
 │   ├── iso20022/     pacs.008, pacs.009, pain.001, pacs.004 ingestion (Round 5)
 │   └── lists/        Sanctions, adverse media, sanctioned wallets, purpose codes
@@ -650,7 +678,7 @@ Goal: drain a stack of parallel-authored draft PRs through the local-Codex gate 
 - Schema validation at load time
 
 ### For the analyst (L1/L2)
-- 32-page web dashboard with persona-filtered navigation
+- 44-page web dashboard with persona-filtered navigation
 - Row-click drill-through on every triage table (no more selectbox-below-table)
 - Investigation-level review (not just alerts)
 - Per-case live SLA + escalation recommendations
@@ -785,7 +813,7 @@ Every doc has a single-line "use when" hook in [`README.md`](../README.md). The 
 - `README.md` — hub-style entry point with documentation map
 - `docs/getting-started.md` — 15-min onboarding path
 - `docs/architecture.md` — reference design
-- `docs/dashboard-tour.md` — all 32 pages organized by workflow (drift-protected by `test_dashboard_tour_coverage.py`)
+- `docs/dashboard-tour.md` — all 42 operational pages organized by workflow (drift-protected by `test_dashboard_tour_coverage.py`)
 - `docs/jurisdictions.md` — US / CA / EU / UK / crypto / cyber-fraud specs
 - `docs/personas.md` — role-based workflows
 - `docs/spec-reference.md` — field-by-field `aml.yaml` guide

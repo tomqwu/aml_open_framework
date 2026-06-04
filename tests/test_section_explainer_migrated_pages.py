@@ -29,8 +29,8 @@ EXPECTED_CALL_COUNTS = {
 # check). Mirrors PAGES_DIR.glob("*.py") minus __init__.py + the two
 # multi-section pages above.
 _EXPECTED_PAGE_LEVEL = {
+    "0_Start.py",
     "0_Today.py",
-    "0_Welcome.py",
     "10_Network_Explorer.py",
     "11_Live_Monitor.py",
     "12_Sanctions_Screening.py",

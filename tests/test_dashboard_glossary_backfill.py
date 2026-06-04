@@ -1,7 +1,7 @@
 """Tests verifying glossary_term/legend is wired into leader pages.
 
 PR #108 added the helper. This PR (the glossary backfill) actually
-calls it from the four leader-facing pages (Welcome, Audit & Evidence,
+calls it from the leader-facing pages (Audit & Evidence,
 Investigations, Tuning Lab). Without these tests, a future contributor
 can silently rip the legend out and a leader once again sees bare
 acronyms with no definition.
@@ -24,7 +24,6 @@ PAGES = Path(__file__).resolve().parent.parent / "src" / "aml_framework" / "dash
 # lenient about positioning (legend can be anywhere on the page) but
 # strict about presence.
 EXPECTED_LEGEND_TERMS: dict[str, set[str]] = {
-    "0_Welcome.py": {"1LoD", "2LoD", "STR", "KYC", "SLA"},
     "7_Audit_Evidence.py": {"STR", "SAR", "FINTRAC", "OSFI", "FCA", "AMLA", "FinCEN", "MRM"},
     "24_Investigations.py": {"SLA", "STR", "SAR", "MLRO"},
     "23_Tuning_Lab.py": {"MRM", "2LoD"},
