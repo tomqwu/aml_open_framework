@@ -35,7 +35,7 @@ def pick_hero_alert(alerts: list[dict[str, Any]]) -> dict[str, Any] | None:
         return None
     planted = [a for a in alerts if str(a.get("customer_id")) == _HERO_CUSTOMER]
     if planted:
-        return planted[0]
+        return sorted(planted, key=lambda a: str(a.get("rule_id", "")))[0]
     scored = [a for a in alerts if _score(a) >= 0.0]
     if scored:
         return max(scored, key=_score)
@@ -74,13 +74,17 @@ def build_beats(
             }
         ]
     case = _case_for(cases, hero)
+    is_planted = str(hero.get("customer_id")) == _HERO_CUSTOMER
+    alert_narration = (
+        "A rule flagged a suspicious pattern — here, repeated cash deposits "
+        "just under the reporting threshold. Classic structuring."
+        if is_planted
+        else "A rule flagged a suspicious pattern that crossed a detection threshold."
+    )
     return [
         {
             "title": "The engine caught this.",
-            "narration": (
-                "A rule flagged a suspicious pattern — here, repeated cash deposits "
-                "just under the reporting threshold. Classic structuring."
-            ),
+            "narration": alert_narration,
             "panel_kind": PANEL_ALERT,
             "payload": hero,
         },

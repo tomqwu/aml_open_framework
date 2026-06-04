@@ -85,3 +85,16 @@ def test_build_beats_is_deterministic():
     a = build_beats([_alert("C0001"), _alert("C0001", rule_id="other")], [_case("C0001")], _AUDIT)
     b = build_beats([_alert("C0001"), _alert("C0001", rule_id="other")], [_case("C0001")], _AUDIT)
     assert a == b
+
+
+def test_case_beat_uses_any_matching_customer_when_rule_differs():
+    beats = build_beats(
+        [_alert("C0001", rule_id="layering")], [_case("C0001", rule_id="other_rule")], _AUDIT
+    )
+    assert beats[1]["payload"]["customer_id"] == "C0001"
+    assert beats[1]["payload"]["rule_id"] == "other_rule"
+
+
+def test_non_planted_hero_gets_generic_narration():
+    beats = build_beats([_alert("C0050", rule_id="layering")], [], _AUDIT)
+    assert "structuring" not in beats[0]["narration"].lower()
