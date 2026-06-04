@@ -12,7 +12,7 @@
 
 **M1–M4 ML roadmap fully delivered in v0.1.46 + v0.1.47.** The four Now-tier initiatives off the N1 governed-augmentation seam shipped in a single 24h sprint: Triage Queue dashboard page (M1), SR 26-2 model-inventory CLI `aml model-inventory` (M2 — **was priority #3, now complete**), champion-challenger `priority_outcome.json` with temporal-leakage guard (M3), and point-in-time effective-dated joins (M4, Pillar 3 PARTIAL→COVERED). The framework is the only OSS AML platform with a governed ML triage layer, a one-command SR 26-2 model inventory, and a deterministic champion-challenger outcome report.
 
-**June 9 comment deadline is now 5 days away.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline has moved from "6 days" to "5 days." Today (Wednesday June 4) is the last full working day before the Thursday–Friday June 5–6 filing window that is the realistic last stop for most firms. Any firm without a completed gap analysis is now filing under same-day pressure.
+**June 9 comment deadline is now 5 days away.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline has moved from "6 days" to "5 days." Today (Thursday June 4) is the last full working day before the Friday–Saturday June 5–6 filing window that is the realistic last stop for most firms. Any firm without a completed gap analysis is now filing under same-day pressure.
 
 **SR 26-2 is 48 days examination-active** (up from 47 on June 3). The M2 model-inventory CLI ships the exact artifact second-line MRM teams have been building manually in Excel: `aml model-inventory --markdown` outputs a pipe-formatted table of every rule, every `python_ref` scorer, and the N1 prioritization model — ready for the Q3 model-risk committee report with one command.
 
@@ -22,7 +22,7 @@
 
 ## What changed since June 1
 
-**June 9 comment deadline is now 5 days away.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline has moved from "8 days" to "5 days." The last realistic business-day window for completing, reviewing, and filing comment letters is Thursday June 5 / Friday June 6 for most firms. Any firm still relying on informal program frameworks for the PPSI NPRM is at high risk of filing no comment at all.
+**June 9 comment deadline is now 5 days away.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline has moved from "8 days" to "5 days." The last realistic business-day window for completing, reviewing, and filing comment letters is Friday June 5 / Saturday June 6 for most firms. Any firm still relying on informal program frameworks for the PPSI NPRM is at high risk of filing no comment at all.
 
 **SR 26-2 is 48 days examination-active** (up from 45 on June 1). Q2 2026 examination cycles are ongoing — second-line MRM teams are mid-presentation to boards, not starting gap analyses. The framework's challenger-model documentation bundle is the gap-filler for Q3 model-risk committee reports.
 
@@ -32,13 +32,13 @@
 
 ## What changed since May 25
 
-**FinCEN Whistleblower NPRM comment period closed today.** The comment period for the March 30 NPRM (10–30% of collected sanctions from a $300M fund) closed 2026-06-01. The **proposed** award structure is known in outline, but the terms are not settled — FinCEN will consolidate comments and a final rule is expected late 2026 / early 2027, so treat the percentages as proposed, not final. Even so, the incentive signal is real, substantial, and targeted at SAR-backlog and screening-gap failures. Compliance teams that haven't reviewed internal escalation channels since Q1 2026 are running behind.
+**FinCEN Whistleblower NPRM comment period closed Monday.** The comment period for the March 30 NPRM (10–30% of collected sanctions from a $300M fund) closed 2026-06-01. The **proposed** award structure is known in outline, but the terms are not settled — FinCEN will consolidate comments and a final rule is expected late 2026 / early 2027, so treat the percentages as proposed, not final. Even so, the incentive signal is real, substantial, and targeted at SAR-backlog and screening-gap failures. Compliance teams that haven't reviewed internal escalation channels since Q1 2026 are running behind.
 
 **The May 31 security hardening sprint (H0–H6) closes SR 26-2 gaps directly.** Six PRs shipped in one sprint address the exact controls SR 26-2 examiners will inspect in a challenger-model review: coverage gate enforcement (test-outcome-analysis discipline), zip-slip sanitisation (evidence-bundle integrity), SQL injection prevention (data-integrity chain), and audit pack byte-determinism (same-inputs → identical-output guarantee). The determinism fix is the most competitively significant: no commercial AML platform publishes a same-spec + same-data + same-seed = identical-output guarantee.
 
-**6 days to the Effectiveness NPRM + GENIUS Act NPRM dual deadline (June 9).** Firms that complete gap analyses before June 9 can use their comment-window work as documented evidence of proactive compliance posture in SR 26-2 model governance.
+**5 days to the Effectiveness NPRM + GENIUS Act NPRM dual deadline (June 9).** Firms that complete gap analyses before June 9 can use their comment-window work as documented evidence of proactive compliance posture in SR 26-2 model governance.
 
-**28 days to AUSTRAC Tranche 2 enforcement (July 1).** No OSS AML framework has shipped an AUSTRAC-specific example spec. The window to position as the go-to open-source baseline for Australian DNFBPs is closing in 28 days.
+**27 days to AUSTRAC Tranche 2 enforcement (July 1).** No OSS AML framework has shipped an AUSTRAC-specific example spec. The window to position as the go-to open-source baseline for Australian DNFBPs is closing in 27 days.
 
 ---
 

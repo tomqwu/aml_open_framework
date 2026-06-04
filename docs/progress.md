@@ -38,7 +38,7 @@ Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a
 
 ---
 
-> **2026-06-03 — June 2026 research refresh (docs-only)**: Four documents updated to current date. `2026-06-regulator-pulse.md`: last-updated → 2026-06-03; June 9 Effectiveness NPRM + GENIUS Act NPRM dual deadline day count 8→6 with urgency note (last viable filing window Thu/Fri June 5–6); AUSTRAC Tranche 2 day count 30→28; AMLA RTS day count 39→37; footer date updated. `2026-06-competitive-positioning.md`: date field → 2026-06-03; new "What changed since June 1" section added covering the 6-day June 9 urgency, SR 26-2 at 47 days examination-active (up from 45), and AUSTRAC 28-day window; all inline day counts updated. `docs/index.md`: researcher/regulator card updated with refreshed deadline countdown; new "What's new" table row for 2026-06-03. No code changes; no CI targets affected.
+> **2026-06-03 — June 2026 research refresh (docs-only)**: Four documents updated to current date. `2026-06-regulator-pulse.md`: last-updated → 2026-06-03; June 9 Effectiveness NPRM + GENIUS Act NPRM dual deadline day count 8→6 with urgency note (last viable filing window Fri/Sat June 5–6); AUSTRAC Tranche 2 day count 30→28; AMLA RTS day count 39→37; footer date updated. `2026-06-competitive-positioning.md`: date field → 2026-06-03; new "What changed since June 1" section added covering the 6-day June 9 urgency, SR 26-2 at 47 days examination-active (up from 45), and AUSTRAC 28-day window; all inline day counts updated. `docs/index.md`: researcher/regulator card updated with refreshed deadline countdown; new "What's new" table row for 2026-06-03. No code changes; no CI targets affected.
 
 ---
 
