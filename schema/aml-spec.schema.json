@@ -178,6 +178,16 @@
           "type": "string",
           "description": "PR-D1: optional medallion-architecture stage hint for this data contract (bronze/silver/gold). Engine ignores at runtime; surfaces consume for medallion-architecture provenance (Data Integration page, regulator pack, NFR dashboard). Additive — defaults to unset.",
           "enum": ["bronze", "silver", "gold"]
+        },
+        "effective_dated": {
+          "type": "object",
+          "description": "M4 (#484): SCD-2 temporal metadata. Declares this contract's validity-period columns so a rule can join it AS OF the txn date (point-in-time), not the latest row. valid_to is optional — NULL means still in force.",
+          "additionalProperties": false,
+          "required": ["valid_from"],
+          "properties": {
+            "valid_from": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+            "valid_to":   { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+          }
         }
       }
     },
@@ -298,7 +308,18 @@
         "filter":   { "type": "object" },
         "group_by": { "type": "array", "minItems": 1, "items": { "type": "string" } },
         "window":   { "type": "string", "pattern": "^[0-9]+[smhd]$" },
-        "having":   { "type": "object", "minProperties": 1 }
+        "having":   { "type": "object", "minProperties": 1 },
+        "enrich": {
+          "type": "object",
+          "description": "M4 (#484): point-in-time as-of join to an effective-dated contract. The engine joins on `on` AND the contract's validity window so each txn matches the reference row in force at its booked_at.",
+          "additionalProperties": false,
+          "required": ["contract", "key"],
+          "properties": {
+            "contract": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+            "key":      { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+            "where":    { "type": "array", "items": { "type": "string" } }
+          }
+        }
       }
     },
     "logic_list_match": {

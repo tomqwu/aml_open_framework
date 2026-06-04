@@ -1370,7 +1370,12 @@ def run_spec(
             continue
 
         source_table = rule.logic.source if hasattr(rule.logic, "source") else ""
-        sql = compile_rule_sql(rule, as_of=as_of, source_table=source_table)
+        sql = compile_rule_sql(
+            rule,
+            as_of=as_of,
+            source_table=source_table,
+            contracts={c.id: c for c in spec.data_contracts},
+        )
         ledger.record_rule_sql(rule.id, sql)
 
         # PR-LF2: time the rule's SQL execution + count the query. The

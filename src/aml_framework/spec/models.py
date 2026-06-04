@@ -330,6 +330,16 @@ class Column(_Base):
     last_refreshed_at_column: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*$")
 
 
+class EffectiveDated(_Base):
+    """M4 (Pillar 3): SCD-2 temporal metadata. Declares that this contract
+    carries validity-period columns so a rule can join it AS OF the transaction
+    date (point-in-time), not the latest row. `valid_to` is optional — NULL
+    means the row is still in force."""
+
+    valid_from: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    valid_to: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]*$")
+
+
 class DataContract(_Base):
     id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     source: str
@@ -337,6 +347,23 @@ class DataContract(_Base):
     allow_empty: bool = False
     columns: list[Column]
     quality_checks: list[dict[str, Any]] = Field(default_factory=list)
+    # M4 (#484): optional point-in-time SCD-2 declaration. Engine joins this
+    # contract as-of the txn `booked_at` when a rule enriches against it.
+    effective_dated: EffectiveDated | None = None
+
+    @model_validator(mode="after")
+    def _check_effective_dated_columns(self) -> DataContract:
+        if self.effective_dated is not None:
+            names = {c.name for c in self.columns}
+            ed = self.effective_dated
+            missing = [c for c in (ed.valid_from, ed.valid_to) if c and c not in names]
+            if missing:
+                raise ValueError(
+                    f"data_contract '{self.id}'.effective_dated references unknown "
+                    f"column(s): {missing}"
+                )
+        return self
+
     # PR-D1 (#374): optional medallion-architecture stage hint. Engine
     # ignores at runtime; downstream surfaces (Data Integration page,
     # regulator pack, NFR dashboard) consume for medallion-architecture
@@ -357,6 +384,23 @@ class RegulationRef(_Base):
     url: str | None = None
 
 
+class EnrichJoin(_Base):
+    """M4 (Pillar 3): an as-of join from an aggregation_window rule to an
+    effective-dated reference contract. The engine joins on `on` AND the
+    reference contract's validity window, so each source row matches the
+    reference row in force at its `booked_at`. `where` carries raw SQL
+    predicates over the joined contract's columns (qualify with the contract
+    name, e.g. `customer.risk_rating = 'high'`).
+
+    The join key is named `key` (not `on`) deliberately: YAML 1.1 — which the
+    spec loader uses — coerces a bare `on:` mapping key to the boolean `true`,
+    so `on` would silently break in authored specs."""
+
+    contract: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    key: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    where: list[str] = Field(default_factory=list)
+
+
 class AggregationWindowLogic(_Base):
     type: Literal["aggregation_window"]
     source: str
@@ -364,6 +408,9 @@ class AggregationWindowLogic(_Base):
     group_by: list[str]
     window: str = Field(pattern=r"^[0-9]+[smhd]$")
     having: dict[str, Any]
+    # M4 (#484): optional point-in-time enrichment join. Engine wraps the
+    # source in a CTE that joins the effective-dated contract as-of booked_at.
+    enrich: EnrichJoin | None = None
 
 
 class ListMatchLogic(_Base):
@@ -617,6 +664,7 @@ class AMLSpec(_Base):
     @model_validator(mode="after")
     def _check_cross_references(self) -> "AMLSpec":
         contract_ids = {c.id for c in self.data_contracts}
+        contracts_by_id = {c.id: c for c in self.data_contracts}
         queue_ids = {q.id for q in self.workflow.queues}
 
         for rule in self.rules:
@@ -628,6 +676,22 @@ class AMLSpec(_Base):
                 raise ValueError(
                     f"rule '{rule.id}' escalates to unknown queue '{rule.escalate_to}'"
                 )
+            # M4 (#484): an aggregation_window `enrich` must point at a declared
+            # contract that is itself `effective_dated` — the as-of join needs
+            # validity columns to resolve the contemporaneous row.
+            enrich = getattr(rule.logic, "enrich", None)
+            if enrich is not None:
+                ref = contracts_by_id.get(enrich.contract)
+                if ref is None:
+                    raise ValueError(
+                        f"rule '{rule.id}' enrich references unknown data_contract "
+                        f"'{enrich.contract}'"
+                    )
+                if ref.effective_dated is None:
+                    raise ValueError(
+                        f"rule '{rule.id}' enriches '{ref.id}' which is not "
+                        "effective_dated (declare valid_from/valid_to on it)"
+                    )
 
         # Freshness-pinning cross-reference: a column with
         # `max_staleness_days` set must also point at a sibling column
