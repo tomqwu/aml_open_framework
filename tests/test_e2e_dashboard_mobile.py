@@ -147,6 +147,20 @@ FULL_NET_PAGES: list[PageSpec] = [
 # explicit known-bad set PR-M2..M6 must fix.
 STRICT_PAGES: list[PageSpec] = [p for p in FULL_NET_PAGES if p[0] != "Today"]
 
+# Pages still under the thin overlay (strict checks genuinely FAIL → the
+# remaining PR-M2..M6 xfail backlog). The Direction-C mobile redesign
+# (persistent bottom tab bar + full-bleed `@media (max-width:640px)`
+# layout + uniform 44px controls) is exactly the "PR that flips a page
+# to a hard pass" the strict-xfail contract demands: once a page passes
+# both ergonomics assertions it MUST drop its xfail mark in the same
+# change (strict=True turns an XPASS into a hard CI failure precisely to
+# force that). The four pages below now CLEAR both the inner-overflow and
+# uniform-44px-tap-target bars under the redesign, so they are promoted
+# to a hard pass; the three still-failing archetypes stay strict-xfail.
+STRICT_STILL_FAILING: frozenset[str] = frozenset(
+    {"Executive Dashboard", "Alert Queue", "Audit & Evidence"}
+)
+
 # The 2-page smoke set for the larger viewport tiers.
 SMOKE_PAGES: list[PageSpec] = [
     ("Today", "An AML program you can"),
@@ -427,19 +441,28 @@ def _assert_responsive_quality(page, title: str, viewport: dict[str, int]) -> No
             t,
             tok,
             id=t.replace(" ", "_").replace("&", "and").replace("__", "_"),
-            marks=pytest.mark.xfail(reason=XFAIL_REASON, strict=True),
+            marks=(
+                (pytest.mark.xfail(reason=XFAIL_REASON, strict=True),)
+                if t in STRICT_STILL_FAILING
+                else ()
+            ),
         )
         for (t, tok) in STRICT_PAGES
     ],
 )
 def test_responsive_quality_iphone_se(iphone_se_page, title, token):
-    """STRICT tier (xfail): the 7 chart/grid archetypes must have zero
+    """STRICT tier: the 7 chart/grid archetypes must have zero
     off-screen inner overflow and uniformly >=44px tap targets at
-    375x667. Every case is `xfail(strict=False)` — they fail under the
-    thin overlay today. PR-M2..M6 flips each to a hard pass by FIXING
-    the page CSS (responsive code/chart/stack widths + uniform 44px
-    controls), NOT by relaxing this assertion. Today is excluded — it
-    is a pure hero page with no controls / inner overflow to grade."""
+    375x667. Pages still on the thin overlay (`STRICT_STILL_FAILING`)
+    stay `xfail(strict=True)`; pages the Direction-C mobile redesign
+    fixed (Sanctions Screening, Customer 360, Data Integration, Network
+    Explorer) are promoted to a HARD pass — the strict-xfail contract
+    requires dropping the mark the moment a page passes, so an
+    accidental future regression fails loudly instead of silently
+    re-XFAILing. PR-M2..M6 flips each remaining page to a hard pass by
+    FIXING the page CSS (responsive code/chart/stack widths + uniform
+    44px controls), NOT by relaxing this assertion. Today is excluded —
+    it is a pure hero page with no controls / inner overflow to grade."""
     _nav_to(iphone_se_page, title)
     # Re-assert the token (scoped to stMain, not body — the sidebar nav
     # lists every page title) so a silent bounce-to-main can't make the

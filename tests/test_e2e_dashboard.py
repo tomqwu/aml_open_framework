@@ -750,15 +750,19 @@ class TestDarkModeLegibility:
             # its colour is also pinned at the source level in
             # test_dashboard_dark_theme.py.
             checked_text = 0
-            # Required = guaranteed on the Today landing page (h1 hero,
-            # the KPI value numbers, the topbar tag). h2/h3/native-
-            # metric are NOT on Today (it has no <h2>; the AI header is
+            # Required = guaranteed on the Direction-C Start landing page
+            # (the ink-hero front door): the serif hero headline
+            # `.dna-start-h1`, the three KPI stat numbers `.dna-start-n`
+            # (Rules / Alerts / Cases), and the topbar tag. h2/h3/native-
+            # metric are NOT on Start (it has no <h2>; the AI header is
             # h5), so they're opportunistic + also source-pinned.
             for sel, label, required in (
-                ("h1", "hero", True),
-                # Hero KPI numbers ("12" / "4" / "12") carry
-                # .metric-card .value — always on the landing page.
-                (".metric-card .value", "KPI value", True),
+                # Hero headline `.dna-start-h1` ("An AML program you can
+                # show.") — the largest, first-read text on the landing.
+                (".dna-start-h1", "hero headline", True),
+                # The three hero KPI stat numbers carry `.dna-start-n`
+                # ("12" / "4" / "12") — always on the landing page.
+                (".dna-start-n", "KPI stat number", True),
                 # Topbar tag uses --dna-ink-faint (the prior 3.99:1
                 # WCAG 1.4.3 failure surface) — always present.
                 (".dna-topbar-tag", "topbar tag", True),
@@ -774,8 +778,8 @@ class TestDarkModeLegibility:
                 assert ratio >= 4.5, f"{label} text contrast {ratio:.2f}:1 < 4.5:1 in dark mode"
                 checked_text += 1
             assert checked_text >= 3, (
-                "expected hero + KPI value + topbar-tag text "
-                f"contrast checks; only ran {checked_text}"
+                "expected hero headline + KPI stat number + topbar-tag "
+                f"text contrast checks; only ran {checked_text}"
             )
 
             # Topbar bg must be dark (was a cream slab).
@@ -786,9 +790,10 @@ class TestDarkModeLegibility:
             )
 
             # KPI card boundary vs canvas — WCAG 1.4.11 non-text 3:1.
-            # The hero KPI tiles on the landing page carry .metric-card.
-            card_border = _css(".metric-card", "border-top-color")
-            assert card_border, ".metric-card not found on landing page"
+            # The hero KPI stat tiles on the Start landing carry
+            # `.dna-start-stat` (Rules / Alerts / Cases).
+            card_border = _css(".dna-start-stat", "border-top-color")
+            assert card_border, ".dna-start-stat not found on landing page"
             border_ratio = _contrast(card_border, canvas_bg)
             assert border_ratio >= 3.0, (
                 f"KPI card boundary contrast {border_ratio:.2f}:1 < 3:1 "
