@@ -148,6 +148,39 @@ logic:
     sum_amount:  { gte: 25000 }
 ```
 
+#### Point-in-time enrichment — `enrich` (M4 / #484)
+
+To evaluate a rule against reference state **as of each transaction's date**
+(not the latest row), declare the reference contract as `effective_dated` and
+add an `enrich` block to the aggregation window. The engine emits an as-of JOIN
+(`ref.valid_from <= booked_at AND (ref.valid_to IS NULL OR booked_at < ref.valid_to)`),
+so a customer whose `risk_rating` changed mid-window is scored on the value in
+force at each txn — closing the Pillar-3 SCD-2 gap.
+
+```yaml
+data_contracts:
+  - id: customer
+    effective_dated: { valid_from: valid_from, valid_to: valid_to }  # valid_to optional/null = current
+    columns:
+      - { name: customer_id, type: string,    nullable: false }
+      - { name: risk_rating, type: string }
+      - { name: valid_from,  type: timestamp, nullable: false }
+      - { name: valid_to,    type: timestamp, nullable: true  }
+rules:
+  - id: high_risk_burst
+    logic:
+      type: aggregation_window
+      source: txn
+      group_by: [customer_id]
+      window: 30d
+      having: { count: { gte: 2 } }
+      enrich:
+        contract: customer                       # must be effective_dated
+        key: customer_id                         # join key (named `key`, not `on` — YAML 1.1 coerces `on:` to true)
+        where: ["customer.risk_rating = 'high'"] # raw predicates over the joined contract
+```
+
+
 ### Logic type: `list_match`
 
 ```yaml

@@ -264,7 +264,7 @@ _render_pillar(
         "Use customer / account / reference state as of the transaction "
         "time, not latest; data stitching is central."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         "**In:** every run carries an `as_of` timestamp; custom-SQL "
         "rule templates resolve `{as_of}` / `{window_start}` / "
@@ -272,11 +272,13 @@ _render_pillar(
         "(deterministic by spec).",
         "**In:** data freshness pins per source on the Data Integration "
         "and Data Quality surfaces (PR-DATAVIZ).",
-        "**Missing:** a stitched slowly-changing-dimension (SCD-2) "
-        "customer / account history that resolves txn → contemporaneous "
-        "KYC state at query time. Today's reference data is a single "
-        "snapshot; the join is point-in-time at the run boundary, not at "
-        "the per-txn boundary.",
+        "**In (M4 / #484):** first-class SCD-2 effective-dating — a "
+        "contract declares `effective_dated: {valid_from, valid_to}` and an "
+        "`aggregation_window.enrich` join resolves txn → contemporaneous "
+        "reference state **at the per-txn boundary**. The engine emits the "
+        "as-of JOIN predicate (`ref.valid_from <= booked_at < ref.valid_to`) "
+        "so a customer whose risk changed mid-window is scored on the value "
+        "in force at each transaction, not the latest row.",
     ],
     links=[
         ("Data Integration — source freshness + contracts", "pages/30_Data_Integration.py"),
