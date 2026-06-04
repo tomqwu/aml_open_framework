@@ -421,6 +421,43 @@ code, pre, .terminal-block, [data-testid="stCode"] code,
     opacity: 1 !important;
 }
 
+/* ---- Mobile: keep the sidebar expand control TAPPABLE (issue: phone
+ * nav dead-end) ----
+ * The fixed `.dna-topbar` brand bar (z-index 999991) sits on top of
+ * Streamlit's collapsed-sidebar expand control, which renders at the
+ * top-left corner with the default `z-index:auto`. On a phone the
+ * brand `<a class="dna-topbar-home">` therefore INTERCEPTS the tap on
+ * the expand control (Playwright: "dna-topbar-home subtree intercepts
+ * pointer events") and a thumb-only user is stranded on the landing
+ * page with no way to reach any other page.
+ *
+ * Two-part fix, both required:
+ *   (1) Lift the expand control ABOVE the topbar so it wins the stack
+ *       at the top-left corner and stays hittable.
+ *   (2) On phone widths, stop the brand link from swallowing taps in
+ *       the top-left corner the control occupies — disable
+ *       pointer-events on `.dna-topbar-brand` (re-enabled on its inner
+ *       home link, which we also shove right of the ~52px control zone
+ *       via topbar left padding) so the control underneath is the
+ *       hit target.
+ */
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stExpandSidebarButton"] {
+    z-index: 999999 !important;  /* above .dna-topbar (999991) */
+    pointer-events: auto !important;
+}
+@media (max-width: 640px) {
+    /* Clear a tap lane for the expand control at the top-left. */
+    .dna-topbar { padding-left: 56px !important; }
+    /* The brand bar no longer eats taps in the control's corner; its
+     * home link re-enables clicks for itself (now shifted right). */
+    .dna-topbar-brand { pointer-events: none !important; }
+    .dna-topbar-brand a,
+    .dna-topbar-brand .dna-topbar-home { pointer-events: auto !important; }
+}
+
 /* ---- Main canvas: cream from landing site ---- */
 [data-testid="stAppViewContainer"] > .main,
 [data-testid="stAppViewContainer"] section.main {
@@ -1001,6 +1038,21 @@ def page_header(
         render_explainer_poller()
     except Exception:  # noqa: BLE001 — poller must NEVER crash a page render
         pass
+
+
+def mobile_menu(pages: list[tuple[str, str]]) -> None:
+    """In-canvas '☰ Menu' page-jump — a nav path that does NOT depend on
+    the Streamlit sidebar expand control.
+
+    Version-proof insurance behind the native mobile-nav fix: even if a
+    future Streamlit release re-nests the collapsed-sidebar expand
+    control under a parent we can't keep tappable, this in-canvas
+    expander gives a thumb-only phone user a guaranteed way off the
+    landing page. ``pages`` is a list of ``(label, page_path)`` pairs.
+    """
+    with st.expander("☰ Menu", expanded=False):
+        for label, path in pages:
+            st.page_link(path, label=label)
 
 
 def page_footer() -> None:

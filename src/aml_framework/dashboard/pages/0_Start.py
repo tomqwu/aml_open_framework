@@ -12,7 +12,12 @@ from __future__ import annotations
 import streamlit as st
 
 from aml_framework.dashboard import golden_thread as gt
-from aml_framework.dashboard.components import page_footer, page_header, section_explainer
+from aml_framework.dashboard.components import (
+    mobile_menu,
+    page_footer,
+    page_header,
+    section_explainer,
+)
 from aml_framework.dashboard.state import ensure_initialized
 
 ensure_initialized()
@@ -24,6 +29,20 @@ page_header(
 st.caption(
     "You write the rules once. It runs them, builds the cases, and keeps a "
     "tamper-proof record of everything."
+)
+
+# Version-proof phone-nav insurance: an in-canvas page-jump that doesn't
+# depend on the Streamlit sidebar expand control (the native fix is the
+# headline; this is belt-and-braces for thumb-only users).
+mobile_menu(
+    [
+        ("Today", "pages/0_Today.py"),
+        ("Alert Queue", "pages/3_Alert_Queue.py"),
+        ("Investigations", "pages/24_Investigations.py"),
+        ("Audit & Evidence", "pages/7_Audit_Evidence.py"),
+        ("Triage Queue", "pages/52_Triage_Queue.py"),
+        ("Data Quality", "pages/14_Data_Quality.py"),
+    ]
 )
 
 
