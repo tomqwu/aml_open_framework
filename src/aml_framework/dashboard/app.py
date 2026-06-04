@@ -60,8 +60,8 @@ logging.getLogger("aml.dashboard").info("Persistence backend: %s", _active_backe
 #
 # The "" (empty-string) section renders flush at the top of the
 # sidebar without a header — the standard Streamlit idiom for
-# "ungrouped, always at the top." Today lives there because it's the
-# personalised landing every persona sees first.
+# "ungrouped, always at the top." Start here is the first-run wizard
+# and default landing; Today is the daily checklist persona sees next.
 #
 # Categories below match the existing tour prose groupings in
 # `docs/dashboard-tour.md` (Operational / Strategic / Engineering /
@@ -325,6 +325,8 @@ if selected_audience:
     # "Today" + Executive Dashboard are universal — every persona sees
     # them (Today is the personalised landing; Executive Dashboard is
     # the strategic-view fallback when no persona is selected).
+    # Start is the first-run front door + Replay-tour home — always reachable.
+    relevant_titles.add("Start here")
     relevant_titles.add("Today")
     relevant_titles.add("Executive Dashboard")
     # PR-NS-1: the North-Star pillar coverage page is the cross-cutting

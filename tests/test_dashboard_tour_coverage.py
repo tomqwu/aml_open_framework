@@ -84,7 +84,7 @@ class TestTourMentionsEveryPage:
     def test_page_count_in_header_matches_described(self):
         """The tour's header line ('N purpose-built pages') must match
         the count of pages this tour actually describes — i.e. all
-        page files minus TOUR_EXEMPT. (Welcome / Today are navigation
+        page files minus TOUR_EXEMPT. (Start here / Today are navigation
         surfaces documented separately.)"""
         body = TOUR.read_text(encoding="utf-8")
         described_count = len(_page_files()) - len(TOUR_EXEMPT)

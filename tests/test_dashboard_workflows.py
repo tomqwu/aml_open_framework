@@ -348,8 +348,8 @@ class TestNavigationRegisteredBeforeSlowInit:
     """Regression guard for the cold-deploy "app" sidebar bug.
 
     Streamlit shows its automatic `pages/`-directory nav (a literal
-    "app" entry + flat filename labels, incl. the orphaned Welcome
-    page) for any render that hasn't yet reached `st.navigation()`.
+    "app" entry + flat filename labels) for any render that hasn't yet
+    reached `st.navigation()`.
     `initialize_session()` runs the full AML engine and on a freshly
     deployed (cold) container that first run takes tens of seconds —
     so if `st.navigation()` is called *after* it, every operator

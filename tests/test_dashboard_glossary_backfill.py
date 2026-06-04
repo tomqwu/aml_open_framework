@@ -1,7 +1,7 @@
 """Tests verifying glossary_term/legend is wired into leader pages.
 
 PR #108 added the helper. This PR (the glossary backfill) actually
-calls it from the four leader-facing pages (Welcome, Audit & Evidence,
+calls it from the leader-facing pages (Audit & Evidence,
 Investigations, Tuning Lab). Without these tests, a future contributor
 can silently rip the legend out and a leader once again sees bare
 acronyms with no definition.
