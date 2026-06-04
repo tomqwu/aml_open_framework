@@ -20,6 +20,16 @@ Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a
 
 ---
 
+> **First-run Start screen + mobile nav fix** (2026-06-04, `feat/first-run-golden-thread`, spec: `docs/superpowers/specs/2026-06-04-first-run-golden-thread-design.md`): replaced the confusing cold-open (the old legacy Welcome page) with a purpose-built first-run experience.
+>
+> - **Start screen** (`pages/0_Start.py` + `dashboard/golden_thread.py`): one sentence establishes what the framework does; a "▶ Show me it's real" button drives a live 4-beat Golden Thread — **alert → case → audit → doors** — through the planted C0001 structuring case in the default `community_bank` spec. Each beat renders progressively: first the alert fires, then the case is built, then the audit hash-chain entry is shown, then the action doors (SAR filing / tuning / export). The page is universally routed and set as the Streamlit default landing page (`app.py` initial page). The legacy `pages/0_Welcome.py` was retired — its content scrubbed from README and dashboard-tour.
+>
+> - **Mobile nav fix**: the `.dna-topbar` CSS overlay was intercepting the Streamlit sidebar expand control on narrow (≤640 px) screens — the hamburger tap opened the topbar menu instead of the sidebar. Fixed: z-index lowered below Streamlit's sidebar layer so the native expand control remains tappable. An in-canvas ☰ Menu button was added as a fallback for browsers where `stSidebar` itself is hidden. A Playwright e2e test asserts the 640 px nav carve-out CSS is present and the tap-to-navigate flow reaches `Alert_Queue` from the in-canvas Menu.
+>
+> **Result**: dashboard opens on a single clear sentence + a live proof-of-concept beat instead of a static marketing blurb; mobile users can navigate without fighting the topbar overlay.
+
+---
+
 > **N1 — governed alert-prioritization layer** (`v0.1.45`, #477, 2026-06-03): first of the ML/AI roadmap ("governed augmentation") initiatives (the N1 plan). Establishes the **governed seam** an advisory ML triage score plugs into: explainable, deterministic, and constitutionally incapable of changing a disposition.
 >
 > - **What shipped**: an optional `program.prioritization` spec block (off by default) + JSON schema; `engine/prioritization.py` — a transparent weighted scorer (`score_alert`, every contribution echoed in `priority_explanation`), `stamp_priority` (per-rule, additive), and `build_priority_report` (deterministic, **mask-aware**). The runner stamps `priority_score` + `priority_explanation` on every alert and writes a frozen, manifest-pinned `priority_report.json`; the audit ledger freezes + pins `priority_report_hash` (mirrors `sla_report.json`).

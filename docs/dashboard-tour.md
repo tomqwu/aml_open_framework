@@ -14,6 +14,16 @@ For multi-tenant deployments showing more than one program in the same dashboard
 
 ---
 
+## Navigation Surfaces
+
+### Start here
+
+The default landing page (first-run Golden Thread). One sentence establishes what the framework does; a "▶ Show me it's real" button runs a live 4-beat walkthrough — alert → case → audit → doors — driven by the planted C0001 structuring case in the `community_bank` spec. Replaces the legacy Welcome cold-open. Universally routed so it is always reachable regardless of audience filter; `0_Start.py` is TOUR_EXEMPT (navigation surface, not an operational page).
+
+![Start here](screenshots/0_start.png)
+
+---
+
 ## Operational Pages
 
 ### Executive Dashboard
