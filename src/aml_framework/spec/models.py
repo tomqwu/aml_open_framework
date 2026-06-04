@@ -267,6 +267,36 @@ class ProgramPrioritization(_Base):
     weights: PrioritizationWeights = Field(default_factory=PrioritizationWeights)
 
 
+class RiskSegment(_Base):
+    """One customer-risk segment + its advisory de-prioritization threshold.
+
+    Declarative (the spec is the source of truth): an alert whose customer's
+    `field` value is in `values` AND whose advisory `priority_score` is below
+    `deprioritize_below` is flagged `suppression.applied=True` — never closed,
+    never re-disposed. `rationale`/`owner` are the audit paper-trail.
+    """
+
+    id: str = Field(min_length=1)
+    field: str = "customer_risk_rating"
+    values: list[str] = Field(min_length=1)
+    deprioritize_below: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+    rationale: str = Field(min_length=1)
+    owner: str = Field(min_length=1)
+
+
+class RiskSegmentation(_Base):
+    """Advisory risk-segmentation config (governed augmentation).
+
+    When `enabled`, the engine flags low-score alerts in declared low-risk
+    segments as de-prioritized (advisory). Off by default; backward-compatible.
+    Requires `prioritization` enabled (the score it gates on); when that's
+    absent the suppression pass is a no-op with an explicit reason.
+    """
+
+    enabled: bool = False
+    segments: list[RiskSegment] = Field(default_factory=list)
+
+
 class Program(_Base):
     name: str
     jurisdiction: str
@@ -300,6 +330,12 @@ class Program(_Base):
     # (0-1) + `priority_explanation` onto every alert — advisory only, never
     # alters disposition/queue/state. Default None = prioritization disabled.
     prioritization: ProgramPrioritization | None = None
+    # feat(spec) #495: optional governed risk-segmentation config. See
+    # `RiskSegmentation`. When enabled (and prioritization is on), the
+    # engine stamps an advisory `suppression` flag on low-score alerts in
+    # declared low-risk segments — never alters disposition/queue/state.
+    # Default None = segmentation disabled.
+    risk_segmentation: RiskSegmentation | None = None
     # PR-D3 (#376): environment promotion lane this spec is running in.
     # Defaults to `dev` so existing specs validate unchanged. The engine
     # WARNs (and, with `strict_environment_gating`, raises) when a rule
