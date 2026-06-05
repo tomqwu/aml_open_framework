@@ -1186,10 +1186,22 @@ button[data-baseweb="tab"] {
      * column, never `.block-container`, so this clearance can't leak
      * into the sidebar. */
     [data-testid="stMain"] .block-container { padding-bottom: 96px !important; }
-    /* The AI-advisor FAB is `position: fixed` (viewport-anchored) but is
-     * a DOM descendant of `stMain`, so prefixing the selector keeps it
-     * matching while making the containment contract explicit. */
-    [data-testid="stMain"] .st-key-ai_fab_container {
+    /* (DEFECT 7) The AI-advisor FAB is `position: fixed`
+     * (viewport-anchored) but is a DOM descendant of `stMain`. Lift it
+     * ABOVE the ~75px bottom tab bar so the pill never overlaps it.
+     *
+     * Cascade note — this MUST out-rank `ai_panel_fab()`'s own
+     * `.st-key-ai_fab_container { bottom: 1.5rem !important }`, which is
+     * re-injected per page render AFTER this base stylesheet. Both carry
+     * `!important`, so source order would otherwise hand the win to the
+     * later (lower) injection and pin the FAB at 24px (overlapping the
+     * bar). The leading `[data-testid="stMain"]` + the keyed-container
+     * `[class*="st-key-ai_fab_container"]` give this rule a strictly
+     * higher specificity (0,3,0 vs the injection's 0,1,0), so the lift
+     * wins regardless of injection order. Keep both qualifiers — drop
+     * either and the FAB silently regresses to 24px. ≤640px-scoped, so
+     * the desktop FAB position is untouched. */
+    [data-testid="stMain"] [class*="st-key-ai_fab_container"].st-key-ai_fab_container {
         bottom: 88px !important;  /* clear the 75px tab bar + margin */
         right: 1rem !important;
     }
