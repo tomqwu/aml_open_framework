@@ -8,11 +8,23 @@ the generator and these tests import cleanly without a skip guard.
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 
-from aml_framework.dashboard.regulatory_calendar import load_calendar
-from scripts.generate_research_stub import (
+# scripts/ is a dev/CI utility dir, intentionally NOT shipped in the stripped
+# runtime Docker image (which runs `pytest tests/` as a smoke check). Skip the
+# whole module when the generator isn't on disk so the image build stays green;
+# the generator is exercised by the unit + coverage CI jobs, not this image.
+_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "generate_research_stub.py"
+if not _SCRIPT.exists():  # pragma: no cover
+    pytest.skip(
+        "research-stub generator not present (stripped runtime image)",
+        allow_module_level=True,
+    )
+
+from aml_framework.dashboard.regulatory_calendar import load_calendar  # noqa: E402
+from scripts.generate_research_stub import (  # noqa: E402
     band_for,
     band_transitions,
     generate,
