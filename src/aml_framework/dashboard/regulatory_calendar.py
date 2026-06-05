@@ -68,7 +68,7 @@ def active_deadlines(calendar: list[Deadline], *, as_of: date) -> list[Deadline]
     return sorted(upcoming, key=lambda d: d.deadline)
 
 
-def regulatory_alert_banner(*, max_items: int = 4) -> None:
+def regulatory_alert_banner(*, max_items: int = 4) -> None:  # pragma: no cover - streamlit UI (e2e-covered)
     """Render a sticky band-colored alert banner of upcoming deadlines (#510).
 
     Streamlit UI surface: lazy-imports streamlit so this module stays
