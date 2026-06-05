@@ -11,6 +11,7 @@ import streamlit as st
 from aml_framework.cases.aggregator import aggregate_investigations
 from aml_framework.cases.sla import apply_escalation, compute_sla_status
 from aml_framework.cases.str_bundle import bundle_investigation_to_str
+from aml_framework.dashboard.case_copilot import case_copilot_panel
 from aml_framework.dashboard.components import (
     page_footer,
     citation_link,
@@ -140,6 +141,15 @@ deep_link_case = consume_param("case_id")
 default_idx = case_ids.index(deep_link_case) if deep_link_case in case_ids else 0
 selected_case = st.selectbox("Select case", case_ids, index=default_idx)
 case = df_cases[df_cases["case_id"] == selected_case].iloc[0].to_dict()
+
+# Publish the selection so the governed Case Copilot sidebar panel (and
+# the page-level AI advisor) can scope their context to this case.
+st.session_state["selected_case_id"] = selected_case
+
+# Governed Case Copilot — a human-reviewed DRAFT sidebar surface that
+# reuses the existing assistant backends + audit trail. Never an
+# auto-decision (SR-26-2 governed).
+case_copilot_panel(page="Case Investigation")
 
 # --- Header banner ---
 sev = case.get("severity", "")
