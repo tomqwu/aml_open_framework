@@ -1,0 +1,541 @@
+# AML/BSA + OFAC sanctions spec for a Permitted Payment Stablecoin Issuer
+# (PPSI) under the GENIUS Act (Guiding and Establishing National Innovation
+# for U.S. Stablecoins Act, S.1582, 119th Congress).
+#
+# This is the RICHER, NPRM-grounded companion to examples/genius_ppsi_issuer.
+# It is grounded in the joint FinCEN/OFAC Notice of Proposed Rulemaking
+# "Permitted Payment Stablecoin Issuer Anti-Money Laundering / Countering the
+# Financing of Terrorism Program and Sanctions Compliance" (Federal Register
+# 2026-06963, published 2026-04-10; comment deadline 9 June 2026). The NPRM:
+#
+#   1. Stands up a NEW dedicated OFAC sanctions program for PPSIs at
+#      31 CFR Part 502 — a PPSI must screen counterparties and stablecoin
+#      transfers against the OFAC SDN list (incl. the virtual-currency
+#      address addenda) and freeze-and-report on a match.
+#   2. Confirms a PPSI is a BSA financial institution: it registers as an MSB
+#      (31 CFR 1022.210), runs a risk-based AML/CFT program, and files SARs
+#      (31 CFR 1022.320). FinCEN's 2019 CVC guidance (FIN-2019-G001) governs
+#      how those obligations attach to stablecoin mint/burn/redemption flows.
+#   3. Cross-border stablecoin transfers carry the FATF Travel Rule
+#      (Recommendation 16) originator/beneficiary-information obligation.
+#
+# The contract uses ISO 20022 pacs.008-style fields (debtor_bic, creditor_bic,
+# uetr, purpose_code, counterparty_country) the framework's iso20022 ingestion
+# adapter populates on wire/RTP rails — declared nullable so synthetic / CSV
+# rows missing them still load and the spec both `aml validate`s AND
+# `aml run`s. Every rule maps to a GENIUS Act / 31 CFR / OFAC / FATF
+# obligation; every citation resolves via the regwatch CITATION_URL_MAP.
+
+version: 1
+
+program:
+  name: genius_ppsi_stablecoin
+  jurisdiction: US
+  regulator: FinCEN
+  owner: bsa_officer
+  effective_date: 2026-07-01
+  # PR-LF1 / acceptance item 4 — FinCEN CTR/SAR filing-latency SLA. An open
+  # alert older than alert_disposition_days with no terminal decision is a
+  # breach; a transaction batch later than cadence+grace flags lateness. The
+  # engine records breaches in sla_report.json (it never raises on breach).
+  sla:
+    alert_disposition_days: 30
+    batch_cadence_days: 1
+    batch_lateness_grace_days: 1
+
+# ---------------------------------------------------------------------------
+# Data contracts (acceptance items 2 + 3) — reuse the synthetic generator's
+# column shapes so this spec both validates AND runs. The txn contract adds
+# the ISO 20022 pacs.008-style fields (debtor_bic, creditor_bic, uetr,
+# purpose_code) the iso20022 ingestion adapter writes on wire/RTP rails;
+# all are nullable so synthetic / CSV rows missing them still load.
+# OFAC sanctions screening (acceptance item 2) is discharged by the
+# ofac_sdn_screening list_match rule against the customer contract — the
+# canonical runnable pattern — under the program's 31 CFR Part 502 framing,
+# rather than a separate contract with no synthetic data behind it.
+# ---------------------------------------------------------------------------
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,      type: string,    nullable: false, pii: false }
+      - { name: customer_id, type: string,    nullable: false, pii: true  }
+      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,    type: string,    nullable: false }
+      - { name: channel,     type: string,    enum: [cash, wire, ach, e_transfer, cheque, card, rtp, crypto, prepaid] }
+      - { name: direction,   type: string,    enum: [in, out] }
+      - { name: booked_at,   type: timestamp, nullable: false }
+      - { name: counterparty_country, type: string, nullable: true }
+      # ISO 20022 pacs.008 fields — written by the iso20022 ingestion adapter
+      # on wire / RTP / e_transfer rails; nullable so synthetic / CSV rows
+      # without them still load and the purpose-code / BIC rules degrade
+      # gracefully when the column is empty.
+      - { name: purpose_code,   type: string, nullable: true }
+      - { name: uetr,           type: string, nullable: true }
+      - { name: debtor_bic,     type: string, nullable: true }
+      - { name: creditor_bic,   type: string, nullable: true }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,       type: string,    nullable: false, pii: true }
+      - { name: full_name,         type: string,    nullable: false, pii: true }
+      - { name: country,           type: string,    nullable: false }
+      - { name: risk_rating,       type: string,    enum: [low, medium, high] }
+      - { name: onboarded_at,      type: timestamp, nullable: false }
+      - { name: business_activity, type: string,    nullable: true }
+      - { name: edd_last_review,   type: timestamp, nullable: true }
+
+# ---------------------------------------------------------------------------
+# Detection rules — payment-stablecoin-issuer typologies under the GENIUS Act
+# PPSI NPRM (FR 2026-06963): mixing/layering, rapid on/off-ramp cycling,
+# sub-CTR structuring, VASP counterparty exposure, and OFAC SDN screening.
+# ---------------------------------------------------------------------------
+rules:
+  # --- STABLECOIN MIXING / LAYERING: fan-in then fan-out churn within 24h ---
+  - id: stablecoin_mixing_layering
+    name: Stablecoin mixing / layering — same-day fan-in then fan-out churn
+    severity: critical
+    regulation_refs:
+      - citation: "GENIUS Act PPSI NPRM (FR 2026-06963)"
+        description: "PPSI AML/CFT program — mixing/layering of minted stablecoin value."
+      - citation: "FIN-2019-G001"
+        description: "FinCEN CVC guidance — mixer/tumbler layering of convertible virtual currency."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH funds_in AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE direction = 'in'
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        funds_out AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE direction = 'out'
+              AND channel IN ('crypto', 'wire', 'rtp')
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        paired AS (
+            SELECT
+                fi.customer_id,
+                SUM(fi.amount) AS in_total,
+                SUM(fo.amount) AS out_total,
+                COUNT(DISTINCT fi.txn_id) AS in_count,
+                COUNT(DISTINCT fo.txn_id) AS out_count,
+                MIN(fi.booked_at) AS window_start,
+                MAX(fo.booked_at) AS window_end
+            FROM funds_in fi
+            JOIN funds_out fo
+              ON fi.customer_id = fo.customer_id
+              AND fo.booked_at BETWEEN fi.booked_at AND fi.booked_at + INTERVAL '24' HOUR
+            GROUP BY fi.customer_id
+        )
+        SELECT
+            'stablecoin_mixing_layering' AS rule_id,
+            customer_id,
+            in_total + out_total AS sum_amount,
+            in_count + out_count AS count,
+            window_start,
+            window_end
+        FROM paired
+        WHERE in_total >= 15000
+          AND out_total >= 15000
+          AND out_total >= in_total * 0.7
+        ORDER BY customer_id
+    escalate_to: aml_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - wallet_chain_history
+      - prior_alerts_90d
+    tags: [stablecoin, mixing, layering, churn]
+    business_intent: >
+      Detect the mixer/layering signature where inbound minted value is pushed
+      back out (crypto/wire/RTP) within 24 hours at 70%+ of the inbound amount,
+      both legs reaching $15,000+. A PPSI account that simply churns freshly
+      minted stablecoin straight back off-platform is the canonical layering
+      shape the GENIUS Act PPSI NPRM AML/CFT program and FinCEN's CVC guidance
+      direct issuers to monitor.
+    out_of_scope:
+      - inbound value retained on-platform (no matching same-day outbound leg)
+      - pass-through ratios below 70% (legitimate partial spend)
+      - aggregations beyond a single 24h pairing window
+
+  # --- RAPID ON-RAMP / OFF-RAMP CYCLING (mint-then-redeem within 24h) ---
+  - id: rapid_onramp_offramp_cycling
+    name: Rapid on-ramp / off-ramp cycling — mint then redeem within 24h
+    severity: high
+    regulation_refs:
+      - citation: "GENIUS Act s.4"
+        description: "PPSI mint/redemption controls — rapid on/off-ramp round-tripping indicative of layering."
+      - citation: "FIN-2019-G001"
+        description: "FinCEN CVC guidance — rapid on/off-ramp velocity monitoring."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH onramp AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE direction = 'in'
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        offramp AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE direction = 'out'
+              AND channel IN ('crypto', 'wire', 'rtp')
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        paired AS (
+            SELECT
+                o.customer_id,
+                SUM(o.amount) AS onramp_total,
+                SUM(r.amount) AS offramp_total,
+                COUNT(DISTINCT o.txn_id) AS onramp_count,
+                COUNT(DISTINCT r.txn_id) AS offramp_count,
+                MIN(o.booked_at) AS window_start,
+                MAX(r.booked_at) AS window_end
+            FROM onramp o
+            JOIN offramp r
+              ON o.customer_id = r.customer_id
+              AND r.booked_at BETWEEN o.booked_at AND o.booked_at + INTERVAL '24' HOUR
+            GROUP BY o.customer_id
+        )
+        SELECT
+            'rapid_onramp_offramp_cycling' AS rule_id,
+            customer_id,
+            onramp_total + offramp_total AS sum_amount,
+            onramp_count + offramp_count AS count,
+            window_start,
+            window_end
+        FROM paired
+        WHERE onramp_total + offramp_total >= 30000
+        ORDER BY customer_id
+    escalate_to: aml_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - wallet_chain_history
+      - prior_alerts_90d
+    tags: [stablecoin, on_ramp, off_ramp, velocity]
+    business_intent: >
+      Detect customers whose fiat/stablecoin on-ramp deposits are redeemed
+      back off the platform (crypto/wire/RTP out) within 24 hours, combined
+      value reaching $30,000+. Rapid on-ramp/off-ramp cycling leaves no time
+      for legitimate use and is the velocity signature the GENIUS Act s.4
+      redemption controls and FinCEN's CVC guidance direct PPSIs to monitor.
+    out_of_scope:
+      - on-ramp deposits held and used over multiple days (no 24h off-ramp leg)
+      - off-ramps via channels other than crypto/wire/RTP
+      - aggregations beyond a single 24h pairing window
+
+  # --- STRUCTURING BELOW THE USD $10,000 CTR THRESHOLD ---
+  - id: structuring_below_ctr_threshold
+    name: Structuring below the USD $10,000 CTR threshold
+    severity: high
+    regulation_refs:
+      - citation: "31 CFR 1022.320"
+        description: "MSB suspicious activity report — structuring to evade reporting is reportable."
+      - citation: "31 CFR 1022.210"
+        description: "MSB AML program requirement applicable to a PPSI."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: in
+        amount: { between: [5000, 9999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 20000 }
+    escalate_to: aml_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - prior_alerts_90d
+    tags: [structuring, sar, ctr, threshold_evasion]
+    business_intent: >
+      Detect customers funding their stablecoin wallet in the $5,000–$9,999
+      just-below-threshold band three or more times within 30 days summing to
+      $20,000+ — the canonical structuring pattern of splitting deposits to
+      stay below the USD $10,000 CTR reporting trigger. A PPSI surfaces this as
+      a SAR-reportable structuring pattern under 31 CFR 1022.320.
+    out_of_scope:
+      - single deposits at or above the $10,000 CTR threshold
+      - outbound redemptions (this rule is inbound-only)
+
+  # --- VASP COUNTERPARTY EXPOSURE TO HIGH-RISK JURISDICTIONS ---
+  - id: vasp_counterparty_exposure
+    name: VASP counterparty exposure — outbound stablecoin to FATF high-risk jurisdictions
+    severity: high
+    regulation_refs:
+      - citation: "FATF High-Risk Jurisdictions Subject to Call for Action"
+        description: "Geographic risk — call-for-action jurisdictions require enhanced due diligence."
+      - citation: "FATF Recommendation 16 — wire transfer information"
+        description: "Travel Rule — originator/beneficiary information for cross-border stablecoin transfers."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'vasp_counterparty_exposure' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        WHERE t.direction = 'out'
+          AND t.channel IN ('crypto', 'wire')
+          AND t.counterparty_country IN ('KP', 'IR', 'MM')
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 5000
+        ORDER BY t.customer_id
+    escalate_to: aml_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - jurisdiction_risk_assessment
+    tags: [vasp, high_risk_jurisdiction, geographic_risk, travel_rule]
+    business_intent: >
+      Surface customers sending outbound stablecoin/crypto or wire value to a
+      FATF call-for-action jurisdiction (KP, IR, MM) above a $5,000 aggregate
+      floor. Exposure to a VASP counterparty in these jurisdictions drives the
+      enhanced-due-diligence and Travel-Rule (FATF Recommendation 16)
+      originator/beneficiary-information obligations on cross-border
+      stablecoin transfers.
+    out_of_scope:
+      - inbound transfers from high-risk jurisdictions (this rule is outbound-only)
+      - customer-domicile high-risk geography (the filter is on counterparty_country)
+      - sanctioned-name matches against a person (handled by ofac_sdn_screening)
+
+  # --- OFAC SDN SANCTIONS SCREENING (31 CFR Part 502) ---
+  - id: ofac_sdn_screening
+    name: OFAC SDN sanctions screening (31 CFR Part 502)
+    severity: critical
+    regulation_refs:
+      - citation: "31 CFR Part 502"
+        description: "PPSI OFAC sanctions program — SDN screening + freeze-and-report on a match."
+      - citation: "OFAC SDN — virtual currency addenda"
+        description: "OFAC SDN list — dealings with designated persons / wallet addresses are prohibited."
+    logic:
+      type: list_match
+      source: customer
+      field: full_name
+      list: sanctions
+      match: fuzzy
+      threshold: 0.85
+    escalate_to: aml_investigator
+    evidence:
+      - customer_kyc_profile
+      - sanctions_match_details
+      - beneficial_ownership_records
+    tags: [sanctions, ofac, sdn, part_502, listed_persons]
+    business_intent: >
+      Fuzzy-match every customer's full_name against the OFAC Specially
+      Designated Nationals (SDN) list — including the virtual-currency address
+      addenda — at threshold 0.85. The GENIUS Act PPSI NPRM stands up a
+      dedicated PPSI sanctions program at 31 CFR Part 502: a match obligates an
+      immediate freeze, blocking report, and SAR. A PPSI may not deal in the
+      property of a sanctioned person.
+    out_of_scope:
+      - counterparty (non-customer) names appearing in transaction metadata
+      - sanctioned-wallet-address matches against on-chain attribution (different path)
+      - adverse-media matches below the SDN bar (handled by adverse_media_screening)
+
+  # --- ADVERSE MEDIA SCREENING ---
+  - id: adverse_media_screening
+    name: Adverse media screening
+    severity: medium
+    regulation_refs:
+      - citation: "31 CFR 1022.210"
+        description: "MSB AML program — ongoing customer due diligence, adverse media as risk indicator."
+      - citation: "FIN-2019-G001"
+        description: "FinCEN CVC guidance — risk-based monitoring of stablecoin customers."
+    logic:
+      type: list_match
+      source: customer
+      field: full_name
+      list: adverse_media
+      match: fuzzy
+      threshold: 0.85
+    escalate_to: aml_investigator
+    evidence:
+      - customer_kyc_profile
+      - adverse_media_articles
+    tags: [adverse_media, ongoing_monitoring]
+    business_intent: >
+      Fuzzy-match every customer's full_name against the curated adverse-media
+      watchlist (financial-crime reporting, regulatory enforcement, ongoing
+      investigations) at threshold 0.85. Adverse media is an explicit risk
+      indicator supporting the risk-based AML-program obligation a PPSI carries
+      as a registered MSB under 31 CFR 1022.210.
+    out_of_scope:
+      - OFAC SDN matches (handled by ofac_sdn_screening at higher severity)
+      - reputational risk on counterparties (the join is against customer names)
+
+# ---------------------------------------------------------------------------
+# Workflow — investigator → SAR filing → closed_no_action
+# ---------------------------------------------------------------------------
+workflow:
+  queues:
+    - id: aml_investigator
+      sla: 72h
+      next: [sar_filing, closed_no_action]
+    - id: sar_filing
+      sla: 30d
+      regulator_form: FINCEN_SAR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    FINCEN_SAR:
+      template: fincen_sar_v1
+      mandatory_fields: [subject, narrative, triggering_rules, transactions]
+    FINCEN_CTR:
+      template: fincen_ctr_v1
+      trigger:
+        aggregate_day: { gte: 10000 }
+
+retention_policy:
+  evidence: 5y
+  alerts: 5y
+  case_decisions: 5y
+  raw_transactions: 5y
+  client_identification: 5y
+
+# ---------------------------------------------------------------------------
+# Metrics — alert volume + SAR conversion rate.
+# ---------------------------------------------------------------------------
+metrics:
+  - id: alert_volume_total
+    name: Total alerts produced
+    category: operational
+    audience: [director, manager, analyst, developer]
+    owner: bsa_officer
+    formula:
+      type: count
+      source: alerts
+    thresholds:
+      green: { lte: 100 }
+      amber: { between: [101, 500] }
+      red:   { gt: 500 }
+
+  - id: distinct_customers_alerted
+    name: Distinct customers alerted
+    category: risk
+    audience: [vp, director, business]
+    owner: bsa_officer
+    formula:
+      type: count
+      source: alerts
+      distinct_by: customer_id
+
+  - id: high_severity_alert_ratio
+    name: High/critical severity alert share
+    category: risk
+    audience: [vp, director]
+    owner: bsa_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: alerts
+        filter: { rule_id: { in: [stablecoin_mixing_layering, rapid_onramp_offramp_cycling, structuring_below_ctr_threshold, vasp_counterparty_exposure, ofac_sdn_screening] } }
+      denominator:
+        type: count
+        source: alerts
+    target: { lte: 0.7 }
+    thresholds:
+      green: { lte: 0.5 }
+      amber: { lte: 0.7 }
+      red:   { gt: 0.7 }
+
+  - id: rules_active_count
+    name: Total active rules deployed
+    category: delivery
+    audience: [vp, director, developer]
+    owner: bsa_officer
+    formula:
+      type: count
+      source: rules
+      filter: { status: active }
+    thresholds:
+      green: { gte: 5 }
+      amber: { gte: 3 }
+      red:   { lt: 3 }
+
+  - id: alert_to_sar_rate
+    name: Alert-to-SAR conversion rate
+    category: regulatory
+    audience: [vp, director]
+    owner: bsa_officer
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: cases
+        filter: { status: sar_filing }
+      denominator:
+        type: count
+        source: alerts
+    target: { gte: 0.1 }
+    thresholds:
+      green: { gte: 0.1 }
+      amber: { gte: 0.05 }
+      red:   { lt: 0.05 }
+
+  - id: transaction_volume_usd
+    name: Total transaction volume screened (USD)
+    category: operational
+    audience: [director, manager, business, developer]
+    owner: bsa_officer
+    unit: USD
+    formula:
+      type: sum
+      source: txn
+      field: amount
+
+# ---------------------------------------------------------------------------
+# Reports — one per audience.
+# ---------------------------------------------------------------------------
+reports:
+  - id: bsa_officer_monthly
+    title: BSA Officer monthly review
+    audience: vp
+    cadence: monthly
+    sections:
+      - title: Detection volume
+        metrics: [alert_volume_total, distinct_customers_alerted]
+      - title: Risk posture
+        metrics: [high_severity_alert_ratio, alert_to_sar_rate]
+      - title: Program scale
+        metrics: [rules_active_count, transaction_volume_usd]
+
+  - id: fincen_exam_prep
+    title: FinCEN examination evidence package
+    audience: auditor
+    cadence: on_demand
+    sections:
+      - title: Program coverage
+        metrics: [rules_active_count, alert_volume_total]
+      - title: Regulatory conversion
+        metrics: [alert_to_sar_rate]
+      - title: Risk exposure
+        metrics: [high_severity_alert_ratio, distinct_customers_alerted]

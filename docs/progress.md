@@ -2,6 +2,10 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **#513 — GENIUS Act PPSI stablecoin spec (NPRM-grounded)** (`feat/genius-ppsi-stablecoin`, 2026-06-05): richer companion to `genius_ppsi_issuer` (#500), grounded in the joint FinCEN/OFAC NPRM (Federal Register 2026-06963, comment deadline 9 June 2026). New `examples/genius_ppsi_stablecoin/aml.yaml`: 6 rules (stablecoin mixing/layering, rapid on-ramp/off-ramp cycling, structuring below the $10k CTR threshold, VASP counterparty exposure, OFAC SDN screening citing the new **31 CFR Part 502** sanctions program, adverse media); ISO 20022 pacs.008 fields (`debtor_bic`/`creditor_bic`/`uetr`/`purpose_code`) on the `txn` contract; a `program.sla` block (CTR/SAR filing-latency); `FINCEN_CTR` + `FINCEN_SAR` forms. Validates + runs at seed 42 (26 alerts). Two new citations added to `regwatch.CITATION_URL_MAP` (`31 CFR Part 502`, `GENIUS Act PPSI NPRM (FR 2026-06963)`). Focused run-fires-alerts test in `tests/test_spec.py`; docs across jurisdictions.md (new section + count 13→14), new how-to `genius-ppsi-compliance.md`, README, CLAUDE.md. 14 examples across 6 jurisdictions (PPSI is a US spec, not a new jurisdiction).
+
+---
+
 > **#499 — GenAI case investigation copilot** (`feat/case-copilot`, 2026-06-05): governed Case Copilot on the Case Investigation page (`dashboard/case_copilot.py`) reuses the existing assistant for case-scoped DRAFTS (summarize/typology/STR-SAR narrative/network/risk); audited as `ai_case_copilot_action`, human-reviewed, dashboard-only (never the engine run path), SR-26-2 carve-out. Pure builder+prompts unit-testable; streamlit lazy in the UI.
 
 ---

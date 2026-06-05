@@ -48,6 +48,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     dev → test → uat → prod with sign-off events on the audit ledger. The `Program.environment` + `Rule.environments` machinery. *(Placeholder — to be filled.)*
 
+-   :material-bitcoin:{ .lg .middle } **[Stand up a GENIUS Act PPSI program](genius-ppsi-compliance.md)**
+
+    ---
+
+    Walk the richer NPRM-grounded `genius_ppsi_stablecoin` spec end to end — 31 CFR Part 502 OFAC sanctions program, ISO 20022 fields, CTR/SAR filing-latency SLA, six stablecoin typologies. ~10 min. **Detailed.**
+
 </div>
 
 ## Audit + evidence

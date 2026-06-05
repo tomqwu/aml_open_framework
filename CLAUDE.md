@@ -189,7 +189,7 @@ aml.yaml (spec)
 
 ### Specs
 
-13 example specs across 6 jurisdictions: US (FinCEN/FATF/RTP-FedNow), CA (FINTRAC/OSFI), EU (EBA/AMLD6), UK (FCA/POCA/PSR), Cross-border (FATF R.16 crypto/VASP), AU (AUSTRAC Tranche 2 DNFBPs — lawyers/accountants/real-estate/precious-metals; STR/TTR) — plus a stablecoin-issuer buyer segment (PPSI under the US FinCEN GENIUS Act — mint/burn, nested-VASP, sanctioned-wallet, rapid-redemption; SAR), which is a US spec, not a separate jurisdiction.
+14 example specs across 6 jurisdictions: US (FinCEN/FATF/RTP-FedNow), CA (FINTRAC/OSFI), EU (EBA/AMLD6), UK (FCA/POCA/PSR), Cross-border (FATF R.16 crypto/VASP), AU (AUSTRAC Tranche 2 DNFBPs — lawyers/accountants/real-estate/precious-metals; STR/TTR) — plus two stablecoin-issuer specs (PPSI under the US FinCEN GENIUS Act, US jurisdiction not a separate one): the basic `genius_ppsi_issuer` (mint/burn, nested-VASP, sanctioned-wallet, rapid-redemption; SAR — #500) and the richer NPRM-grounded `genius_ppsi_stablecoin` (FR 2026-06963 — new 31 CFR Part 502 OFAC program, ISO 20022 fields, CTR/SAR filing-latency SLA, six stablecoin typologies; SAR+CTR — #513).
 
 ## Python
 
