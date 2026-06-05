@@ -159,7 +159,15 @@ def _suggested_rule(
     hi_features: list[str],
     lo_features: list[str],
 ) -> dict[str, Any]:
-    """A conservative ``aggregation_window`` rule stub for the cohort.
+    """A schema-shaped ``aggregation_window`` rule stub for the cohort.
+
+    The stub carries every field the rule schema requires (``source``,
+    ``group_by``, ``window``, a NON-EMPTY ``having``, plus rule-level
+    ``regulation_refs`` and ``escalate_to``) so it is *structurally*
+    complete, but the values an operator must own are explicit
+    ``TODO_`` placeholders. Precedent: ``generators/legacy_import.py`` —
+    stubs are shaped-but-incomplete proposals an operator completes
+    before ``aml validate``.
 
     ``having`` is a valid spec clause: ``{metric: {operator: value}}`` (e.g.
     ``count: {gte: 3}``). Only "hi" features that map to a real
@@ -172,8 +180,10 @@ def _suggested_rule(
     Features with no clean aggregation metric (``unique_counterparties``,
     ``cross_border_ratio``) and any "lo" features are NOT placed in
     ``having`` (which would be an invalid clause); they are surfaced in
-    ``business_intent`` so a reviewer refines them before promotion. This
-    keeps the stub valid-shaped but conservative.
+    ``business_intent`` so a reviewer refines them before promotion. When
+    the cohort has NO aggregatable "hi" feature, ``having`` falls back to a
+    placeholder ``{"count": {"gte": 1}}`` so the stub stays schema-shaped
+    (non-empty) — the operator must set the real threshold.
     """
     # Map discovery feature names to aggregation_window having metrics.
     _METRIC_FOR_FEATURE = {"txn_count": "count", "sum_amount": "sum_amount"}
@@ -189,6 +199,13 @@ def _suggested_rule(
         if vals:
             having[metric] = {"gte": min(vals)}
 
+    placeholder_having = not having
+    if placeholder_having:
+        # No aggregatable "hi" feature → keep the clause non-empty (schema
+        # requires minProperties: 1) with a conservative placeholder the
+        # operator must replace before promotion.
+        having = {"count": {"gte": 1}}
+
     note = ""
     if unmapped_hi:
         note += (
@@ -197,6 +214,12 @@ def _suggested_rule(
         )
     if lo_features:
         note += " Low features (review): " + ", ".join(sorted(lo_features)) + "."
+    if placeholder_having:
+        note += " The placeholder having threshold (count >= 1) must be set."
+    note += (
+        " Complete the TODO_ placeholders (source, escalate_to, regulation "
+        "citation) before `aml validate`."
+    )
     return {
         "id": f"candidate_{_slug(signature)}",
         "name": label,
@@ -204,8 +227,20 @@ def _suggested_rule(
         "status": "pending_promotion",
         "logic": {
             "type": "aggregation_window",
+            "source": "TODO_txn_contract_id",
+            "group_by": ["customer_id"],
+            "window": "30d",
             "having": having,
         },
+        "escalate_to": "TODO_queue",
+        "regulation_refs": [
+            {
+                "citation": "TODO",
+                "description": (
+                    "Auto-discovered candidate — supply the regulation citation before promotion."
+                ),
+            }
+        ],
         "tags": ["auto_discovered"],
         "business_intent": "Auto-discovered candidate — review before promotion." + note,
     }

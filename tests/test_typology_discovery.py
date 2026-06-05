@@ -83,13 +83,48 @@ def test_having_uses_valid_metric_operator_clause():
 
 def test_unmapped_hi_feature_goes_to_business_intent_not_having():
     # cross_border_ratio has no aggregation metric -> must NOT be in having,
-    # and must be noted in business_intent for the reviewer.
+    # and must be noted in business_intent for the reviewer. having stays
+    # non-empty (schema requires minProperties: 1) via a placeholder.
     normals = [_cust(f"N{i}") for i in range(20)]
     hi = [_cust(f"H{i}", cross_border_ratio=0.95) for i in range(4)]
     r = discover_candidates(normals + hi, set(), anomaly_z=2.0, min_cohort_size=3)
     rule = r.candidates[0].suggested_rule
-    assert rule["logic"]["having"] == {}  # nothing mappable
+    assert rule["logic"]["having"] == {"count": {"gte": 1}}  # placeholder, non-empty
     assert "cross_border_ratio" in rule["business_intent"]
+
+
+def test_suggested_rule_is_schema_shaped():
+    # The stub must carry every field the rule schema requires so an operator
+    # can complete the TODO_ placeholders and run `aml validate`.
+    normals = [_cust(f"N{i}") for i in range(20)]
+    hi = [_cust(f"H{i}", txn_count=200.0) for i in range(4)]
+    r = discover_candidates(normals + hi, set(), anomaly_z=2.0, min_cohort_size=3)
+    rule = r.candidates[0].suggested_rule
+
+    # Rule-level required fields.
+    for field in ("id", "name", "severity", "regulation_refs", "logic", "escalate_to"):
+        assert field in rule, field
+    assert rule["escalate_to"] == "TODO_queue"
+    assert isinstance(rule["regulation_refs"], list) and rule["regulation_refs"]
+    assert {"citation", "description"} <= set(rule["regulation_refs"][0])
+
+    # aggregation_window logic required fields.
+    logic = rule["logic"]
+    assert logic["type"] == "aggregation_window"
+    for field in ("source", "group_by", "window", "having"):
+        assert field in logic, field
+    assert logic["source"] == "TODO_txn_contract_id"
+    assert logic["group_by"] == ["customer_id"]
+    assert logic["window"] == "30d"
+
+    # having is a NON-EMPTY {metric: {operator: value}} clause.
+    having = logic["having"]
+    assert having, "having must be non-empty"
+    metric, clause = next(iter(having.items()))
+    assert isinstance(metric, str)
+    assert isinstance(clause, dict) and clause
+    op, val = next(iter(clause.items()))
+    assert isinstance(op, str) and isinstance(val, (int, float))
 
 
 def test_candidates_sorted_by_size_desc():
