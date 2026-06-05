@@ -1103,9 +1103,9 @@ button[data-baseweb="tab"] {
      * reason text instead of overflowing the 375px viewport. The
      * inline min-widths on the link span are relaxed so the row packs
      * onto fewer lines. */
-    .dna-triage-row { flex-wrap: wrap !important; }
-    .dna-triage-link { min-width: 0 !important; }
-    .dna-triage-why { white-space: normal !important; }
+    [data-testid="stMain"] .dna-triage-row { flex-wrap: wrap !important; }
+    [data-testid="stMain"] .dna-triage-link { min-width: 0 !important; }
+    [data-testid="stMain"] .dna-triage-why { white-space: normal !important; }
 
     /* (DEFECT 4) Tap-target floor — the ≤768px overlay only reaches
      * `button/a/[role=button]/[data-baseweb=select]`; it MISSES text
@@ -1160,8 +1160,8 @@ button[data-baseweb="tab"] {
         font-size: 13px !important;
     }
     .dna-start-l { font-size: 13px !important; }
-    .metric-card .label { font-size: 13px !important; }
-    .dna-eyebrow { font-size: 13px !important; }
+    [data-testid="stMain"] .metric-card .label { font-size: 13px !important; }
+    [data-testid="stMain"] .dna-eyebrow { font-size: 13px !important; }
     .dna-tab-lbl { font-size: 11px !important; }  /* tab bar stays compact */
 
     /* (DEFECT 6) Page description / subtitle contrast — the one-line
@@ -1182,8 +1182,14 @@ button[data-baseweb="tab"] {
      * `block-container` padding-bottom keeps the `::after` floor above
      * the bar too. */
     [data-testid="stMain"] { padding-bottom: 96px !important; }
-    .block-container { padding-bottom: 96px !important; }
-    .st-key-ai_fab_container {
+    /* Scoped to stMain: the sidebar uses its own `stSidebar` scroll
+     * column, never `.block-container`, so this clearance can't leak
+     * into the sidebar. */
+    [data-testid="stMain"] .block-container { padding-bottom: 96px !important; }
+    /* The AI-advisor FAB is `position: fixed` (viewport-anchored) but is
+     * a DOM descendant of `stMain`, so prefixing the selector keeps it
+     * matching while making the containment contract explicit. */
+    [data-testid="stMain"] .st-key-ai_fab_container {
         bottom: 88px !important;  /* clear the 75px tab bar + margin */
         right: 1rem !important;
     }
