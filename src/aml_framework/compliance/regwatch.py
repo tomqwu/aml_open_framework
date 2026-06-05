@@ -69,6 +69,8 @@ CITATION_URL_MAP: dict[str, str] = {
     "31 CFR § 1020.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
     "31 CFR 1020.315": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.315",
     "31 CFR 1020.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
+    "31 CFR 1022.210": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1022/subpart-B/section-1022.210",
+    "GENIUS Act Title VI": "https://www.congress.gov/bill/119th-congress/senate-bill/1582",
     "FFIEC BSA/AML Manual — Funnel Accounts": "https://bsaaml.ffiec.gov/manual/Appendices/06",
     "FinCEN Advisory FIN-2014-A005": "https://www.fincen.gov/sites/default/files/advisory/FIN-2014-A005.pdf",
     "FinCEN Advisory FIN-2006-A003": "https://www.fincen.gov/sites/default/files/shared/Advisory_2.pdf",
