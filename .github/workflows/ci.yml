@@ -144,7 +144,7 @@ jobs:
 
   e2e-dashboard:
     runs-on: ubuntu-latest
-    # The 12-minute Playwright suite runs only on main pushes (post-merge
+    # The ~25-minute Playwright suite runs only on main pushes (post-merge
     # safety net) — local `make pre-push` is the canonical gate for PRs.
     # CLAUDE.md "PR/CI is the last gate, not a feedback loop": shifting
     # e2e off the PR matrix cuts PR feedback from ~15min to ~5min while
@@ -173,7 +173,10 @@ jobs:
         # one persona-specific page for every registered persona. Each
         # Playwright navigation waits for Streamlit to settle, so keep
         # headroom for new personas and pages without per-PR retuning.
-        timeout-minutes: 25
+        # Bumped 25→35 after the Regulatory Calendar page (#511) pushed the
+        # full suite to ~25:02 — just over the old ceiling (192 passed, only
+        # the action timeout tripped). 35 restores headroom for further growth.
+        timeout-minutes: 35
       - name: Write e2e badge JSON
         if: always()
         run: |
