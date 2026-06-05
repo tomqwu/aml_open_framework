@@ -168,7 +168,7 @@ The framework's mechanics — for engineers and 2LoD model-validation teams — 
 
 ```
 schema/aml-spec.schema.json     JSON Schema for aml.yaml (the contract)
-examples/                       10 example specs across 5 jurisdictions
+examples/                       13 example specs across 7 jurisdictions
 src/aml_framework/
   spec/                         Parse + validate the spec
   generators/                   Emit SQL, DAG stubs, audit packs, STR narratives, MRM dossiers

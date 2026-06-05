@@ -738,3 +738,18 @@ def test_spec_cross_ref_bad_metric_in_report():
                 ),
             ],
         )
+
+
+# ---------------------------------------------------------------------------
+# Hardening: every bundled example spec must load + have basic structure (#500)
+# ---------------------------------------------------------------------------
+
+_EXAMPLES = sorted((Path(__file__).resolve().parents[1] / "examples").glob("*/aml.yaml"))
+
+
+@pytest.mark.parametrize("spec_path", _EXAMPLES, ids=lambda p: p.parent.name)
+def test_bundled_example_validates(spec_path):
+    spec = load_spec(spec_path)
+    assert spec.program.name
+    assert len(spec.rules) >= 1
+    assert len(spec.data_contracts) >= 1

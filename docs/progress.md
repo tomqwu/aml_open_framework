@@ -2,6 +2,10 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **#500 — Buyer-segment example specs** (`feat/buyer-segment-specs`, 2026-06-05): added AUSTRAC Tranche 2 DNFBP (AU) + GENIUS Act PPSI stablecoin-issuer (US/FinCEN) example specs (validate + run on synthetic; citations resolved); 13 examples across 7 jurisdictions. Added an all-examples-validate hardening test (`test_bundled_example_validates` parametrizes every `examples/*/aml.yaml`) so future bundled specs auto-validate, plus docs count fixes across CLAUDE.md / README.md / jurisdictions.md (new AU + PPSI sections).
+
+---
+
 > **#496 — Typology auto-discovery → candidate-rule pipeline** (`feat/typology-auto-discovery`, 2026-06-05, Next-tier ML/AI roadmap): offline `aml discover-typologies` CLI clusters a run's unexplained anomalies (deterministic stdlib z-score + shape signature, no sklearn) into `candidate_typologies.yaml` proposals (status `pending_promotion`); engine builder `engine/typology_discovery.py`; feeds the existing typology-import/approval path. Governed: proposals only, human-gated, never in the engine run path.
 
 ---
