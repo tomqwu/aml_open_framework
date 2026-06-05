@@ -58,25 +58,35 @@ jobs:
         run: |
           set -euo pipefail
           MONTH="${{ steps.gen.outputs.month }}"
-          # Guard: a no-op month (stub already exists) leaves a clean tree.
+          # Guard: a no-op month (stub already exists on main) leaves a clean tree.
           if [ -z "$(git status --porcelain)" ]; then
-            echo "stub already exists — nothing to do"
+            echo "stub already exists on main — nothing to do"
             exit 0
           fi
 
           BRANCH="chore/research-refresh-${MONTH}"
+
+          # Idempotency / no-clobber guard — run BEFORE any commit or push.
+          # If a refresh branch or PR for this month is already in flight, a
+          # human may have edited that branch; leave it untouched rather than
+          # force-pushing the freshly generated stub over their work.
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "branch $BRANCH already on origin — a refresh is in flight; leaving it untouched"
+            exit 0
+          fi
+          if [ "$(gh pr list --head "$BRANCH" --state all --json number --jq 'length')" != "0" ]; then
+            echo "a PR for $BRANCH already exists — leaving it untouched"
+            exit 0
+          fi
+
           git config user.name "aml-open-framework-bot"
           git config user.email "bot@aml-open-framework.local"
           git checkout -b "$BRANCH"
           git add docs/research
           git commit -m "chore(docs): ${MONTH} research refresh stub"
-          git push --force-with-lease origin "$BRANCH"
-
-          # If a PR already exists for this branch, don't open a duplicate.
-          if gh pr view "$BRANCH" >/dev/null 2>&1; then
-            echo "PR for $BRANCH already open — skipping create"
-            exit 0
-          fi
+          # Plain push (no force) — the guard above guarantees the branch is new,
+          # so we never overwrite an in-flight, human-edited refresh branch.
+          git push origin "$BRANCH"
 
           gh pr create \
             --draft \
