@@ -2,6 +2,10 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **Round — Mobile UX, easy on an executive's eye** (`feat/mobile-exec-polish`, 2026-06-05): collapsed the page-level AI explainer so KPIs sit above the fold; exec-readable no-LLM summary (dropped env-var jargon); fixed Audit YAML + Today-pill overflow, raised tap targets to 44px, bumped mobile typography + hid the dev version string, darkened faint page descriptions, bottom-tab-bar clearance; emptied STRICT_STILL_FAILING (Executive Dashboard, Alert Queue, Audit & Evidence now pass iPhone-SE responsive quality).
+
+---
+
 > **#495 — Risk segmentation + governed alert suppression** (`feat/risk-segmentation-suppression`, 2026-06-04, N1 governed-augmentation seam): optional spec block `program.risk_segmentation` (`enabled` + `segments: [{id, field: customer_risk_rating, values, deprioritize_below 0..1, rationale, owner}]`). When enabled (and `program.prioritization` is on), a pure-stdlib, deterministic post-scoring pass (`engine/suppression.py`) flags alerts whose customer is in a low-risk segment AND whose advisory `priority_score` is below the segment threshold as `suppression.applied` — **ADVISORY de-prioritization, never an auto-close**: the rule alert still lands in the ledger, disposition/queue/open-close state is untouched, the flag is explainable + reversible + investigator-overridable. Emits a frozen, PII-masked, manifest-pinned `suppression_report.json` (hash `suppression_report_hash`). Surfaced on dashboard pages 52 (Triage Queue — de-emphasized rows + per-row override) and 45 (FP Analysis — per-segment/per-rule suppression counts for `deprioritize_below` tuning). Requires `prioritization` (the score it gates on); a no-op with an explicit recorded reason when that's off. Closes #495.
 
 ---
