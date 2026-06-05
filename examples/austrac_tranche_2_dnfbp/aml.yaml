@@ -20,7 +20,7 @@ program:
   jurisdiction: AU
   regulator: AUSTRAC
   owner: aml_compliance_manager
-  effective_date: 2026-01-01
+  effective_date: 2026-07-01
 
 # ---------------------------------------------------------------------------
 # Data contracts — reuse the synthetic generator's column shapes so this
@@ -165,7 +165,7 @@ rules:
 
   # --- WIRES TO HIGH-RISK JURISDICTIONS ---
   - id: high_risk_jurisdiction_wires
-    name: Outbound wires to FATF high-risk / call-for-action jurisdictions
+    name: Outbound wires to FATF call-for-action jurisdictions
     severity: high
     regulation_refs:
       - citation: "AML/CTF Act s.36"
@@ -184,7 +184,7 @@ rules:
             MAX(t.booked_at) AS window_end
         FROM txn t
         WHERE t.channel = 'wire' AND t.direction = 'out'
-          AND t.counterparty_country IN ('RU', 'IR', 'KP', 'MM', 'SY')
+          AND t.counterparty_country IN ('KP', 'IR', 'MM')
           AND t.booked_at >= TIMESTAMP '{window_start}'
           AND t.booked_at <  TIMESTAMP '{as_of}'
         GROUP BY t.customer_id
@@ -197,11 +197,10 @@ rules:
       - jurisdiction_risk_assessment
     tags: [high_risk_jurisdiction, geographic_risk]
     business_intent: >
-      Surface customers sending outbound wires to FATF call-for-action or
-      sanctioned jurisdictions (RU, IR, KP, MM, SY) whose activity exceeds a
-      low $5,000 aggregate floor — geographic risk under AML/CTF Act s.36
-      drives enhanced customer due diligence and this rule provides the
-      trigger.
+      Surface customers sending outbound wires to FATF call-for-action
+      jurisdictions (KP, IR, MM) whose activity exceeds a low $5,000 aggregate
+      floor — geographic risk under AML/CTF Act s.36 drives enhanced customer
+      due diligence and this rule provides the trigger.
     out_of_scope:
       - customer-domicile high-risk geography (the filter is on counterparty_country)
       - sanctioned-name matches against a person (handled by sanctions_screening)
@@ -265,7 +264,7 @@ rules:
     name: Sanctions list screening — DFAT Consolidated List
     severity: critical
     regulation_refs:
-      - citation: "AML/CTF Act s.84"
+      - citation: "Autonomous Sanctions Act 2011 (Cth)"
         description: "Dealings with property of designated / listed persons prohibited."
       - citation: "AML/CTF Act s.41"
         description: "Suspicious matter reporting — file on discovery of a listed person."
@@ -286,7 +285,7 @@ rules:
       Fuzzy-match every customer's full_name against the DFAT Consolidated
       List at threshold 0.85. A hit obligates an immediate suspicious matter
       report under AML/CTF Act s.41 and prohibits any further dealing with the
-      listed person's property under s.84.
+      listed person's property under the Autonomous Sanctions Act 2011 (Cth).
     out_of_scope:
       - counterparty (non-customer) names appearing in transaction metadata
       - beneficial-owner screening of corporate customers (different attribute path)

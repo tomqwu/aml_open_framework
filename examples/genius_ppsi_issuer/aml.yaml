@@ -1,12 +1,12 @@
 # AML/BSA spec for a Permitted Payment Stablecoin Issuer (PPSI) under the
 # GENIUS Act (Guiding and Establishing National Innovation for U.S.
-# Stablecoins Act, S.1582, 119th Congress, Title VI).
+# Stablecoins Act, S.1582, 119th Congress, section 4).
 #
 # A PPSI is a federally- or state-qualified issuer of a payment stablecoin.
 # The GENIUS Act treats a PPSI as a financial institution subject to the Bank
 # Secrecy Act: it must register as an MSB (31 CFR 1022.210), maintain a
-# risk-based AML/CFT program, file Currency Transaction Reports (31 CFR
-# 1010.314) and Suspicious Activity Reports, and screen against the OFAC SDN
+# risk-based AML/CFT program, file Suspicious Activity Reports (31 CFR
+# 1022.320), and screen against the OFAC SDN
 # list. FinCEN's 2019 CVC guidance (FIN-2019-G001) governs how those
 # obligations apply to convertible-virtual-currency / stablecoin activity,
 # and FATF Recommendation 16 (the Travel Rule) governs cross-border
@@ -14,7 +14,7 @@
 #
 # This example shows how a stablecoin issuer discharges those obligations:
 # rapid mint/redeem velocity, high-risk VASP/jurisdiction exposure,
-# sub-$10,000 structuring, OFAC sanctions screening, and nested pass-through
+# sub-$10,000 suspicious structuring, OFAC sanctions screening, and nested pass-through
 # layering. Every rule maps to a BSA / GENIUS Act obligation and every
 # citation resolves via the framework's regwatch CITATION_URL_MAP.
 
@@ -64,7 +64,7 @@ data_contracts:
 
 # ---------------------------------------------------------------------------
 # Detection rules — payment-stablecoin-issuer typologies under the BSA /
-# GENIUS Act Title VI.
+# GENIUS Act s.4.
 # ---------------------------------------------------------------------------
 rules:
   # --- RAPID STABLECOIN REDEMPTION: inflow then redemption within 24h ---
@@ -72,7 +72,7 @@ rules:
     name: Rapid stablecoin mint-then-redeem within 24h
     severity: high
     regulation_refs:
-      - citation: "GENIUS Act Title VI"
+      - citation: "GENIUS Act s.4"
         description: "PPSI mint/redemption controls — rapid round-tripping indicative of layering."
       - citation: "FIN-2019-G001"
         description: "FinCEN guidance — convertible virtual currency money services obligations."
@@ -159,7 +159,7 @@ rules:
         FROM txn t
         WHERE t.direction = 'out'
           AND t.channel IN ('crypto', 'wire')
-          AND t.counterparty_country IN ('RU', 'IR', 'KP', 'MM', 'SY', 'MT')
+          AND t.counterparty_country IN ('KP', 'IR', 'MM')
           AND t.booked_at >= TIMESTAMP '{window_start}'
           AND t.booked_at <  TIMESTAMP '{as_of}'
         GROUP BY t.customer_id
@@ -173,22 +173,22 @@ rules:
     tags: [high_risk_jurisdiction, vasp, geographic_risk, travel_rule]
     business_intent: >
       Surface customers sending outbound stablecoin/crypto or wire value to
-      FATF call-for-action or high-risk jurisdictions (RU, IR, KP, MM, SY) or
-      to a high-risk offshore VASP hub (MT) above a $5,000 aggregate floor.
-      Cross-border exposure to these jurisdictions drives the enhanced-due-
-      diligence and Travel-Rule obligations under FATF Recommendation 16.
+      the FATF call-for-action jurisdictions (KP, IR, MM) above a $5,000
+      aggregate floor. Cross-border exposure to these jurisdictions drives the
+      enhanced-due-diligence and Travel-Rule obligations under FATF
+      Recommendation 16.
     out_of_scope:
       - inbound transfers from high-risk jurisdictions (this rule is outbound-only)
       - customer-domicile high-risk geography (the filter is on counterparty_country)
       - sanctioned-name matches against a person (handled by ofac_sanctions_screening)
 
-  # --- STRUCTURING BELOW THE USD $10,000 CTR THRESHOLD ---
-  - id: structuring_below_ctr_threshold
-    name: Structuring — deposits below the USD $10,000 CTR threshold
+  # --- SUSPICIOUS STRUCTURING BELOW THE USD $10,000 REPORTING THRESHOLD ---
+  - id: structuring_below_reporting_threshold
+    name: Suspicious structuring below the USD $10,000 reporting threshold
     severity: high
     regulation_refs:
-      - citation: "31 CFR 1010.314"
-        description: "Structuring transactions to evade the Currency Transaction Report requirement is prohibited."
+      - citation: "31 CFR 1022.320"
+        description: "MSB suspicious activity report — structuring to evade reporting is reportable."
       - citation: "31 CFR 1022.210"
         description: "MSB anti-money-laundering program requirement applicable to a PPSI."
     logic:
@@ -207,15 +207,17 @@ rules:
       - all_matching_transactions
       - customer_kyc_profile
       - prior_alerts_90d
-    tags: [structuring, ctr, threshold_evasion]
+    tags: [structuring, sar, threshold_evasion]
     business_intent: >
       Detect customers funding their stablecoin wallet in the $5,000–$9,999
-      just-below-CTR band three or more times within 30 days summing to
+      just-below-threshold band three or more times within 30 days summing to
       $20,000+ — the canonical structuring pattern of splitting deposits to
-      stay below the USD $10,000 Currency Transaction Report trigger, which
-      31 CFR 1010.314 makes unlawful to evade.
+      stay below the USD $10,000 reporting trigger. A PPSI is an MSB that does
+      not handle physical currency, so this surfaces a SAR-reportable
+      suspicious-structuring pattern under 31 CFR 1022.320 rather than a
+      currency-transaction (CTR) trigger.
     out_of_scope:
-      - single deposits at or above the $10,000 CTR threshold (reported via CTR)
+      - single deposits at or above the $10,000 reporting threshold
       - outbound redemptions (this rule is inbound-only)
 
   # --- OFAC SANCTIONS SCREENING (SDN List) ---
@@ -225,7 +227,7 @@ rules:
     regulation_refs:
       - citation: "OFAC SDN — virtual currency addenda"
         description: "OFAC SDN list — dealings with designated persons/wallets are prohibited."
-      - citation: "GENIUS Act Title VI"
+      - citation: "GENIUS Act s.4"
         description: "PPSI sanctions-compliance obligation — freeze-and-report on a listed-person match."
     logic:
       type: list_match
@@ -244,7 +246,7 @@ rules:
       Fuzzy-match every customer's full_name against the OFAC Specially
       Designated Nationals (SDN) list at threshold 0.85. A hit obligates an
       immediate SAR and freeze — a PPSI may not deal in the property of a
-      sanctioned person under its GENIUS Act Title VI sanctions-compliance
+      sanctioned person under its GENIUS Act s.4 sanctions-compliance
       obligation.
     out_of_scope:
       - counterparty (non-customer) names appearing in transaction metadata
@@ -372,11 +374,6 @@ reporting:
     FINCEN_SAR:
       template: fincen_sar_v1
       mandatory_fields: [subject, narrative, triggering_rules, transactions]
-    FINCEN_CTR:
-      template: fincen_ctr_v1
-      trigger:
-        direction: in
-        aggregate_day: { gte: 10000 }
 
 retention_policy:
   evidence: 5y
@@ -423,7 +420,7 @@ metrics:
       numerator:
         type: count
         source: alerts
-        filter: { rule_id: { in: [rapid_stablecoin_redemption, high_risk_jurisdiction_exposure, structuring_below_ctr_threshold, ofac_sanctions_screening, nested_vasp_passthrough] } }
+        filter: { rule_id: { in: [rapid_stablecoin_redemption, high_risk_jurisdiction_exposure, structuring_below_reporting_threshold, ofac_sanctions_screening, nested_vasp_passthrough] } }
       denominator:
         type: count
         source: alerts

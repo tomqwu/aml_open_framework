@@ -2,7 +2,7 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
-> **#500 — Buyer-segment example specs** (`feat/buyer-segment-specs`, 2026-06-05): added AUSTRAC Tranche 2 DNFBP (AU) + GENIUS Act PPSI stablecoin-issuer (US/FinCEN) example specs (validate + run on synthetic; citations resolved); 13 examples across 7 jurisdictions. Added an all-examples-validate hardening test (`test_bundled_example_validates` parametrizes every `examples/*/aml.yaml`) so future bundled specs auto-validate, plus docs count fixes across CLAUDE.md / README.md / jurisdictions.md (new AU + PPSI sections).
+> **#500 — Buyer-segment example specs** (`feat/buyer-segment-specs`, 2026-06-05): added AUSTRAC Tranche 2 DNFBP (AU) + GENIUS Act PPSI stablecoin-issuer (US/FinCEN) example specs (validate + run on synthetic; citations resolved); 13 examples across 6 jurisdictions (PPSI is a US spec — a stablecoin-issuer buyer segment, not a new jurisdiction). Added an all-examples-validate hardening test (`test_bundled_example_validates` parametrizes every `examples/*/aml.yaml`) so future bundled specs auto-validate, plus docs count fixes across CLAUDE.md / README.md / jurisdictions.md (new AU + PPSI sections).
 
 ---
 

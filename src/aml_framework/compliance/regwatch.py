@@ -70,7 +70,8 @@ CITATION_URL_MAP: dict[str, str] = {
     "31 CFR 1020.315": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.315",
     "31 CFR 1020.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
     "31 CFR 1022.210": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1022/subpart-B/section-1022.210",
-    "GENIUS Act Title VI": "https://www.congress.gov/bill/119th-congress/senate-bill/1582",
+    "31 CFR 1022.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1022/subpart-C/section-1022.320",
+    "GENIUS Act s.4": "https://www.congress.gov/bill/119th-congress/senate-bill/1582/text",
     "FFIEC BSA/AML Manual — Funnel Accounts": "https://bsaaml.ffiec.gov/manual/Appendices/06",
     "FinCEN Advisory FIN-2014-A005": "https://www.fincen.gov/sites/default/files/advisory/FIN-2014-A005.pdf",
     "FinCEN Advisory FIN-2006-A003": "https://www.fincen.gov/sites/default/files/shared/Advisory_2.pdf",
@@ -138,6 +139,7 @@ CITATION_URL_MAP: dict[str, str] = {
     "AML/CTF Act s.43": "https://www.legislation.gov.au/C2006A00169/latest/text",
     "AML/CTF Act s.36": "https://www.legislation.gov.au/C2006A00169/latest/text",
     "AML/CTF Act s.84": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "Autonomous Sanctions Act 2011 (Cth)": "https://www.legislation.gov.au/C2011A00038/latest/text",
     "AUSTRAC DNFBP Guidance 2024": "https://www.austrac.gov.au/business/how-comply-guidance-and-resources",
     "FATF Recommendation 22": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
 }

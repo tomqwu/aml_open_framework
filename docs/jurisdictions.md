@@ -7,6 +7,7 @@ The framework supports **geo-based default policies** — the same architecture 
 | Spec | Jurisdiction | Regulator | Filing Types |
 |---|---|---|---|
 | `examples/community_bank/aml.yaml` | US | FinCEN | SAR, CTR |
+| `examples/community_bank_lookback/aml.yaml` | US | FinCEN | SAR, CTR (look-back / re-run variant) |
 | `examples/canadian_bank/aml.yaml` | CA | FINTRAC | STR, LCTR, EFTR |
 | `examples/canadian_schedule_i_bank/aml.yaml` | CA | FINTRAC + OSFI | STR, LCTR (TD case-study patterns) |
 | `examples/eu_bank/aml.yaml` | EU | EBA | EU STR (AMLD6) |
@@ -17,7 +18,7 @@ The framework supports **geo-based default policies** — the same architecture 
 | `examples/uk_app_fraud/aml.yaml` | UK | FCA + PSR + NCA | UK SAR + PSR reimbursement decision (Round-7) |
 | `examples/us_rtp_fednow/aml.yaml` | US | FinCEN / RTP / FedNow | RTP/FedNow push-fraud detector pack (Round-8) |
 | `examples/austrac_tranche_2_dnfbp/aml.yaml` | AU | AUSTRAC | SMR + TTR (Tranche 2 DNFBPs — #500) |
-| `examples/genius_ppsi_issuer/aml.yaml` | US | FinCEN (GENIUS Act) | SAR + CTR (PPSI stablecoin issuer — #500) |
+| `examples/genius_ppsi_issuer/aml.yaml` | US | FinCEN (GENIUS Act) | SAR (PPSI stablecoin issuer — #500) |
 
 All thirteen execute the same engine; the jurisdictional differences live in:
 - the `regulation_refs` citations on each rule
@@ -114,12 +115,12 @@ aml dashboard examples/uk_bank/aml.yaml
 
 The Australian spec (`austrac_tranche_2_dnfbp`) models a **Tranche 2 reporting entity** — a designated non-financial business or profession (DNFBP: lawyers, accountants, real-estate agents, dealers in precious metals/stones) brought into the regime by the 2024 AML/CTF amendments. It aligns with:
 
-- **AML/CTF Act 2006** — every rule citation references a specific section: `s.43` (threshold transaction reports), `s.41` (suspicious matter reports), `s.36` (ongoing customer due diligence), `s.84` (sanctions / DFAT Consolidated List)
+- **AML/CTF Act 2006** — every AML/CTF rule citation references a specific section: `s.43` (threshold transaction reports), `s.41` (suspicious matter reports), `s.36` (ongoing customer due diligence); sanctions screening cites the **Autonomous Sanctions Act 2011 (Cth)** / DFAT Consolidated List, not the AML/CTF Act program section
 - **AUSTRAC reporting forms** — TTR (Threshold Transaction Report, cash AUD $10,000+) and SMR (Suspicious Matter Report)
 - **AUSTRAC DNFBP Guidance 2024** — sector-specific onboarding and ongoing-monitoring expectations for Tranche 2 entities
 - **FATF Recommendation 22** — DNFBP customer due diligence
 
-Key rules: cash structuring below the AUD $10,000 TTR threshold, rapid pass-through (cash-in then wire-out within 48h), outbound wires to FATF high-risk / call-for-action jurisdictions, dormant-client reactivation with sudden large activity, DFAT Consolidated List sanctions screening, and adverse-media screening. The workflow routes investigator → SMR filing → closed.
+Key rules: cash structuring below the AUD $10,000 TTR threshold, rapid pass-through (cash-in then wire-out within 48h), outbound wires to FATF call-for-action jurisdictions (KP/IR/MM), dormant-client reactivation with sudden large activity, DFAT Consolidated List sanctions screening, and adverse-media screening. The workflow routes investigator → SMR filing → closed.
 
 ```bash
 aml dashboard examples/austrac_tranche_2_dnfbp/aml.yaml
@@ -131,13 +132,13 @@ aml dashboard examples/austrac_tranche_2_dnfbp/aml.yaml
 
 The stablecoin-issuer spec (`genius_ppsi_issuer`) models a **permitted payment stablecoin issuer (PPSI)** under the **GENIUS Act** federal stablecoin framework. It aligns with:
 
-- **GENIUS Act Title VI** — BSA/AML program obligations for permitted payment stablecoin issuers
-- **31 CFR 1022** — money-services-business AML program and reporting requirements (`1022.210` program, `1010.314` structuring)
+- **GENIUS Act s.4** — BSA/AML program obligations for permitted payment stablecoin issuers
+- **31 CFR 1022** — money-services-business AML program and reporting requirements (`1022.210` program, `1022.320` SAR / suspicious-structuring)
 - **FinCEN FIN-2019-G001** — convertible virtual currency guidance (nested-VASP / pass-through typologies)
 - **OFAC SDN — virtual currency addenda** — sanctioned-wallet screening
 - **FATF Recommendation 16** — Travel Rule completeness on outbound transfers
 
-Filing forms: **SAR** and **CTR** (>$10,000). Key rules cover the stablecoin-specific typologies: rapid mint-then-redeem within 24h, outbound transfers to FATF high-risk jurisdictions, structuring below the USD $10,000 CTR threshold, OFAC SDN wallet screening, nested-VASP same-day pass-through churn, and adverse-media screening.
+Filing form: **SAR** — a PPSI does not handle physical currency, so there is no currency-transaction (CTR) trigger. Key rules cover the stablecoin-specific typologies: rapid mint-then-redeem within 24h, outbound transfers to FATF call-for-action jurisdictions (KP/IR/MM), suspicious structuring below the USD $10,000 reporting threshold, OFAC SDN wallet screening, nested-VASP same-day pass-through churn, and adverse-media screening.
 
 ```bash
 aml dashboard examples/genius_ppsi_issuer/aml.yaml

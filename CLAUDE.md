@@ -187,7 +187,7 @@ aml.yaml (spec)
 
 ### Specs
 
-13 example specs across 7 jurisdictions: US (FinCEN/FATF/RTP-FedNow), CA (FINTRAC/OSFI), EU (EBA/AMLD6), UK (FCA/POCA/PSR), Cross-border (FATF R.16 crypto/VASP), AU (AUSTRAC Tranche 2 DNFBPs — lawyers/accountants/real-estate/precious-metals; STR/TTR), PPSI/stablecoin-issuer (US FinCEN GENIUS Act — mint/burn, nested-VASP, sanctioned-wallet, rapid-redemption; SAR/CTR).
+13 example specs across 6 jurisdictions: US (FinCEN/FATF/RTP-FedNow), CA (FINTRAC/OSFI), EU (EBA/AMLD6), UK (FCA/POCA/PSR), Cross-border (FATF R.16 crypto/VASP), AU (AUSTRAC Tranche 2 DNFBPs — lawyers/accountants/real-estate/precious-metals; STR/TTR) — plus a stablecoin-issuer buyer segment (PPSI under the US FinCEN GENIUS Act — mint/burn, nested-VASP, sanctioned-wallet, rapid-redemption; SAR), which is a US spec, not a separate jurisdiction.
 
 ## Python
 
