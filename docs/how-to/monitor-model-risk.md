@@ -92,7 +92,7 @@ Entries are sorted **high-drift-first**, then tier, then key — the model-risk 
 
 ### 6 · Read it on the dashboard instead
 
-- **Drift Monitor (page 50)** — when `program.model_risk_monitoring` is enabled, the page renders a **Model-risk report** section under the per-scorer volume-drift view: the model inventory, per-rule count drift, and validation cadence straight from `model_risk_report.json`. Advisory framing is explicit — nothing on this page blocks a run or mutates a model.
+- **Drift Monitor (page 50)** — when `program.model_risk_monitoring` is enabled, the page renders a **Model-risk report** section (alongside the per-scorer volume-drift view, and it renders even for specs with no `python_ref` scorers): the model inventory, per-rule count drift, and validation cadence straight from `model_risk_report.json`. Advisory framing is explicit — nothing on this page blocks a run or mutates a model.
 
 ---
 
