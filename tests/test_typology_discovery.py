@@ -70,6 +70,28 @@ def test_deterministic():
     assert a.model_dump() == b.model_dump()
 
 
+def test_having_uses_valid_metric_operator_clause():
+    # high txn_count -> having must be {count: {gte: <cohort min>}}, the
+    # valid aggregation_window shape, NOT a bare {txn_count: value}.
+    normals = [_cust(f"N{i}") for i in range(20)]
+    hi = [_cust(f"H{i}", txn_count=200.0 + i) for i in range(4)]  # cohort min 200.0
+    r = discover_candidates(normals + hi, set(), anomaly_z=2.0, min_cohort_size=3)
+    having = r.candidates[0].suggested_rule["logic"]["having"]
+    assert having == {"count": {"gte": 200.0}}
+    assert "txn_count" not in having
+
+
+def test_unmapped_hi_feature_goes_to_business_intent_not_having():
+    # cross_border_ratio has no aggregation metric -> must NOT be in having,
+    # and must be noted in business_intent for the reviewer.
+    normals = [_cust(f"N{i}") for i in range(20)]
+    hi = [_cust(f"H{i}", cross_border_ratio=0.95) for i in range(4)]
+    r = discover_candidates(normals + hi, set(), anomaly_z=2.0, min_cohort_size=3)
+    rule = r.candidates[0].suggested_rule
+    assert rule["logic"]["having"] == {}  # nothing mappable
+    assert "cross_border_ratio" in rule["business_intent"]
+
+
 def test_candidates_sorted_by_size_desc():
     custs = [_cust(f"N{i}") for i in range(40)]
     custs += [_cust(f"A{i}", txn_count=300.0) for i in range(3)]  # cohort size 3

@@ -161,18 +161,42 @@ def _suggested_rule(
 ) -> dict[str, Any]:
     """A conservative ``aggregation_window`` rule stub for the cohort.
 
-    ``having`` thresholds use the cohort's MINIMUM value for each "hi"
-    anomalous feature — a conservative floor that the whole cohort clears.
-    "lo" features are omitted from ``having`` and only noted in the label.
+    ``having`` is a valid spec clause: ``{metric: {operator: value}}`` (e.g.
+    ``count: {gte: 3}``). Only "hi" features that map to a real
+    aggregation_window metric become a threshold, using the cohort's MINIMUM
+    value — a conservative floor the whole cohort clears:
+
+    * ``txn_count``   -> ``count: {gte: <cohort min>}``
+    * ``sum_amount``  -> ``sum_amount: {gte: <cohort min>}``
+
+    Features with no clean aggregation metric (``unique_counterparties``,
+    ``cross_border_ratio``) and any "lo" features are NOT placed in
+    ``having`` (which would be an invalid clause); they are surfaced in
+    ``business_intent`` so a reviewer refines them before promotion. This
+    keeps the stub valid-shaped but conservative.
     """
-    having: dict[str, float] = {}
+    # Map discovery feature names to aggregation_window having metrics.
+    _METRIC_FOR_FEATURE = {"txn_count": "count", "sum_amount": "sum_amount"}
+
+    having: dict[str, dict[str, float]] = {}
+    unmapped_hi: list[str] = []
     for feat in hi_features:
+        metric = _METRIC_FOR_FEATURE.get(feat)
+        if metric is None:
+            unmapped_hi.append(feat)
+            continue
         vals = [float(m[feat]) for m in members if feat in m]
         if vals:
-            having[feat] = min(vals)
+            having[metric] = {"gte": min(vals)}
+
     note = ""
+    if unmapped_hi:
+        note += (
+            " Also anomalous on (no direct aggregation metric — refine before "
+            "promotion): " + ", ".join(sorted(unmapped_hi)) + "."
+        )
     if lo_features:
-        note = " Low features (review): " + ", ".join(sorted(lo_features)) + "."
+        note += " Low features (review): " + ", ".join(sorted(lo_features)) + "."
     return {
         "id": f"candidate_{_slug(signature)}",
         "name": label,

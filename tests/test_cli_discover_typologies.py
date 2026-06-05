@@ -112,6 +112,40 @@ def test_discover_typologies_zero_candidates_writes_nothing(
     assert "No candidate typologies" in result.output
 
 
+def test_discover_typologies_reads_as_of_from_manifest_when_not_passed(
+    runner: CliRunner, tmp_path: Path
+) -> None:
+    """Determinism (codex P1): without `--as-of`, the command anchors to the
+    run's `as_of` from manifest.json (not the wall clock). The same run dir +
+    seed must yield a byte-identical candidate_typologies.yaml, and that output
+    must match an explicit `--as-of` equal to the manifest value."""
+    run_dir = _make_run_dir(tmp_path, alerted=[])
+    (run_dir / "manifest.json").write_text(
+        json.dumps({"as_of": "2024-01-01T00:00:00"}), encoding="utf-8"
+    )
+    no_flag = tmp_path / "from_manifest.yaml"
+    explicit = tmp_path / "from_flag.yaml"
+
+    base_args = [
+        "discover-typologies",
+        str(SPEC),
+        str(run_dir),
+        "--seed",
+        "42",
+        "--anomaly-z",
+        "1.5",
+    ]
+    r1 = runner.invoke(app, [*base_args, "--output", str(no_flag)])
+    r2 = runner.invoke(
+        app,
+        [*base_args, "--output", str(explicit), "--as-of", "2024-01-01T00:00:00"],
+    )
+
+    assert r1.exit_code == 0, r1.output
+    assert r2.exit_code == 0, r2.output
+    assert no_flag.read_text(encoding="utf-8") == explicit.read_text(encoding="utf-8")
+
+
 def test_discover_typologies_default_output_under_run_dir(
     runner: CliRunner, tmp_path: Path
 ) -> None:

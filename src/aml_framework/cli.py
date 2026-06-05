@@ -3782,6 +3782,11 @@ def discover_typologies_cmd(
     spec, fires an alert, or is hashed into the audit ledger. Review the
     proposals, then `aml typology-import` or edit the spec by hand.
     """
+    import contextlib
+    import json as _json
+    import os
+    import tempfile
+
     import yaml
 
     from aml_framework.data.sources import resolve_source
@@ -3789,7 +3794,22 @@ def discover_typologies_cmd(
     from aml_framework.engine.typology_discovery import discover_candidates
 
     spec = load_spec(spec_path)
-    as_of_dt = _parse_as_of(as_of)
+    # Determinism (#496 / codex P1): when `--as-of` is not explicitly passed,
+    # anchor discovery to the run's own `as_of` from <run_dir>/manifest.json so
+    # a re-run against the same run is byte-deterministic. The wall-clock
+    # fallback in `_parse_as_of(None)` only fires if the manifest is missing or
+    # carries no `as_of`. An explicit `--as-of` always overrides.
+    if as_of is not None:
+        as_of_dt = _parse_as_of(as_of)
+    else:
+        manifest_as_of: str | None = None
+        manifest_path = run_dir / "manifest.json"
+        if manifest_path.exists():
+            try:
+                manifest_as_of = _json.loads(manifest_path.read_bytes()).get("as_of")
+            except (ValueError, OSError):
+                manifest_as_of = None
+        as_of_dt = _parse_as_of(manifest_as_of)
 
     data = resolve_source(
         source_type=data_source,
@@ -3865,7 +3885,18 @@ def discover_typologies_cmd(
 
     out_path = output if output is not None else run_dir / "candidate_typologies.yaml"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+    # Atomic write (codex P1): render to a temp file in the SAME directory then
+    # os.replace, so an I/O error never leaves a partial candidate_typologies.yaml.
+    rendered = yaml.safe_dump(doc, sort_keys=False)
+    fd, tmp_name = tempfile.mkstemp(dir=out_path.parent, prefix=out_path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(rendered)
+        os.replace(tmp_name, out_path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
 
     console.rule(f"[bold cyan]✓ Wrote {out_path}[/bold cyan]")
     table = Table(title="Candidate typologies (proposals)")
