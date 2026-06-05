@@ -22,6 +22,7 @@ from aml_framework.dashboard.components import (
     section_explainer,
 )
 from aml_framework.dashboard.today import build_cards_for_audience
+from aml_framework.dashboard.regulatory_calendar import regulatory_alert_banner
 
 from aml_framework.dashboard.state import ensure_initialized
 
@@ -71,6 +72,11 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+# Regulatory-deadline alert banner (#510) — sits just under the hero so an
+# MLRO/CCO sees imminent filing/transition deadlines the moment Today opens.
+# Live days-remaining + band colors; graceful empty-state; never crashes.
+regulatory_alert_banner()
 
 show_audience_context("Today")
 

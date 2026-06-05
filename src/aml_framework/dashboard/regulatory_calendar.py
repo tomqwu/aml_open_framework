@@ -66,3 +66,39 @@ def active_deadlines(calendar: list[Deadline], *, as_of: date) -> list[Deadline]
     """Non-expired deadlines, sorted by deadline ascending (deterministic)."""
     upcoming = [d for d in calendar if days_remaining(d, as_of=as_of) >= 0]
     return sorted(upcoming, key=lambda d: d.deadline)
+
+
+def regulatory_alert_banner(*, max_items: int = 4) -> None:
+    """Render a sticky band-colored alert banner of upcoming deadlines (#510).
+
+    Streamlit UI surface: lazy-imports streamlit so this module stays
+    import-clean for the unit-test image (``.[dev]`` has no streamlit). Uses
+    the *live* ``date.today()`` as the countdown anchor — the pure functions
+    are deterministic given an explicit ``as_of``; only the UI uses today.
+
+    Renders a tight stack of ``st.error``/``st.warning``/``st.info`` bars per
+    :func:`urgency_band`. Empty calendar → a single muted caption. Any failure
+    degrades to a caption note so the Today page never crashes.
+    """
+    import streamlit as st
+    from datetime import date
+
+    try:
+        as_of = date.today()
+        active = active_deadlines(load_calendar(), as_of=as_of)[:max_items]
+        if not active:
+            st.caption("No upcoming regulatory deadlines on the calendar.")
+            return
+        for d in active:
+            days = days_remaining(d, as_of=as_of)
+            band = urgency_band(days)
+            when = "**due today**" if days == 0 else f"**{days} days** remaining"
+            msg = f"{d.description} — {when} · [source]({d.source_url})"
+            if band == "error":
+                st.error(msg)
+            elif band == "warning":
+                st.warning(msg)
+            else:
+                st.info(msg)
+    except Exception:  # pragma: no cover - defensive UI guard
+        st.caption("Regulatory calendar unavailable right now.")
