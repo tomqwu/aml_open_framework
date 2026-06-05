@@ -235,7 +235,7 @@ def _suggested_rule(
         "escalate_to": "TODO_queue",
         "regulation_refs": [
             {
-                "citation": "TODO",
+                "citation": "TODO_citation",
                 "description": (
                     "Auto-discovered candidate — supply the regulation citation before promotion."
                 ),
