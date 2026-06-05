@@ -1028,6 +1028,167 @@ button[data-baseweb="tab"] {
     }
 }
 
+/* ---- Mobile exec-polish overlay (PR mobile-exec-polish) ----
+ * A batch of phone-only ergonomics fixes that the iPhone-SE audit
+ * flagged. All scoped to ≤640px and to the main content area so the
+ * sidebar nav (its rows must stay compact) and desktop are untouched.
+ * Goals: (2) code/YAML/hash blocks scroll instead of clipping,
+ * (4) every tap target clears the 44px floor, (5) labels/captions stay
+ * exec-readable (≥13px) and the dev version chip stays hidden,
+ * (6) page descriptions read at body-ink contrast, (7) page-end content
+ * clears the fixed bottom tab bar + the AI-advisor FAB sits above it.
+ */
+@media (max-width: 640px) {
+    /* (DEFECT 2) Code / YAML / hash blocks: a 1571px-wide spec was
+     * laid out off-screen and CLIPPED on the 375px viewport. The
+     * container becomes a horizontal scroller AND the inner code wraps,
+     * so the laid-out box never exceeds the reading column (nothing is
+     * clipped off-screen) while long unbreakable tokens (hashes) can
+     * still scroll. Wrapping is required because the responsive e2e
+     * grades the element's *layout* width — a `max-content` scroller
+     * child still reports its full off-screen right edge. */
+    [data-testid="stMain"] [data-testid="stCode"],
+    [data-testid="stMain"] .stCodeBlock,
+    [data-testid="stMain"] pre {
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    [data-testid="stMain"] pre,
+    [data-testid="stMain"] pre code,
+    [data-testid="stMain"] code {
+        max-width: 100% !important;
+        white-space: pre-wrap !important;
+        overflow-wrap: anywhere !important;
+        word-break: break-word !important;
+    }
+
+    /* (DEFECT — Exec Dashboard) The glide-data-grid behind `st.dataframe`
+     * virtualises a canvas (`.dvn-stack` / `.dvn-scroll-inner`) sized to
+     * the SUM of its column widths (≈793px for an 8-column funnel),
+     * which then lays out off-screen past the 375px viewport and is
+     * graded as overflow even though the visible `.dvn-scroller` clips
+     * it. Pin the whole grid + its internal scroll canvas to the column
+     * width and let the scroller own the horizontal scroll, so no
+     * descendant reports a layout box past the viewport. */
+    [data-testid="stMain"] [data-testid="stDataFrame"],
+    [data-testid="stMain"] [data-testid="stDataFrameResizable"],
+    [data-testid="stMain"] .stDataFrameGlideDataEditor {
+        max-width: 100% !important;
+        overflow: hidden !important;
+    }
+    [data-testid="stMain"] .dvn-scroller {
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    [data-testid="stMain"] .dvn-scroll-inner,
+    [data-testid="stMain"] .dvn-stack,
+    [data-testid="stMain"] .dvn-stack > div,
+    [data-testid="stMain"] .dvn-stack canvas {
+        max-width: 100% !important;
+    }
+    /* The hash-chain terminal block renders mono hashes `nowrap`; on a
+     * phone let the long SHA strings wrap so nothing clips. */
+    [data-testid="stMain"] .terminal-block,
+    [data-testid="stMain"] .terminal-block .value.hash {
+        white-space: normal !important;
+        word-break: break-all;
+    }
+    [data-testid="stMain"] .terminal-block .row {
+        flex-wrap: wrap;
+    }
+
+    /* (DEFECT 3) "Next 5 to triage" rows: wrap the status pill /
+     * reason text instead of overflowing the 375px viewport. The
+     * inline min-widths on the link span are relaxed so the row packs
+     * onto fewer lines. */
+    .dna-triage-row { flex-wrap: wrap !important; }
+    .dna-triage-link { min-width: 0 !important; }
+    .dna-triage-why { white-space: normal !important; }
+
+    /* (DEFECT 4) Tap-target floor — the ≤768px overlay only reaches
+     * `button/a/[role=button]/[data-baseweb=select]`; it MISSES text
+     * inputs, the dataframe toolbar buttons, baseweb-select internals
+     * and inline markdown nav links (which rendered as small as 17px).
+     * Raise the floor on every interactive variant inside the main
+     * content area. Scoped to `stMain` so sidebar nav rows stay
+     * compact. */
+    [data-testid="stMain"] button,
+    [data-testid="stMain"] [role="button"],
+    [data-testid="stMain"] .stButton button,
+    [data-testid="stMain"] [data-testid="stDataFrameToolbar"] button,
+    [data-testid="stMain"] [data-baseweb="select"],
+    [data-testid="stMain"] [data-baseweb="select"] > div,
+    [data-testid="stMain"] [data-baseweb="select"] input,
+    [data-testid="stMain"] [data-baseweb="input"],
+    [data-testid="stMain"] [data-baseweb="input"] input,
+    [data-testid="stMain"] input[type="text"],
+    [data-testid="stMain"] input[type="number"],
+    [data-testid="stMain"] input[type="search"] {
+        min-height: 44px !important;
+    }
+    /* Center the now-taller inputs' content + give buttons a hit area
+     * (a bare `min-height` leaves icon-only toolbar buttons drawn at
+     * their intrinsic 22px even though the box is 44px tall). */
+    [data-testid="stMain"] [data-testid="stDataFrameToolbar"] button,
+    [data-testid="stMain"] .stButton button {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    /* Inline markdown / caption links that act as nav (e.g. "My Queue —
+     * your assigned slice", the case deep-links) rendered as small as
+     * 16px tall. `min-height` is inert on a plain inline `<a>`, so make
+     * them `inline-flex` to give a real 44px hit lane while staying in
+     * the text flow. Scoped to both markdown + caption containers (these
+     * links live in `st.caption`, NOT `stMarkdownContainer`). */
+    [data-testid="stMain"] [data-testid="stMarkdownContainer"] a:not(.dna-tab),
+    [data-testid="stMain"] [data-testid="stCaptionContainer"] a:not(.dna-tab) {
+        display: inline-flex !important;
+        align-items: center !important;
+        min-height: 44px !important;
+    }
+
+    /* (DEFECT 5) Exec-readable typography — bump small label/caption
+     * floors toward ≥13px so nothing renders at 10–12.5px on a phone an
+     * exec is holding. Layout-safe: these are short labels, not dense
+     * tables. */
+    [data-testid="stMain"] [data-testid="stCaptionContainer"],
+    [data-testid="stMain"] [data-testid="stCaptionContainer"] p,
+    [data-testid="stMain"] [data-testid="stCaptionContainer"] * {
+        font-size: 13px !important;
+    }
+    .dna-start-l { font-size: 13px !important; }
+    .metric-card .label { font-size: 13px !important; }
+    .dna-eyebrow { font-size: 13px !important; }
+    .dna-tab-lbl { font-size: 11px !important; }  /* tab bar stays compact */
+
+    /* (DEFECT 6) Page description / subtitle contrast — the one-line
+     * `st.caption(description)` intro rendered as light grey on cream
+     * (visibly faint). Darken it toward the body-ink token so it clears
+     * a comfortable reading contrast on a phone in daylight. */
+    [data-testid="stMain"] [data-testid="stCaptionContainer"],
+    [data-testid="stMain"] [data-testid="stCaptionContainer"] p {
+        color: var(--dna-ink-2) !important;
+    }
+
+    /* (DEFECT 7) Bottom clearance — the fixed 75px tab bar + the
+     * AI-advisor FAB sit over page-end content. Reserve room below the
+     * last authored element (tab-bar height + margin) and lift the FAB
+     * to float ABOVE the tab bar instead of overlapping it. The
+     * existing ≤640px `stMain { padding-bottom: 76px }` covers the bar;
+     * bump it so a comfortable margin clears both, and the
+     * `block-container` padding-bottom keeps the `::after` floor above
+     * the bar too. */
+    [data-testid="stMain"] { padding-bottom: 96px !important; }
+    .block-container { padding-bottom: 96px !important; }
+    .st-key-ai_fab_container {
+        bottom: 88px !important;  /* clear the 75px tab bar + margin */
+        right: 1rem !important;
+    }
+}
+
 /* ---- Direction C: Start-page ink hero band + stat cards ----
  * The landing hero on the Start page's hero screen (idx<0 branch of
  * pages/0_Start.py). Injected as HTML there; styled here. Full-bleed

@@ -148,18 +148,24 @@ FULL_NET_PAGES: list[PageSpec] = [
 STRICT_PAGES: list[PageSpec] = [p for p in FULL_NET_PAGES if p[0] != "Today"]
 
 # Pages still under the thin overlay (strict checks genuinely FAIL → the
-# remaining PR-M2..M6 xfail backlog). The Direction-C mobile redesign
-# (persistent bottom tab bar + full-bleed `@media (max-width:640px)`
-# layout + uniform 44px controls) is exactly the "PR that flips a page
-# to a hard pass" the strict-xfail contract demands: once a page passes
-# both ergonomics assertions it MUST drop its xfail mark in the same
-# change (strict=True turns an XPASS into a hard CI failure precisely to
-# force that). The four pages below now CLEAR both the inner-overflow and
-# uniform-44px-tap-target bars under the redesign, so they are promoted
-# to a hard pass; the three still-failing archetypes stay strict-xfail.
-STRICT_STILL_FAILING: frozenset[str] = frozenset(
-    {"Executive Dashboard", "Alert Queue", "Audit & Evidence"}
-)
+# remaining xfail backlog). The Direction-C mobile redesign (persistent
+# bottom tab bar + full-bleed `@media (max-width:640px)` layout + uniform
+# 44px controls) is exactly the "PR that flips a page to a hard pass" the
+# strict-xfail contract demands: once a page passes both ergonomics
+# assertions it MUST drop its xfail mark in the same change (strict=True
+# turns an XPASS into a hard CI failure precisely to force that).
+#
+# As of the mobile-exec-polish PR this set is EMPTY: the last three
+# archetypes (Executive Dashboard, Alert Queue, Audit & Evidence) now
+# clear both the inner-overflow and uniform-44px-tap-target bars. The
+# DEFECT-2 fix (code/YAML/hash blocks wrap so the laid-out box never
+# exceeds the column) closed Audit & Evidence; the DEFECT-4 fix (44px
+# floor extended to input/toolbar/inline-link variants) and the
+# glide-data-grid containment (its internal `.dvn-stack` canvas reflows
+# to the column width instead of laying out 793px off-screen) closed
+# Alert Queue + Executive Dashboard. Every strict-tier page is now a
+# hard pass; a future regression on any of them fails CI loudly.
+STRICT_STILL_FAILING: frozenset[str] = frozenset()
 
 # The 2-page smoke set for the larger viewport tiers.
 SMOKE_PAGES: list[PageSpec] = [

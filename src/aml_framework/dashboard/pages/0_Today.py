@@ -164,19 +164,21 @@ if _cases_for_rank:
             }.get(_r.sla_state, "#94a3b8")
             _link = id_link(_r.case_id, "4_Case_Investigation", "case_id")
             st.markdown(
-                f"<div style='display:flex; gap:10px; align-items:baseline; "
+                f"<div class='dna-triage-row' style='display:flex; gap:10px; "
+                f"align-items:baseline; flex-wrap:wrap; "
                 f"padding:6px 0; border-bottom:1px solid #e5e7eb;'>"
                 f"<span style='font-family:JetBrains Mono,monospace; "
                 f"color:#94a3b8; width:24px;'>{_i}.</span>"
                 f"<span style='font-family:JetBrains Mono,monospace; "
                 f"font-weight:700; color:#051c2c; min-width:48px;'>"
                 f"{_r.score:.0f}</span>"
-                f"<span style='min-width:240px;'>{_link}</span>"
+                f"<span class='dna-triage-link' style='min-width:240px;'>{_link}</span>"
                 f"<span style='font-family:JetBrains Mono,monospace; "
                 f"font-size:11px; color:{_badge_color}; "
                 f"text-transform:uppercase; letter-spacing:0.04em;'>"
                 f"{_r.sla_state}</span>"
-                f"<span style='font-size:13px; color:#475569;'>{_r.why}</span>"
+                f"<span class='dna-triage-why' style='font-size:13px; "
+                f"color:#475569; white-space:normal;'>{_r.why}</span>"
                 "</div>",
                 unsafe_allow_html=True,
             )
