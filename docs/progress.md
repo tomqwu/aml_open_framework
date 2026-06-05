@@ -7,7 +7,7 @@ Snapshot of where the AML Open Framework is as of 2026-06-05. This document is a
 > - **`docs/research/2026-06-aml-data-problem.md`** added: June edition of the data-problem whitepaper with a new "What changed between May and June 2026" section covering SR 26-2 examination-active (49 days), Effectiveness NPRM + GENIUS Act NPRM June 9 comment deadline (4 days), M4 point-in-time effective-dated joins closing DATA-2, M2 `aml model-inventory` CLI closing DATA-6, and H2/H6 data-integrity fixes (SQL identifier validation, freshness tz-by-instant correctness). DATA-2 artifact map updated to reference `spec/models.py::DataContract.effective_dated · engine/runner.py::_build_enrich_cte`; DATA-6 updated to reference `aml model-inventory --markdown`.
 > - **Canonical research HTML files** synced to June 2026 versions on static site (regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality).
 > - **`docs/index.md`** updated: researcher/regulator card now reflects all 5 June 2026 editions live; deadline countdown updated (Effectiveness NPRM + GENIUS Act NPRM June 9 = 4 days, AUSTRAC Tranche 2 July 1 = 26 days, AMLA RTS July 10 = 35 days, SR 26-2 49 days examination-active); What's-new table row added.
-> - **3 new GitHub roadmap issues filed**: #501 live regulatory calendar dashboard, #502 automated research refresh CI, #503 dashboard regulatory deadline alert widget.
+> - **4 new GitHub roadmap issues filed**: #510 dashboard regulatory-deadline alert banner (Now), #511 Regulatory Calendar dashboard page (Now), #512 automated monthly research refresh CI (Next), #513 GENIUS Act PPSI stablecoin example spec (Now).
 >
 > No code changes; no CI targets affected.
 
