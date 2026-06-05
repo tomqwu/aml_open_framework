@@ -123,6 +123,7 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
+| `docs` | — | 2026-06-05 | Regulatory Calendar — a live forward-deadline view (Regulatory Calendar page + a countdown banner on Today) mapping each NPRM/enforcement deadline to the framework features that evidence readiness. |
 | `v0.1.47` + `docs` | M1–M4 | 2026-06-04 | ML/AI roadmap Now tier fully delivered: Triage Queue dashboard (M1), SR 26-2 model-inventory CLI `aml model-inventory` (M2), champion-challenger `priority_outcome.json` with temporal-leakage guard (M3), point-in-time effective-dated joins (M4, Pillar 3 COVERED). All four June 2026 research docs refreshed: June 9 NPRM deadline **5 days away** (file Fri/Sat June 5–6); AUSTRAC 27 days; AMLA RTS 36 days; SR 26-2 48 days active |
 | `docs` | — | 2026-06-03 | June 2026 research refresh — regulator-pulse + competitive-positioning updated to 2026-06-03: June 9 Effectiveness NPRM + GENIUS Act NPRM dual deadline now **6 days away** (last viable filing window Fri/Sat June 5–6); AUSTRAC Tranche 2 28 days; AMLA RTS 37 days; SR 26-2 47 days examination-active |
 | `docs` | — | 2026-06-01 | June 2026 research whitepapers added — regulator-pulse extended to 2026-06-01 (covering a three-month forward calendar, Jun–Aug 2026: Effectiveness NPRM + GENIUS Act NPRM deadlines 2026-06-09, AUSTRAC Tranche 2 enforcement 2026-07-01, AMLA RTS submission 2026-07-10); competitive-positioning updated post-June-1 deadline |

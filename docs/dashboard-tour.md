@@ -22,6 +22,10 @@ The default landing page (first-run Golden Thread). One sentence establishes wha
 
 ![Start here](screenshots/0_start.png)
 
+### Today
+
+The personalised daily checklist landing surface. A regulatory-deadline alert banner surfaces the next forward deadlines (NPRM comment windows, AUSTRAC/AMLA dates) with live days-remaining and urgency bands, sourced from the bundled regulatory calendar. Universally routed; `0_Today.py` is TOUR_EXEMPT (navigation surface, not an operational page).
+
 ---
 
 ## Operational Pages
