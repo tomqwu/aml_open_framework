@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **42 purpose-built pages** (44 page files on disk — the two extras, Start here and Today, are navigation surfaces documented separately). The sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec. On every page the page-level AI explanation is now a collapsible block (collapsed by default) so the primary content leads — KPIs sit above the fold on mobile rather than below an explainer.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **43 purpose-built pages** (45 page files on disk — the two extras, Start here and Today, are navigation surfaces documented separately). The sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec. On every page the page-level AI explanation is now a collapsible block (collapsed by default) so the primary content leads — KPIs sit above the fold on mobile rather than below an explainer.
 
 The sidebar carries two external links — **Research & whitepapers** and **How-to recipes** — pointing at the MkDocs docs site at `tomqwu.github.io/aml_open_framework_docs/` (`AML_DOCS_URL` env override). Round 32 (2026-05-24) retired the in-app Knowledge category — the 10 pages 33–42 ported from the old GH-Pages site in PR-U2/U3 — once the docs site shipped in Round 31. Knowledge content lives in one canonical place now; the dashboard owns the operational/run-coupled surfaces only.
 
@@ -43,6 +43,12 @@ Filterable, sortable alert triage view for L1 analysts. Filter by rule or severi
 Ranks scored alerts by the advisory N1 `priority_score` (highest first) so an investigator works the highest-SAR-likelihood alerts before the long tail. Each row's score is colour-graded (red = urgent); a "Why this score?" panel renders the per-alert `priority_explanation` — the bias baseline plus each feature's contribution, largest first, with `score = sigmoid(Σ contributions)`. **Advisory only:** the sort never changes an alert's disposition or open/close state; the deterministic rules stay authoritative. When a `program.risk_segmentation` block is enabled (#495), alerts on low-risk customers scoring below a segment threshold are flagged `suppression.applied` and visually de-emphasized here — still present and openable, with a per-row override so an investigator can reverse the advisory de-prioritization. Routed universally so every investigator persona can reach it. Enabled by a `program.prioritization` block in the spec.
 
 ![Triage Queue](screenshots/52_triage_queue.png)
+
+### Regulatory Calendar
+
+Forward regulatory deadline calendar (#511). Loads the packaged `regulatory_calendar.yaml` and computes live days-remaining against `date.today()`, listing each upcoming deadline most-urgent-first in a band-colored block (red ≤7 days, amber ≤30, blue beyond) with a source link. Each deadline carries its **evidence response** — the dashboard pages and example specs in this framework that address the obligation — plus a per-deadline **readiness indicator**: for every referenced `spec_field` (a dotted path like `program.prioritization`) the page checks whether it's populated in the loaded spec and shows ✓/✗, with a "Readiness: N/M spec fields populated" roll-up. Read-only synthesis (no engine call, no spec write); complements the Today banner (#510), which surfaces only the nearest deadlines. Routed universally so every persona — MLRO, CCO, director, examiner, analyst — sees what's coming.
+
+![Regulatory Calendar](screenshots/54_regulatory_calendar.png)
 
 ### Case Investigation
 
@@ -343,7 +349,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The 42 operational pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the cross-cutting synthesis surfaces (North-Star Coverage, FP Analysis, Threshold Sensitivity, Anomaly Discovery, Drift Monitor, Rule Lifecycle, Decision Trail, Experiment Tracking, Equivalence, Triage Queue) stay visible to every persona regardless of the filter:
+The 43 operational pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the cross-cutting synthesis surfaces (North-Star Coverage, FP Analysis, Threshold Sensitivity, Anomaly Discovery, Drift Monitor, Rule Lifecycle, Decision Trail, Experiment Tracking, Equivalence, Triage Queue, Regulatory Calendar) stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|

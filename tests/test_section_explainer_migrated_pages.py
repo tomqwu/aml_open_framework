@@ -76,6 +76,7 @@ _EXPECTED_PAGE_LEVEL = {
     "49_Anomaly_Discovery.py",  # PR-E5 (#382)
     "50_Drift_Monitor.py",  # PR-E3 (#380)
     "52_Triage_Queue.py",  # M1 (N1 follow-on) #481
+    "54_Regulatory_Calendar.py",  # #511
     "4_Case_Investigation.py",
     "5_Rule_Performance.py",
     "6_Risk_Assessment.py",

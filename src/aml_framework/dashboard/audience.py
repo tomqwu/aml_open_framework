@@ -434,6 +434,19 @@ TRIAGE_PAGES = [
 ]
 
 
+# #511. Regulatory Calendar surfaces the forward regulatory deadlines and a
+# per-deadline framework-readiness indicator. It's cross-cutting — every
+# persona (MLRO, CCO, director, examiner, analyst) benefits from seeing what's
+# coming and which framework features evidence readiness — so it's routed
+# UNIVERSALLY via the same idiom as NORTH_STAR_PAGES / TRIAGE_PAGES (app.py
+# adds these titles to the visible set for every persona), NOT via
+# AUDIENCE_PAGES — that preserves MAX_PAGES_PER_PERSONA=9 for the operational
+# arcs.
+CALENDAR_PAGES = [
+    "Regulatory Calendar",
+]
+
+
 def show_audience_context(page_title: str) -> None:
     """Show a subtle context line if an audience is selected."""
     import streamlit as st
