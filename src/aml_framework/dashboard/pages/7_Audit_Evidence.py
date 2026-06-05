@@ -65,6 +65,7 @@ page_header(
 section_explainer(
     page="Audit Evidence",
     section_id="audit_evidence.page",
+    collapsed=True,
     section_title="Audit Evidence",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

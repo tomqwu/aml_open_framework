@@ -175,6 +175,7 @@ show_audience_context("Data Integration")
 section_explainer(
     page="Data Integration",
     section_id="data_integration.page",
+    collapsed=True,
     section_title="Data Integration",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

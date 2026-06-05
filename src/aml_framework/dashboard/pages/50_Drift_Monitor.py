@@ -58,6 +58,7 @@ show_audience_context("Drift Monitor")
 section_explainer(
     page="Drift Monitor",
     section_id="drift_monitor.page",
+    collapsed=True,
     section_title="Drift Monitor",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

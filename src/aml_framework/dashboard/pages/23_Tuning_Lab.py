@@ -56,6 +56,7 @@ show_audience_context(PAGE_TITLE)
 section_explainer(
     page="Tuning Lab",
     section_id="tuning_lab.page",
+    collapsed=True,
     section_title="Tuning Lab",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

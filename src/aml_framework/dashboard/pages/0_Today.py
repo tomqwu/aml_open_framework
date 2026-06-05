@@ -77,6 +77,7 @@ show_audience_context("Today")
 section_explainer(
     page="Today",
     section_id="today.page",
+    collapsed=True,
     section_title="Today",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

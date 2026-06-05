@@ -50,6 +50,7 @@ page_header(
 section_explainer(
     page="North-Star Pillar Coverage",
     section_id="north_star_coverage.page",
+    collapsed=True,
     section_title="North-Star Pillar Coverage",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

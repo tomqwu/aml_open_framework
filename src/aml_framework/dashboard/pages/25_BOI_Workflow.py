@@ -65,6 +65,7 @@ page_header(
 section_explainer(
     page="BOI Workflow",
     section_id="boi_workflow.page",
+    collapsed=True,
     section_title="BOI Workflow",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

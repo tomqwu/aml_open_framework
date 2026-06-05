@@ -35,6 +35,7 @@ show_audience_context("Customer 360")
 section_explainer(
     page="Customer 360",
     section_id="customer_360.page",
+    collapsed=True,
     section_title="Customer 360",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

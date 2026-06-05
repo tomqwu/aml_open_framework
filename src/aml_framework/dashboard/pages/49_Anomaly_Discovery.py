@@ -56,6 +56,7 @@ df_customers: pd.DataFrame = st.session_state.get("df_customers", pd.DataFrame()
 section_explainer(
     page="Anomaly Discovery",
     section_id="anomaly_discovery.page",
+    collapsed=True,
     section_title="Anomaly Discovery",
     data_summary={
         "n_txns": int(len(df_txns)),

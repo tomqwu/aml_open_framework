@@ -54,6 +54,7 @@ page_header(
 section_explainer(
     page="False-Positive Analysis",
     section_id="fp_analysis.page",
+    collapsed=True,
     section_title="False-Positive Analysis",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

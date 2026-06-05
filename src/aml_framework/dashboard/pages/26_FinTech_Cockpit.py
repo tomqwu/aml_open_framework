@@ -60,6 +60,7 @@ page_header(
 section_explainer(
     page="FinTech Cockpit",
     section_id="fintech_cockpit.page",
+    collapsed=True,
     section_title="FinTech Cockpit",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

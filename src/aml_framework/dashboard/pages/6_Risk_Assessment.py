@@ -31,6 +31,7 @@ show_audience_context("Risk Assessment")
 section_explainer(
     page="Risk Assessment",
     section_id="risk_assessment.page",
+    collapsed=True,
     section_title="Risk Assessment",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

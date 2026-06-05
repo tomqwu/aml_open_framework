@@ -60,6 +60,7 @@ page_header(
 section_explainer(
     page="Threshold Sensitivity",
     section_id="threshold_sensitivity.page",
+    collapsed=True,
     section_title="Threshold Sensitivity",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

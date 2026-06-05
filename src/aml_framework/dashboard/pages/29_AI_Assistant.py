@@ -47,6 +47,7 @@ page_header(
 section_explainer(
     page="AI Assistant",
     section_id="ai_assistant.page",
+    collapsed=True,
     section_title="AI Assistant",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

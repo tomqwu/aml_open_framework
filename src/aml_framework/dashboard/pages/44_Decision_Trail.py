@@ -37,6 +37,7 @@ page_header(
 section_explainer(
     page="Investigator Decision Trail",
     section_id="decision_trail.page",
+    collapsed=True,
     section_title="Investigator Decision Trail",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

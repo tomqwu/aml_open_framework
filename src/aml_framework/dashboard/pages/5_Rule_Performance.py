@@ -33,6 +33,7 @@ show_audience_context("Rule Performance")
 section_explainer(
     page="Rule Performance",
     section_id="rule_performance.page",
+    collapsed=True,
     section_title="Rule Performance",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

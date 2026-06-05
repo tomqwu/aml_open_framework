@@ -32,6 +32,7 @@ show_audience_context("Data Quality")
 section_explainer(
     page="Data Quality",
     section_id="data_quality.page",
+    collapsed=True,
     section_title="Data Quality",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

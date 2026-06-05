@@ -28,6 +28,7 @@ page_header(
 section_explainer(
     page="Program Maturity",
     section_id="program_maturity.page",
+    collapsed=True,
     section_title="Program Maturity",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

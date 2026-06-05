@@ -44,6 +44,7 @@ show_audience_context("Information Sharing")
 section_explainer(
     page="Information Sharing",
     section_id="information_sharing.page",
+    collapsed=True,
     section_title="Information Sharing",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

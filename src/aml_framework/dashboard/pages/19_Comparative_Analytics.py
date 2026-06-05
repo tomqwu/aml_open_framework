@@ -29,6 +29,7 @@ page_header(
 section_explainer(
     page="Comparative Analytics",
     section_id="comparative_analytics.page",
+    collapsed=True,
     section_title="Comparative Analytics",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

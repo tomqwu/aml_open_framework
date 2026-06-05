@@ -48,6 +48,7 @@ show_audience_context(PAGE_TITLE)
 section_explainer(
     page="Analyst Review Queue",
     section_id="analyst_review_queue.page",
+    collapsed=True,
     section_title="Analyst Review Queue",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

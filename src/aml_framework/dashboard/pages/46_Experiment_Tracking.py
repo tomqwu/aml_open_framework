@@ -49,6 +49,7 @@ page_header(
 section_explainer(
     page="Experiment Tracking",
     section_id="experiment_tracking.page",
+    collapsed=True,
     section_title="Experiment Tracking",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

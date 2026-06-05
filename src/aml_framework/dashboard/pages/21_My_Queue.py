@@ -31,6 +31,7 @@ page_header(
 section_explainer(
     page="My Queue",
     section_id="my_queue.page",
+    collapsed=True,
     section_title="My Queue",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

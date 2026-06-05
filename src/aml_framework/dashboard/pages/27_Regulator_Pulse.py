@@ -50,6 +50,7 @@ page_header(
 section_explainer(
     page="Regulator Pulse",
     section_id="regulator_pulse.page",
+    collapsed=True,
     section_title="Regulator Pulse",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

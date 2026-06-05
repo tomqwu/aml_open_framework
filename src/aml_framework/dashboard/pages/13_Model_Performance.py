@@ -29,6 +29,7 @@ show_audience_context("Model Performance")
 section_explainer(
     page="Model Performance",
     section_id="model_performance.page",
+    collapsed=True,
     section_title="Model Performance",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

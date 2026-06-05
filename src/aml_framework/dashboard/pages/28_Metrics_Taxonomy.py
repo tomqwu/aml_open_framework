@@ -62,6 +62,7 @@ show_audience_context(PAGE_TITLE)
 section_explainer(
     page="Metrics Taxonomy",
     section_id="metrics_taxonomy.page",
+    collapsed=True,
     section_title="Metrics Taxonomy",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

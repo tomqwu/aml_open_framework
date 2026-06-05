@@ -60,6 +60,7 @@ page_header(
 section_explainer(
     page="Equivalence",
     section_id="equivalence.page",
+    collapsed=True,
     section_title="Equivalence",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

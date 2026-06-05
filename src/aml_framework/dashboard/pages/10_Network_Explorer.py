@@ -37,6 +37,7 @@ show_audience_context("Network Explorer")
 section_explainer(
     page="Network Explorer",
     section_id="network_explorer.page",
+    collapsed=True,
     section_title="Network Explorer",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

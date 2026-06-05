@@ -58,6 +58,7 @@ show_audience_context("Lineage Explorer")
 section_explainer(
     page="Lineage Explorer",
     section_id="lineage_explorer.page",
+    collapsed=True,
     section_title="Lineage Explorer",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

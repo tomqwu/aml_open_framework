@@ -33,6 +33,7 @@ page_header(
 section_explainer(
     page="Transformation Roadmap",
     section_id="transformation_roadmap.page",
+    collapsed=True,
     section_title="Transformation Roadmap",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

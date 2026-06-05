@@ -49,6 +49,7 @@ _suppressed_count = (
 section_explainer(
     page="Triage Queue",
     section_id="triage.page",
+    collapsed=True,
     section_title="Triage Queue",
     data_summary={
         "prioritization_enabled": bool(_enabled),

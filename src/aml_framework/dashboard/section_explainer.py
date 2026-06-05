@@ -7,8 +7,13 @@ automatically on page render, scoped to *that specific section's data*.
 
 Design:
 
-- **Inline.** Renders directly into the page flow via `st.container()`
-  + a `#####` markdown header. No expander, no click.
+- **Inline (default).** Per-section explainers render directly into
+  the page flow via `st.container()` + a `#####` markdown header — no
+  expander, no click. Page-level intro explainers opt into
+  `collapsed=True`, which renders the same body inside a collapsed
+  `st.expander(...)` so the page's primary KPIs/queue sit above the
+  fold on mobile (the explainer is one tap away, not dominating the
+  first screen).
 - **Auto-fire, non-blocking.** Every `section_explainer()` call
   dispatches the LLM call to a background thread pool and returns
   immediately with a "Generating…" placeholder — the page is fully
@@ -453,6 +458,7 @@ def section_explainer(
     data_summary: Mapping[str, Any],
     persona: str | None = None,
     complexity: Literal["fast", "deep"] = "fast",
+    collapsed: bool = False,
 ) -> None:
     """Render an inline AI explanation for a dashboard section.
 
@@ -480,6 +486,16 @@ def section_explainer(
         persona: Override `selected_audience` if the section is
             persona-pinned. Usually None; defaults to the operator's
             current sidebar selection.
+        collapsed: When True, render the whole explainer inside a
+            collapsed `st.expander(...)` instead of an inline
+            `st.container()`. Page-level intro explainers (section_id
+            ending in ``.page``) pass `collapsed=True` so the primary
+            KPIs/queue sit above the fold on mobile — the explainer is
+            one tap away rather than dominating the first screen.
+            Per-section (deep-in-page) explainers keep the default
+            inline behavior. The async dispatch, poller cache-hit
+            render, audit, and error banner all behave identically
+            inside the expander — only the OUTER container changes.
 
     The function never raises — every failure (no key, backend down,
     JSON parse error, missing session state) is surfaced as a single
@@ -508,8 +524,19 @@ def section_explainer(
         # hit the (page, section_id, persona, data_hash)
         # `_PROCESS_CACHE` and render in <1 ms with no thread.
         key = _cache_key(page, section_id, effective_persona, data_hash)
-        with st.container():
-            st.markdown(f"##### ℹ {section_title} — AI Explanation")
+        # Page-level intro explainers (collapsed=True) render inside a
+        # collapsed expander so the page's primary content sits above
+        # them on a phone; per-section explainers keep the inline
+        # container. Everything inside the `with` block is identical —
+        # only the outer container differs.
+        outer = (
+            st.expander(f"ℹ {section_title} — AI Explanation", expanded=False)
+            if collapsed
+            else st.container()
+        )
+        with outer:
+            if not collapsed:
+                st.markdown(f"##### ℹ {section_title} — AI Explanation")
             if effective_persona:
                 st.caption(f"Tailored for persona: `{effective_persona}`")
 

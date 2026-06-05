@@ -75,6 +75,65 @@ class TestTemplateBackendBasics:
         # Focused-on-case line surfaces in the body too.
         assert "CASE-2026-04-001" in reply.text
 
+    def test_body_leads_with_exec_summary_no_env_jargon(self):
+        """The body must LEAD with a plain-English, exec-readable summary
+        of the section (page + alert/case/metric counts) and must NOT
+        show developer setup jargon (env-var names) in the exec-facing
+        body. A finished product can't look broken to an executive.
+        Only one short muted operator line is allowed at the end, and
+        even that omits the specific env-var names."""
+        backend = TemplateBackend()
+        ctx = AssistantContext(
+            page="Executive Dashboard",
+            persona="cco",
+            alert_count=7,
+            case_count=2,
+            metric_count=8,
+        )
+        reply = backend.reply("how are we doing?", ctx)
+        text = reply.text
+
+        # No env-var setup jargon anywhere in the exec-facing body.
+        for jargon in (
+            "AML_AI_BACKEND",
+            "OPENAI_API_KEY",
+            "AML_AI_BACKEND=ollama",
+            "AML_AI_BACKEND=openai",
+            "template backend",
+            "deterministic placeholder",
+        ):
+            assert jargon not in text, f"exec body must not mention {jargon!r}: {text!r}"
+
+        # Leads with the section summary: page + counts are up front,
+        # before the question echo.
+        assert text.index("Executive Dashboard") < text.index("You asked")
+        assert "7 alert(s)" in text
+        assert "2 case(s)" in text
+        assert "8 defined metric(s)" in text
+        assert "cco" in text  # persona-framed
+
+        # Exactly one short, muted operator line — present but generic
+        # (no env-var names).
+        assert "Baseline summary" in text
+        assert "connect an LLM backend" in text
+
+    def test_headline_varies_with_volume(self):
+        """The plain-English headline is deterministic and sized to the
+        run's volume — and never leaks env-var jargon."""
+        backend = TemplateBackend()
+        zero = backend.reply("?", AssistantContext(page="Today", alert_count=0)).text
+        assert "Nothing is flagged" in zero
+
+        alerts_only = backend.reply(
+            "?", AssistantContext(page="Today", alert_count=5, case_count=0)
+        ).text
+        assert "alert stage" in alerts_only
+
+        with_cases = backend.reply(
+            "?", AssistantContext(page="Today", alert_count=5, case_count=3)
+        ).text
+        assert "open cases first" in with_cases
+
     def test_focus_line_covers_other_deep_link_entities(self):
         assert "customer: `C-1`" in TemplateBackend._focus_line(
             AssistantContext(page="Customer 360", selected_customer_id="C-1")

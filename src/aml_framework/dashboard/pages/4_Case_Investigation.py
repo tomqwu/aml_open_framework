@@ -91,6 +91,7 @@ page_header(
 section_explainer(
     page="Case Investigation",
     section_id="case_investigation.page",
+    collapsed=True,
     section_title="Case Investigation",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

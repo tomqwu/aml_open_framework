@@ -53,6 +53,7 @@ page_header(
 section_explainer(
     page="Rule Lifecycle",
     section_id="rule_lifecycle.page",
+    collapsed=True,
     section_title="Rule Lifecycle",
     data_summary={
         "rules": len(getattr(st.session_state.get("spec"), "rules", []) or []),

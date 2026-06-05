@@ -42,6 +42,7 @@ page_header(
 section_explainer(
     page="Framework Alignment",
     section_id="framework_alignment.page",
+    collapsed=True,
     section_title="Framework Alignment",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

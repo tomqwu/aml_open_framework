@@ -27,6 +27,7 @@ show_audience_context("Sanctions Screening")
 section_explainer(
     page="Sanctions Screening",
     section_id="sanctions_screening.page",
+    collapsed=True,
     section_title="Sanctions Screening",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

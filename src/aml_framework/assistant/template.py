@@ -1,9 +1,15 @@
 """Deterministic baseline backend — canned scaffolding, no deps.
 
 Returns a structured reply that:
-  - Acknowledges the question + page context (so the operator sees the
-    panel is reaching them)
-  - Tells them how to enable a real LLM backend (`AML_AI_BACKEND` env)
+  - LEADS with a concise, plain-English, exec-readable summary of the
+    section using the context it has (page, persona, alert/case/metric
+    counts, focused entity) — so a non-technical reader sees a finished
+    product, not developer setup jargon.
+  - Echoes the question back (so the operator sees the panel is
+    reaching them).
+  - Closes with one short, muted operator line noting this is a
+    baseline summary that an LLM backend would enrich — WITHOUT naming
+    env vars in the exec-facing body.
   - Cites whichever entity ID the deep-link mirrors carried in
     (selected_customer_id / case_id / rule_id / metric_id) so the
     citation column on the panel is never empty when the operator
@@ -41,18 +47,15 @@ class TemplateBackend:
     def reply(self, question: str, context: AssistantContext) -> AssistantReply:
         focus = self._focus_line(context)
         body = (
-            f"You asked: *{question.strip()}*\n\n"
-            f"This is the **template backend** — a deterministic placeholder "
-            f"that ships with the framework so the panel works without an LLM. "
-            f"To get real answers, set `AML_AI_BACKEND=ollama` for on-prem "
-            f"inference or `AML_AI_BACKEND=openai` (with `OPENAI_API_KEY`) for "
-            f"cloud.\n\n"
-            f"Context the assistant would have:\n"
-            f"- Page: **{context.page}**\n"
-            f"- Persona: **{context.persona or 'unset'}**\n"
-            f"- Run: {context.alert_count} alert(s) · {context.case_count} case(s) "
-            f"· {context.metric_count} metric(s) defined\n"
+            f"**{context.page}** — this run surfaced "
+            f"**{context.alert_count} alert(s)** across "
+            f"**{context.case_count} case(s)**, evaluated against "
+            f"**{context.metric_count} defined metric(s)**"
+            f"{self._persona_clause(context)}. "
+            f"{self._headline(context)}\n\n"
             f"{focus}"
+            f"You asked: *{question.strip()}*\n\n"
+            f"_Baseline summary — connect an LLM backend for richer analysis._"
         )
         return AssistantReply(
             text=body,
@@ -70,6 +73,23 @@ class TemplateBackend:
             prompted_with_page=context.page,
             answered_at=self._now or datetime.now(tz=timezone.utc),
         )
+
+    @staticmethod
+    def _persona_clause(ctx: AssistantContext) -> str:
+        """Tailor the lead to the reader's persona when one is set."""
+        return f", framed for the **{ctx.persona}** view" if ctx.persona else ""
+
+    @staticmethod
+    def _headline(ctx: AssistantContext) -> str:
+        """One plain-English next-step sentence sized to the run's volume.
+
+        Deterministic, no env-var jargon — this is the exec-facing line.
+        """
+        if ctx.alert_count == 0:
+            return "Nothing is flagged on this view right now."
+        if ctx.case_count == 0:
+            return "Flagged activity is still at the alert stage — none escalated to a case yet."
+        return "Review the open cases first, then work down the remaining alerts."
 
     @staticmethod
     def _focus_line(ctx: AssistantContext) -> str:

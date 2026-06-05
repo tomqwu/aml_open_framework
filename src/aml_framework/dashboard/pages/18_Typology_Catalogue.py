@@ -24,6 +24,7 @@ page_header(
 section_explainer(
     page="Typology Catalogue",
     section_id="typology_catalogue.page",
+    collapsed=True,
     section_title="Typology Catalogue",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

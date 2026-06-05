@@ -101,6 +101,7 @@ if idx < 0:
 section_explainer(
     page="Start here",
     section_id="start.page",
+    collapsed=True,
     section_title="Start here",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

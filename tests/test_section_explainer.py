@@ -55,12 +55,17 @@ class _StubStreamlit:
         self.markdown_calls: list = []
         self.caption_calls: list = []
         self.container_calls: list = []
+        self.expander_calls: list = []
         self.spinner_calls: list = []
         self.error_calls: list = []
 
     def container(self, **kwargs):
         self.container_calls.append(kwargs)
         return _StubBlock("container", **kwargs)
+
+    def expander(self, label, **kwargs):
+        self.expander_calls.append((label, kwargs))
+        return _StubBlock(label, **kwargs)
 
     def spinner(self, label, **kwargs):
         self.spinner_calls.append((label, kwargs))
@@ -182,6 +187,58 @@ def test_renders_inline_container_with_header(stub_st):
         "expected `##### ℹ <title> — AI Explanation` markdown header inside "
         f"the container. Markdown calls were: {stub_st.markdown_calls!r}"
     )
+
+
+def test_collapsed_renders_inside_expander_not_inline_container(stub_st):
+    """`collapsed=True` (page-level intro explainers) renders the whole
+    body inside a collapsed `st.expander(...)` instead of the inline
+    `st.container()`, so the page's primary content sits above the fold
+    on mobile. The expander label carries the title + 'AI Explanation';
+    the inline `#####` markdown header is dropped (the label already
+    carries it). The async dispatch + caption still fire."""
+    from aml_framework.dashboard.section_explainer import section_explainer
+
+    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    with (
+        mock.patch("aml_framework.dashboard.section_explainer._log_to_audit"),
+        mock.patch("aml_framework.assistant.factory.get_assistant", return_value=fake_assistant),
+    ):
+        section_explainer(
+            page="Executive Dashboard",
+            section_id="exec.page",
+            section_title="Executive Dashboard",
+            data_summary={"alert_total": 12},
+            collapsed=True,
+        )
+
+    # Rendered inside an expander, NOT the inline container.
+    assert stub_st.expander_calls, "collapsed=True must render inside st.expander()"
+    assert not stub_st.container_calls, "collapsed=True must NOT use the inline container"
+    label, kwargs = stub_st.expander_calls[0]
+    assert "Executive Dashboard" in label and "AI Explanation" in label
+    assert kwargs.get("expanded") is False, "the page-level explainer must start collapsed"
+    # Async dispatch still fires the non-blocking placeholder inside it.
+    assert any("Generating explanation" in c for c in stub_st.caption_calls)
+
+
+def test_default_collapsed_false_keeps_inline_container(stub_st):
+    """Default (collapsed=False) keeps the existing inline behavior for
+    per-section explainers — no expander, the inline container + header."""
+    from aml_framework.dashboard.section_explainer import section_explainer
+
+    fake_assistant = SimpleNamespace(reply=mock.MagicMock(return_value=_fake_reply()))
+    with (
+        mock.patch("aml_framework.dashboard.section_explainer._log_to_audit"),
+        mock.patch("aml_framework.assistant.factory.get_assistant", return_value=fake_assistant),
+    ):
+        section_explainer(
+            page="Executive Dashboard",
+            section_id="exec.kpis.headline",
+            section_title="Top KPIs",
+            data_summary={"alert_total": 12},
+        )
+    assert stub_st.container_calls, "default must keep the inline container"
+    assert not stub_st.expander_calls, "default must NOT use an expander"
 
 
 def test_auto_fires_backend_on_first_render(stub_st, monkeypatch):

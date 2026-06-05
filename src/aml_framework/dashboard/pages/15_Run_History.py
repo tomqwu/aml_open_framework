@@ -29,6 +29,7 @@ show_audience_context("Run History")
 section_explainer(
     page="Run History",
     section_id="run_history.page",
+    collapsed=True,
     section_title="Run History",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

@@ -34,6 +34,7 @@ page_header(
 section_explainer(
     page="Rule Tuning",
     section_id="rule_tuning.page",
+    collapsed=True,
     section_title="Rule Tuning",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),

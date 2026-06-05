@@ -35,6 +35,7 @@ page_header(
 section_explainer(
     page="Live Monitor",
     section_id="live_monitor.page",
+    collapsed=True,
     section_title="Live Monitor",
     data_summary={
         "total_alerts": getattr(st.session_state.get("result"), "total_alerts", 0),
