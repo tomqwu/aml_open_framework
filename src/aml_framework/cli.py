@@ -3947,6 +3947,9 @@ def detect_mule_rings_cmd(
     data_dir: str | None = typer.Option(
         None, "--data-dir", help="Directory with CSV/Parquet files."
     ),
+    db_path: Path | None = typer.Option(
+        None, "--db-path", help="DuckDB file for --data-source duckdb."
+    ),
     seed: int = typer.Option(42, "--seed", help="Seed for the synthetic source."),
     min_ring_size: int = typer.Option(
         3, "--min-ring-size", help="Smallest community that can count as a ring."
@@ -3981,10 +3984,12 @@ def detect_mule_rings_cmd(
     from aml_framework.engine.runner import _build_warehouse, _harden_duckdb
 
     spec = load_spec(spec_path)
-    # Determinism (mirror discover-typologies): without an explicit `--as-of`,
-    # anchor to the run's own `as_of` from <run_dir>/manifest.json so a re-run
-    # is byte-deterministic. The wall-clock fallback only fires when the
-    # manifest is missing or carries no `as_of`.
+    # Determinism (codex P2): as_of drives synthetic data → edges → rings, so a
+    # wall-clock fallback would make the run non-deterministic. Without an
+    # explicit `--as-of`, anchor to the run's own `as_of` from
+    # <run_dir>/manifest.json. FAIL CLOSED if the manifest is missing/unreadable
+    # or carries no `as_of` — never silently use the wall clock. Explicit
+    # `--as-of` always overrides.
     if as_of is not None:
         as_of_dt = _parse_as_of(as_of)
     else:
@@ -3995,6 +4000,12 @@ def detect_mule_rings_cmd(
                 manifest_as_of = _json.loads(manifest_path.read_bytes()).get("as_of")
             except (ValueError, OSError):
                 manifest_as_of = None
+        if manifest_as_of is None:
+            console.print(
+                f"[red]No --as-of given and {manifest_path} has no readable as_of "
+                "— pass --as-of to make discovery deterministic.[/red]"
+            )
+            raise typer.Exit(code=1)
         as_of_dt = _parse_as_of(manifest_as_of)
 
     data = resolve_source(
@@ -4003,6 +4014,7 @@ def detect_mule_rings_cmd(
         as_of=as_of_dt,
         seed=seed,
         data_dir=data_dir,
+        db_path=str(db_path) if db_path is not None else None,
     )
 
     # Build an in-memory DuckDB warehouse the same way the engine does, then

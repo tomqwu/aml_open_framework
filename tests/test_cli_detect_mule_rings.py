@@ -152,6 +152,26 @@ def test_detect_mule_rings_reads_as_of_from_manifest_when_not_passed(
     assert from_manifest.read_text(encoding="utf-8") == from_flag.read_text(encoding="utf-8")
 
 
+def test_detect_mule_rings_fails_closed_without_as_of_or_manifest(
+    runner: CliRunner, tmp_path: Path
+) -> None:
+    """Fail-closed determinism (codex P2): a run dir with NO readable manifest
+    as_of and NO `--as-of` flag must error with exit 1 rather than silently
+    falling back to the wall clock."""
+    run_dir = tmp_path / "run-no-manifest"
+    run_dir.mkdir(parents=True)
+    out = tmp_path / "mule_rings.json"
+
+    result = runner.invoke(
+        app,
+        ["detect-mule-rings", str(SPEC), str(run_dir), "--output", str(out), "--seed", "42"],
+    )
+
+    assert result.exit_code == 1, result.output
+    assert not out.exists()
+    assert "as_of" in result.output
+
+
 def test_detect_mule_rings_default_output_under_run_dir(runner: CliRunner, tmp_path: Path) -> None:
     """Without `--output`, the report lands at `<run_dir>/mule_rings.json`."""
     run_dir = _make_run_dir(tmp_path)
