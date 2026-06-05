@@ -131,6 +131,13 @@ CITATION_URL_MAP: dict[str, str] = {
     "PSR Specific Direction SD20 (APP scams reimbursement)": "https://www.psr.org.uk/our-rules/specific-directions/specific-direction-20-app-scams-reimbursement/",
     # South Africa
     "SAMLA 2018": "https://www.fic.gov.za/Documents/Financial%20Intelligence%20Centre%20Act,%202001%20(Act%2038%20of%202001)_UNOFFICIAL%20text.pdf",
+    # Australia — AUSTRAC / AML/CTF Act 2006 (Tranche 2 DNFBPs)
+    "AML/CTF Act s.41": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "AML/CTF Act s.43": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "AML/CTF Act s.36": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "AML/CTF Act s.84": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "AUSTRAC DNFBP Guidance 2024": "https://www.austrac.gov.au/business/how-comply-guidance-and-resources",
+    "FATF Recommendation 22": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
 }
 
 
