@@ -321,6 +321,9 @@ def case_copilot_panel(*, page: str) -> None:
             except Exception as exc:  # noqa: BLE001
                 st.error(f"Case Copilot failed: {exc}")
 
+        # Only re-display a stored (already-audited) reply while an active
+        # run + audit trail is present — never surface a copilot reply
+        # outside an auditable run context (SR-26-2 fail-closed posture).
         last = st.session_state.get("case_copilot_transcript", {}).get(page)
-        if last is not None:
+        if last is not None and st.session_state.get("run_dir"):
             _render_assistant_reply(last)
