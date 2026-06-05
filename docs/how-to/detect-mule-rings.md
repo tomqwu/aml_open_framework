@@ -49,12 +49,12 @@ The report is aggregate counts plus one entry per ring, sorted by size desc:
 {
   "rings": [
     {
-      "ring_id": "a1b2c3d4",
+      "ring_id": "MR-be9aa9c755",
       "members": ["C0031", "C0032", "C0033"],
       "size": 3,
       "internal_edges": 3,
       "density": 1.0,
-      "label": "dense identity-link community"
+      "label": "3-account ring · 3 links · density 1.00"
     }
   ],
   "n_entities": 12,
