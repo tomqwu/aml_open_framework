@@ -10,9 +10,11 @@ investigator can override.
 
 Design rules (mirror ``engine/prioritization.py``): pure / deterministic
 (no clock, no random, no I/O), stdlib only, only ADDS the ``suppression``
-key. Precondition: ``priority_score`` must be present (prioritization
-enabled); otherwise the pass records ``applied=False`` with an explicit
-reason and suppresses nothing.
+key. Precondition: the caller must pass an explicit
+``prioritization_enabled`` flag reflecting ``program.prioritization.enabled``;
+when it is False the pass records ``applied=False`` with an explicit reason
+and suppresses nothing — it never infers the precondition from the mere
+presence of a stray ``priority_score`` on an alert.
 """
 
 from __future__ import annotations
@@ -35,13 +37,23 @@ class SuppressionResult:
 
 
 def score_suppression(
-    alert: dict[str, Any], cfg, customer_risk: dict[str, str]
+    alert: dict[str, Any], cfg, customer_risk: dict[str, str], prioritization_enabled: bool
 ) -> SuppressionResult:
-    """Pure: decide whether one alert is advisory-suppressed. No mutation."""
+    """Pure: decide whether one alert is advisory-suppressed. No mutation.
+
+    Precondition is the explicit ``prioritization_enabled`` flag (from
+    ``program.prioritization.enabled``), NOT the presence of a
+    ``priority_score`` on the alert: a stray score on a disabled run must
+    never trigger suppression.
+    """
+    if not prioritization_enabled:
+        return SuppressionResult(
+            False, None, "prioritization disabled", None, alert.get("priority_score")
+        )
     score = alert.get("priority_score")
     if score is None:
         return SuppressionResult(
-            False, None, "prioritization disabled — no priority_score", None, None
+            False, None, "prioritization enabled but no priority_score on this alert", None, None
         )
     risk = customer_risk.get(alert.get("customer_id", ""))
     for seg in cfg.segments:
@@ -64,13 +76,22 @@ def score_suppression(
     return SuppressionResult(False, None, "customer not in any declared segment", None, score)
 
 
-def stamp_suppression(rule, alerts, cfg, customer_risk: dict[str, str]) -> None:
+def stamp_suppression(
+    rule, alerts, cfg, customer_risk: dict[str, str], prioritization_enabled: bool
+) -> None:
     """Add an advisory ``suppression`` dict to each alert. No-op when cfg is
-    None or disabled. Never removes keys, never auto-closes."""
+    None or disabled. Never removes keys, never auto-closes.
+
+    The suppression precondition is the explicit ``prioritization_enabled``
+    flag (``program.prioritization.enabled``), threaded through to
+    ``score_suppression`` — suppression is never inferred from a stray
+    ``priority_score`` on an alert."""
     if cfg is None or not getattr(cfg, "enabled", False):
         return
     for alert in alerts:
-        alert["suppression"] = asdict(score_suppression(alert, cfg, customer_risk))
+        alert["suppression"] = asdict(
+            score_suppression(alert, cfg, customer_risk, prioritization_enabled)
+        )
 
 
 class SuppressionReport(BaseModel):

@@ -1321,7 +1321,13 @@ def run_spec(
                 continue
             stamp_payload_meta(rule, alerts, as_of=as_of)
             stamp_priority(rule, alerts, _prioritization_cfg)
-            stamp_suppression(rule, alerts, _segmentation_cfg, customer_risk)
+            stamp_suppression(
+                rule,
+                alerts,
+                _segmentation_cfg,
+                customer_risk,
+                bool(_prioritization_cfg and getattr(_prioritization_cfg, "enabled", False)),
+            )
             alerts_by_rule[rule.id] = alerts
             ledger.record_alerts(rule.id, alerts)
             _open_cases_for_alerts(rule, alerts, spec, ledger, case_ids)
@@ -1351,7 +1357,13 @@ def run_spec(
                 reference_data_version_override=list_version,
             )
             stamp_priority(rule, alerts, _prioritization_cfg)
-            stamp_suppression(rule, alerts, _segmentation_cfg, customer_risk)
+            stamp_suppression(
+                rule,
+                alerts,
+                _segmentation_cfg,
+                customer_risk,
+                bool(_prioritization_cfg and getattr(_prioritization_cfg, "enabled", False)),
+            )
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1374,7 +1386,13 @@ def run_spec(
                 alerts = _execute_network_pattern(rule, con, as_of, cost_timer)
             stamp_payload_meta(rule, alerts, as_of=as_of)
             stamp_priority(rule, alerts, _prioritization_cfg)
-            stamp_suppression(rule, alerts, _segmentation_cfg, customer_risk)
+            stamp_suppression(
+                rule,
+                alerts,
+                _segmentation_cfg,
+                customer_risk,
+                bool(_prioritization_cfg and getattr(_prioritization_cfg, "enabled", False)),
+            )
             alerts_by_rule[rule.id] = alerts
             ledger.record_rule_sql(
                 rule.id,
@@ -1472,7 +1490,13 @@ def run_spec(
                         )
         stamp_payload_meta(rule, alerts, as_of=as_of)
         stamp_priority(rule, alerts, _prioritization_cfg)
-        stamp_suppression(rule, alerts, _segmentation_cfg, customer_risk)
+        stamp_suppression(
+            rule,
+            alerts,
+            _segmentation_cfg,
+            customer_risk,
+            bool(_prioritization_cfg and getattr(_prioritization_cfg, "enabled", False)),
+        )
         alerts_by_rule[rule.id] = alerts
         ledger.record_alerts(rule.id, alerts)
 
