@@ -1678,6 +1678,41 @@ def _finalize_run(
     )
     write_monitoring_digest(ledger.run_dir, digest)
 
+    # #497: emit `model_risk_report.json` ONLY when governed model-risk
+    # monitoring is enabled — mirrors the priority_outcome / suppression_report
+    # gate so a run WITHOUT the feature is byte-identical to pre-feature
+    # behaviour (no file, no manifest key). Reuses the digest's per-rule alert
+    # rollups: `digest.alerts_per_rule` is the current per-rule count map (keyed
+    # by rule_id, matching the model_inventory `model_key` for rules); the prior
+    # per-rule counts are reconstructed from the digest's signed
+    # `changed_since_last_run` diff (current − delta) so we never re-query the
+    # DB. `prior_run_id is None` means there was no prior run → prior_counts=None
+    # (drift reported as "unknown"). Written BEFORE `ledger.finalize()` so the
+    # manifest can pin its SHA-256.
+    _mrm_cfg = getattr(spec.program, "model_risk_monitoring", None)
+    if _mrm_cfg and _mrm_cfg.enabled:
+        from aml_framework.engine.model_risk_monitoring import build_model_risk_report
+        from aml_framework.generators.model_inventory import build_model_inventory
+
+        _current_counts = dict(digest.alerts_per_rule)
+        if digest.prior_run_id is None:
+            _prior_counts: dict[str, int] | None = None
+        else:
+            _prior_counts = {
+                rid: _current_counts.get(rid, 0) - delta
+                for rid, delta in digest.changed_since_last_run.items()
+            }
+        _mrm_report = build_model_risk_report(
+            build_model_inventory(spec),
+            current_counts=_current_counts,
+            prior_counts=_prior_counts,
+            drift_high_ratio=_mrm_cfg.drift_high_ratio,
+            generated_at=ledger.as_of,
+        )
+        (ledger.run_dir / "model_risk_report.json").write_text(
+            _mrm_report.model_dump_json(indent=2) + "\n"
+        )
+
     # PR-C1 (#371) — Pillar-2 defect log. Re-emit with the full
     # accumulator state (DQ exceptions + permissive-mode python_ref
     # failures); the snapshot written pre-warehouse already covered
