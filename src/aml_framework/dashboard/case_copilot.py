@@ -263,7 +263,9 @@ def case_copilot_panel(*, page: str) -> None:
                     return
                 case = case_rows.iloc[0].to_dict()
 
-                customer_id = (case.get("alert") or {}).get("customer_id") or case.get("customer_id")
+                customer_id = (case.get("alert") or {}).get("customer_id") or case.get(
+                    "customer_id"
+                )
                 customer: dict[str, Any] | None = None
                 if customer_id and df_customers is not None and not df_customers.empty:
                     cust_rows = df_customers[df_customers["customer_id"] == customer_id]
