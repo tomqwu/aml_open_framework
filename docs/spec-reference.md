@@ -58,6 +58,8 @@ program:
 
 Other audit fields (`ts`, `page`, `persona`, `backend`, `citations`, `confidence`, `referenced_metric_ids`, `referenced_case_ids`, `question`) are always logged regardless of mode.
 
+The same `hash_only` vs `full_text` setting governs the Case Investigation page's **Case Copilot** rows (`ai_case_copilot_action` events, #499) — `hash_only` retains only the SHA-256 of each DRAFT, `full_text` retains the full draft text — so PII transit for case-scoped GenAI drafts is gated by the identical knob.
+
 ### Optional blocks
 
 **`environment`** (default `dev`) — the promotion lane this spec is running in. Allowed: `dev | test | uat | prod`. Combined with each rule's `environments` list, the engine warns (or with `strict_environment_gating: true`, raises `EnvironmentGatingError`) when a rule fires in a lane it wasn't approved for. Greenfield deployments leave this at `dev` until the promotion process is wired up. *PR-D3 / Round 28.*

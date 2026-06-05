@@ -2,6 +2,10 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **#499 — GenAI case investigation copilot** (`feat/case-copilot`, 2026-06-05): governed Case Copilot on the Case Investigation page (`dashboard/case_copilot.py`) reuses the existing assistant for case-scoped DRAFTS (summarize/typology/STR-SAR narrative/network/risk); audited as `ai_case_copilot_action`, human-reviewed, dashboard-only (never the engine run path), SR-26-2 carve-out. Pure builder+prompts unit-testable; streamlit lazy in the UI.
+
+---
+
 > **#498 — Graph mule-ring detection** (`feat/mule-ring-detection`, 2026-06-05): offline `aml detect-mule-rings` CLI runs deterministic union-find + density community detection over the identity-link graph (`resolved_entity_link`) into a governed `mule_rings.json`; engine builder `engine/mule_ring.py`; surfaced on Network Explorer. Pure stdlib, never in the run path, advisory (an investigator confirms).
 
 ---

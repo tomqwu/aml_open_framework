@@ -66,6 +66,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     Hand a regulator a single-case ZIP, not the whole run. `aml export-case` and `aml export-batch`. *(Placeholder — to be filled.)*
 
+-   :material-robot-outline:{ .lg .middle } **[Use the Case Copilot for a case](use-case-copilot.md)**
+
+    ---
+
+    Governed, in-page GenAI DRAFTS on the Case Investigation page (#499) — summarize / typology / draft STR-SAR narrative / counterparty network / risk. Human-reviewed, never auto-dispositions, audited as `ai_case_copilot_action`. Backend via `AML_AI_BACKEND`. ~2 min. **Detailed.**
+
 -   :material-magnify-scan:{ .lg .middle } **[Walk the lineage chain for a case](walk-lineage.md)**
 
     ---
