@@ -1,0 +1,476 @@
+# AML/CTF spec for an Australian Tranche 2 reporting entity (DNFBP).
+#
+# Australia's AML/CTF Amendment Act 2024 extends the regime to "Tranche 2"
+# designated non-financial businesses and professions (DNFBPs) — lawyers,
+# accountants, conveyancers, real-estate agents, trust and company service
+# providers, and dealers in precious metals/stones — from 1 July 2026.
+#
+# This example shows how a DNFBP discharges its core AUSTRAC obligations:
+# threshold transaction reporting (TTR, AUD $10,000), suspicious matter
+# reporting (SMR), ongoing customer due diligence, and sanctions screening
+# against the DFAT Consolidated List.
+#
+# Every rule maps to an AML/CTF Act 2006 obligation. Citations resolve via
+# the framework's regwatch CITATION_URL_MAP.
+
+version: 1
+
+program:
+  name: austrac_tranche_2_dnfbp
+  jurisdiction: AU
+  regulator: AUSTRAC
+  owner: aml_compliance_manager
+  effective_date: 2026-07-01
+
+# ---------------------------------------------------------------------------
+# Data contracts — reuse the synthetic generator's column shapes so this
+# spec both validates AND runs on `aml run` synthetic data.
+# ---------------------------------------------------------------------------
+data_contracts:
+  - id: txn
+    source: raw.transactions
+    freshness_sla: 1h
+    columns:
+      - { name: txn_id,      type: string,    nullable: false, pii: false }
+      - { name: customer_id, type: string,    nullable: false, pii: true  }
+      - { name: amount,      type: decimal,   nullable: false, constraints: [">0"] }
+      - { name: currency,    type: string,    nullable: false }
+      - { name: channel,     type: string,    enum: [cash, wire, ach, e_transfer, cheque, card, rtp, crypto, prepaid] }
+      - { name: direction,   type: string,    enum: [in, out] }
+      - { name: booked_at,   type: timestamp, nullable: false }
+      - { name: counterparty_country, type: string, nullable: true }
+    quality_checks:
+      - { not_null: [txn_id, customer_id, amount, booked_at] }
+      - { unique:   [txn_id] }
+
+  - id: customer
+    source: raw.customers
+    freshness_sla: 24h
+    columns:
+      - { name: customer_id,       type: string,    nullable: false, pii: true }
+      - { name: full_name,         type: string,    nullable: false, pii: true }
+      - { name: country,           type: string,    nullable: false }
+      - { name: risk_rating,       type: string,    enum: [low, medium, high] }
+      - { name: onboarded_at,      type: timestamp, nullable: false }
+      - { name: business_activity, type: string,    nullable: true }
+      - { name: edd_last_review,   type: timestamp, nullable: true }
+
+# ---------------------------------------------------------------------------
+# Detection rules — DNFBP typologies under the AML/CTF Act 2006.
+# ---------------------------------------------------------------------------
+rules:
+  # --- STRUCTURING: cash below the AUD $10,000 TTR threshold ---
+  - id: cash_structuring_below_ttr
+    name: Cash structuring — deposits below the AUD $10,000 TTR threshold
+    severity: high
+    regulation_refs:
+      - citation: "AML/CTF Act s.43"
+        description: "Threshold transaction reports — cash transactions of AUD $10,000+."
+      - citation: "AUSTRAC DNFBP Guidance 2024"
+        description: "Structuring indicators for designated non-financial businesses."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        channel: cash
+        direction: in
+        amount: { between: [5000, 9999] }
+      group_by: [customer_id]
+      window: 30d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 20000 }
+    escalate_to: aml_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - prior_alerts_90d
+    tags: [structuring, cash, ttr]
+    business_intent: >
+      Detect customers paying cash in the $5,000–$9,999 just-below-TTR band
+      three or more times within 30 days summing to $20,000+ — the canonical
+      structuring pattern of splitting cash to stay below the AUD $10,000
+      threshold transaction report trigger under AML/CTF Act s.43.
+    out_of_scope:
+      - single cash transactions at or above the $10,000 TTR threshold (reported via TTR)
+      - cash withdrawals (this rule is inbound-only)
+
+  # --- RAPID PASS-THROUGH / SHELL-ENTITY CHURN ---
+  - id: rapid_pass_through_churn
+    name: Rapid pass-through — cash-in followed by wire-out within 48h
+    severity: critical
+    regulation_refs:
+      - citation: "AML/CTF Act s.41"
+        description: "Suspicious matter reporting — pass-through pattern indicative of layering."
+      - citation: "FATF Recommendation 22"
+        description: "DNFBP customer due diligence and record-keeping obligations."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH cash_in AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE channel = 'cash' AND direction = 'in'
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        wire_out AS (
+            SELECT customer_id, txn_id, amount, booked_at
+            FROM txn
+            WHERE channel = 'wire' AND direction = 'out'
+              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+        ),
+        paired AS (
+            SELECT
+                ci.customer_id,
+                SUM(ci.amount) AS cash_in_total,
+                SUM(wo.amount) AS wire_out_total,
+                COUNT(DISTINCT ci.txn_id) AS cash_in_count,
+                COUNT(DISTINCT wo.txn_id) AS wire_out_count,
+                MIN(ci.booked_at) AS window_start,
+                MAX(wo.booked_at) AS window_end
+            FROM cash_in ci
+            JOIN wire_out wo
+              ON ci.customer_id = wo.customer_id
+              AND wo.booked_at BETWEEN ci.booked_at AND ci.booked_at + INTERVAL '48' HOUR
+            GROUP BY ci.customer_id
+        )
+        SELECT
+            'rapid_pass_through_churn' AS rule_id,
+            customer_id,
+            cash_in_total + wire_out_total AS sum_amount,
+            cash_in_count + wire_out_count AS count,
+            window_start,
+            window_end
+        FROM paired
+        WHERE cash_in_total + wire_out_total >= 30000
+        ORDER BY customer_id
+    escalate_to: aml_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - counterparty_analysis
+      - prior_alerts_90d
+    tags: [pass_through, layering, shell_entity]
+    business_intent: >
+      Detect the pass-through signature where cash-in legs are followed by
+      wire-out legs to the same customer within 48 hours and the combined
+      value reaches $30,000+ — the layering pattern that DNFBPs (trust and
+      company service providers especially) are exposed to when shell entities
+      churn funds through client accounts.
+    out_of_scope:
+      - cash-in followed by cash-out within 48 hours (different layering shape)
+      - aggregations beyond 48 hours (handled by longer-window rules)
+
+  # --- WIRES TO HIGH-RISK JURISDICTIONS ---
+  - id: high_risk_jurisdiction_wires
+    name: Outbound wires to FATF call-for-action jurisdictions
+    severity: high
+    regulation_refs:
+      - citation: "AML/CTF Act s.36"
+        description: "Ongoing customer due diligence — geographic risk factors."
+      - citation: "FATF Recommendation 22"
+        description: "DNFBP customer due diligence and record-keeping obligations."
+    logic:
+      type: custom_sql
+      sql: |
+        SELECT
+            'high_risk_jurisdiction_wires' AS rule_id,
+            t.customer_id,
+            COUNT(*) AS count,
+            SUM(t.amount) AS sum_amount,
+            MIN(t.booked_at) AS window_start,
+            MAX(t.booked_at) AS window_end
+        FROM txn t
+        WHERE t.channel = 'wire' AND t.direction = 'out'
+          AND t.counterparty_country IN ('KP', 'IR', 'MM')
+          AND t.booked_at >= TIMESTAMP '{window_start}'
+          AND t.booked_at <  TIMESTAMP '{as_of}'
+        GROUP BY t.customer_id
+        HAVING SUM(t.amount) >= 5000
+        ORDER BY t.customer_id
+    escalate_to: aml_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - jurisdiction_risk_assessment
+    tags: [high_risk_jurisdiction, geographic_risk]
+    business_intent: >
+      Surface customers sending outbound wires to FATF call-for-action
+      jurisdictions (KP, IR, MM) whose activity exceeds a low $5,000 aggregate
+      floor — geographic risk under AML/CTF Act s.36 drives enhanced customer
+      due diligence and this rule provides the trigger.
+    out_of_scope:
+      - customer-domicile high-risk geography (the filter is on counterparty_country)
+      - sanctioned-name matches against a person (handled by sanctions_screening)
+
+  # --- DORMANT ACCOUNT REACTIVATION ---
+  - id: dormant_account_reactivation
+    name: Dormant client reactivation with large transaction
+    severity: high
+    regulation_refs:
+      - citation: "AML/CTF Act s.41"
+        description: "Suspicious matter reporting — dormant client with sudden large activity."
+      - citation: "AUSTRAC DNFBP Guidance 2024"
+        description: "Behavioural red-flag indicators for designated services."
+    logic:
+      type: custom_sql
+      sql: |
+        WITH last_activity AS (
+            SELECT customer_id, MAX(booked_at) AS last_txn_date
+            FROM txn
+            WHERE booked_at < TIMESTAMP '{dormant_cutoff}'
+            GROUP BY customer_id
+        ),
+        recent_large AS (
+            SELECT customer_id, SUM(amount) AS sum_amount,
+                   COUNT(*) AS count,
+                   MIN(booked_at) AS window_start,
+                   MAX(booked_at) AS window_end
+            FROM txn
+            WHERE booked_at >= TIMESTAMP '{dormant_cutoff}'
+              AND booked_at <  TIMESTAMP '{as_of}'
+              AND amount >= 10000
+            GROUP BY customer_id
+        )
+        SELECT
+            'dormant_account_reactivation' AS rule_id,
+            r.customer_id,
+            r.sum_amount,
+            r.count,
+            r.window_start,
+            r.window_end
+        FROM recent_large r
+        JOIN last_activity la ON r.customer_id = la.customer_id
+        ORDER BY r.customer_id
+    escalate_to: aml_investigator
+    evidence:
+      - all_matching_transactions
+      - customer_kyc_profile
+      - account_activity_history
+    tags: [dormant_account, behavioral]
+    business_intent: >
+      Detect clients inactive prior to the dormant cutoff who suddenly book
+      transactions of $10,000+ inside the post-cutoff window. A dormant client
+      relationship coming alive with large transfers is a textbook
+      nominee/shell indicator and an AUSTRAC red flag for DNFBP services.
+    out_of_scope:
+      - continuously active clients whose new transaction is large but not preceded by dormancy
+      - small reactivation activity below the $10,000 individual-transaction floor
+
+  # --- SANCTIONS SCREENING (DFAT Consolidated List) ---
+  - id: sanctions_screening
+    name: Sanctions list screening — DFAT Consolidated List
+    severity: critical
+    regulation_refs:
+      - citation: "Autonomous Sanctions Act 2011 (Cth)"
+        description: "Dealings with property of designated / listed persons prohibited."
+      - citation: "AML/CTF Act s.41"
+        description: "Suspicious matter reporting — file on discovery of a listed person."
+    logic:
+      type: list_match
+      source: customer
+      field: full_name
+      list: sanctions
+      match: fuzzy
+      threshold: 0.85
+    escalate_to: aml_investigator
+    evidence:
+      - customer_kyc_profile
+      - sanctions_match_details
+      - beneficial_ownership_records
+    tags: [sanctions, listed_persons, dfat]
+    business_intent: >
+      Fuzzy-match every customer's full_name against the DFAT Consolidated
+      List at threshold 0.85. A hit obligates an immediate suspicious matter
+      report under AML/CTF Act s.41 and prohibits any further dealing with the
+      listed person's property under the Autonomous Sanctions Act 2011 (Cth).
+    out_of_scope:
+      - counterparty (non-customer) names appearing in transaction metadata
+      - beneficial-owner screening of corporate customers (different attribute path)
+
+  # --- ADVERSE MEDIA SCREENING ---
+  - id: adverse_media_screening
+    name: Adverse media screening
+    severity: medium
+    regulation_refs:
+      - citation: "AML/CTF Act s.36"
+        description: "Ongoing customer due diligence — adverse media as risk indicator."
+      - citation: "AUSTRAC DNFBP Guidance 2024"
+        description: "Adverse media monitoring for designated services."
+    logic:
+      type: list_match
+      source: customer
+      field: full_name
+      list: adverse_media
+      match: fuzzy
+      threshold: 0.85
+    escalate_to: aml_investigator
+    evidence:
+      - customer_kyc_profile
+      - adverse_media_articles
+    tags: [adverse_media, ongoing_monitoring]
+    business_intent: >
+      Fuzzy-match every customer's full_name against the curated adverse-media
+      watchlist (financial-crime reporting, regulatory enforcement, ongoing
+      investigations) at threshold 0.85. Adverse media is an explicit risk
+      indicator supporting the AML/CTF Act s.36 ongoing-due-diligence
+      obligation.
+    out_of_scope:
+      - sanctions-list matches (handled by sanctions_screening with a higher-severity path)
+      - reputational risk on counterparties (the join is against customer names)
+
+# ---------------------------------------------------------------------------
+# Workflow — investigator → SMR filing → closed_no_action
+# ---------------------------------------------------------------------------
+workflow:
+  queues:
+    - id: aml_investigator
+      sla: 72h
+      next: [smr_filing, closed_no_action]
+    - id: smr_filing
+      sla: 3d
+      regulator_form: AUSTRAC_STR
+    - id: closed_no_action
+      sla: 24h
+
+reporting:
+  forms:
+    AUSTRAC_STR:
+      template: austrac_smr_v1
+      mandatory_fields: [subject, narrative, triggering_rules, transactions]
+    AUSTRAC_TTR:
+      template: austrac_ttr_v1
+      trigger:
+        channel: cash
+        aggregate_day: { gte: 10000 }
+
+retention_policy:
+  evidence: 7y
+  alerts: 7y
+  case_decisions: 7y
+  raw_transactions: 7y
+  client_identification: 7y
+
+# ---------------------------------------------------------------------------
+# Metrics — alert volume + SMR conversion rate.
+# ---------------------------------------------------------------------------
+metrics:
+  - id: alert_volume_total
+    name: Total alerts produced
+    category: operational
+    audience: [director, manager, analyst, developer]
+    owner: aml_compliance_manager
+    formula:
+      type: count
+      source: alerts
+    thresholds:
+      green: { lte: 100 }
+      amber: { between: [101, 500] }
+      red:   { gt: 500 }
+
+  - id: distinct_customers_alerted
+    name: Distinct customers alerted
+    category: risk
+    audience: [vp, director, business]
+    owner: aml_compliance_manager
+    formula:
+      type: count
+      source: alerts
+      distinct_by: customer_id
+
+  - id: high_severity_alert_ratio
+    name: High/critical severity alert share
+    category: risk
+    audience: [vp, director]
+    owner: aml_compliance_manager
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: alerts
+        filter: { rule_id: { in: [cash_structuring_below_ttr, rapid_pass_through_churn, high_risk_jurisdiction_wires, dormant_account_reactivation, sanctions_screening] } }
+      denominator:
+        type: count
+        source: alerts
+    target: { lte: 0.7 }
+    thresholds:
+      green: { lte: 0.5 }
+      amber: { lte: 0.7 }
+      red:   { gt: 0.7 }
+
+  - id: rules_active_count
+    name: Total active rules deployed
+    category: delivery
+    audience: [vp, director, developer]
+    owner: aml_compliance_manager
+    formula:
+      type: count
+      source: rules
+      filter: { status: active }
+    thresholds:
+      green: { gte: 5 }
+      amber: { gte: 3 }
+      red:   { lt: 3 }
+
+  - id: alert_to_smr_rate
+    name: Alert-to-SMR conversion rate
+    category: regulatory
+    audience: [vp, director]
+    owner: aml_compliance_manager
+    unit: "%"
+    formula:
+      type: ratio
+      numerator:
+        type: count
+        source: cases
+        filter: { status: smr_filing }
+      denominator:
+        type: count
+        source: alerts
+    target: { gte: 0.1 }
+    thresholds:
+      green: { gte: 0.1 }
+      amber: { gte: 0.05 }
+      red:   { lt: 0.05 }
+
+  - id: transaction_volume_aud
+    name: Total transaction volume screened (AUD)
+    category: operational
+    audience: [director, manager, business, developer]
+    owner: aml_compliance_manager
+    unit: AUD
+    formula:
+      type: sum
+      source: txn
+      field: amount
+
+# ---------------------------------------------------------------------------
+# Reports — one per audience.
+# ---------------------------------------------------------------------------
+reports:
+  - id: aml_officer_monthly
+    title: AML Compliance Officer monthly review
+    audience: vp
+    cadence: monthly
+    sections:
+      - title: Detection volume
+        metrics: [alert_volume_total, distinct_customers_alerted]
+      - title: Risk posture
+        metrics: [high_severity_alert_ratio, alert_to_smr_rate]
+      - title: Program scale
+        metrics: [rules_active_count, transaction_volume_aud]
+
+  - id: austrac_exam_prep
+    title: AUSTRAC examination evidence package
+    audience: auditor
+    cadence: on_demand
+    sections:
+      - title: Program coverage
+        metrics: [rules_active_count, alert_volume_total]
+      - title: Regulatory conversion
+        metrics: [alert_to_smr_rate]
+      - title: Risk exposure
+        metrics: [high_severity_alert_ratio, distinct_customers_alerted]

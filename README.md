@@ -100,7 +100,7 @@ aml dashboard examples/community_bank/aml.yaml
 | 🎥 [Live Deck](https://tomqwu.github.io/aml_open_framework_demo/) | Board briefing (12 exhibits) + Technical deck (22 slides) + primary-source research · runs in browser |
 | 📖 [Getting Started](docs/getting-started.md) | First install through your first audit bundle (15 min) |
 | 👥 [Personas & Workflows](docs/personas.md) | Map your role (CCO / MLRO / Analyst / Auditor / Developer) to the framework |
-| 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 42 operational pages (+2 nav surfaces Start here/Today) with screenshots (partial coverage) + audience filtering — incl. GenAI assistant on every page. Whitepapers + decks live on the [docs site](https://tomqwu.github.io/aml_open_framework_docs/) |
+| 📊 [Dashboard Tour](docs/dashboard-tour.md) | All 43 operational pages (+2 nav surfaces Start here/Today) with screenshots (partial coverage) + audience filtering — incl. GenAI assistant on every page. Whitepapers + decks live on the [docs site](https://tomqwu.github.io/aml_open_framework_docs/) |
 | 🤔 [10 Daily Pain Points](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-04-aml-process-pain.md) | The real reasons AML leaders feel stuck — primary-source quotes only |
 | 📁 [Data is the AML Problem](https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md) | The layer underneath the pain — 11 faces of the data problem, BCBS 239 + 2024-26 enforcement |
 | 📡 [Regulator Pulse — Feb–May 2026](docs/research/2026-05-regulator-pulse.md) | 116-day rolling log of AML/sanctions regulator actions — 33 events, primary-source only · *updated 2026-05-27* |
@@ -147,10 +147,11 @@ aml model-inventory spec.yaml --out inventory.json --markdown inventory.md  # SR
 aml inventory legacy.csv                             # summary of a SAS / Actimize / Mantas rule dump
 aml import-legacy legacy.csv --output spec.yaml      # convert legacy rules to AML spec skeleton
 aml discover-typologies spec.yaml <run-dir>          # cluster a run's unexplained anomalies into candidate typology proposals (pending_promotion)
+aml detect-mule-rings spec.yaml <run-dir>            # deterministic union-find/density community detection over the identity-link graph → mule_rings.json (advisory)
 aml equivalence <run-dir> --legacy legacy-alerts.csv # MATCH/NEW_ONLY/LEGACY_ONLY/DIFF parallel-run report (SR 11-7 / OSFI E-23)
 ```
 
-Full catalogue (incl. `aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md#cli-commands`](docs/getting-started.md). Data sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
+Full catalogue (`aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md#cli-commands`](docs/getting-started.md). Sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
 
 ---
 
@@ -160,15 +161,14 @@ The framework's mechanics — for engineers and 2LoD model-validation teams — 
 
 - **One YAML spec** declares data contracts, detection rules, case workflow, metrics, and reporting forms. Every artifact (SQL, dashboards, audit logs, SAR exports) is generated from it and traceable back to a regulation citation.
 - **JSON Schema + Pydantic two-layer validation** catches structural and cross-reference errors before the engine starts.
-- **DuckDB in-memory engine** runs detectors deterministically — same spec + same data + same seed = identical output hashes (covered by `test_run_is_reproducible`).
-- **SHA-256 hash-chained `decisions.jsonl`** makes the audit ledger tamper-evident.
+- **DuckDB in-memory engine** runs detectors deterministically — same spec + same data + same seed = identical output hashes (covered by `test_run_is_reproducible`). **SHA-256 hash-chained `decisions.jsonl`** makes the audit ledger tamper-evident.
 - **Pillar-6 SLA monitor** (optional `program.sla` block) emits a `sla_report.json` artifact per run with alert-disposition breaches and batch-lateness signal; engine evaluates, surfaces consume. **Post-run `monitoring_digest.json`** rolls up alerts (per rule / queue / severity, top-3 firers) and DQ failures into a single on-call summary, with a per-rule diff against the most-recent prior run for the same spec — manifest-pinned for tamper detection. Each DQ failure carries a `severity` tier (`critical` / `high` / `medium` / `low` / `info`, default `high`) declared on the `quality_checks` entry (PR-B5 / #370), threaded into `dq_exceptions.jsonl` so investigators triage critical breaks separately from cosmetic format defects. **Pillar-2 `defect_log.jsonl`** sits next to it: one ticket per DQ exception / python_ref failure, severity + 11-category classifier + data/rule/mapping triage + lifecycle, manifest-pinned and frozen post-finalize. **Pillar-4 `reconciliation_report.json`** tracks row-count survival per contract across bronze → silver → gold → alert with signed deltas + attribution. **Environment promotion lanes** (`program.environment` + `rule.environments`) declare a dev / test / uat / prod model with per-rule sign-off — engine WARNs (or raises with `strict_environment_gating`) and audit-logs every lane check.
 - **Governed ML/AI augmentation (advisory, never autonomous)** — a layer that re-orders and explains, never decides. The N1 alert-**prioritization** scorer stamps a transparent `priority_score` (0-1) + per-feature `priority_explanation` on every alert (`program.prioritization`). **Risk-segmentation suppression** (`program.risk_segmentation`) advisory-de-prioritizes low-score alerts in declared low-risk customer segments — it **never auto-closes**, the rule alert always lands in the ledger, and it emits a frozen, PII-masked `suppression_report.json`. **Equivalence divergence clustering** groups NEW_ONLY/LEGACY_ONLY parallel-run divergences by shape so a data scientist triages defects by pattern, not row-by-row (a triage lens — the four-way classification stays authoritative). All deterministic and explainable; the prioritization and suppression reports are frozen and manifest-pinned — the SR 11-7 / OSFI E-23 contract for ML inside a regulated TM system.
 - **FastAPI** REST layer with JWT/OIDC auth + multi-tenant isolation for institutions that want API access alongside the dashboard.
 
 ```
 schema/aml-spec.schema.json     JSON Schema for aml.yaml (the contract)
-examples/                       10 example specs across 5 jurisdictions
+examples/                       14 example specs across 6 jurisdictions (incl. genius_ppsi_stablecoin — NPRM-grounded PPSI)
 src/aml_framework/
   spec/                         Parse + validate the spec
   generators/                   Emit SQL, DAG stubs, audit packs, STR narratives, MRM dossiers
@@ -177,7 +177,7 @@ src/aml_framework/
   cases/                        Investigation aggregator, SLA timer, STR bundling, fraud↔AML linkage
   data/                         Synthetic generator + ISO 20022 ingestion
   models/                       ML scoring callables for python_ref rules + travel-rule validator
-  dashboard/                    Streamlit web dashboard (44 pages: 42 operational + Start here/Today, persona-aware, GenAI co-pilot)
+  dashboard/                    Streamlit web dashboard (45 pages: 43 operational + Start here/Today, persona-aware, GenAI co-pilot)
   assistant/                    GenAI assistant — pluggable backend (template / ollama / openai)
   narratives/                   STR/SAR narrative drafter — same backend abstraction
   pkyc/                         Perpetual KYC trigger engine

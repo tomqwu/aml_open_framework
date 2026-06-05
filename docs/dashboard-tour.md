@@ -1,6 +1,6 @@
 # Dashboard Tour
 
-The Streamlit dashboard runs the full engine on startup and surfaces results across **42 purpose-built pages** (44 page files on disk — the two extras, Start here and Today, are navigation surfaces documented separately). The sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec. On every page the page-level AI explanation is now a collapsible block (collapsed by default) so the primary content leads — KPIs sit above the fold on mobile rather than below an explainer.
+The Streamlit dashboard runs the full engine on startup and surfaces results across **43 purpose-built pages** (45 page files on disk — the two extras, Start here and Today, are navigation surfaces documented separately). The sidebar **Audience** selector hides operational pages outside your persona's primary workflow. Every page also mounts the GenAI Assistant in the sidebar (PR-K) — backend selectable via `AML_AI_BACKEND`, audit-logged per spec. On every page the page-level AI explanation is now a collapsible block (collapsed by default) so the primary content leads — KPIs sit above the fold on mobile rather than below an explainer.
 
 The sidebar carries two external links — **Research & whitepapers** and **How-to recipes** — pointing at the MkDocs docs site at `tomqwu.github.io/aml_open_framework_docs/` (`AML_DOCS_URL` env override). Round 32 (2026-05-24) retired the in-app Knowledge category — the 10 pages 33–42 ported from the old GH-Pages site in PR-U2/U3 — once the docs site shipped in Round 31. Knowledge content lives in one canonical place now; the dashboard owns the operational/run-coupled surfaces only.
 
@@ -21,6 +21,10 @@ For multi-tenant deployments showing more than one program in the same dashboard
 The default landing page (first-run Golden Thread). One sentence establishes what the framework does; a "▶ Show me it's real" button runs a live 4-beat walkthrough — alert → case → audit → doors — driven by the planted C0001 structuring case in the `community_bank` spec. Replaces the legacy Welcome cold-open. Universally routed so it is always reachable regardless of audience filter; `0_Start.py` is TOUR_EXEMPT (navigation surface, not an operational page).
 
 ![Start here](screenshots/0_start.png)
+
+### Today
+
+The personalised daily checklist landing surface. A regulatory-deadline alert banner surfaces the next forward deadlines (NPRM comment windows, AUSTRAC/AMLA dates) with live days-remaining and urgency bands, sourced from the bundled regulatory calendar. Universally routed; `0_Today.py` is TOUR_EXEMPT (navigation surface, not an operational page).
 
 ---
 
@@ -44,9 +48,15 @@ Ranks scored alerts by the advisory N1 `priority_score` (highest first) so an in
 
 ![Triage Queue](screenshots/52_triage_queue.png)
 
+### Regulatory Calendar
+
+Forward regulatory deadline calendar (#511). Loads the packaged `regulatory_calendar.yaml` and computes live days-remaining against `date.today()`, listing each upcoming deadline most-urgent-first in a band-colored block (red ≤7 days, amber ≤30, blue beyond) with a source link. Each deadline carries its **evidence response** — the dashboard pages and example specs in this framework that address the obligation — plus a per-deadline **readiness indicator**: for every referenced `spec_field` (a dotted path like `program.prioritization`) the page checks whether it's populated in the loaded spec and shows ✓/✗, with a "Readiness: N/M spec fields populated" roll-up. Read-only synthesis (no engine call, no spec write); complements the Today banner (#510), which surfaces only the nearest deadlines. Routed universally so every persona — MLRO, CCO, director, examiner, analyst — sees what's coming.
+
+![Regulatory Calendar](screenshots/54_regulatory_calendar.png)
+
 ### Case Investigation
 
-Per-case investigation workspace with entity profile (customer details, risk rating, country), alert details (regulation citations, evidence requested), transaction timeline with alert window highlighting, Sankey flow diagram showing channel-level fund movement, and evidence panel.
+Per-case investigation workspace with entity profile (customer details, risk rating, country), alert details (regulation citations, evidence requested), transaction timeline with alert window highlighting, Sankey flow diagram showing channel-level fund movement, and evidence panel. A governed **Case Copilot** sidebar panel (#499) offers case-scoped GenAI DRAFTS — summarize / identify typology / draft STR-SAR narrative / counterparty network / risk & recommended action (plus freeform) — every reply is a human-reviewed DRAFT (never an auto-decision), audited to `ai_interactions.jsonl` as `ai_case_copilot_action` with the backend/model + confidence.
 
 ![Case Investigation](screenshots/04_case_investigation.png)
 
@@ -87,7 +97,7 @@ Executes `list_match` rules against reference sanctions lists (SEMA, OFAC SDN) w
 
 ### Network Explorer
 
-Interactive entity relationship graph built with `networkx` and `streamlit-agraph`. Edges represent **temporal correlation** (outflow from one customer followed by inflow to another within 1 hour) — this is how pass-through and layering patterns surface. Fan-in detection counts distinct correlated counterparties.
+Interactive entity relationship graph built with `networkx` and `streamlit-agraph`. Edges represent **temporal correlation** (outflow from one customer followed by inflow to another within 1 hour) — this is how pass-through and layering patterns surface. Fan-in detection counts distinct correlated counterparties. A **"Detected mule rings"** section reads `<run-dir>/mule_rings.json` (written by the offline `aml detect-mule-rings <spec> <run-dir>` CLI, #498) and lists dense identity-link communities — advisory, an investigator confirms before action.
 
 ![Network Explorer](screenshots/10_network_explorer.png)
 
@@ -343,7 +353,7 @@ Generate a board-ready PDF report from the Executive Dashboard with program over
 
 ## Audience Filtering
 
-The 42 operational pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the cross-cutting synthesis surfaces (North-Star Coverage, FP Analysis, Threshold Sensitivity, Anomaly Discovery, Drift Monitor, Rule Lifecycle, Decision Trail, Experiment Tracking, Equivalence, Triage Queue) stay visible to every persona regardless of the filter:
+The 43 operational pages serve 13 distinct personas. The sidebar **Audience** selector hides non-relevant pages so each role sees a focused operational workflow (no persona sees more than 9 operational pages); the cross-cutting synthesis surfaces (North-Star Coverage, FP Analysis, Threshold Sensitivity, Anomaly Discovery, Drift Monitor, Rule Lifecycle, Decision Trail, Experiment Tracking, Equivalence, Triage Queue, Regulatory Calendar) stay visible to every persona regardless of the filter:
 
 | Persona | Primary pages |
 |---|---|

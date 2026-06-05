@@ -738,3 +738,46 @@ def test_spec_cross_ref_bad_metric_in_report():
                 ),
             ],
         )
+
+
+# ---------------------------------------------------------------------------
+# Hardening: every bundled example spec must load + have basic structure (#500)
+# ---------------------------------------------------------------------------
+
+_EXAMPLES = sorted((Path(__file__).resolve().parents[1] / "examples").glob("*/aml.yaml"))
+
+
+@pytest.mark.parametrize("spec_path", _EXAMPLES, ids=lambda p: p.parent.name)
+def test_bundled_example_validates(spec_path):
+    spec = load_spec(spec_path)
+    assert spec.program.name
+    assert len(spec.rules) >= 1
+    assert len(spec.data_contracts) >= 1
+
+
+_SPEC_GENIUS_PPSI = (
+    Path(__file__).resolve().parents[1] / "examples" / "genius_ppsi_stablecoin" / "aml.yaml"
+)
+
+
+def test_genius_ppsi_stablecoin_runs_and_fires_alerts(tmp_path):
+    """#513 — the richer NPRM-grounded GENIUS Act PPSI spec validates, declares
+    a program.sla block, and fires >=1 alert at seed 42 on synthetic data."""
+    spec = load_spec(_SPEC_GENIUS_PPSI)
+    assert spec.program.name == "genius_ppsi_stablecoin"
+    # program.sla (acceptance item 4 — CTR/SAR filing-latency SLA)
+    assert spec.program.sla is not None
+    assert spec.program.sla.alert_disposition_days == 30
+
+    as_of = datetime(2026, 4, 23, 12, 0, 0)
+    data = generate_dataset(as_of=as_of, seed=42)
+    result = run_spec(
+        spec=spec,
+        spec_path=_SPEC_GENIUS_PPSI,
+        data=data,
+        as_of=as_of,
+        artifacts_root=tmp_path,
+    )
+
+    total_alerts = sum(len(v) for v in result.alerts.values())
+    assert total_alerts >= 1, "GENIUS PPSI spec must fire >=1 alert at seed 42"

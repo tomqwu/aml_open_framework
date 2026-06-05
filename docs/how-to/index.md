@@ -24,6 +24,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     The offline `aml discover-typologies` CLI clusters a run's *unexplained* anomalies (no rule caught them) into `candidate_typologies.yaml` proposals (`status: pending_promotion`). Deterministic, human-gated, never auto-promoted. ~5 min. **Detailed.**
 
+-   :material-graph-outline:{ .lg .middle } **[Detect mule rings from the identity graph](detect-mule-rings.md)**
+
+    ---
+
+    The offline `aml detect-mule-rings` CLI runs deterministic union-find + density community detection over the `resolved_entity_link` graph into a governed `mule_rings.json`. Surfaced on Network Explorer. Advisory — an investigator confirms, never auto-escalated. ~5 min. **Detailed.**
+
 </div>
 
 ## Migrating + operating
@@ -42,6 +48,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     dev → test → uat → prod with sign-off events on the audit ledger. The `Program.environment` + `Rule.environments` machinery. *(Placeholder — to be filled.)*
 
+-   :material-bitcoin:{ .lg .middle } **[Stand up a GENIUS Act PPSI program](genius-ppsi-compliance.md)**
+
+    ---
+
+    Walk the richer NPRM-grounded `genius_ppsi_stablecoin` spec end to end — 31 CFR Part 502 OFAC sanctions program, ISO 20022 fields, SAR + proposed PPSI CTR, filing-latency SLA, six stablecoin typologies. ~10 min. **Detailed.**
+
 </div>
 
 ## Audit + evidence
@@ -59,6 +71,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
     ---
 
     Hand a regulator a single-case ZIP, not the whole run. `aml export-case` and `aml export-batch`. *(Placeholder — to be filled.)*
+
+-   :material-robot-outline:{ .lg .middle } **[Use the Case Copilot for a case](use-case-copilot.md)**
+
+    ---
+
+    Governed, in-page GenAI DRAFTS on the Case Investigation page (#499) — summarize / typology / draft STR-SAR narrative / counterparty network / risk. Human-reviewed, never auto-dispositions, audited as `ai_case_copilot_action`. Backend via `AML_AI_BACKEND`. ~2 min. **Detailed.**
 
 -   :material-magnify-scan:{ .lg .middle } **[Walk the lineage chain for a case](walk-lineage.md)**
 

@@ -9,6 +9,9 @@ Edges represent actual transaction activity patterns:
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import streamlit as st
 from streamlit_agraph import Config, Edge, Node, agraph
 
@@ -353,5 +356,71 @@ if alerted_ids:
                     "  → Walk lineage chain",
                     case_id=_case_id,
                 )
+
+# ---------------------------------------------------------------------------
+# Detected mule rings (#498) — offline community lens. The `aml
+# detect-mule-rings` CLI emits `mule_rings.json` into the run dir over the
+# customer identity-link graph (shared phone/email/device/etc.). It NEVER
+# runs in the engine path, so the file usually won't exist — handle absent
+# gracefully with a one-line note. Mirrors page 45/50's run-dir artifact
+# read (`45_FP_Analysis.py:263`): `Path(st.session_state.run_dir) /
+# "<file>.json"`. ADVISORY: a community lens; an investigator confirms a
+# ring before action — it never auto-escalates. The section_explainer
+# summary is aggregate counts only (no PII).
+# ---------------------------------------------------------------------------
+st.markdown("---")
+
+_ring_report = None
+_ring_path = Path(st.session_state.run_dir) / "mule_rings.json"
+if _ring_path.exists():
+    _ring_report = json.loads(_ring_path.read_text(encoding="utf-8"))
+
+if _ring_report is None:
+    st.info(
+        "Run `aml detect-mule-rings <spec> <run-dir>` to detect mule rings / "
+        "dense account communities in the identity-link graph (advisory — "
+        "never auto-escalates)."
+    )
+else:
+    _rings = _ring_report.get("rings") or []
+    _n_rings = int(_ring_report.get("n_rings", len(_rings)))
+    _n_entities = int(_ring_report.get("n_entities", 0))
+
+    st.subheader("Detected mule rings")
+    section_explainer(
+        page="Network Explorer",
+        section_id="network_explorer.mule_rings",
+        section_title="Detected mule rings",
+        data_summary={
+            "n_rings": _n_rings,
+            "n_entities": _n_entities,
+        },
+    )
+    st.caption(
+        "Advisory — a community lens over shared-identity links; an "
+        "investigator confirms the ring before action, never auto-escalated."
+    )
+
+    _largest = max((int(r.get("size", 0)) for r in _rings), default=0)
+    _mc1, _mc2 = st.columns(2)
+    _mc1.metric("Rings", _n_rings)
+    _mc2.metric("Largest ring size", _largest)
+
+    if _rings:
+        _ring_rows = [
+            {
+                "ring_id": r.get("ring_id", ""),
+                "size": int(r.get("size", 0)),
+                "internal_edges": int(r.get("internal_edges", 0)),
+                "density": float(r.get("density", 0.0)),
+                "members": ", ".join(r.get("members") or []),
+            }
+            for r in _rings
+        ]
+        st.dataframe(
+            _ring_rows,
+            hide_index=True,
+            use_container_width=True,
+        )
 
 page_footer()

@@ -7,6 +7,7 @@ import streamlit as st
 from aml_framework.dashboard.audience import (
     AUDIENCE_PAGES,
     AUDIT_TRAIL_PAGES,
+    CALENDAR_PAGES,
     EQUIVALENCE_PAGES,
     LIFECYCLE_PAGES,
     NORTH_STAR_PAGES,
@@ -101,6 +102,20 @@ ALL_PAGES: dict[str, list[st.Page]] = {
             "pages/52_Triage_Queue.py",
             title="Triage Queue",
             icon=":material/sort:",
+        ),
+        # #511 — forward regulatory deadline calendar + per-deadline
+        # framework-readiness indicator. Lives in Operations next to the
+        # Today checklist it complements (the Today banner #510 surfaces
+        # the nearest deadlines; this page is the full forward view),
+        # even though it's universally routed (every persona sees it via
+        # CALENDAR_PAGES, same idiom as Triage Queue / North-Star) so the
+        # per-persona MAX_PAGES_PER_PERSONA cap is preserved. URL slug
+        # pinned to the title-derived form.
+        st.Page(
+            "pages/54_Regulatory_Calendar.py",
+            title="Regulatory Calendar",
+            icon=":material/event:",
+            url_path="Regulatory_Calendar",
         ),
     ],
     "Risk & Compliance": [
@@ -350,6 +365,8 @@ if selected_audience:
     relevant_titles.update(EQUIVALENCE_PAGES)
     # M1 (N1 follow-on) — Triage Queue advisory priority-sort surface.
     relevant_titles.update(TRIAGE_PAGES)
+    # #511 — Regulatory Calendar forward-deadline surface (cross-cutting).
+    relevant_titles.update(CALENDAR_PAGES)
     visible_pages: dict[str, list[st.Page]] = {
         section: [p for p in pages if p.title in relevant_titles]
         for section, pages in ALL_PAGES.items()

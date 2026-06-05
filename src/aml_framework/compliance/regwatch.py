@@ -69,6 +69,12 @@ CITATION_URL_MAP: dict[str, str] = {
     "31 CFR § 1020.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
     "31 CFR 1020.315": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.315",
     "31 CFR 1020.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1020/subpart-C/section-1020.320",
+    "31 CFR 1022.210": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1022/subpart-B/section-1022.210",
+    "31 CFR 1022.320": "https://www.ecfr.gov/current/title-31/subtitle-B/chapter-X/part-1022/subpart-C/section-1022.320",
+    "GENIUS Act s.4": "https://www.congress.gov/bill/119th-congress/senate-bill/1582/text",
+    "31 CFR Part 502": "https://www.federalregister.gov/documents/2026/04/10/2026-06963/permitted-payment-stablecoin-issuer-anti-money-launderingcountering-the-financing-of-terrorism",
+    "31 CFR 1033.310": "https://www.federalregister.gov/documents/2026/04/10/2026-06963/permitted-payment-stablecoin-issuer-anti-money-launderingcountering-the-financing-of-terrorism",
+    "GENIUS Act PPSI NPRM (FR 2026-06963)": "https://www.federalregister.gov/documents/2026/04/10/2026-06963/permitted-payment-stablecoin-issuer-anti-money-launderingcountering-the-financing-of-terrorism",
     "FFIEC BSA/AML Manual — Funnel Accounts": "https://bsaaml.ffiec.gov/manual/Appendices/06",
     "FinCEN Advisory FIN-2014-A005": "https://www.fincen.gov/sites/default/files/advisory/FIN-2014-A005.pdf",
     "FinCEN Advisory FIN-2006-A003": "https://www.fincen.gov/sites/default/files/shared/Advisory_2.pdf",
@@ -131,6 +137,14 @@ CITATION_URL_MAP: dict[str, str] = {
     "PSR Specific Direction SD20 (APP scams reimbursement)": "https://www.psr.org.uk/our-rules/specific-directions/specific-direction-20-app-scams-reimbursement/",
     # South Africa
     "SAMLA 2018": "https://www.fic.gov.za/Documents/Financial%20Intelligence%20Centre%20Act,%202001%20(Act%2038%20of%202001)_UNOFFICIAL%20text.pdf",
+    # Australia — AUSTRAC / AML/CTF Act 2006 (Tranche 2 DNFBPs)
+    "AML/CTF Act s.41": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "AML/CTF Act s.43": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "AML/CTF Act s.36": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "AML/CTF Act s.84": "https://www.legislation.gov.au/C2006A00169/latest/text",
+    "Autonomous Sanctions Act 2011 (Cth)": "https://www.legislation.gov.au/C2011A00038/latest/text",
+    "AUSTRAC DNFBP Guidance 2024": "https://www.austrac.gov.au/business/how-comply-guidance-and-resources",
+    "FATF Recommendation 22": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
 }
 
 

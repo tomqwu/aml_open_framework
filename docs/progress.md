@@ -13,6 +13,26 @@ Snapshot of where the AML Open Framework is as of 2026-06-05. This document is a
 
 ---
 
+> **#510 + #511 Regulatory Calendar** (`feat/regulatory-calendar`, 2026-06-05): a bundled forward-deadline calendar (`dashboard/regulatory_calendar.yaml`) surfaced as a live countdown banner on Today (#510) and a dedicated Regulatory Calendar page (page 54) mapping each deadline to the framework features + a per-deadline spec-field readiness indicator (#511). Pure deterministic loader (days-remaining vs an as-of); universal-routed. 45 pages / 43 operational.
+
+---
+
+> **#513 — GENIUS Act PPSI stablecoin spec (NPRM-grounded)** (`feat/genius-ppsi-stablecoin`, 2026-06-05): richer companion to `genius_ppsi_issuer` (#500), grounded in the joint FinCEN/OFAC NPRM (Federal Register 2026-06963, comment deadline 9 June 2026). New `examples/genius_ppsi_stablecoin/aml.yaml`: 6 rules (stablecoin mixing/layering, rapid on-ramp/off-ramp cycling, structuring below the $10k reporting threshold, VASP counterparty exposure, OFAC SDN screening citing the new **31 CFR Part 502** sanctions program, adverse media); ISO 20022 pacs.008 fields (`debtor_bic`/`creditor_bic`/`uetr`/`purpose_code`) on the `txn` contract; a `program.sla` block (SAR/CTR filing-latency); `FINCEN_SAR` + `FINCEN_CTR` (the proposed PPSI currency-transaction report) filing forms. Validates + runs at seed 42. Two new citations added to `regwatch.CITATION_URL_MAP` (`31 CFR Part 502`, `GENIUS Act PPSI NPRM (FR 2026-06963)`). Focused run-fires-alerts test in `tests/test_spec.py`; docs across jurisdictions.md (new section + count 13→14), new how-to `genius-ppsi-compliance.md`, README, CLAUDE.md. 14 examples across 6 jurisdictions (PPSI is a US spec, not a new jurisdiction). **Codex P2 follow-up (2026-06-05):** fixed the two churn rules' SQL many-to-many cross-product (pre-aggregate each leg per customer before a 1:1 join, so SUM/COUNT can't inflate); and re-cited the PPSI rules to GENIUS Act s.4 / the NPRM rather than the 31 CFR 1022 MSB rules (the NPRM excludes PPSIs from the MSB definition). **Codex P2 round 2 (2026-06-05):** (A) bound both churn-rule leg CTEs to the recent 7-day window (`{recent_start}`) so the SQL temporal correlation matches the rule prose (dropped the unexpressible per-pair 24h claim; both still fire at seed 42); (B) **restored** the `FINCEN_CTR` form — Codex's corrected position is that the NPRM PROPOSES a PPSI-specific currency-transaction report (proposed 31 CFR 1033.310-315, cross-refs 31 CFR 1010.311 $10k trigger), so it's framed as that proposed obligation and the structuring rule cites the new `31 CFR 1033.310` map entry; (C) reconciled the jurisdictions.md ghost MSB citation — the `genius_ppsi_issuer` section now notes its 1022 cites are an interim MSB baseline that the PPSI NPRM replaces with PPSI-specific authority (Part 502 + proposed 1033).
+
+---
+
+> **#499 — GenAI case investigation copilot** (`feat/case-copilot`, 2026-06-05): governed Case Copilot on the Case Investigation page (`dashboard/case_copilot.py`) reuses the existing assistant for case-scoped DRAFTS (summarize/typology/STR-SAR narrative/network/risk); audited as `ai_case_copilot_action`, human-reviewed, dashboard-only (never the engine run path), SR-26-2 carve-out. Pure builder+prompts unit-testable; streamlit lazy in the UI.
+
+---
+
+> **#498 — Graph mule-ring detection** (`feat/mule-ring-detection`, 2026-06-05): offline `aml detect-mule-rings` CLI runs deterministic union-find + density community detection over the identity-link graph (`resolved_entity_link`) into a governed `mule_rings.json`; engine builder `engine/mule_ring.py`; surfaced on Network Explorer. Pure stdlib, never in the run path, advisory (an investigator confirms).
+
+---
+
+> **#500 — Buyer-segment example specs** (`feat/buyer-segment-specs`, 2026-06-05): added AUSTRAC Tranche 2 DNFBP (AU) + GENIUS Act PPSI stablecoin-issuer (US/FinCEN) example specs (validate + run on synthetic; citations resolved); 13 examples across 6 jurisdictions (PPSI is a US spec — a stablecoin-issuer buyer segment, not a new jurisdiction). Added an all-examples-validate hardening test (`test_bundled_example_validates` parametrizes every `examples/*/aml.yaml`) so future bundled specs auto-validate, plus docs count fixes across CLAUDE.md / README.md / jurisdictions.md (new AU + PPSI sections).
+
+---
+
 > **#496 — Typology auto-discovery → candidate-rule pipeline** (`feat/typology-auto-discovery`, 2026-06-05, Next-tier ML/AI roadmap): offline `aml discover-typologies` CLI clusters a run's unexplained anomalies (deterministic stdlib z-score + shape signature, no sklearn) into `candidate_typologies.yaml` proposals (status `pending_promotion`); engine builder `engine/typology_discovery.py`; feeds the existing typology-import/approval path. Governed: proposals only, human-gated, never in the engine run path.
 
 ---

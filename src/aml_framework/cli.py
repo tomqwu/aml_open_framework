@@ -3919,5 +3919,178 @@ def discover_typologies_cmd(
     )
 
 
+@app.command(name="detect-mule-rings")
+def detect_mule_rings_cmd(
+    spec_path: Path = typer.Argument(
+        ...,
+        exists=True,
+        readable=True,
+        help="Path to the aml.yaml spec whose identity graph is clustered.",
+    ),
+    run_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="Run directory; <run_dir>/manifest.json supplies the default as_of.",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Where to write mule_rings.json. Default: <run_dir>/mule_rings.json.",
+    ),
+    data_source: str = typer.Option(
+        "synthetic", "--data-source", help="Data source: synthetic|csv|parquet|duckdb."
+    ),
+    data_dir: str | None = typer.Option(
+        None, "--data-dir", help="Directory with CSV/Parquet files."
+    ),
+    db_path: Path | None = typer.Option(
+        None, "--db-path", help="DuckDB file for --data-source duckdb."
+    ),
+    seed: int = typer.Option(42, "--seed", help="Seed for the synthetic source."),
+    min_ring_size: int = typer.Option(
+        3, "--min-ring-size", help="Smallest community that can count as a ring."
+    ),
+    min_density: float = typer.Option(
+        0.5, "--min-density", help="Minimum internal edge density for a ring (0–1)."
+    ),
+    as_of: str | None = typer.Option(None, "--as-of", help="ISO timestamp used as the rule 'now'."),
+) -> None:
+    """Detect candidate mule rings from the identity graph (#498).
+
+    OFFLINE community-detection lens. Loads the spec's data, builds the
+    `resolved_entity_link` edge list (customers sharing a phone / email /
+    device / address / tax id / wallet), and clusters dense communities via
+    `engine.mule_ring.detect_mule_rings`.
+
+    ADVISORY ONLY. A detected ring is an investigative lens, NOT an
+    auto-decision or auto-escalation — nothing here mutates a spec, fires an
+    alert, or is hashed into the audit ledger. An investigator confirms the
+    ring before any action.
+    """
+    import contextlib
+    import json as _json
+    import os
+    import tempfile
+
+    import duckdb
+
+    from aml_framework.data.sources import resolve_source
+    from aml_framework.engine.entity_resolution import resolve_entities
+    from aml_framework.engine.mule_ring import detect_mule_rings
+    from aml_framework.engine.runner import _build_warehouse, _harden_duckdb
+
+    spec = load_spec(spec_path)
+    # Determinism (codex P2): as_of drives synthetic data → edges → rings, so a
+    # wall-clock fallback would make the run non-deterministic. Without an
+    # explicit `--as-of`, anchor to the run's own `as_of` from
+    # <run_dir>/manifest.json. FAIL CLOSED if the manifest is missing/unreadable
+    # or carries no `as_of` — never silently use the wall clock. Explicit
+    # `--as-of` always overrides.
+    if as_of is not None:
+        as_of_dt = _parse_as_of(as_of)
+    else:
+        manifest_as_of: str | None = None
+        manifest_path = run_dir / "manifest.json"
+        if manifest_path.exists():
+            try:
+                manifest_as_of = _json.loads(manifest_path.read_bytes()).get("as_of")
+            except (ValueError, OSError):
+                manifest_as_of = None
+        if manifest_as_of is None:
+            console.print(
+                f"[red]No --as-of given and {manifest_path} has no readable as_of "
+                "— pass --as-of to make discovery deterministic.[/red]"
+            )
+            raise typer.Exit(code=1)
+        as_of_dt = _parse_as_of(manifest_as_of)
+
+    data = resolve_source(
+        source_type=data_source,
+        spec=spec,
+        as_of=as_of_dt,
+        seed=seed,
+        data_dir=data_dir,
+        db_path=str(db_path) if db_path is not None else None,
+    )
+
+    # Build an in-memory DuckDB warehouse the same way the engine does, then
+    # let the shared entity-resolution layer derive `resolved_entity_link`.
+    con = duckdb.connect(":memory:")
+    _harden_duckdb(con)
+    _build_warehouse(con, spec, data)
+    resolve_entities(con, spec)
+
+    # The link table may not exist (no `customer` contract). Pull distinct
+    # undirected pairs (a < b dedupes; the table is already self-pair-free).
+    has_table = con.execute(
+        "SELECT 1 FROM information_schema.tables WHERE table_name = 'resolved_entity_link'"
+    ).fetchall()
+    rows: list[tuple[str, str]] = []
+    if has_table:
+        rows = con.execute(
+            "SELECT DISTINCT left_customer_id, right_customer_id FROM resolved_entity_link"
+            " WHERE left_customer_id < right_customer_id"
+        ).fetchall()
+
+    if not rows:
+        console.print(
+            "No identity-link edges — nothing to cluster (the spec declares no "
+            "linking attributes, or no customers share them)."
+        )
+        raise typer.Exit(code=0)
+
+    edges = [(a, b) for a, b in rows]
+    report = detect_mule_rings(edges, min_ring_size=min_ring_size, min_density=min_density)
+
+    if report.n_rings == 0:
+        console.print(
+            f"[yellow]No mule rings detected[/yellow] — {report.n_entities} linked "
+            f"entit(ies) across {len(edges)} edge(s) form no community of size "
+            f">={min_ring_size} at density >={min_density}. No file written."
+        )
+        raise typer.Exit(code=0)
+
+    doc = report.model_dump()
+
+    out_path = output if output is not None else run_dir / "mule_rings.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    # Atomic write: render to a temp file in the SAME directory then os.replace,
+    # so an I/O error never leaves a partial mule_rings.json.
+    rendered = _json.dumps(doc, indent=2, sort_keys=True) + "\n"
+    fd, tmp_name = tempfile.mkstemp(dir=out_path.parent, prefix=out_path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(rendered)
+        os.replace(tmp_name, out_path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+
+    console.rule(f"[bold cyan]✓ Wrote {out_path}[/bold cyan]")
+    table = Table(title="Candidate mule rings")
+    table.add_column("ring_id")
+    table.add_column("size", justify="right")
+    table.add_column("density", justify="right")
+    table.add_column("members")
+    for r in report.rings:
+        shown = ", ".join(r.members[:8])
+        if len(r.members) > 8:
+            shown += f", … (+{len(r.members) - 8})"
+        table.add_row(r.ring_id, str(r.size), f"{r.density:.2f}", shown)
+    console.print(table)
+    console.print(f"  {report.n_rings} ring(s) over {report.n_entities} linked entit(ies).")
+    console.print(
+        "\n[bold yellow]Governance:[/bold yellow] Advisory — detected "
+        "communities are an investigative lens, [bold]NOT[/bold] an "
+        "auto-decision or auto-escalation; an investigator confirms the ring "
+        "before action."
+    )
+
+
 if __name__ == "__main__":
     app()
