@@ -1,0 +1,52 @@
+# Forward regulatory deadline calendar (June–August 2026).
+#
+# Packaged data loaded at runtime by regulatory_calendar.load_calendar().
+# Shared by the Today banner (#510) and the Regulatory Calendar page (#511).
+#
+# Each entry:
+#   id                  stable slug
+#   description         human-readable headline
+#   deadline            ISO date (YYYY-MM-DD)
+#   urgency_days        lead time the entry is considered "approaching"
+#   source_url          authoritative reference
+#   framework_alignment which dashboard pages / example specs / spec fields
+#                       in this framework address the obligation (#511)
+#
+# Page titles must match the real dashboard page_header() titles.
+deadlines:
+  - id: effectiveness-genius-nprm
+    description: "FinCEN Effectiveness NPRM + GENIUS Act PPSI NPRM comment deadline"
+    deadline: 2026-06-09
+    urgency_days: 14
+    source_url: "https://www.federalregister.gov/documents/2026/04/10/2026-06963/permitted-payment-stablecoin-issuer-anti-money-launderingcountering-the-financing-of-terrorism"
+    framework_alignment:
+      pages: ["Triage Queue", "North-Star Pillar Coverage", "Drift Monitor"]
+      example_specs: ["examples/genius_ppsi_stablecoin/aml.yaml", "examples/genius_ppsi_issuer/aml.yaml"]
+      spec_fields: ["program.prioritization", "program.model_risk_monitoring"]
+  - id: austrac-tranche-2
+    description: "AUSTRAC Tranche 2 enforcement begins (AU DNFBPs)"
+    deadline: 2026-07-01
+    urgency_days: 30
+    source_url: "https://www.austrac.gov.au/business/how-comply-guidance-and-resources"
+    framework_alignment:
+      pages: ["Program Maturity Assessment", "North-Star Pillar Coverage"]
+      example_specs: ["examples/austrac_tranche_2_dnfbp/aml.yaml"]
+      spec_fields: ["program.risk_segmentation"]
+  - id: amla-rts-submission
+    description: "EU AMLA Regulatory Technical Standards submission window"
+    deadline: 2026-07-10
+    urgency_days: 30
+    source_url: "https://www.eba.europa.eu/"
+    framework_alignment:
+      pages: ["Equivalence", "Audit & Evidence"]
+      example_specs: ["examples/eu_bank/aml.yaml"]
+      spec_fields: ["program.legacy_reference"]
+  - id: fincen-aml-program-effective
+    description: "FinCEN AML Program Effectiveness rule — implementation planning"
+    deadline: 2026-08-15
+    urgency_days: 45
+    source_url: "https://www.fincen.gov/"
+    framework_alignment:
+      pages: ["North-Star Pillar Coverage", "False-Positive Analysis", "Threshold Sensitivity"]
+      example_specs: ["examples/community_bank/aml.yaml"]
+      spec_fields: ["program.sla"]
