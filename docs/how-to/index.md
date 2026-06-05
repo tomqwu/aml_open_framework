@@ -24,6 +24,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     The offline `aml discover-typologies` CLI clusters a run's *unexplained* anomalies (no rule caught them) into `candidate_typologies.yaml` proposals (`status: pending_promotion`). Deterministic, human-gated, never auto-promoted. ~5 min. **Detailed.**
 
+-   :material-graph-outline:{ .lg .middle } **[Detect mule rings from the identity graph](detect-mule-rings.md)**
+
+    ---
+
+    The offline `aml detect-mule-rings` CLI runs deterministic union-find + density community detection over the `resolved_entity_link` graph into a governed `mule_rings.json`. Surfaced on Network Explorer. Advisory — an investigator confirms, never auto-escalated. ~5 min. **Detailed.**
+
 </div>
 
 ## Migrating + operating

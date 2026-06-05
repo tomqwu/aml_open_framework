@@ -87,7 +87,7 @@ Executes `list_match` rules against reference sanctions lists (SEMA, OFAC SDN) w
 
 ### Network Explorer
 
-Interactive entity relationship graph built with `networkx` and `streamlit-agraph`. Edges represent **temporal correlation** (outflow from one customer followed by inflow to another within 1 hour) — this is how pass-through and layering patterns surface. Fan-in detection counts distinct correlated counterparties.
+Interactive entity relationship graph built with `networkx` and `streamlit-agraph`. Edges represent **temporal correlation** (outflow from one customer followed by inflow to another within 1 hour) — this is how pass-through and layering patterns surface. Fan-in detection counts distinct correlated counterparties. A **"Detected mule rings"** section reads `<run-dir>/mule_rings.json` (written by the offline `aml detect-mule-rings <spec> <run-dir>` CLI, #498) and lists dense identity-link communities — advisory, an investigator confirms before action.
 
 ![Network Explorer](screenshots/10_network_explorer.png)
 

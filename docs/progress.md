@@ -2,6 +2,10 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **#498 — Graph mule-ring detection** (`feat/mule-ring-detection`, 2026-06-05): offline `aml detect-mule-rings` CLI runs deterministic union-find + density community detection over the identity-link graph (`resolved_entity_link`) into a governed `mule_rings.json`; engine builder `engine/mule_ring.py`; surfaced on Network Explorer. Pure stdlib, never in the run path, advisory (an investigator confirms).
+
+---
+
 > **#500 — Buyer-segment example specs** (`feat/buyer-segment-specs`, 2026-06-05): added AUSTRAC Tranche 2 DNFBP (AU) + GENIUS Act PPSI stablecoin-issuer (US/FinCEN) example specs (validate + run on synthetic; citations resolved); 13 examples across 6 jurisdictions (PPSI is a US spec — a stablecoin-issuer buyer segment, not a new jurisdiction). Added an all-examples-validate hardening test (`test_bundled_example_validates` parametrizes every `examples/*/aml.yaml`) so future bundled specs auto-validate, plus docs count fixes across CLAUDE.md / README.md / jurisdictions.md (new AU + PPSI sections).
 
 ---
