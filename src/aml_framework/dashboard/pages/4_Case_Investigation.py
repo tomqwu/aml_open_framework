@@ -11,6 +11,10 @@ import streamlit as st
 from aml_framework.cases.aggregator import aggregate_investigations
 from aml_framework.cases.sla import apply_escalation, compute_sla_status
 from aml_framework.cases.str_bundle import bundle_investigation_to_str
+
+# Safe to import at module top: case_copilot.py has NO module-level
+# streamlit (all its Streamlit/dashboard imports are lazy inside
+# case_copilot_panel), so importing it on a page never breaks unit CI.
 from aml_framework.dashboard.case_copilot import case_copilot_panel
 from aml_framework.dashboard.components import (
     page_footer,
@@ -138,12 +142,22 @@ if df_cases.empty:
 # `consume_param` clears the link state so a refresh doesn't keep re-triggering it.
 case_ids = sorted(df_cases["case_id"].tolist())
 deep_link_case = consume_param("case_id")
-default_idx = case_ids.index(deep_link_case) if deep_link_case in case_ids else 0
+# Default selection priority: deep-link (if it names a real case) →
+# an existing valid `selected_case_id` already in session (so the
+# chosen case persists across reruns / other pages) → first case.
+_session_case = st.session_state.get("selected_case_id")
+if deep_link_case in case_ids:
+    default_idx = case_ids.index(deep_link_case)
+elif _session_case in case_ids:
+    default_idx = case_ids.index(_session_case)
+else:
+    default_idx = 0
 selected_case = st.selectbox("Select case", case_ids, index=default_idx)
 case = df_cases[df_cases["case_id"] == selected_case].iloc[0].to_dict()
 
-# Publish the selection so the governed Case Copilot sidebar panel (and
-# the page-level AI advisor) can scope their context to this case.
+# Publish the chosen selection so the governed Case Copilot sidebar
+# panel (and the page-level AI advisor) scope their context to this
+# case, and so the selection persists across reruns.
 st.session_state["selected_case_id"] = selected_case
 
 # Governed Case Copilot — a human-reviewed DRAFT sidebar surface that

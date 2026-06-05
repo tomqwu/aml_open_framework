@@ -244,6 +244,19 @@ def case_copilot_panel(*, page: str) -> None:
                     st.info("Type a question first.")
                     return
 
+                # Fail-closed governance (SR-26-2): a GenAI investigation
+                # action MUST be durably audited. Without an active run +
+                # audit trail we refuse to run the action at all — never
+                # produce an unaudited reply. (Stricter than the
+                # best-effort page-level ai_panel: the copilot drafts
+                # SAR narratives and is audit-mandatory.)
+                if not run_dir:
+                    st.error(
+                        "Case Copilot needs an active run with an audit trail "
+                        "(no run_dir) — cannot run an unaudited investigation action."
+                    )
+                    return
+
                 case_rows = df_cases[df_cases["case_id"] == selected_case_id]
                 if case_rows.empty:
                     st.info("Select a case to use the Case Copilot.")
@@ -280,23 +293,31 @@ def case_copilot_panel(*, page: str) -> None:
                 with st.spinner("Thinking…"):
                     reply = get_assistant(backend_name).reply(question, ctx)
 
-                st.session_state.setdefault("case_copilot_transcript", {})[page] = reply
+                # Mandatory audit (fail-closed): write the interaction to
+                # the immutable ledger FIRST. If the append raises, the
+                # reply is discarded and NOT rendered — an investigation
+                # action that cannot be durably audited must not be shown.
+                # Only after the audit append succeeds do we store/render
+                # the reply.
+                try:
+                    audit_mode = getattr(program, "ai_audit_log", "hash_only")
+                    row = reply_to_audit_dict(reply, full_text=(audit_mode == "full_text"))
+                    row["question"] = question
+                    row["action"] = "freeform" if is_freeform else action
+                    AuditLedger.append_to_run_dir(
+                        Path(run_dir),
+                        {"event": "ai_case_copilot_action", **row},
+                        jsonl_name="ai_interactions.jsonl",
+                    )
+                except Exception as audit_exc:  # noqa: BLE001
+                    st.error(
+                        "Case Copilot reply was generated but the audit write "
+                        "failed — not shown (audit is mandatory): "
+                        f"{audit_exc}"
+                    )
+                    return
 
-                # Audit-log every copilot action. Best-effort — a logging
-                # failure must never break the page render.
-                if run_dir:
-                    try:
-                        audit_mode = getattr(program, "ai_audit_log", "hash_only")
-                        row = reply_to_audit_dict(reply, full_text=(audit_mode == "full_text"))
-                        row["question"] = question
-                        row["action"] = "freeform" if is_freeform else action
-                        AuditLedger.append_to_run_dir(
-                            Path(run_dir),
-                            {"event": "ai_case_copilot_action", **row},
-                            jsonl_name="ai_interactions.jsonl",
-                        )
-                    except Exception:  # noqa: BLE001
-                        pass
+                st.session_state.setdefault("case_copilot_transcript", {})[page] = reply
             except Exception as exc:  # noqa: BLE001
                 st.error(f"Case Copilot failed: {exc}")
 
