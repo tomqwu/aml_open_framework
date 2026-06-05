@@ -68,6 +68,29 @@ def active_deadlines(calendar: list[Deadline], *, as_of: date) -> list[Deadline]
     return sorted(upcoming, key=lambda d: d.deadline)
 
 
+def banner_items(
+    *, as_of: date, max_items: int = 4, calendar: list[Deadline] | None = None
+) -> list[tuple[str, str]]:
+    """Pure: the ``(band, markdown_message)`` pairs the banner should render.
+
+    Deterministic given ``as_of`` (and an optional injected ``calendar``,
+    defaulting to the packaged one). Returns at most ``max_items`` entries,
+    expired deadlines already filtered and sorted by :func:`active_deadlines`.
+    Empty list when nothing is upcoming. The streamlit surface
+    (:func:`regulatory_alert_banner`) maps each band to the matching
+    ``st.error`` / ``st.warning`` / ``st.info`` call — this function carries the
+    logic so it stays unit-testable without streamlit.
+    """
+    cal = calendar if calendar is not None else load_calendar()
+    items: list[tuple[str, str]] = []
+    for d in active_deadlines(cal, as_of=as_of)[:max_items]:
+        days = days_remaining(d, as_of=as_of)
+        band = urgency_band(days)
+        when = "**due today**" if days == 0 else f"**{days} days** remaining"
+        items.append((band, f"{d.description} — {when} · [source]({d.source_url})"))
+    return items
+
+
 def regulatory_alert_banner(
     *, max_items: int = 4
 ) -> None:  # pragma: no cover - streamlit UI (e2e-covered)
@@ -75,32 +98,21 @@ def regulatory_alert_banner(
 
     Streamlit UI surface: lazy-imports streamlit so this module stays
     import-clean for the unit-test image (``.[dev]`` has no streamlit). Uses
-    the *live* ``date.today()`` as the countdown anchor — the pure functions
-    are deterministic given an explicit ``as_of``; only the UI uses today.
-
-    Renders a tight stack of ``st.error``/``st.warning``/``st.info`` bars per
-    :func:`urgency_band`. Empty calendar → a single muted caption. Any failure
-    degrades to a caption note so the Today page never crashes.
+    the *live* ``date.today()`` as the countdown anchor — the row-selection
+    logic lives in :func:`banner_items` (pure, unit-tested); this wrapper only
+    dispatches each band to its ``st.*`` call. Empty calendar → a single muted
+    caption. Any failure degrades to a caption note so Today never crashes.
     """
     import streamlit as st
     from datetime import date
 
     try:
-        as_of = date.today()
-        active = active_deadlines(load_calendar(), as_of=as_of)[:max_items]
-        if not active:
+        items = banner_items(as_of=date.today(), max_items=max_items)
+        if not items:
             st.caption("No upcoming regulatory deadlines on the calendar.")
             return
-        for d in active:
-            days = days_remaining(d, as_of=as_of)
-            band = urgency_band(days)
-            when = "**due today**" if days == 0 else f"**{days} days** remaining"
-            msg = f"{d.description} — {when} · [source]({d.source_url})"
-            if band == "error":
-                st.error(msg)
-            elif band == "warning":
-                st.warning(msg)
-            else:
-                st.info(msg)
+        bars = {"error": st.error, "warning": st.warning, "info": st.info}
+        for band, msg in items:
+            bars.get(band, st.info)(msg)
     except Exception:  # pragma: no cover - defensive UI guard
         st.caption("Regulatory calendar unavailable right now.")

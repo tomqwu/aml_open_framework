@@ -7,10 +7,22 @@ import pytest
 from aml_framework.dashboard.regulatory_calendar import (
     Deadline,
     active_deadlines,
+    banner_items,
     days_remaining,
     load_calendar,
     urgency_band,
 )
+
+
+def _dl(id_: str, deadline: date) -> Deadline:
+    return Deadline(
+        id=id_,
+        description=f"{id_} deadline",
+        deadline=deadline,
+        urgency_days=14,
+        source_url="http://example.test/" + id_,
+        framework_alignment={},
+    )
 
 
 def test_load_calendar_nonempty():
@@ -93,3 +105,37 @@ def test_loaded_calendar_entries_are_well_formed():
         assert d.deadline.year >= 2026
         assert d.urgency_days > 0
         assert d.source_url.startswith("http")
+
+
+def test_banner_items_bands_and_messages():
+    cal = [
+        _dl("today", date(2026, 6, 5)),  # 0 days  → error, "due today"
+        _dl("soon", date(2026, 6, 9)),  # 4 days  → error
+        _dl("mid", date(2026, 6, 25)),  # 20 days → warning
+        _dl("far", date(2026, 9, 1)),  # 88 days → info
+        _dl("past", date(2026, 1, 1)),  # expired → excluded
+    ]
+    items = banner_items(as_of=date(2026, 6, 5), calendar=cal)
+    bands = [band for band, _ in items]
+    assert bands == ["error", "error", "warning", "info"]  # expired dropped, sorted asc
+    assert "**due today**" in items[0][1]
+    assert "**4 days** remaining" in items[1][1]
+    assert "[source](http://example.test/soon)" in items[1][1]
+
+
+def test_banner_items_truncates_to_max_items():
+    cal = [_dl(f"d{i}", date(2026, 6, 10 + i)) for i in range(6)]
+    items = banner_items(as_of=date(2026, 6, 5), calendar=cal, max_items=3)
+    assert len(items) == 3
+
+
+def test_banner_items_empty_when_nothing_upcoming():
+    cal = [_dl("past", date(2026, 1, 1))]
+    assert banner_items(as_of=date(2026, 6, 5), calendar=cal) == []
+
+
+def test_banner_items_against_packaged_calendar_is_deterministic():
+    a = banner_items(as_of=date(2026, 6, 5))
+    b = banner_items(as_of=date(2026, 6, 5))
+    assert a == b
+    assert all(band in {"error", "warning", "info"} for band, _ in a)
