@@ -2,6 +2,10 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **#512 — Monthly research-refresh CI** (`feat/research-refresh-ci`, 2026-06-05): a deterministic stub generator (`scripts/generate_research_stub.py`) that scaffolds the next `docs/research/<month>-<slug>.md` edition from the bundled regulatory calendar — REUSING the pure `dashboard.regulatory_calendar` loader (no streamlit, no network, no `date.today()` in the content path). It pre-populates the edition header, a "What changed since last month" deadline band-delta (each deadline's `urgency_band` at the month anchor vs the prior month, tighter-band crossings only), and a "Deadline countdown" table (active deadlines + per-deadline framework alignment), then leaves the analytical prose + primary-source citations as explicit `TODO(human)` placeholders — never fabricating citations, never overwriting an existing edition (idempotent). The `monthly-research-refresh` GitHub Actions workflow runs it on the 1st of each month (08:00 UTC) and opens a **draft** PR for human completion — it never auto-merges. Unit tests (`tests/test_research_stub.py`) pin determinism, idempotency, band-delta correctness, and the no-fabricated-URL invariant. Built on top of #510/#511 (the calendar it consumes). Depends on the regulatory-calendar branch landing first.
+
+---
+
 > **#510 + #511 Regulatory Calendar** (`feat/regulatory-calendar`, 2026-06-05): a bundled forward-deadline calendar (`dashboard/regulatory_calendar.yaml`) surfaced as a live countdown banner on Today (#510) and a dedicated Regulatory Calendar page (page 54) mapping each deadline to the framework features + a per-deadline spec-field readiness indicator (#511). Pure deterministic loader (days-remaining vs an as-of); universal-routed. 45 pages / 43 operational.
 
 ---

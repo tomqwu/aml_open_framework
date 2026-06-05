@@ -1,0 +1,120 @@
+name: monthly-research-refresh
+
+# Generates the monthly research-doc STUB (#512) and opens a DRAFT PR for a
+# human to complete. Governance requirement: this workflow NEVER auto-merges
+# and NEVER publishes a finished doc — it only scaffolds the deterministic
+# header / deadline-countdown / band-delta sections (from the bundled
+# regulatory calendar) and leaves the analytical prose + citations as
+# `TODO(human)` placeholders. The PR is opened as a DRAFT so a human reviews
+# and completes it.
+#
+# Triggers:
+#   - 08:00 UTC on the 1st of each month (cron)
+#   - manual workflow_dispatch (generate on demand)
+
+on:
+  schedule:
+    - cron: "0 8 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # `pip install -e .` is enough — the generator only imports
+      # aml_framework.dashboard.regulatory_calendar, which needs pyyaml +
+      # pydantic (base deps), not the dashboard/api extras.
+      - name: Install package
+        run: |
+          pip install --upgrade pip
+          pip install -e .
+
+      - name: Generate research stub
+        id: gen
+        run: |
+          MONTH="$(date -u +%Y-%m)"
+          echo "month=$MONTH" >> "$GITHUB_OUTPUT"
+          python scripts/generate_research_stub.py --month "$MONTH"
+
+      - name: Open draft PR if a new stub was written
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          MONTH="${{ steps.gen.outputs.month }}"
+          # Guard: a no-op month (stub already exists on main) leaves a clean tree.
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "stub already exists on main — nothing to do"
+            exit 0
+          fi
+
+          BRANCH="chore/research-refresh-${MONTH}"
+
+          # Idempotency / no-clobber guard — run BEFORE any commit or push.
+          # If a refresh branch or PR for this month is already in flight, a
+          # human may have edited that branch; leave it untouched rather than
+          # force-pushing the freshly generated stub over their work.
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "branch $BRANCH already on origin — a refresh is in flight; leaving it untouched"
+            exit 0
+          fi
+          if [ "$(gh pr list --head "$BRANCH" --state all --json number --jq 'length')" != "0" ]; then
+            echo "a PR for $BRANCH already exists — leaving it untouched"
+            exit 0
+          fi
+
+          git config user.name "aml-open-framework-bot"
+          git config user.email "bot@aml-open-framework.local"
+          git checkout -b "$BRANCH"
+          git add docs/research
+          git commit -m "chore(docs): ${MONTH} research refresh stub"
+          # Plain push (no force) — the guard above guarantees the branch is new,
+          # so we never overwrite an in-flight, human-edited refresh branch.
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --draft \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore(docs): ${MONTH} research refresh stub" \
+            --body "$(cat <<EOF
+          Auto-generated research-doc **STUB** for ${MONTH} (#512).
+
+          This PR was opened by the \`monthly-research-refresh\` workflow. It
+          contains ONLY the deterministic scaffolding generated from the
+          bundled regulatory calendar:
+
+          - the edition header + audience line
+          - the "What changed since last month" deadline band-delta section
+          - the "Deadline countdown" table (active deadlines + framework alignment)
+
+          The analytical prose and primary-source citations are left as
+          \`TODO(human)\` placeholders — **a human must complete them before
+          this PR is marked ready / merged.** Do NOT merge this draft as-is.
+
+          Checklist before un-drafting:
+          - [ ] Complete the \`## The data problem this month\` prose
+          - [ ] Fill \`## Primary sources\` with verified citations (no fabrication)
+          - [ ] Complete the \`## Framework response\` artifact map
+          - [ ] Verify the deadline tables against the live calendar
+          - [ ] Tidy the header / title for this edition
+
+          🤖 Generated with [Claude Code](https://claude.com/claude-code)
+          EOF
+          )"
