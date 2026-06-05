@@ -47,9 +47,9 @@ def score_suppression(
     never trigger suppression.
     """
     if not prioritization_enabled:
-        return SuppressionResult(
-            False, None, "prioritization disabled", None, alert.get("priority_score")
-        )
+        # Short-circuit BEFORE reading priority_score — the precondition is
+        # the explicit flag, never the presence of a (possibly stray) score.
+        return SuppressionResult(False, None, "prioritization disabled", None, None)
     score = alert.get("priority_score")
     if score is None:
         return SuppressionResult(
