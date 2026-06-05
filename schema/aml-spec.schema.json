@@ -72,6 +72,7 @@
         "sla":              { "$ref": "#/$defs/program_sla" },
         "prioritization":   { "$ref": "#/$defs/prioritization" },
         "risk_segmentation": { "$ref": "#/$defs/risk_segmentation" },
+        "model_risk_monitoring": { "$ref": "#/$defs/model_risk_monitoring" },
         "environment": {
           "type": "string",
           "enum": ["dev", "test", "uat", "prod"],
@@ -125,6 +126,16 @@
             }
           }
         }
+      }
+    },
+    "model_risk_monitoring": {
+      "type": "object",
+      "description": "Governed model-risk monitoring config (#497). When enabled, the engine emits a frozen, manifest-pinned model_risk_report.json rolling the model inventory + per-rule count drift + validation cadence. Advisory only — never blocks a run or changes a model.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "drift_high_ratio": { "type": "number", "minimum": 1 },
+        "baseline_runs": { "type": "integer", "minimum": 1 }
       }
     },
     "program_sla": {
