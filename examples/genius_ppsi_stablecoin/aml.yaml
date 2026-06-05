@@ -19,7 +19,11 @@
 #      MSB rules). A PPSI files SARs on suspicious activity. FinCEN's 2019 CVC
 #      guidance (FIN-2019-G001) still governs how AML obligations attach to
 #      stablecoin mint/burn/redemption flows.
-#   3. Cross-border stablecoin transfers carry the FATF Travel Rule
+#   3. PROPOSES a PPSI-specific currency-transaction report (proposed
+#      31 CFR 1033.310-315, cross-referencing the $10,000 aggregate-day
+#      threshold of 31 CFR 1010.311) — modelled here as the FINCEN_CTR form.
+#      This is a PROPOSED obligation (comment deadline 9 June 2026), not final.
+#   4. Cross-border stablecoin transfers carry the FATF Travel Rule
 #      (Recommendation 16) originator/beneficiary-information obligation.
 #
 # The contract uses ISO 20022 pacs.008-style fields (debtor_bic, creditor_bic,
@@ -37,7 +41,7 @@ program:
   regulator: FinCEN
   owner: bsa_officer
   effective_date: 2026-07-01
-  # PR-LF1 / acceptance item 4 — FinCEN SAR filing-latency SLA. An open
+  # PR-LF1 / acceptance item 4 — FinCEN SAR/CTR filing-latency SLA. An open
   # alert older than alert_disposition_days with no terminal decision is a
   # breach; a transaction batch later than cadence+grace flags lateness. The
   # engine records breaches in sla_report.json (it never raises on breach).
@@ -100,9 +104,9 @@ data_contracts:
 # sub-threshold structuring, VASP counterparty exposure, and OFAC SDN screening.
 # ---------------------------------------------------------------------------
 rules:
-  # --- STABLECOIN MIXING / LAYERING: fan-in then fan-out churn within 24h ---
+  # --- STABLECOIN MIXING / LAYERING: fan-in + fan-out churn in a recent window ---
   - id: stablecoin_mixing_layering
-    name: Stablecoin mixing / layering — same-day fan-in then fan-out churn
+    name: Stablecoin mixing / layering — fan-in + fan-out churn in a recent window
     severity: critical
     regulation_refs:
       - citation: "GENIUS Act PPSI NPRM (FR 2026-06963)"
@@ -114,8 +118,10 @@ rules:
       sql: |
         -- Pre-aggregate each leg per customer BEFORE joining, so a
         -- many-to-many in/out join cannot inflate the sums/counts via a
-        -- row-level cross-product. Each CTE is one row per customer over
-        -- the run window; the join is then 1:1 on customer_id.
+        -- row-level cross-product. Both legs are bounded to the same recent
+        -- 7-day window ({recent_start}..{as_of}) so the inbound and outbound
+        -- flow are temporally correlated (genuine churn), not just "any time
+        -- this customer was active"; the join is then 1:1 on customer_id.
         WITH funds_in AS (
             SELECT
                 customer_id,
@@ -124,7 +130,7 @@ rules:
                 MIN(booked_at)   AS first_in
             FROM txn
             WHERE direction = 'in'
-              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at >= TIMESTAMP '{recent_start}'
               AND booked_at <  TIMESTAMP '{as_of}'
             GROUP BY customer_id
         ),
@@ -137,7 +143,7 @@ rules:
             FROM txn
             WHERE direction = 'out'
               AND channel IN ('crypto', 'wire', 'rtp')
-              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at >= TIMESTAMP '{recent_start}'
               AND booked_at <  TIMESTAMP '{as_of}'
             GROUP BY customer_id
         )
@@ -163,20 +169,23 @@ rules:
       - prior_alerts_90d
     tags: [stablecoin, mixing, layering, churn]
     business_intent: >
-      Detect the mixer/layering signature where inbound minted value is pushed
-      back out (crypto/wire/RTP) within 24 hours at 70%+ of the inbound amount,
-      both legs reaching $15,000+. A PPSI account that simply churns freshly
-      minted stablecoin straight back off-platform is the canonical layering
-      shape the GENIUS Act PPSI NPRM AML/CFT program and FinCEN's CVC guidance
-      direct issuers to monitor.
+      Detect the mixer/layering signature where, within the same recent 7-day
+      window, a customer takes inbound minted value AND pushes value back out
+      (crypto/wire/RTP) at 70%+ of the inbound amount, both legs reaching
+      $15,000+. A PPSI account that churns freshly minted stablecoin straight
+      back off-platform is the canonical layering shape the GENIUS Act PPSI
+      NPRM AML/CFT program and FinCEN's CVC guidance direct issuers to monitor.
+      The 7-day bound keeps the inbound and outbound flow temporally correlated
+      (pre-aggregating each leg per customer makes a strict per-pair 24h join
+      inexpressible, so the recent-window bound is the honest correlation).
     out_of_scope:
-      - inbound value retained on-platform (no matching same-day outbound leg)
+      - inbound value retained on-platform (no offsetting outbound flow in the window)
       - pass-through ratios below 70% (legitimate partial spend)
-      - aggregations beyond a single 24h pairing window
+      - inbound and outbound legs separated by more than the recent window
 
-  # --- RAPID ON-RAMP / OFF-RAMP CYCLING (mint-then-redeem within 24h) ---
+  # --- RAPID ON-RAMP / OFF-RAMP CYCLING (mint + redeem in a recent window) ---
   - id: rapid_onramp_offramp_cycling
-    name: Rapid on-ramp / off-ramp cycling — mint then redeem within 24h
+    name: Rapid on-ramp / off-ramp cycling — mint + redeem in a recent window
     severity: high
     regulation_refs:
       - citation: "GENIUS Act s.4"
@@ -188,8 +197,10 @@ rules:
       sql: |
         -- Pre-aggregate each leg per customer BEFORE joining, so a
         -- many-to-many on/off-ramp join cannot inflate the sums/counts via
-        -- a row-level cross-product. Each CTE is one row per customer over
-        -- the run window; the join is then 1:1 on customer_id.
+        -- a row-level cross-product. Both legs are bounded to the same recent
+        -- 7-day window ({recent_start}..{as_of}) so the on-ramp and off-ramp
+        -- flow are temporally correlated (genuine cycling); the join is then
+        -- 1:1 on customer_id.
         WITH onramp AS (
             SELECT
                 customer_id,
@@ -198,7 +209,7 @@ rules:
                 MIN(booked_at)   AS first_on
             FROM txn
             WHERE direction = 'in'
-              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at >= TIMESTAMP '{recent_start}'
               AND booked_at <  TIMESTAMP '{as_of}'
             GROUP BY customer_id
         ),
@@ -211,7 +222,7 @@ rules:
             FROM txn
             WHERE direction = 'out'
               AND channel IN ('crypto', 'wire', 'rtp')
-              AND booked_at >= TIMESTAMP '{window_start}'
+              AND booked_at >= TIMESTAMP '{recent_start}'
               AND booked_at <  TIMESTAMP '{as_of}'
             GROUP BY customer_id
         )
@@ -236,14 +247,17 @@ rules:
     tags: [stablecoin, on_ramp, off_ramp, velocity]
     business_intent: >
       Detect customers whose fiat/stablecoin on-ramp deposits are redeemed
-      back off the platform (crypto/wire/RTP out) within 24 hours, combined
-      value reaching $30,000+. Rapid on-ramp/off-ramp cycling leaves no time
-      for legitimate use and is the velocity signature the GENIUS Act s.4
-      redemption controls and FinCEN's CVC guidance direct PPSIs to monitor.
+      back off the platform (crypto/wire/RTP out) within the same recent 7-day
+      window, combined value reaching $30,000+. Rapid on-ramp/off-ramp cycling
+      in a tight window leaves no time for legitimate use and is the velocity
+      signature the GENIUS Act s.4 redemption controls and FinCEN's CVC
+      guidance direct PPSIs to monitor. (Pre-aggregating each leg per customer
+      makes a strict per-pair 24h join inexpressible, so the recent-window
+      bound is the honest temporal correlation.)
     out_of_scope:
-      - on-ramp deposits held and used over multiple days (no 24h off-ramp leg)
+      - on-ramp deposits held and used over multiple days (no off-ramp in the window)
       - off-ramps via channels other than crypto/wire/RTP
-      - aggregations beyond a single 24h pairing window
+      - on-ramp and off-ramp legs separated by more than the recent window
 
   # --- STRUCTURING BELOW THE USD $10,000 REPORTING THRESHOLD ---
   - id: structuring_below_ctr_threshold
@@ -252,8 +266,8 @@ rules:
     regulation_refs:
       - citation: "GENIUS Act s.4"
         description: "PPSI BSA/AML program — structuring to evade reporting is suspicious-activity reportable."
-      - citation: "GENIUS Act PPSI NPRM (FR 2026-06963)"
-        description: "PPSI-specific AML/CFT program (PPSIs excluded from the MSB definition; NPRM proposes the dedicated regime)."
+      - citation: "31 CFR 1033.310"
+        description: "Proposed PPSI currency-transaction report (NPRM, cross-refs 31 CFR 1010.311 $10k trigger) — structuring evades the proposed report."
     logic:
       type: aggregation_window
       source: txn
@@ -277,8 +291,10 @@ rules:
       $20,000+ — the canonical structuring pattern of splitting deposits to
       stay below the USD $10,000 reporting trigger. A PPSI surfaces this as a
       SAR-reportable structuring pattern under its GENIUS Act s.4 BSA/AML
-      program and the PPSI-specific obligations the NPRM (FR 2026-06963)
-      proposes. (No CTR applies — stablecoins are not physical currency.)
+      program; the trigger being evaded is the proposed PPSI currency-
+      transaction report (proposed 31 CFR 1033.310, cross-referencing the
+      $10,000 aggregate-day threshold of 31 CFR 1010.311) the NPRM
+      (FR 2026-06963) proposes for PPSIs.
     out_of_scope:
       - single deposits at or above the $10,000 reporting threshold
       - outbound redemptions (this rule is inbound-only)
@@ -410,12 +426,20 @@ workflow:
 
 reporting:
   forms:
-    # SAR is the only filing form. A PPSI does not handle physical CURRENCY,
-    # so there is no Currency Transaction Report (CTR, 31 CFR 1010.311)
-    # trigger — stablecoins are not currency.
     FINCEN_SAR:
       template: fincen_sar_v1
       mandatory_fields: [subject, narrative, triggering_rules, transactions]
+    # The GENIUS Act PPSI NPRM (FR 2026-06963) PROPOSES a PPSI-specific
+    # currency-transaction report at proposed 31 CFR 1033.310-315, which
+    # cross-references the $10,000 aggregate-day reporting trigger of
+    # 31 CFR 1010.311. This is a PROPOSED obligation (comment deadline
+    # 9 June 2026), not a final rule — modelled here so a PPSI can wire the
+    # report ahead of finalization. It is the PPSI currency-transaction
+    # report, distinct from the generic cash CTR.
+    FINCEN_CTR:
+      template: fincen_ctr_v1
+      trigger:
+        aggregate_day: { gte: 10000 }
 
 retention_policy:
   evidence: 5y

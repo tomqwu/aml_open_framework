@@ -19,7 +19,7 @@ The framework supports **geo-based default policies** — the same architecture 
 | `examples/us_rtp_fednow/aml.yaml` | US | FinCEN / RTP / FedNow | RTP/FedNow push-fraud detector pack (Round-8) |
 | `examples/austrac_tranche_2_dnfbp/aml.yaml` | AU | AUSTRAC | SMR + TTR (Tranche 2 DNFBPs — #500) |
 | `examples/genius_ppsi_issuer/aml.yaml` | US | FinCEN (GENIUS Act) | SAR (PPSI stablecoin issuer — #500) |
-| `examples/genius_ppsi_stablecoin/aml.yaml` | US | FinCEN + OFAC (GENIUS Act PPSI NPRM) | SAR (richer NPRM-grounded stablecoin spec — #513) |
+| `examples/genius_ppsi_stablecoin/aml.yaml` | US | FinCEN + OFAC (GENIUS Act PPSI NPRM) | SAR + proposed PPSI CTR (richer NPRM-grounded stablecoin spec — #513) |
 
 All fourteen execute the same engine; the jurisdictional differences live in:
 - the `regulation_refs` citations on each rule
@@ -134,12 +134,12 @@ aml dashboard examples/austrac_tranche_2_dnfbp/aml.yaml
 The stablecoin-issuer spec (`genius_ppsi_issuer`) models a **permitted payment stablecoin issuer (PPSI)** under the **GENIUS Act** federal stablecoin framework. It aligns with:
 
 - **GENIUS Act s.4** — BSA/AML program obligations for permitted payment stablecoin issuers
-- **31 CFR 1022** — money-services-business AML program and reporting requirements (`1022.210` program, `1022.320` SAR / suspicious-structuring)
+- **31 CFR 1022** — money-services-business AML program and reporting requirements (`1022.210` program, `1022.320` SAR / suspicious-structuring), used here as an *interim MSB-baseline* framing. Note: the later **GENIUS Act PPSI NPRM** (see the richer spec below) EXCLUDES PPSIs from the MSB definition and proposes a *PPSI-specific* regime (31 CFR Part 502 OFAC + proposed 31 CFR 1033 reporting); the richer `genius_ppsi_stablecoin` spec therefore cites that PPSI-specific authority instead of the 1022 MSB rules.
 - **FinCEN FIN-2019-G001** — convertible virtual currency guidance (nested-VASP / pass-through typologies)
 - **OFAC SDN — virtual currency addenda** — sanctioned-wallet screening
 - **FATF Recommendation 16** — Travel Rule completeness on outbound transfers
 
-Filing form: **SAR** — a PPSI does not handle physical currency, so there is no currency-transaction (CTR) trigger. Key rules cover the stablecoin-specific typologies: rapid mint-then-redeem within 24h, outbound transfers to FATF call-for-action jurisdictions (KP/IR/MM), suspicious structuring below the USD $10,000 reporting threshold, OFAC SDN wallet screening, nested-VASP same-day pass-through churn, and adverse-media screening.
+Filing form: **SAR**. Key rules cover the stablecoin-specific typologies: rapid mint-then-redeem within 24h, outbound transfers to FATF call-for-action jurisdictions (KP/IR/MM), suspicious structuring below the USD $10,000 reporting threshold, OFAC SDN wallet screening, nested-VASP same-day pass-through churn, and adverse-media screening.
 
 ```bash
 aml dashboard examples/genius_ppsi_issuer/aml.yaml
@@ -151,10 +151,11 @@ aml dashboard examples/genius_ppsi_issuer/aml.yaml
 
 - **New 31 CFR Part 502 OFAC sanctions program** — the NPRM stands up a dedicated PPSI sanctions regime; the `ofac_sdn_screening` rule cites Part 502 explicitly (freeze-and-report on an SDN match, including the virtual-currency-address addenda).
 - **ISO 20022 pacs.008 fields** on the `txn` contract (`debtor_bic`, `creditor_bic`, `uetr`, `purpose_code`) the iso20022 ingestion adapter populates on wire/RTP rails — declared nullable so synthetic/CSV rows still load.
-- **`program.sla` block** — FinCEN SAR filing-latency SLA (`alert_disposition_days: 30`); the engine records breaches in `sla_report.json`.
-- **PPSI-specific citations** — the NPRM EXCLUDES PPSIs from the MSB definition, so the SAR/program rules cite `GENIUS Act s.4` / the NPRM (`FR 2026-06963`) rather than the 31 CFR 1022 MSB rules. **SAR is the only filing form** — a PPSI does not handle physical currency, so there is no CTR (31 CFR 1010.311) trigger.
+- **`program.sla` block** — FinCEN SAR/CTR filing-latency SLA (`alert_disposition_days: 30`); the engine records breaches in `sla_report.json`.
+- **PPSI-specific citations** — the NPRM EXCLUDES PPSIs from the MSB definition, so the SAR/program rules cite `GENIUS Act s.4` / the NPRM (`FR 2026-06963`) rather than the 31 CFR 1022 MSB rules.
+- **Proposed PPSI currency-transaction report** — the NPRM PROPOSES a PPSI-specific currency-transaction report (proposed `31 CFR 1033.310`-315, cross-referencing the $10,000 aggregate-day threshold of `31 CFR 1010.311`), modelled as the `FINCEN_CTR` form alongside `FINCEN_SAR`. This is a *proposed* obligation (comment deadline 9 June 2026), distinct from the generic cash CTR.
 
-Six rules: stablecoin mixing/layering (same-day fan-in/fan-out churn), rapid on-ramp/off-ramp cycling (mint-then-redeem within 24h), structuring below the USD $10,000 reporting threshold, VASP counterparty exposure to FATF call-for-action jurisdictions (KP/IR/MM), OFAC SDN screening (31 CFR Part 502), and adverse-media screening. The workflow routes investigator → SAR filing → closed.
+Six rules: stablecoin mixing/layering (fan-in + fan-out churn in a recent 7-day window), rapid on-ramp/off-ramp cycling (mint + redeem in a recent 7-day window), structuring below the USD $10,000 reporting threshold, VASP counterparty exposure to FATF call-for-action jurisdictions (KP/IR/MM), OFAC SDN screening (31 CFR Part 502), and adverse-media screening. The workflow routes investigator → SAR filing → closed.
 
 ```bash
 aml dashboard examples/genius_ppsi_stablecoin/aml.yaml

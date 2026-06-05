@@ -6,7 +6,7 @@
 >
 > **Time:** ~10 min.
 
-Governance up front: a PPSI is a BSA financial institution with its OWN, PPSI-specific obligations. The GENIUS Act PPSI NPRM (1) stands up a **new dedicated OFAC sanctions program at 31 CFR Part 502**, (2) **EXCLUDES PPSIs from the MSB definition** and proposes a PPSI-specific AML/CFT program under GENIUS Act s.4 (so the SAR/program rules cite GENIUS Act s.4 / the NPRM, not the 31 CFR 1022 MSB rules), with SARs filed on suspicious activity, and (3) carries the FATF Travel Rule (Recommendation 16) on cross-border stablecoin transfers. A PPSI does not handle physical currency, so there is no CTR (31 CFR 1010.311) trigger. Every rule in the spec maps to one of those obligations and every citation resolves via the regwatch citation map.
+Governance up front: a PPSI is a BSA financial institution with its OWN, PPSI-specific obligations. The GENIUS Act PPSI NPRM (1) stands up a **new dedicated OFAC sanctions program at 31 CFR Part 502**, (2) **EXCLUDES PPSIs from the MSB definition** and proposes a PPSI-specific AML/CFT program under GENIUS Act s.4 (so the SAR/program rules cite GENIUS Act s.4 / the NPRM, not the 31 CFR 1022 MSB rules), with SARs filed on suspicious activity, (3) **PROPOSES a PPSI-specific currency-transaction report** (proposed 31 CFR 1033.310-315, cross-referencing the $10,000 aggregate-day threshold of 31 CFR 1010.311 — a *proposed* obligation, comment deadline 9 June 2026, modelled as the `FINCEN_CTR` form), and (4) carries the FATF Travel Rule (Recommendation 16) on cross-border stablecoin transfers. Every rule in the spec maps to one of those obligations and every citation resolves via the regwatch citation map.
 
 ---
 
@@ -33,9 +33,9 @@ On the canonical synthetic dataset this fires alerts across the stablecoin typol
 
 | Rule | Logic | Cites |
 |---|---|---|
-| `stablecoin_mixing_layering` | `custom_sql` — same-day fan-in then fan-out churn (≥70% pass-through, both legs ≥$15k) | GENIUS Act PPSI NPRM (FR 2026-06963), FIN-2019-G001 |
-| `rapid_onramp_offramp_cycling` | `custom_sql` — mint then redeem within 24h, combined ≥$30k | GENIUS Act s.4, FIN-2019-G001 |
-| `structuring_below_ctr_threshold` | `aggregation_window` — $5k–$9,999 deposits, ≥3 in 30d, ≥$20k | GENIUS Act s.4, GENIUS Act PPSI NPRM (FR 2026-06963) |
+| `stablecoin_mixing_layering` | `custom_sql` — fan-in + fan-out churn in a recent 7-day window (≥70% pass-through, both legs ≥$15k) | GENIUS Act PPSI NPRM (FR 2026-06963), FIN-2019-G001 |
+| `rapid_onramp_offramp_cycling` | `custom_sql` — mint + redeem in a recent 7-day window, combined ≥$30k | GENIUS Act s.4, FIN-2019-G001 |
+| `structuring_below_ctr_threshold` | `aggregation_window` — $5k–$9,999 deposits, ≥3 in 30d, ≥$20k | GENIUS Act s.4, 31 CFR 1033.310 |
 | `vasp_counterparty_exposure` | `custom_sql` — outbound stablecoin/wire to KP/IR/MM ≥$5k | FATF High-Risk Jurisdictions, FATF Recommendation 16 |
 | `ofac_sdn_screening` | `list_match` (fuzzy 0.85) vs OFAC SDN | 31 CFR Part 502, OFAC SDN — virtual currency addenda |
 | `adverse_media_screening` | `list_match` (fuzzy 0.85) vs adverse media | GENIUS Act s.4, FIN-2019-G001 |
@@ -46,7 +46,7 @@ The `ofac_sdn_screening` rule reads the `sanctions` watchlist. Point it at your 
 
 ### 5 · Review the SLA + filing forms
 
-The spec declares a `program.sla` block (`alert_disposition_days: 30`) — the engine records any open-alert-age or batch-lateness breach in `sla_report.json` (it never raises). `FINCEN_SAR` is the only filing form — a PPSI does not handle physical currency, so there is no CTR (31 CFR 1010.311) trigger. Open the dashboard to inspect:
+The spec declares a `program.sla` block (`alert_disposition_days: 30`) — the engine records any open-alert-age or batch-lateness breach in `sla_report.json` (it never raises). Filing forms are `FINCEN_SAR` and `FINCEN_CTR` — the latter models the *proposed* PPSI currency-transaction report (proposed 31 CFR 1033.310-315, ≥$10,000 aggregate-day trigger), distinct from the generic cash CTR. Open the dashboard to inspect:
 
 ```bash
 aml dashboard examples/genius_ppsi_stablecoin/aml.yaml
