@@ -46,7 +46,7 @@ Ranks scored alerts by the advisory N1 `priority_score` (highest first) so an in
 
 ### Case Investigation
 
-Per-case investigation workspace with entity profile (customer details, risk rating, country), alert details (regulation citations, evidence requested), transaction timeline with alert window highlighting, Sankey flow diagram showing channel-level fund movement, and evidence panel.
+Per-case investigation workspace with entity profile (customer details, risk rating, country), alert details (regulation citations, evidence requested), transaction timeline with alert window highlighting, Sankey flow diagram showing channel-level fund movement, and evidence panel. A governed **Case Copilot** sidebar panel (#499) offers case-scoped GenAI DRAFTS — summarize / identify typology / draft STR-SAR narrative / counterparty network / risk & recommended action (plus freeform) — every reply is a human-reviewed DRAFT (never an auto-decision), audited to `ai_interactions.jsonl` as `ai_case_copilot_action` with the backend/model + confidence.
 
 ![Case Investigation](screenshots/04_case_investigation.png)
 
