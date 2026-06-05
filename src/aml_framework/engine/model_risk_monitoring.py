@@ -78,7 +78,16 @@ def build_model_risk_report(
                 cadence_months=m.get("cadence_months"),
             )
         )
-    entries.sort(key=lambda e: (e.drift != "high", e.tier, e.model_key))
+    # Sort by tier SEVERITY (high→medium→low), not lexically — a lexical
+    # sort on `e.tier` would order "high" < "low" < "medium". Mirrors
+    # `_TIER_ORDER` in generators/model_inventory.py.
+    entries.sort(
+        key=lambda e: (
+            e.drift != "high",
+            {"high": 0, "medium": 1, "low": 2}.get(e.tier, 9),
+            e.model_key,
+        )
+    )
     return ModelRiskReport(
         enabled=True,
         n_models=len(entries),

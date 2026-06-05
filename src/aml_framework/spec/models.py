@@ -312,10 +312,16 @@ class ModelRiskMonitoring(_Base):
     count-based drift (vs the prior run) + validation-cadence status.
     Advisory/monitoring only — never blocks a run or changes a model.
     Off by default; backward-compatible.
+
+    `baseline_runs` is RESERVED for a future multi-run baseline; the MVP
+    compares against the immediately-prior run only and does not consume
+    this field yet.
     """
 
     enabled: bool = False
     drift_high_ratio: float = Field(default=2.0, ge=1.0, allow_inf_nan=False)
+    # RESERVED — a future multi-run baseline will consider this many prior
+    # runs. The current MVP compares against the immediately-prior run only.
     baseline_runs: int = Field(default=10, ge=1)
 
 

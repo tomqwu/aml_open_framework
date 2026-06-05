@@ -106,7 +106,7 @@ Each alert that goes through the pass gains a `suppression` dict — `{applied, 
 
 - `enabled` (default `false`) — activate the monitor. When `false` (or the block is omitted), the engine runs unchanged and no `model_risk_report.json` is written.
 - `drift_high_ratio` (default `2.0`, `≥1`) — the drift threshold. A rule's `current_alerts / prior_alerts` ratio that is **≥ `drift_high_ratio`** (a spike) or **≤ `1 / drift_high_ratio`** (a collapse) is flagged `drift="high"`. On the first run (no prior baseline) drift is `"unknown"`; otherwise it is `"normal"`.
-- `baseline_runs` (default `10`, `≥1`) — how many prior runs the baseline considers when resolving the prior-run counts.
+- `baseline_runs` (default `10`, `≥1`) — **reserved** for a future multi-run baseline; the current MVP compares against the immediately-prior run only and does not yet consume this field.
 
 Each model in the inventory becomes a `ModelRiskEntry` — `{model_key, kind, tier, owner, current_alerts, prior_alerts, drift, drift_ratio, cadence_months}`. The report carries `{enabled, n_models, n_high_drift, entries, generated_at}`, with entries sorted high-drift-first, then tier, then key. The engine emits `model_risk_report.json` in the run directory (frozen read-only, SHA-256 hash pinned in `manifest.json` as `model_risk_report_hash`). Deterministic: `generated_at` is the ledger `as_of` (no clock/IO), so same spec + same data + same seed → identical report → identical hash; the disabled path is byte-identical to a run without the block. Surfaced on the Drift Monitor (page 50) dashboard. *#497.*
 

@@ -74,6 +74,75 @@ section_explainer(
     },
 )
 
+# -----------------------------------------------------------------------
+# Model-risk report (#497) — advisory model-inventory monitoring.
+# Rendered FIRST, before any python_ref/persistence early-return, because
+# the report reads `model_risk_report.json` from the run dir and is
+# independent of whether the spec has python_ref scorers — a rule-only
+# spec with `program.model_risk_monitoring.enabled` must still see it
+# (otherwise the no-python_ref `st.stop()` below would hide it). The
+# runner emits the file ONLY when `program.model_risk_monitoring.enabled`
+# (off by default), so it usually won't exist — handle absent/disabled
+# gracefully with a one-line note (the common case). Mirrors page 45's
+# run-dir artifact read (`45_FP_Analysis.py:263`):
+# `Path(st.session_state.run_dir) / "<file>.json"`. ADVISORY: a lens over
+# the model inventory — it never blocks a run or changes a model.
+# Aggregate-only (model_key/owner are config, not PII).
+# -----------------------------------------------------------------------
+st.subheader("Model-risk report")
+
+_mr_report = None
+_mr_path = Path(st.session_state.run_dir) / "model_risk_report.json"
+if _mr_path.exists():
+    _mr_report = json.loads(_mr_path.read_text(encoding="utf-8"))
+
+if not _mr_report or not _mr_report.get("enabled"):
+    st.info(
+        "Model-risk monitoring is not enabled — add `program.model_risk_monitoring` to the spec."
+    )
+else:
+    _mr_n_models = int(_mr_report.get("n_models", 0))
+    _mr_n_high = int(_mr_report.get("n_high_drift", 0))
+    section_explainer(
+        page="Drift Monitor",
+        section_id="drift.model_risk",
+        section_title="Model-risk report",
+        data_summary={
+            "n_models": _mr_n_models,
+            "n_high_drift": _mr_n_high,
+        },
+    )
+    st.caption(
+        "Advisory monitoring (SR 11-7 / OSFI E-23) — a lens over the model "
+        "inventory; never blocks a run or changes a model."
+    )
+    _mc1, _mc2 = st.columns(2)
+    _mc1.metric("Models monitored", _mr_n_models)
+    _mc2.metric("High-drift models", _mr_n_high)
+    _mr_entries = _mr_report.get("entries") or []
+    if _mr_entries:
+        # Preserve JSON order — the engine sorts high-drift-first.
+        st.dataframe(
+            pd.DataFrame(
+                _mr_entries,
+                columns=[
+                    "model_key",
+                    "kind",
+                    "tier",
+                    "owner",
+                    "current_alerts",
+                    "prior_alerts",
+                    "drift",
+                    "drift_ratio",
+                    "cadence_months",
+                ],
+            ),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+st.markdown("---")
+
 spec = st.session_state.spec
 result = st.session_state.result
 
@@ -574,69 +643,5 @@ see_also_footer(
         "[Run History — full run-by-run manifest browser](./Run_History)",
     ]
 )
-
-# -----------------------------------------------------------------------
-# Model-risk report (#497) — advisory model-inventory monitoring. The
-# runner emits `model_risk_report.json` ONLY when
-# `program.model_risk_monitoring.enabled` (off by default), so the file
-# usually won't exist — handle absent/disabled gracefully with a one-line
-# note (the common case). Mirrors page 45's run-dir artifact read
-# (`45_FP_Analysis.py:263`): `Path(st.session_state.run_dir) / "<file>.json"`.
-# ADVISORY: this is a lens over the model inventory — it never blocks a
-# run or changes a model. Aggregate-only (model_key/owner are config,
-# not PII).
-# -----------------------------------------------------------------------
-st.markdown("---")
-st.subheader("Model-risk report")
-
-_mr_report = None
-_mr_path = Path(st.session_state.run_dir) / "model_risk_report.json"
-if _mr_path.exists():
-    _mr_report = json.loads(_mr_path.read_text(encoding="utf-8"))
-
-if not _mr_report or not _mr_report.get("enabled"):
-    st.info(
-        "Model-risk monitoring is not enabled — add `program.model_risk_monitoring` to the spec."
-    )
-else:
-    _mr_n_models = int(_mr_report.get("n_models", 0))
-    _mr_n_high = int(_mr_report.get("n_high_drift", 0))
-    section_explainer(
-        page="Drift Monitor",
-        section_id="drift.model_risk",
-        section_title="Model-risk report",
-        data_summary={
-            "n_models": _mr_n_models,
-            "n_high_drift": _mr_n_high,
-        },
-    )
-    st.caption(
-        "Advisory monitoring (SR 11-7 / OSFI E-23) — a lens over the model "
-        "inventory; never blocks a run or changes a model."
-    )
-    _mc1, _mc2 = st.columns(2)
-    _mc1.metric("Models monitored", _mr_n_models)
-    _mc2.metric("High-drift models", _mr_n_high)
-    _mr_entries = _mr_report.get("entries") or []
-    if _mr_entries:
-        # Preserve JSON order — the engine sorts high-drift-first.
-        st.dataframe(
-            pd.DataFrame(
-                _mr_entries,
-                columns=[
-                    "model_key",
-                    "kind",
-                    "tier",
-                    "owner",
-                    "current_alerts",
-                    "prior_alerts",
-                    "drift",
-                    "drift_ratio",
-                    "cadence_months",
-                ],
-            ),
-            hide_index=True,
-            use_container_width=True,
-        )
 
 page_footer()

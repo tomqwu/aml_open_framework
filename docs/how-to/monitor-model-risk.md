@@ -23,7 +23,8 @@ program:
     enabled: true
     # drift_high_ratio defaults to 2.0 — flag a rule "high" when its
     #   current/prior count ratio is >= 2.0 (a spike) or <= 0.5 (a collapse)
-    # baseline_runs   defaults to 10  — how many prior runs the baseline considers
+    # baseline_runs   defaults to 10  — RESERVED for a future multi-run baseline;
+    #                                    the MVP compares against the immediately-prior run only
 ```
 
 `drift_high_ratio` must be `>= 1`; `baseline_runs` must be `>= 1`. Both are optional — start with the defaults and tighten `drift_high_ratio` later (e.g. `1.5`) off your own validation evidence, as a spec PR.
@@ -63,7 +64,7 @@ The frozen, regulator-facing summary:
   "entries": [
     {
       "model_key": "structuring_burst",
-      "kind": "aggregation_window",
+      "kind": "rule",
       "tier": "high",
       "owner": "mlro_2lod",
       "current_alerts": 9,

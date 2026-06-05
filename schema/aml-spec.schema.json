@@ -135,7 +135,7 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "drift_high_ratio": { "type": "number", "minimum": 1 },
-        "baseline_runs": { "type": "integer", "minimum": 1 }
+        "baseline_runs": { "type": "integer", "minimum": 1, "description": "Reserved — number of prior runs a future multi-run baseline will consider. The current MVP compares against the immediately-prior run only." }
       }
     },
     "program_sla": {
