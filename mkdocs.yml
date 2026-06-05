@@ -130,6 +130,7 @@ nav:
       - "Walk the lineage chain": how-to/walk-lineage.md
       - "Configure SLA monitoring": how-to/configure-sla.md
       - "Triage defects": how-to/triage-defects.md
+      - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md
 
   # ─── Operate ───────────────────────────────────────────────
   # Day-2 — running the framework in real environments.
