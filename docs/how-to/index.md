@@ -90,6 +90,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     Advisory de-prioritization of low-score alerts on low-risk customers via `program.risk_segmentation`. Never auto-closes; emits `suppression_report.json`. Requires `program.prioritization`. ~10 min. **Detailed.**
 
+-   :material-monitor-dashboard:{ .lg .middle } **[Monitor model risk + per-rule drift](monitor-model-risk.md)**
+
+    ---
+
+    Governed model-risk monitoring via `program.model_risk_monitoring`. Emits a frozen, manifest-pinned `model_risk_report.json` (model inventory + per-rule count drift vs prior run + validation cadence). Advisory only; SR 11-7 / OSFI E-23. ~10 min. **Detailed.**
+
 </div>
 
 ## Deploying

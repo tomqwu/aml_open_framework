@@ -46,6 +46,14 @@ program:
           are worked after the urgent tail. Advisory only — never auto-closed;
           the rule alert stays in the ledger and is investigator-overridable.
         owner: chief_anti_money_laundering_officer
+  # #497: governed model-risk monitoring (SR 11-7 / OSFI E-23). Emits a
+  # frozen, manifest-pinned `model_risk_report.json` rolling the model
+  # inventory + per-rule count drift (current vs prior run) + validation
+  # cadence. Advisory/monitoring only — never blocks a run or changes a
+  # model; surfaced on the Drift Monitor page. Defaults shown implicitly
+  # (drift_high_ratio 2.0, baseline_runs 10).
+  model_risk_monitoring:
+    enabled: true
 
 # ---------------------------------------------------------------------------
 # Data contracts — one per channel to enforce channel-level coverage.

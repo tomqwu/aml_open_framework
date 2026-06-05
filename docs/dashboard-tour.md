@@ -327,7 +327,7 @@ Unsupervised z-score outlier detection on per-customer transaction features. Sur
 
 ### Drift Monitor
 
-Per-scorer alert-volume drift across recent runs. Last-run vs median-of-priors with ≥2× / ≤0.5× thresholds flagged as "high drift". Universal-routed via `TUNING_PAGES`. PR-E3 (#380).
+Per-scorer alert-volume drift across recent runs. Last-run vs median-of-priors with ≥2× / ≤0.5× thresholds flagged as "high drift". Universal-routed via `TUNING_PAGES`. PR-E3 (#380). When `program.model_risk_monitoring` is enabled the page also renders a **Model-risk report** section — the governed model inventory + per-rule count drift (current vs prior run) + validation cadence from the frozen, manifest-pinned `model_risk_report.json`; advisory/monitoring only (never blocks a run or changes a model). #497.
 
 ![Drift Monitor](screenshots/50_drift_monitor.png)
 

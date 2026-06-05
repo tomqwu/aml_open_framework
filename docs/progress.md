@@ -2,6 +2,10 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **#497 — Model-risk monitoring automation** (`feat/model-risk-monitoring`, 2026-06-05, Next-tier ML/AI roadmap): frozen, manifest-pinned `model_risk_report.json` (model inventory + per-rule count drift vs prior run + validation cadence; spec block `program.model_risk_monitoring`; engine + Drift Monitor surface). Advisory/governed, deterministic, off by default.
+
+---
+
 > **Round — Mobile UX, easy on an executive's eye** (`feat/mobile-exec-polish`, 2026-06-05): collapsed the page-level AI explainer so KPIs sit above the fold; exec-readable no-LLM summary (dropped env-var jargon); fixed Audit YAML + Today-pill overflow, raised tap targets to 44px, bumped mobile typography + hid the dev version string, darkened faint page descriptions, bottom-tab-bar clearance; emptied STRICT_STILL_FAILING (Executive Dashboard, Alert Queue, Audit & Evidence now pass iPhone-SE responsive quality).
 
 ---
