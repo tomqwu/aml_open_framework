@@ -73,8 +73,8 @@ KNOWN_UNDOCUMENTED: frozenset[str] = frozenset(
         "schedule",
         "share-pattern",
         "today",
-        "typology-import",
-        "typology-list",
+        # typology-import / typology-list documented in
+        # docs/how-to/discover-typologies.md (#496).
         "verify-pattern",
     }
 )

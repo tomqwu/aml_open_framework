@@ -2,6 +2,10 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **#496 — Typology auto-discovery → candidate-rule pipeline** (`feat/typology-auto-discovery`, 2026-06-05, Next-tier ML/AI roadmap): offline `aml discover-typologies` CLI clusters a run's unexplained anomalies (deterministic stdlib z-score + shape signature, no sklearn) into `candidate_typologies.yaml` proposals (status `pending_promotion`); engine builder `engine/typology_discovery.py`; feeds the existing typology-import/approval path. Governed: proposals only, human-gated, never in the engine run path.
+
+---
+
 > **#497 — Model-risk monitoring automation** (`feat/model-risk-monitoring`, 2026-06-05, Next-tier ML/AI roadmap): frozen, manifest-pinned `model_risk_report.json` (model inventory + per-rule count drift vs prior run + validation cadence; spec block `program.model_risk_monitoring`; engine + Drift Monitor surface). Advisory/governed, deterministic, off by default.
 
 ---

@@ -18,6 +18,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     Escape-hatch logic type for ML scorers, multi-source heuristics, graph traversal. Comes with SR 11-7 / E-23 / SS1/23 model evidence baked in. ~30 min.
 
+-   :material-magnify-plus:{ .lg .middle } **[Discover candidate typologies from a run](discover-typologies.md)**
+
+    ---
+
+    The offline `aml discover-typologies` CLI clusters a run's *unexplained* anomalies (no rule caught them) into `candidate_typologies.yaml` proposals (`status: pending_promotion`). Deterministic, human-gated, never auto-promoted. ~5 min. **Detailed.**
+
 </div>
 
 ## Migrating + operating

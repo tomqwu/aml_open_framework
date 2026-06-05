@@ -325,6 +325,14 @@ st.caption(
     "rule (Spec Editor) or tune existing thresholds (Tuning Lab)."
 )
 
+st.info(
+    "**Turn these into reviewable candidates:** run "
+    "`aml discover-typologies <spec> <run-dir>` to cluster the unexplained "
+    "anomalies into candidate typologies (`candidate_typologies.yaml`, "
+    "status `pending_promotion`) — proposals you review and "
+    "`aml typology-import`, never auto-promoted. (#496)"
+)
+
 # ---------------------------------------------------------------------------
 # Cross-links. Discovery candidates land here; the operator's next step
 # is one of: drill into a specific customer (Customer 360), check

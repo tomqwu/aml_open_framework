@@ -321,7 +321,7 @@ Legacy↔new parallel-run divergence: loads the legacy CSV declared in `program.
 
 ### Anomaly Discovery
 
-Unsupervised z-score outlier detection on per-customer transaction features. Surfaces customers the spec's deterministic rules don't catch — discovery candidates for new rule typologies. Universal-routed via `TUNING_PAGES`. PR-E5 (#382).
+Unsupervised z-score outlier detection on per-customer transaction features. Surfaces customers the spec's deterministic rules don't catch — discovery candidates for new rule typologies. Universal-routed via `TUNING_PAGES`. PR-E5 (#382). The page points operators to the offline `aml discover-typologies <spec> <run-dir>` CLI, which clusters these unexplained anomalies into reviewable candidate typologies (`candidate_typologies.yaml`, `status: pending_promotion`) — proposals you review and `aml typology-import`, never auto-promoted (#496).
 
 ![Anomaly Discovery](screenshots/49_anomaly_discovery.png)
 
