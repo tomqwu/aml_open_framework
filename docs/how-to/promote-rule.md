@@ -112,6 +112,7 @@ Three checks per promotion:
 
 ## Next steps
 
+- **Where do new rules come from?** `aml discover-typologies <spec> <run_dir>` is the upstream proposal lens: it profiles the *unexplained* population (customers no rule caught in that run), clusters them by shared anomalous shape, and writes `candidate_typologies.yaml` of PROPOSED rule stubs (`status: pending_promotion`). It is offline and human-gated — nothing auto-promotes. Review a proposal, then promote it through `add-a-rule.md` + the `environments:` ladder above.
 - See [How to add a rule](add-a-rule.md) — the upstream `environments:` field on `Rule`.
 - See [How to verify the audit chain](verify-audit-chain.md) — the **spec PR** is the promotion audit trail (the spec content hash changes; the git history records who approved). Subsequent runs against the new spec emit `promotion_audit_event()` gate-check events on `decisions.jsonl` (one per active rule per run) — those are the runtime evidence that the gate fired, not the promotion event itself.
 - The Rule Lifecycle page (universally-routed, every persona) surfaces every rule's `status`, `model_tier`, `validation_cadence_months`, `rule_version`, `risk_tier`, and approval state. It does NOT yet show the `environments` list — adding that column is a small follow-up; for now verify via the gating-event grep above.
