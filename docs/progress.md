@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-04. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-05. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 33 — June 2026 research complete** (`docs`, 2026-06-05): all five research documents now have June 2026 editions.
+>
+> - **`docs/research/2026-06-aml-data-problem.md`** added: June edition of the data-problem whitepaper with a new "What changed between May and June 2026" section covering SR 26-2 examination-active (49 days), Effectiveness NPRM + GENIUS Act NPRM June 9 comment deadline (4 days), M4 point-in-time effective-dated joins closing DATA-2, M2 `aml model-inventory` CLI closing DATA-6, and H2/H6 data-integrity fixes (SQL identifier validation, freshness tz-by-instant correctness). DATA-2 artifact map updated to reference `spec/models.py::DataContract.effective_dated · generators/sql.py::_enrich_join_sql`; DATA-6 updated to reference `aml model-inventory --markdown`.
+> - **Canonical research HTML files** synced to June 2026 versions on static site (regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality).
+> - **`docs/index.md`** updated: researcher/regulator card now reflects all 5 June 2026 editions live; deadline countdown updated (Effectiveness NPRM + GENIUS Act NPRM June 9 = 4 days, AUSTRAC Tranche 2 July 1 = 26 days, AMLA RTS July 10 = 35 days, SR 26-2 49 days examination-active); What's-new table row added.
+> - **4 new GitHub roadmap issues filed**: #510 dashboard regulatory-deadline alert banner (Now), #511 Regulatory Calendar dashboard page (Now), #512 automated monthly research refresh CI (Next), #513 GENIUS Act PPSI stablecoin example spec (Now).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **#512 — Monthly research-refresh CI** (`feat/research-refresh-ci`, 2026-06-05): a deterministic stub generator (`scripts/generate_research_stub.py`) that scaffolds the next `docs/research/<month>-<slug>.md` edition from the bundled regulatory calendar — REUSING the pure `dashboard.regulatory_calendar` loader (no streamlit, no network, no `date.today()` in the content path). It pre-populates the edition header, a "What changed since last month" deadline band-delta (each deadline's `urgency_band` at the month anchor vs the prior month, tighter-band crossings only), and a "Deadline countdown" table (active deadlines + per-deadline framework alignment), then leaves the analytical prose + primary-source citations as explicit `TODO(human)` placeholders — never fabricating citations, never overwriting an existing edition (idempotent). The `monthly-research-refresh` GitHub Actions workflow runs it on the 1st of each month (08:00 UTC) and opens a **draft** PR for human completion — it never auto-merges. Unit tests (`tests/test_research_stub.py`) pin determinism, idempotency, band-delta correctness, and the no-fabricated-URL invariant. Built on top of #510/#511 (the calendar it consumes). Depends on the regulatory-calendar branch landing first.
 
