@@ -85,6 +85,8 @@ PAGES = [
     "Anomaly Discovery",
     # PR-E3 (#380): per-scorer drift monitor (universal).
     "Drift Monitor",
+    # #511: forward regulatory deadline calendar (universal, Operations).
+    "Regulatory Calendar",
 ]
 
 
@@ -198,6 +200,7 @@ _PAGE_TO_SECTION: dict[str, str] = {
     "Case Investigation": "Operations",
     "Investigations": "Operations",
     "My Queue": "Operations",
+    "Regulatory Calendar": "Operations",
     "Analyst Review Queue": "Operations",
     "Live Monitor": "Operations",
     "Triage Queue": "Operations",
