@@ -151,7 +151,7 @@ aml detect-mule-rings spec.yaml <run-dir>            # deterministic union-find/
 aml equivalence <run-dir> --legacy legacy-alerts.csv # MATCH/NEW_ONLY/LEGACY_ONLY/DIFF parallel-run report (SR 11-7 / OSFI E-23)
 ```
 
-Full catalogue (`aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md#cli-commands`](docs/getting-started.md). Sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
+Full catalogue (`aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md`](docs/getting-started.md#stage-0--warm-up-the-2-minute-sanity-check). Sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
 
 ---
 

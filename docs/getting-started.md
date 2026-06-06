@@ -1,8 +1,21 @@
 # Getting Started
 
-A 15-minute path from `git clone` to a running AML program with alerts you can investigate. If you've used Streamlit before, skip ahead to [Run Your First Spec](#run-your-first-spec); if not, the install step is one command.
+The synthetic demo runs in **2 minutes** and shows you real alerts immediately — no data wrangling. But that's the warm-up, not the job. What the framework is *built* for is running **your** data, audit-defensibly, all the way to a regulator-ready evidence bundle and a **proven legacy↔new migration**. This guide is structured as that production-shaped arc, not a flat tutorial.
 
-## TL;DR
+## The path
+
+| Stage | What you do | Why it matters |
+|---|---|---|
+| **0. Warm-up** | The 2-minute synthetic sanity check | Prove the engine works before you invest |
+| **1. Bring your own data** | Wire CSVs / 9 source types / ISO 20022 | The real work starts here |
+| **2. Shape the program for production** | Custom rules, env promotion, advanced spec fields | Make it production-grade, not a toy run |
+| **3. Run a real business month** | Point-in-time, month-end slices | The realistic operational workflow |
+| **4. Prove legacy ↔ new equivalence** | The migration gate | Proof the rewrite reproduces the legacy control |
+| **5. Bundle + externally verify evidence** | `auditor-pack` + hash verification | What you hand the regulator |
+
+**Synthetic is the warm-up; the 5-year lookback is the destination.**
+
+### TL;DR — prove it runs in 2 minutes
 
 ```bash
 git clone https://github.com/tomqwu/aml_open_framework.git && cd aml_open_framework
@@ -11,11 +24,15 @@ aml dashboard examples/community_bank/aml.yaml
 # Open http://localhost:8501
 ```
 
-The dashboard runs the engine on synthetic data with planted positives, so you'll see real alerts immediately — no data wrangling required to start exploring.
+The dashboard runs the engine on synthetic data with planted positives, so you'll see real alerts immediately — proof it runs, not proof you're done. Keep reading: stages 1–5 are the actual job.
 
 ---
 
-## 1. Install (2 min)
+## Stage 0 — Warm-up: the 2-minute sanity check
+
+This stage proves the engine works end-to-end on synthetic data with planted positives, so you have a known-good baseline before you bring real data. Install, pick a spec, run it, and look at the alerts in the dashboard.
+
+### Install (2 min)
 
 The framework is a Python package with optional dashboard + API extras.
 
@@ -38,11 +55,9 @@ aml --help
 
 If you only need the engine + CLI, drop the extras: `pip install -e ".[dev]"`. The `dashboard` extra pulls in Streamlit + ECharts + AG Grid; the `api` extra pulls in FastAPI + Uvicorn.
 
----
+### Pick a spec (1 min)
 
-## 2. Pick a Spec (1 min)
-
-Ten example specs ship in `examples/`, spanning 5 jurisdictions and several typology focuses:
+Fourteen example specs ship in `examples/`, spanning 6 jurisdictions (US, CA, EU, UK, Cross-border, AU) and several typology focuses:
 
 | Spec path | Jurisdiction | Regulator | Use when |
 |---|---|---|---|
@@ -56,14 +71,15 @@ Ten example specs ship in `examples/`, spanning 5 jurisdictions and several typo
 | `examples/trade_based_ml/aml.yaml` | US | FinCEN + FATF / Egmont | Trade-based ML typology indicators |
 | `examples/us_rtp_fednow/aml.yaml` | US | FinCEN / RTP / FedNow | Real-time-payment push-fraud detection |
 | `examples/crypto_vasp/aml.yaml` | Cross-border | FATF R.16 / FinCEN / FINTRAC | VASP STR/SAR + Travel Rule completeness |
+| `examples/austrac_tranche_2_dnfbp/aml.yaml` | AU | AUSTRAC | Tranche-2 DNFBPs (lawyers/accountants/real-estate/precious-metals); STR/TTR |
+| `examples/genius_ppsi_issuer/aml.yaml` | US | FinCEN (GENIUS Act) | Permitted-payment stablecoin issuer — mint/burn, nested-VASP, sanctioned-wallet; SAR |
+| `examples/genius_ppsi_stablecoin/aml.yaml` | US | FinCEN (GENIUS Act NPRM) | Richer PPSI stablecoin — ISO 20022, 31 CFR Part 502 OFAC, SAR/CTR latency SLA |
 
 For your first run pick **`community_bank`** — it's the smallest, fastest, and best-documented.
 
 See [`docs/jurisdictions.md`](jurisdictions.md) for what each spec covers and how to adapt it to your institution.
 
----
-
-## 3. Run Your First Spec (2 min)
+### Run your first spec (2 min)
 
 ```bash
 # Validate the spec (JSON Schema + cross-reference integrity)
@@ -83,9 +99,7 @@ You'll see output like:
 
 Open the `cases/` directory under that artifacts path to see one JSON per alert — those are the auditable case files.
 
----
-
-## 4. Launch the Dashboard (1 min)
+### Launch the dashboard (1 min)
 
 ```bash
 aml dashboard examples/community_bank/aml.yaml
@@ -101,11 +115,13 @@ The sidebar **Audience** selector filters pages to a persona (CCO, Manager, Anal
 
 Full page-by-page walkthrough: [`docs/dashboard-tour.md`](dashboard-tour.md).
 
+> **That's the warm-up — it proves the engine works. Everything real starts now, with your data.**
+
 ---
 
-## 5. Bring Your Own Data (5 min)
+## Stage 1 — Bring your own data
 
-Two options to feed real data into the framework: drop CSVs in `data/input/`, or point the CLI at any of 9 supported source types (`synthetic`, `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`).
+This is where the real work starts. The synthetic baseline is behind you; now feed the framework the data your program actually runs on. Two options: drop CSVs in `data/input/`, or point the CLI at any of 9 supported source types (`synthetic`, `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`).
 
 ### Option A: CSV files (simplest)
 
@@ -135,7 +151,11 @@ ISO 20022 ingestion handles pacs.008 / pacs.009 (FI-to-FI), pain.001 (corporate 
 
 ---
 
-## 6. Author Your First Custom Rule (5 min)
+## Stage 2 — Shape the program for production
+
+With your data flowing, the next job is to make the program production-grade: author the rules your typologies actually need, gate them through environments so nothing untested fires in prod, and reach for the advanced spec fields that close specific compliance-pillar gaps. This is not a naive linear step — it's where the spec becomes an examiner-defensible control program.
+
+### Author your first custom rule (5 min)
 
 Every rule in `aml.yaml` cites a regulation. Here's the minimum viable rule shape:
 
@@ -174,9 +194,7 @@ aml validate examples/community_bank/aml.yaml
 
 The validator catches typos, broken cross-references, and structural errors before the engine ever touches data.
 
----
-
-## 6.1. Promote Across Environments (PR-D3)
+### Promote across environments (PR-D3)
 
 Specs run in one of four lanes — `dev` / `test` / `uat` / `prod` — declared on `program.environment` (defaults to `dev`). Each rule carries an `environments` list naming the lanes it has been signed off for (defaults to `["dev"]`):
 
@@ -201,13 +219,11 @@ At run time the engine asks `is_rule_approved_for_environment` for every rule. W
 
 Either way, an `environment_gate_check` event is appended to `decisions.jsonl` for **every** rule (approved or blocked) — the audit pack proves the gate was consulted on each rule, each run.
 
----
-
-## 6.2. Advanced spec features
+### Advanced spec features
 
 Five spec fields shipped in Rounds 26–28 that operators routinely miss because they're optional and default to a sensible no-op. Each one closes a specific compliance-pillar gap; reach for them when your program matures past the first-run shape.
 
-### `program.sla` — operational SLA monitor (PR-LF1)
+#### `program.sla` — operational SLA monitor (PR-LF1)
 
 Declares two operational SLAs the engine evaluates per run and writes to `sla_report.json` in the run directory: **alert disposition aging** (open cases older than `alert_disposition_days` with no terminal `closed` / `escalated_to_str` event) and **batch lateness** (the gap between `run.as_of` and the most-recent transaction exceeds `batch_cadence_days + batch_lateness_grace_days`). The engine never raises on a breach — it records the breach so the Pillar-6 dashboard and the audit pack surface it. Omit the block to disable the monitor (empty report).
 
@@ -223,7 +239,7 @@ program:
 
 Spec model: `src/aml_framework/spec/models.py::ProgramSLA`. Test: [`tests/test_engine_sla.py`](../tests/test_engine_sla.py).
 
-### `quality_checks[*].severity` — DQ triage tier (PR-B5)
+#### `quality_checks[*].severity` — DQ triage tier (PR-B5)
 
 Each `quality_checks` entry on a `data_contract` can carry a `severity` of `critical` / `high` / `medium` / `low` / `info` (defaults to `high` — the prior uniform posture, so the field is a no-op for existing specs). The engine threads severity into every `DQException` written to `dq_exceptions.jsonl`, so the Data Quality dashboard page and triage routing can filter on it. Use `critical` for required-column / unique-key breaks and `info` for canonicalisation drift.
 
@@ -239,7 +255,7 @@ data_contracts:
 
 Spec model: `src/aml_framework/spec/models.py::QualityCheck` (`DQSeverity` literal). Test: [`tests/test_engine_dq_exceptions.py`](../tests/test_engine_dq_exceptions.py).
 
-### `rule.risk_tier` — risk-based-controls axis (PR-RISK-1)
+#### `rule.risk_tier` — risk-based-controls axis (PR-RISK-1)
 
 A first-class `low` / `medium` / `high` tier on each rule, independent of `severity` (alert urgency) and `model_tier` (model-risk validation cadence). Closes the Pillar-5 "risk-based controls" gap on the North-Star Coverage page — until this shipped, the only risk signal was `severity`, which is an alert-priority field. Optional (defaults to `None`). PR-RISK-1 is additive-only: the field lands on the loaded spec, flows into the rule-version hash, and surfaces in the spec-diff path. Engine-time wire-in (alert priority + queue routing) is a follow-up PR.
 
@@ -253,7 +269,7 @@ rules:
 
 Spec model: `src/aml_framework/spec/models.py::RiskTier`. Test: [`tests/test_spec_risk_tier.py`](../tests/test_spec_risk_tier.py).
 
-### `rule.business_intent` + `out_of_scope` — examiner-readable rationale (PR-A2)
+#### `rule.business_intent` + `out_of_scope` — examiner-readable rationale (PR-A2)
 
 Free-text prose declaring **why this rule exists** and **what it explicitly does NOT catch**, written for an examiner or 2LoD reviewer (not a regulation citation — those go in `regulation_refs`). At generation time these fields flow into four downstream artifacts: the STR narrative preamble, the MRM dossier's conceptual-soundness section, the control-matrix program-intent block, and the audit pack's `program_intent.md` / `inventory.json`. `business_intent` is `None` until authored; `out_of_scope` defaults to an empty list (the downstream renderers collapse the exclusions block when empty).
 
@@ -271,7 +287,7 @@ rules:
 
 Spec model: `src/aml_framework/spec/models.py::Rule` (`business_intent`, `out_of_scope`). Test: [`tests/test_program_intent_wiring.py`](../tests/test_program_intent_wiring.py).
 
-### `program.prioritization` — governed alert triage score
+#### `program.prioritization` — governed alert triage score
 
 Advisory, explainable ML-style scoring that ranks alerts by risk so
 investigators triage highest-first — **without ever changing an alert's
@@ -293,36 +309,13 @@ Spec model: `src/aml_framework/spec/models.py::ProgramPrioritization`. Test: [`t
 
 ---
 
-## 7. Generate the Audit Bundle (1 min)
+## Stage 3 — Run a real business month
 
-```bash
-# Point --run-dir at the artifacts directory printed by `aml run` in step 3
-# (e.g. /tmp/aml_run_<id>/) — replace RUN_DIR below.
-aml auditor-pack examples/community_bank/aml.yaml --run-dir RUN_DIR --out evidence.zip
+The 5-year legacy-to-cloud lookback is not an appendix scenario — it **is** the realistic production workflow. You replay history through your modernised rules one month at a time, point-in-time, exactly as an examiner expects when you migrate a SAS / Actimize / Mantas TM stack to the cloud. This stage and stages 4–5 use the [`examples/community_bank_lookback`](../examples/community_bank_lookback) example spec — the lookback variant of `community_bank`.
 
-# Granular subsets (PR-D4) — same RUN_DIR:
-aml export-case  examples/community_bank/aml.yaml RUN_DIR CASE_ID --out case.zip
-aml export-batch examples/community_bank/aml.yaml RUN_DIR --cases c1,c2 --out batch.zip
-```
+The full copy-paste runbook (the 60-month loop, WORM-style hash log, per-month verification) lives in [`docs/how-to/run-five-year-lookback.md`](how-to/run-five-year-lookback.md); this is the orientation.
 
-Produces an evidence ZIP containing:
-- The spec snapshot at execution time
-- Every input dataset's SHA-256 hash
-- Every rule's output (alerts, cases)
-- The append-only decisions ledger with hash-chain verification
-- The control matrix mapping rules → regulations
-
-This is what you hand to your 2nd line of defense or an external auditor. Full spec: [`docs/audit-evidence.md`](audit-evidence.md).
-
----
-
-## 8. The Flagship Scenario: 5-Year Legacy-to-Cloud Lookback (10 min)
-
-Steps 1–7 onboard you to a single run. The scenario the framework is *built* for is bigger: **replay 5 years of history through your modernised rules, prove the new cloud engine reproduces the legacy system's alerts, and walk away with regulator-ready evidence for every month.** This is the "parallel run before you cut over" that an examiner expects when you migrate a SAS / Actimize / Mantas TM stack to the cloud.
-
-End-to-end it is five moves. The full copy-paste runbook (the 60-month loop, WORM-style hash log, per-month verification) lives in [`docs/how-to/run-five-year-lookback.md`](how-to/run-five-year-lookback.md); this is the orientation.
-
-### a. Generate 60 month-end slices
+### Generate 60 month-end slices
 
 ```bash
 python scripts/generate_lookback_dataset.py \
@@ -333,7 +326,7 @@ python scripts/generate_lookback_dataset.py \
 
 Writes `data/{parquet,csv}/<YYYY-MM>/{txn,customer}.*` for 60 months, with the synthetic seed pinned so planted-positive customers stay reproducible month to month. (Needs the `dashboard` extra for pyarrow; `--formats csv` skips it.)
 
-### b. Run one business month (loop the rest)
+### Run one business month (loop the rest)
 
 ```bash
 aml run examples/community_bank_lookback/aml.yaml \
@@ -345,9 +338,11 @@ aml run examples/community_bank_lookback/aml.yaml \
 
 Each month gets its own `run-<ts>/` with an independent manifest, alerts, decisions ledger, and hash chain. The runbook wraps this in a 60-iteration `for` loop.
 
-### c. Prove legacy ↔ new equivalence (the migration gate)
+---
 
-This is the move that separates "we rewrote the rules" from "we *proved* the rewrite is equivalent." Point `aml equivalence` at the run's alerts and your legacy system's export for the same period — a starter export ships with the example:
+## Stage 4 — Prove legacy ↔ new equivalence (the migration gate)
+
+This is the move that separates "we rewrote the rules" from "we *proved* the rewrite is equivalent" — the flagship differentiator. Point `aml equivalence` at the run's alerts and your legacy system's export for the same period — a starter export ships with the example:
 
 ```bash
 aml equivalence .artifacts/lookback/2025-12/run-*/ \
@@ -366,7 +361,34 @@ Every legacy↔new pair is classified into one of four buckets — this *is* you
 
 > Equivalence keys on the **exact** `(customer, window, rule)` cell, so with the starter `legacy-alerts.csv` against a fresh run you'll typically see only **NEW_ONLY** + **LEGACY_ONLY** — that *is* the divergence you triage (each one a **data**, **rule**, or **mapping** defect vs. an intentional change). A guaranteed **MATCH** needs the legacy period to equal a real alert's window exactly; the runbook + `tests/test_lookback_demo.py` show that by anchoring a legacy row to a live alert. Pass `--rule-map rule-map.yaml` when legacy rule ids differ — but it's the **complete** new→legacy map, so include an identity entry (`rule_x: rule_x`) for every comparable rule too, or you'll see same-id rules reported as false divergence. Omit the flag entirely only when all ids already match. `--max-severity-diff N` fails a CI gate when severity drift exceeds a threshold.
 
-### d. Verify every month's hash chain against an external pin
+---
+
+## Stage 5 — Bundle + externally verify the regulator evidence
+
+The final move is turning a run into evidence you can hand to your 2nd line of defense or an external auditor — and proving its integrity against an out-of-band pin so tampering is detectable. This is *evidence as a product*.
+
+### Generate the audit bundle
+
+```bash
+# Point --run-dir at the artifacts directory printed by `aml run`
+# (e.g. /tmp/aml_run_<id>/ or .artifacts/lookback/<YYYY-MM>/run-*/) — replace RUN_DIR below.
+aml auditor-pack examples/community_bank/aml.yaml --run-dir RUN_DIR --out evidence.zip
+
+# Granular subsets (PR-D4) — same RUN_DIR:
+aml export-case  examples/community_bank/aml.yaml RUN_DIR CASE_ID --out case.zip
+aml export-batch examples/community_bank/aml.yaml RUN_DIR --cases c1,c2 --out batch.zip
+```
+
+Produces an evidence ZIP containing:
+- The spec snapshot at execution time
+- Every input dataset's SHA-256 hash
+- Every rule's output (alerts, cases)
+- The append-only decisions ledger with hash-chain verification
+- The control matrix mapping rules → regulations
+
+This is what you hand to your 2nd line of defense or an external auditor. Full spec: [`docs/audit-evidence.md`](audit-evidence.md).
+
+### Verify every month's hash chain against an external pin
 
 ```bash
 aml verify-decisions --run-dir .artifacts/lookback/2025-12/run-*/ \
@@ -375,7 +397,7 @@ aml verify-decisions --run-dir .artifacts/lookback/2025-12/run-*/ \
 
 In production you'd pin `--expected-hash` from an out-of-band store (the runbook's §5 covers the WORM threat model). Exit 0 = the decisions ledger recomputes to the trusted head.
 
-### e. Bundle the regulator evidence
+### Bundle from the run's frozen spec snapshot
 
 ```bash
 # Build from the run's frozen spec_snapshot.yaml — not the live spec — so the
@@ -385,7 +407,7 @@ aml auditor-pack .artifacts/lookback/2025-12/run-*/spec_snapshot.yaml \
   --run-dir .artifacts/lookback/2025-12/run-*/ --out evidence-2025-12.zip
 ```
 
-**Why this is the north-star flow:** it exercises the framework's whole thesis in one pass — *equivalence before optimization* (c), *evidence as a product* (b, d, e), *point-in-time correctness* (a's month-end slices), and *DQ/reconciliation/defect* triage (c's classification). See [`docs/five-year-lookback.md`](five-year-lookback.md) for the analytics patterns layered on top.
+**Why this arc is the destination:** stages 3–5 exercise the framework's whole thesis in one pass — *equivalence before optimization* (stage 4), *evidence as a product* (stage 5's bundle + verification), *point-in-time correctness* (stage 3's month-end slices), and *DQ/reconciliation/defect* triage (stage 4's four-way classification). The 2-minute warm-up proves the engine runs; this arc proves you can run *your* program audit-defensibly and migrate to it without losing a single control. See [`docs/five-year-lookback.md`](five-year-lookback.md) for the analytics patterns layered on top.
 
 ---
 
@@ -393,7 +415,7 @@ aml auditor-pack .artifacts/lookback/2025-12/run-*/spec_snapshot.yaml \
 
 | If you want to... | Read |
 |---|---|
-| Run the full 5-year lookback end-to-end | [`docs/how-to/run-five-year-lookback.md`](how-to/run-five-year-lookback.md) — the 60-month loop, WORM hash log, per-month verification (the runbook behind §8) |
+| Run the full 5-year lookback end-to-end | [`docs/how-to/run-five-year-lookback.md`](how-to/run-five-year-lookback.md) — the 60-month loop, WORM hash log, per-month verification (the runbook behind stages 3–5) |
 | Import from a legacy SAS / Actimize / Mantas dump | [`docs/legacy-import.md`](legacy-import.md) — supported shapes, header aliases, manual-conversion workflow |
 | Understand the architecture end-to-end | [`docs/architecture.md`](architecture.md) |
 | See every dashboard page | [`docs/dashboard-tour.md`](dashboard-tour.md) |
