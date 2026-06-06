@@ -1,6 +1,23 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-05. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-06. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 34 — Static-site nav sync + feature roadmap issues** (`docs`, 2026-06-06): six documentation-surface gaps closed; five GitHub roadmap issues filed.
+>
+> **mkdocs.yml nav fixes** — the following pages existed on disk but were absent from the MkDocs nav (so the static site's sidebar omitted them):
+>
+> - `research/2026-06-aml-data-problem.md` — the June 2026 data-problem whitepaper (added in Round 33 / #512 context) was missing from the Research whitepapers nav group; now inserted after `2026-06-fintech-aml-reality.md` where it belongs chronologically.
+> - `how-to/discover-typologies.md` — the `aml discover-typologies` recipe (#496) was in the how-to index grid and in the repo but not reachable from the sidebar nav.
+> - `how-to/detect-mule-rings.md` — the `aml detect-mule-rings` recipe (#498) same gap.
+> - `how-to/configure-risk-segmentation.md` — the risk-segmentation + governed-suppression recipe (#495) same gap.
+> - `how-to/monitor-model-risk.md` — the model-risk-monitoring recipe (#497) same gap.
+> - `how-to/use-case-copilot.md` — the Case Copilot recipe (#499) same gap.
+>
+> **GitHub roadmap issues filed**: #521 (Getting Started split into 3 paced lessons), #522 (synthetic-data quality pass for newer specs), #523 (fraud-AML cross-spec example), #524 (fill placeholder how-to pages), #525 (July 2026 research refresh prep).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 33 — June 2026 research complete** (`docs`, 2026-06-05): all five research documents now have June 2026 editions.
 >
