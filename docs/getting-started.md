@@ -28,7 +28,7 @@ The dashboard runs the engine on synthetic data with planted positives, so you'l
 
 ---
 
-## Stage 0 — Warm-up: the 2-minute sanity check
+## Stage 0: Warm-up (2-minute sanity check)
 
 This stage proves the engine works end-to-end on synthetic data with planted positives, so you have a known-good baseline before you bring real data. Install, pick a spec, run it, and look at the alerts in the dashboard.
 
@@ -71,9 +71,10 @@ Fourteen example specs ship in `examples/`, spanning 6 jurisdictions (US, CA, EU
 | `examples/trade_based_ml/aml.yaml` | US | FinCEN + FATF / Egmont | Trade-based ML typology indicators |
 | `examples/us_rtp_fednow/aml.yaml` | US | FinCEN / RTP / FedNow | Real-time-payment push-fraud detection |
 | `examples/crypto_vasp/aml.yaml` | Cross-border | FATF R.16 / FinCEN / FINTRAC | VASP STR/SAR + Travel Rule completeness |
-| `examples/austrac_tranche_2_dnfbp/aml.yaml` | AU | AUSTRAC | Tranche-2 DNFBPs (lawyers/accountants/real-estate/precious-metals); STR/TTR |
+| `examples/austrac_tranche_2_dnfbp/aml.yaml` | AU | AUSTRAC | Tranche-2 DNFBPs (lawyers/accountants/real-estate/precious-metals); SMR/TTR |
 | `examples/genius_ppsi_issuer/aml.yaml` | US | FinCEN (GENIUS Act) | Permitted-payment stablecoin issuer — mint/burn, nested-VASP, sanctioned-wallet; SAR |
-| `examples/genius_ppsi_stablecoin/aml.yaml` | US | FinCEN (GENIUS Act NPRM) | Richer PPSI stablecoin — ISO 20022, 31 CFR Part 502 OFAC, SAR/CTR latency SLA |
+| `examples/genius_ppsi_stablecoin/aml.yaml` | US | FinCEN + OFAC (GENIUS Act NPRM) | Richer PPSI stablecoin — ISO 20022, 31 CFR Part 502 OFAC, SAR/CTR latency SLA |
+| `examples/community_bank_lookback/aml.yaml` | US | FinCEN | 5-year legacy→cloud migration lookback (the Stage 3–5 flagship) |
 
 For your first run pick **`community_bank`** — it's the smallest, fastest, and best-documented.
 
@@ -119,7 +120,7 @@ Full page-by-page walkthrough: [`docs/dashboard-tour.md`](dashboard-tour.md).
 
 ---
 
-## Stage 1 — Bring your own data
+## Stage 1: Bring your own data
 
 This is where the real work starts. The synthetic baseline is behind you; now feed the framework the data your program actually runs on. Two options: drop CSVs in `data/input/`, or point the CLI at any of 9 supported source types (`synthetic`, `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`).
 
@@ -138,11 +139,12 @@ Sample CSV files with 1,311 transactions and 100 customers ship in `data/input/`
 ### Option B: Other sources
 
 ```bash
-aml run spec.yaml --data-source parquet  --data-dir s3://bucket/path/
-aml run spec.yaml --data-source duckdb   --data-dir warehouse.duckdb
-aml run spec.yaml --data-source iso20022 --data-dir mx_messages/
-aml run spec.yaml --data-source snowflake # uses SNOWFLAKE_* env vars
-aml run spec.yaml --data-source bigquery  # uses GOOGLE_APPLICATION_CREDENTIALS
+aml run spec.yaml --data-source parquet  --data-dir data/parquet/        # local Parquet dir
+aml run spec.yaml --data-source s3        --data-dir s3://bucket/path/    # S3 (CSV or Parquet)
+aml run spec.yaml --data-source gcs       --data-dir gs://bucket/path/    # GCS
+aml run spec.yaml --data-source iso20022  --data-dir mx_messages/         # ISO 20022 pacs/pain
+aml run spec.yaml --data-source snowflake                                 # uses SNOWFLAKE_* env vars
+aml run spec.yaml --data-source bigquery                                  # uses GOOGLE_APPLICATION_CREDENTIALS
 ```
 
 ISO 20022 ingestion handles pacs.008 / pacs.009 (FI-to-FI), pain.001 (corporate batch), and pacs.004 (returns) natively — see [Round-5 changelog entries](../CHANGELOG.md) for the full surface.
@@ -151,7 +153,7 @@ ISO 20022 ingestion handles pacs.008 / pacs.009 (FI-to-FI), pain.001 (corporate 
 
 ---
 
-## Stage 2 — Shape the program for production
+## Stage 2: Shape the program for production
 
 With your data flowing, the next job is to make the program production-grade: author the rules your typologies actually need, gate them through environments so nothing untested fires in prod, and reach for the advanced spec fields that close specific compliance-pillar gaps. This is not a naive linear step — it's where the spec becomes an examiner-defensible control program.
 
@@ -309,7 +311,7 @@ Spec model: `src/aml_framework/spec/models.py::ProgramPrioritization`. Test: [`t
 
 ---
 
-## Stage 3 — Run a real business month
+## Stage 3: Run a real business month
 
 The 5-year legacy-to-cloud lookback is not an appendix scenario — it **is** the realistic production workflow. You replay history through your modernised rules one month at a time, point-in-time, exactly as an examiner expects when you migrate a SAS / Actimize / Mantas TM stack to the cloud. This stage and stages 4–5 use the [`examples/community_bank_lookback`](../examples/community_bank_lookback) example spec — the lookback variant of `community_bank`.
 
@@ -340,7 +342,7 @@ Each month gets its own `run-<ts>/` with an independent manifest, alerts, decisi
 
 ---
 
-## Stage 4 — Prove legacy ↔ new equivalence (the migration gate)
+## Stage 4: Prove legacy ↔ new equivalence (the migration gate)
 
 This is the move that separates "we rewrote the rules" from "we *proved* the rewrite is equivalent" — the flagship differentiator. Point `aml equivalence` at the run's alerts and your legacy system's export for the same period — a starter export ships with the example:
 
@@ -363,20 +365,19 @@ Every legacy↔new pair is classified into one of four buckets — this *is* you
 
 ---
 
-## Stage 5 — Bundle + externally verify the regulator evidence
+## Stage 5: Bundle + externally verify the regulator evidence
 
 The final move is turning a run into evidence you can hand to your 2nd line of defense or an external auditor — and proving its integrity against an out-of-band pin so tampering is detectable. This is *evidence as a product*.
 
 ### Generate the audit bundle
 
 ```bash
-# Point --run-dir at the artifacts directory printed by `aml run`
-# (e.g. /tmp/aml_run_<id>/ or .artifacts/lookback/<YYYY-MM>/run-*/) — replace RUN_DIR below.
-aml auditor-pack examples/community_bank/aml.yaml --run-dir RUN_DIR --out evidence.zip
+# Point --run-dir at the artifacts directory from the Stage 3 run.
+aml auditor-pack examples/community_bank_lookback/aml.yaml --run-dir .artifacts/lookback/2025-12/run-*/ --out evidence.zip
 
-# Granular subsets (PR-D4) — same RUN_DIR:
-aml export-case  examples/community_bank/aml.yaml RUN_DIR CASE_ID --out case.zip
-aml export-batch examples/community_bank/aml.yaml RUN_DIR --cases c1,c2 --out batch.zip
+# Granular subsets (PR-D4) — same run dir:
+aml export-case  examples/community_bank_lookback/aml.yaml .artifacts/lookback/2025-12/run-*/ CASE_ID --out case.zip
+aml export-batch examples/community_bank_lookback/aml.yaml .artifacts/lookback/2025-12/run-*/ --cases c1,c2 --out batch.zip
 ```
 
 Produces an evidence ZIP containing:

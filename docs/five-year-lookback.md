@@ -363,7 +363,7 @@ aml equivalence evidence/runs/2021-09/run-*/ \
 The legacy CSV needs `customer_id, period_start, period_end, rule_id_legacy`
 (optional `severity`). Pass `--rule-map` (the **complete** new→legacy map)
 when ids differ, and `--max-severity-diff N` to fail a CI gate on drift. The
-matching CLI walkthroughs: [getting-started — Stage 3: run a real business month](getting-started.md#stage-3--run-a-real-business-month)
+matching CLI walkthroughs: [getting-started — Stage 3: run a real business month](getting-started.md#stage-3-run-a-real-business-month)
 and [runbook step 8](how-to/run-five-year-lookback.md#8-prove-legacy-new-equivalence).
 
 The spec also carries a first-class **`program.legacy_reference`** block
