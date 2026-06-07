@@ -2,7 +2,7 @@
 
 This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed in the May 2026 window that generate compliance deadlines between 2026-06-01 and 2026-08-31. It is a living forward-calendar companion to the full chronological log in [`2026-05-regulator-pulse.md`](2026-05-regulator-pulse.md), which covers the 120-day event window 2026-02-01 → 2026-05-31.
 
-> **Last updated 2026-06-04.** *Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events. Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — 89 days, 30 events.*
+> **Last updated 2026-06-07.** *Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events. Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — 89 days, 30 events.*
 
 ---
 
@@ -18,14 +18,14 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-06-09 · FinCEN / OCC / FDIC / NCUA + OFAC — Effectiveness NPRM AND GENIUS Act Stablecoin NPRM comment deadlines (same day)
 
-**What it is:** Two major NPRMs share a single comment deadline. **5 days remain.**
+**What it is:** Two major NPRMs share a single comment deadline. **2 days remain — deadline TUESDAY JUNE 9.**
 
 1. **AML/CFT Program "Effectiveness" NPRM (Federal Register 2026-07033):** FinCEN, OCC, FDIC, and NCUA jointly reframe the BSA program rule around an "effective, risk-based, reasonably designed" standard implementing the AMLA 2020 mandate. A documented enterprise-wide risk assessment becomes a pillar (not just expected practice), and FinCEN national priorities must be incorporated into the program. "Effectiveness" is split into (1) program established and (2) program maintained — distinguishing technical from systemic failure. Proposed implementation period: 12 months after a final rule. Expected final rule late 2026 / early 2027.
 
 2. **GENIUS Act PPSI NPRM (Federal Register 2026-06963):** FinCEN and OFAC jointly propose treating permitted payment stablecoin issuers (PPSIs) as financial institutions under the Bank Secrecy Act, and — for the first time — imposing mandatory, legally-binding OFAC sanctions compliance programs under new 31 CFR Part 502.
 
-**What MLROs need to do by June 9 (5 days):**
-- **Complete gap analyses now.** The last realistic working window for completing, reviewing, and filing a comment letter is Friday June 5, with Monday June 8 the final business day before the Tuesday June 9 deadline for most firms. Gap analyses started after today may not finish before the concurrent deadline compresses industry filing bandwidth.
+**What MLROs need to do by June 9 (2 days — FINAL WINDOW):**
+- **Monday June 8 is the last business day.** Today (Sunday June 7) is the weekend before the Tuesday June 9 deadline. Any firm that has not yet filed a comment letter has one business day remaining. Gap analyses not yet started cannot be completed and filed before the deadline; focus on any available internal-channel documentation that can be submitted as a short-form comment citing proactive compliance posture.
 - Complete a gap analysis against the Effectiveness NPRM's risk-assessment and program-structure requirements. The 12-month implementation clock starts at the final rule — late 2026 gap analyses may not leave enough time.
 - Stablecoin issuers and banks sponsoring PPSIs: assess BSA-program equivalence and OFAC-sanctions-program gaps against the PPSI NPRM framework.
 - File comment letters if your firm has positions. The concurrent deadline compresses industry comment bandwidth.
@@ -40,7 +40,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-01 · AUSTRAC — Tranche 2 enforcement begins for Australian DNFBPs
 
-**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brings Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, enforceable from 2026-07-01. **27 days remain.**
+**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brings Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, enforceable from 2026-07-01. **24 days remain.**
 
 **What MLROs need to do:**
 - Australian DNFBPs must be enrolled with AUSTRAC and have a documented, board-approved AML/CTF program before July 1.
@@ -55,7 +55,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-10 · AMLA — Statutory deadline to submit all final RTS to European Commission
 
-**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **36 days remain.**
+**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **33 days remain.**
 
 **What MLROs need to do:**
 - EU-supervised obliged entities should treat July 10 as the "locked-in" date for the RTS framework. Post-July amendments require a full new legislative cycle.
@@ -72,16 +72,24 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ## What the Framework Shipped in June 2026 (to date)
 
-Four ML/AI roadmap features delivered 2026-06-04 across `v0.1.46` + `v0.1.47`:
+**10 features delivered 2026-06-04 through 2026-06-05** across `v0.1.46`–`v0.1.51`:
 
-| Feature | Version | SR 26-2 / Effectiveness NPRM relevance |
-|---------|---------|----------------------------------------|
-| **M1 — Triage Queue** dashboard page | v0.1.46 | Advisory `priority_score` with per-alert explanation panel; deterministic, explainable, off-by-default — satisfies MRM advisory-only requirement for ML-assisted alert ranking |
-| **M2 — `aml model-inventory`** CLI | v0.1.47 | SR 26-2 model-population inventory covering every rule + every `python_ref` external model + the N1 prioritization scorer; `--markdown` table ready for model-risk committee reports |
-| **M3 — champion-challenger `priority_outcome.json`** | v0.1.47 | Precision@k / recall comparison between champion and challenger weights; temporal-leakage guard enforced at runtime — satisfies SR 26-2's independent-challenger validation requirement |
-| **M4 — point-in-time effective-dated joins** | v0.1.47 | `DataContract.effective_dated` + `aggregation_window.enrich` emit as-of SQL JOINs so rules resolve reference state contemporaneous with each transaction; closes Pillar 3 (PARTIAL → COVERED) |
+| Feature | PR | SR 26-2 / Effectiveness NPRM relevance |
+|---------|---|----------------------------------------|
+| **M1 — Triage Queue** dashboard page | #485, v0.1.46 | Advisory `priority_score` with per-alert explanation panel; deterministic, explainable, off-by-default — satisfies MRM advisory-only requirement for ML-assisted alert ranking |
+| **M2 — `aml model-inventory`** CLI | #486, v0.1.47 | SR 26-2 model-population inventory covering every rule + every `python_ref` external model + the N1 prioritization scorer; `--markdown` table ready for model-risk committee reports |
+| **M3 — champion-challenger `priority_outcome.json`** | #487, v0.1.47 | Precision@k / recall comparison between champion and challenger weights; temporal-leakage guard enforced at runtime — satisfies SR 26-2's independent-challenger validation requirement |
+| **M4 — point-in-time effective-dated joins** | #488, v0.1.47 | `DataContract.effective_dated` + `aggregation_window.enrich` emit as-of SQL JOINs so rules resolve reference state contemporaneous with each transaction; closes Pillar 3 (PARTIAL → COVERED) |
+| **Equivalence divergence clustering** | #494, v0.1.51 | Shape-signature clustering of NEW_ONLY/LEGACY_ONLY divergences — triages parallel-run defects by pattern, not row-by-row; SR 11-7 / OSFI E-23 independent-challenger triage |
+| **Risk segmentation + governed suppression** | #495 | Advisory `suppression.applied` flag on low-risk/low-score alerts — never auto-closes; frozen `suppression_report.json` + investigator override; Effectiveness NPRM risk-based program evidence |
+| **Typology auto-discovery** | #496 | `aml discover-typologies` CLI clusters unexplained anomalies into `candidate_typologies.yaml` proposals (human-gated, never auto-promoted) — audit-defensible typology-gap evidence |
+| **Model-risk monitoring** | #497 | Frozen `model_risk_report.json` (model inventory + per-rule drift + validation cadence); advisory only; SR 26-2 / OSFI E-23 model governance artefact |
+| **Graph mule-ring detection** | #498 | `aml detect-mule-rings` CLI — deterministic union-find + density community detection; `mule_rings.json` advisory lens on Network Explorer |
+| **GenAI case copilot** | #499 | Governed Case Copilot on Case Investigation page — DRAFT outputs only, audited to `ai_interactions.jsonl`, SR-26-2 carve-out; human-reviewed, never auto-disposition |
+| **AUSTRAC Tranche 2 + GENIUS PPSI specs** | #500, #513 | Two new example specs: `austrac_dnfbp/` (AU Tranche 2 SMR/TTR) + `genius_ppsi_stablecoin/` (NPRM-grounded, 31 CFR Part 502 OFAC, SAR+CTR) |
+| **Regulatory Calendar + Today banner** | #510, #511 | Live deadline countdown (days-remaining per obligation) + per-deadline spec-field readiness indicator — Effectiveness NPRM program-assessment evidence |
 
-These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (48 days from April 17): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, and a model inventory that can be produced on demand.
+**SR 26-2 is now 51 days examination-active** (from April 17). Q2 examination cycles are running; second-line MRM teams are presenting to boards. The M2 model-inventory CLI, M3 champion-challenger outcome report, and the Drift Monitor's model-risk report section address the three artifacts MRM reviewers request most in current examination correspondence.
 
 ---
 
@@ -113,4 +121,4 @@ These are not operational niceties — they are the controls regulators will ins
 
 ---
 
-*Last updated: 2026-06-04 · Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*
+*Last updated: 2026-06-07 · Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*

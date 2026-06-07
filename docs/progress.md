@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-05. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-07. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 34 — Research refresh + how-to recipe surface + static site nav** (`docs`, 2026-06-07): docs-only round closing the remaining G6/G7 audit gaps and refreshing all June 2026 research documents for the current deadline posture.
+>
+> - **Research docs refreshed to 2026-06-07**: all five June 2026 editions updated. Regulator pulse: FinCEN + GENIUS Act NPRM deadline now **2 days** (June 9 — Monday June 8 is the final business day); AUSTRAC Tranche 2 now **24 days**; AMLA RTS now **33 days**; SR 26-2 **51 days** examination-active. Competitive positioning: added "What changed since June 4" section (full Next/Later roadmap tier shipped — #494–#500, #510–#513); priority table re-ranked (features #1 GENIUS PPSI and #2 AUSTRAC Tranche 2 both ✅ SHIPPED; new top priority is AMLA telemetry pack + how-to recipe surface). Process-pain + FinTech-reality: date and day-count updates.
+> - **`docs/index.md`** updated: researcher/regulator deadline card now shows 2 days / 24 days / 33 days / 51 days; full Next/Later roadmap noted shipped.
+> - **3 new how-to recipes written** for the shipped M1–M4 ML features: `enable-prioritization.md` (N1 scorer setup + Triage Queue), `run-champion-challenger.md` (SR 26-2 outcome artifact workflow + MRC report framing), `point-in-time-enrichment.md` (M4 effective-dated contract + as-of JOIN setup).
+> - **`mkdocs.yml` nav expanded**: 8 new entries — the 3 M1–M4 how-tos + 5 previously-shipped how-tos (configure-risk-segmentation, discover-typologies, detect-mule-rings, monitor-model-risk, use-case-copilot) that existed in `docs/how-to/` but were absent from the Build nav. `research/2026-06-aml-data-problem.md` added to the Explain → Research whitepapers nav (was the only June 2026 edition missing from the site nav).
+> - **GitHub roadmap issues filed** for remaining Next items: North Star PARTIAL pillar closures (Pillar 2, 4, 5, 7) + AMLA telemetry pack.
+>
+> No code changes; no CI targets affected. The docs-deploy workflow republishes the MkDocs site on merge automatically.
+
+---
 
 > **Round 33 — June 2026 research complete** (`docs`, 2026-06-05): all five research documents now have June 2026 editions.
 >

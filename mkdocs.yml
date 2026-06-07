@@ -131,6 +131,14 @@ nav:
       - "Configure SLA monitoring": how-to/configure-sla.md
       - "Triage defects": how-to/triage-defects.md
       - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md
+      - "Enable alert prioritization": how-to/enable-prioritization.md
+      - "Run champion-challenger validation": how-to/run-champion-challenger.md
+      - "Wire point-in-time reference data": how-to/point-in-time-enrichment.md
+      - "Configure risk segmentation": how-to/configure-risk-segmentation.md
+      - "Discover typologies offline": how-to/discover-typologies.md
+      - "Detect mule rings": how-to/detect-mule-rings.md
+      - "Monitor model risk": how-to/monitor-model-risk.md
+      - "Use the Case Copilot": how-to/use-case-copilot.md
 
   # ─── Operate ───────────────────────────────────────────────
   # Day-2 — running the framework in real environments.
@@ -152,6 +160,7 @@ nav:
           - research/2026-06-competitive-positioning.md
           - research/2026-06-aml-process-pain.md
           - research/2026-06-fintech-aml-reality.md
+          - research/2026-06-aml-data-problem.md
           - research/2026-05-aml-process-pain.md
           - research/2026-05-competitive-positioning.md
           - research/2026-05-fintech-aml-reality.md

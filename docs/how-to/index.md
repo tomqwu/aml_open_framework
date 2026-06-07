@@ -46,7 +46,7 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     ---
 
-    dev → test → uat → prod with sign-off events on the audit ledger. The `Program.environment` + `Rule.environments` machinery. *(Placeholder — to be filled.)*
+    dev → test → uat → prod with sign-off events on the audit ledger. The `Program.environment` + `Rule.environments` machinery. ~5 min. **Detailed.**
 
 -   :material-bitcoin:{ .lg .middle } **[Stand up a GENIUS Act PPSI program](genius-ppsi-compliance.md)**
 
@@ -70,7 +70,7 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     ---
 
-    Hand a regulator a single-case ZIP, not the whole run. `aml export-case` and `aml export-batch`. *(Placeholder — to be filled.)*
+    Hand a regulator a single-case ZIP, not the whole run. `aml export-case` and `aml export-batch`. ~30 sec per export. **Detailed.**
 
 -   :material-robot-outline:{ .lg .middle } **[Use the Case Copilot for a case](use-case-copilot.md)**
 
@@ -82,7 +82,7 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     ---
 
-    Paste a case_id and trace it back to source rows. CLI: `aml lineage`. Dashboard: Lineage Explorer page. *(Placeholder — to be filled.)*
+    Paste a case_id and trace it back to source rows. CLI: `aml lineage`. Dashboard: Lineage Explorer page. ~30 sec per case. **Detailed.**
 
 -   :material-history:{ .lg .middle } **[Run a 5-year transaction-monitoring lookback](run-five-year-lookback.md)**
 
@@ -100,13 +100,13 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     ---
 
-    `Program.sla` block + `sla_report.json` per-run artifact. *(Placeholder — to be filled.)*
+    `Program.sla` block + `sla_report.json` per-run artifact. Declare alert-disposition + freshness SLAs with breach detection. ~5 min. **Detailed.**
 
 -   :material-bug:{ .lg .middle } **[Triage defects from `defect_log.jsonl`](triage-defects.md)**
 
     ---
 
-    Round 28's 11-category classifier + data/rule/mapping decision tree. *(Placeholder — to be filled.)*
+    Round 28's 11-category classifier + data/rule/mapping decision tree. One entry per detectable issue; ~2 min per defect. **Detailed.**
 
 -   :material-layers-triple:{ .lg .middle } **[Configure risk segmentation + governed suppression](configure-risk-segmentation.md)**
 
@@ -119,6 +119,30 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
     ---
 
     Governed model-risk monitoring via `program.model_risk_monitoring`. Emits a frozen, manifest-pinned `model_risk_report.json` (model inventory + per-rule count drift vs prior run + validation cadence). Advisory only; SR 11-7 / OSFI E-23. ~10 min. **Detailed.**
+
+</div>
+
+## ML/AI governance (N1 + M1–M4)
+
+<div class="grid cards" markdown>
+
+-   :material-chart-line:{ .lg .middle } **[Enable alert prioritization](enable-prioritization.md)**
+
+    ---
+
+    Wire the N1 advisory priority scorer (`program.prioritization`). Stamps every alert with a `priority_score` + `priority_explanation`. Visible on the Triage Queue dashboard. ~10 min. **Detailed.**
+
+-   :material-trophy-outline:{ .lg .middle } **[Run a champion-challenger validation](run-champion-challenger.md)**
+
+    ---
+
+    Compare champion vs challenger `prioritization` weights on labelled ground-truth data. Produces a frozen, manifest-pinned `priority_outcome.json` for your SR 26-2 model-risk committee report. ~5 min per comparison. **Detailed.**
+
+-   :material-clock-time-four-outline:{ .lg .middle } **[Wire point-in-time reference data (M4)](point-in-time-enrichment.md)**
+
+    ---
+
+    Declare a reference contract as `effective_dated` and add an `enrich` block so `aggregation_window` rules join reference state as-of each transaction's booking date (SCD-2). Closes Pillar-3 gap. ~15 min. **Detailed.**
 
 </div>
 

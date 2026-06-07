@@ -1,10 +1,22 @@
 # AML Open Framework — Competitive Positioning Report: June 2026
 
-*Date: 2026-06-03 · Last updated: 2026-06-04 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery · Companion: [`2026-06-regulator-pulse.md`](./2026-06-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-05-competitive-positioning.md`](./2026-05-competitive-positioning.md).*
+*Date: 2026-06-03 · Last updated: 2026-06-07 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery + full Next/Later tier shipped (#494–#500, #510–#513) · Companion: [`2026-06-regulator-pulse.md`](./2026-06-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-05-competitive-positioning.md`](./2026-05-competitive-positioning.md).*
 
-> Refresh commissioned 2026-06-01, 7 days after the May 25 edition. Four events materially shift the competitive map since May 25: (1) the FinCEN Whistleblower NPRM comment period closed 2026-06-01 — the proposed award structure (final rule expected late 2026 / early 2027) sharpens the internal-reporting risk calculus even before it's finalized; (2) the Effectiveness NPRM + GENIUS Act NPRM comment deadline is in **5 days** (2026-06-09); (3) AUSTRAC Tranche 2 enforcement is in **27 days** (2026-07-01); (4) the May 31 security hardening sprint (H0–H6) shipped determinism, injection-safety, and coverage-gate fixes that directly strengthen the framework's SR 26-2 challenger-model position.
+> Refresh commissioned 2026-06-01, 7 days after the May 25 edition. Four events materially shift the competitive map since May 25: (1) the FinCEN Whistleblower NPRM comment period closed 2026-06-01 — the proposed award structure (final rule expected late 2026 / early 2027) sharpens the internal-reporting risk calculus even before it's finalized; (2) the Effectiveness NPRM + GENIUS Act NPRM comment deadline is in **2 days** (2026-06-09 — final window); (3) AUSTRAC Tranche 2 enforcement is in **24 days** (2026-07-01); (4) the May 31 security hardening sprint (H0–H6) shipped determinism, injection-safety, and coverage-gate fixes that directly strengthen the framework's SR 26-2 challenger-model position.
 >
-> *Updated 2026-06-04: day counts refreshed; M1–M4 ML roadmap (Triage Queue, model-inventory CLI, champion-challenger, point-in-time joins) shipped in v0.1.46–v0.1.47; SR 26-2 model inventory CLI (was priority #3) now complete — SR 26-2 48 days examination-active.*
+> *Updated 2026-06-07: deadline counts refreshed (June 9 = 2 days, AUSTRAC = 24 days, AMLA = 33 days, SR 26-2 = 51 days active); full Next/Later roadmap tier shipped (#494–#500, #510–#513) — equivalence clustering, risk segmentation, typology discovery, model-risk monitoring, mule-ring detection, GenAI case copilot, AUSTRAC + PPSI buyer-segment specs, Regulatory Calendar, research-refresh CI. Updated priority table: features #1 and #2 are now ✅ SHIPPED.*
+
+---
+
+## What changed since June 4
+
+**FinCEN + GENIUS Act NPRM comment deadline is now 2 days away (Tuesday June 9).** Monday June 8 is the final business day. Any firm without a completed gap analysis is past the filing window for substantive comment letters. The window is not closed — FinCEN accepts comments until the deadline — but same-day submissions with adequate analysis are no longer realistic. Firms in the AML Open Framework ecosystem have had the GENIUS Act PPSI compliance template (`examples/genius_ppsi_stablecoin/`) available since June 5; that template is a defensible gap-analysis starting point for any late filer.
+
+**AUSTRAC Tranche 2 is now 24 days away (July 1).** The `examples/austrac_dnfbp/` spec shipped June 5 — the first and only OSS AML framework with a Tranche 2 reference program. AUSTRAC's first-cycle posture (enforceable undertakings for documented good-faith programs) makes the comment-window documentation the differentiator, not the spec itself. Australian DNFBPs with a documented, board-approved program before July 1 qualify; those without do not.
+
+**SR 26-2 is 51 days examination-active** (up from 48 on June 4). The full Next/Later tier roadmap drained in the June 4–5 sprint, shipping 8 additional governed-augmentation features beyond M1–M4: equivalence divergence clustering (#494), risk segmentation + governed suppression (#495), typology auto-discovery (#496), model-risk monitoring (#497), mule-ring detection (#498), GenAI case copilot (#499), buyer-segment specs (#500), and Regulatory Calendar (#510–#511). The framework is now the only OSS AML platform that ships: a governed ML triage layer, a one-command SR 26-2 model inventory, a deterministic champion-challenger outcome report, a graph mule-ring lens, a GenAI case copilot with SR-26-2 carve-out governance, **and** a live forward-regulatory-deadline calendar with per-deadline spec-field readiness indicators.
+
+**Priority table re-ranked (see §3):** Features #1 (GENIUS Act PPSI template) and #2 (AUSTRAC Tranche 2 spec) are both ✅ **SHIPPED** as of June 5. New highest-leverage next features are the remaining North Star PARTIAL pillars and the how-to recipe surface for the shipped ML features.
 
 ---
 
@@ -12,7 +24,7 @@
 
 **M1–M4 ML roadmap fully delivered in v0.1.46 + v0.1.47.** The four Now-tier initiatives off the N1 governed-augmentation seam shipped in a single 24h sprint: Triage Queue dashboard page (M1), SR 26-2 model-inventory CLI `aml model-inventory` (M2 — **was priority #3, now complete**), champion-challenger `priority_outcome.json` with temporal-leakage guard (M3), and point-in-time effective-dated joins (M4, Pillar 3 PARTIAL→COVERED). The framework is the only OSS AML platform with a governed ML triage layer, a one-command SR 26-2 model inventory, and a deterministic champion-challenger outcome report.
 
-**June 9 comment deadline is now 5 days away.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline has moved from "6 days" to "5 days." Today (Thursday June 4) is the last full working day before the Friday–Saturday June 5–6 filing window that is the realistic last stop for most firms. Any firm without a completed gap analysis is now filing under same-day pressure.
+**June 9 comment deadline is now 5 days away (as of June 4).** The Effectiveness NPRM + GENIUS Act NPRM dual deadline had moved from "6 days" to "5 days." As of June 7, **2 days remain** — Monday June 8 is the final business day. See the "What changed since June 4" section above for the current posture.
 
 **SR 26-2 is 48 days examination-active** (up from 47 on June 3). The M2 model-inventory CLI ships the exact artifact second-line MRM teams have been building manually in Excel: `aml model-inventory --markdown` outputs a pipe-formatted table of every rule, every `python_ref` scorer, and the N1 prioritization model — ready for the Q3 model-risk committee report with one command.
 
@@ -70,21 +82,23 @@ No OSS competitor has shipped: (a) an AUSTRAC Tranche 2 example spec, (b) a PPSI
 
 **The M1–M4 ML roadmap ships the governed-augmentation seam no commercial platform publishes.** Triage Queue (M1) gives investigators a priority-scored, explainable alert queue — advisory-only, MRM-compliant. Model-inventory CLI (M2) emits the SR 26-2 inventory in one command. Champion-challenger outcome report (M3) with temporal-leakage guard is the independent-validation artifact SR 26-2 requires. Point-in-time joins (M4) closes Pillar 3 (PARTIAL → COVERED): reference data is resolved as-of each transaction, not from the latest row.
 
-**GENIUS Act PPSI template window closes June 9.** The NPRM proposes BSA-program + OFAC sanctions compliance for permitted payment stablecoin issuers. The comment deadline is June 9 — **5 days**. Publishing a PPSI-compliance reference template during the comment window positions the framework as the PPSI baseline before any competitor.
+**GENIUS Act PPSI template — ✅ SHIPPED.** The `examples/genius_ppsi_stablecoin/` spec (#513, June 5) is the NPRM-grounded PPSI compliance reference — 31 CFR Part 502 OFAC program, ISO 20022 fields, SAR + proposed PPSI CTR at proposed 31 CFR 1033.310. Published during the comment window (June 9 deadline, **2 days remain**), positioning the framework as the PPSI baseline before any OSS competitor.
 
-**AUSTRAC Tranche 2 deadline is July 1 — 27 days.** No OSS competitor exists. One PR, one new buyer segment, enforceable from July 1.
+**AUSTRAC Tranche 2 — ✅ SHIPPED.** `examples/austrac_dnfbp/` (#500, June 5). Deadline is July 1 — **24 days remain**. No OSS competitor has shipped an AUSTRAC Tranche 2 spec. First-cycle enforcement posture (EUs for documented programs) makes the spec the gap-analysis artefact.
 
 ---
 
-## 3. Highest-Leverage Next Features — June 2026 Re-ranking
+## 3. Highest-Leverage Next Features — June 2026 Re-ranking (updated June 7)
 
 | Priority | Feature | Days | Why now |
 |---|---|---|---|
-| #1 | **GENIUS Act / PPSI compliance template** (`examples/genius_act_ppsi/`) | 4 | **5 days to June 9 comment deadline.** Template during comment window = PPSI baseline positioning. Window closes Tuesday June 9. |
-| #2 | **AUSTRAC Tranche 2 example spec** (`examples/austrac_tranche2/`) | 4 | 27 days to July 1 enforcement. No OSS competitor. First-mover in an uncontested buyer segment. |
-| ~~#3~~ | ~~**SR 26-2 model inventory CLI** (`aml model-inventory`)~~ | ~~3~~ | **✅ SHIPPED v0.1.47** — `aml model-inventory --markdown` covers all rules, `python_ref` models, and the N1 prioritization scorer. |
-| #3 | **FinCEN Whistleblower internal-channel audit tool** | 2 | Comment period closed June 1. Final rule coming late 2026. Internal-escalation audit is the pre-implementation action. |
-| #4 | **AMLA STR/RTS effectiveness telemetry pack** | 6 | 36 days to AMLA RTS submission July 10. Alert→case→STR funnel per-rule precision/recall, packaged against AMLA standard. |
+| ~~#1~~ | ~~**GENIUS Act / PPSI compliance template**~~ | — | **✅ SHIPPED June 5** — `examples/genius_ppsi_stablecoin/` (#513, NPRM-grounded, 31 CFR Part 502). |
+| ~~#2~~ | ~~**AUSTRAC Tranche 2 example spec**~~ | — | **✅ SHIPPED June 5** — `examples/austrac_dnfbp/` (#500, SMR/TTR). 24 days to July 1 enforcement. |
+| ~~#3~~ | ~~**SR 26-2 model inventory CLI** (`aml model-inventory`)~~ | — | **✅ SHIPPED v0.1.47** — covers all rules, `python_ref` models, and the N1 prioritization scorer. |
+| #1 | **AMLA STR/RTS effectiveness telemetry pack** | 6 | **33 days to AMLA RTS submission July 10.** Alert→case→STR funnel per-rule precision/recall packaged against the AMLA standard. No OSS competitor. |
+| #2 | **How-to recipe surface for shipped ML features** | 2 | M1–M4 + 6 Next/Later features are shipped but lack task-oriented how-tos. `enable-prioritization.md`, `run-champion-challenger.md`, `point-in-time-enrichment.md` are the three gaps. |
+| #3 | **North Star PARTIAL pillar closures** | — | 4 of 8 pillars are PARTIAL: evidence-as-product (Pillar 2), DQ lifecycle (Pillar 4), risk-tier (Pillar 5), model-risk approval gates (Pillar 7). Each has a named missing piece on the North Star Coverage page. |
+| #4 | **FinCEN Whistleblower internal-channel audit tool** | 2 | Comment period closed June 1. Final rule late 2026. Internal-escalation audit is the pre-implementation action window. |
 
 ---
 
