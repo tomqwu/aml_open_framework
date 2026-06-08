@@ -21,9 +21,13 @@ fail loudly first.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from typer.testing import CliRunner
+
+from aml_framework.cli import app
 from aml_framework.data import (
     generate_dataset,
     generate_dataset_for_spec,
@@ -256,39 +260,49 @@ def test_tbml_fires_every_typology(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _rule_outputs(spec_path: Path, data, artifacts_root: Path) -> dict[str, str]:
-    spec = load_spec(spec_path)
-    result = run_spec(
-        spec=spec,
-        spec_path=spec_path,
-        data=data,
-        as_of=AS_OF,
-        artifacts_root=artifacts_root,
-    )
-    return result.manifest.get("rule_outputs", {})
-
-
 def test_rtp_replay_reproduces_same_rule_output_hashes(tmp_path) -> None:
-    """The replay determinism invariant for a newer spec.
+    """The replay determinism invariant for a newer spec — exercised
+    through the real `aml run` -> `aml replay` CLI path (#522 codex P2).
 
-    `aml run` and `aml replay` both now resolve synthetic data through
-    `generate_dataset_for_spec`. Re-running us_rtp_fednow at the same
-    (as_of, seed) must reproduce identical per-rule output hashes — if
-    replay had stayed on the shared `generate_dataset`, it would replay
-    against the OLD community-bank data (no C9xxx plants) and every
-    RTP-rule hash would diverge.
+    `aml run` (synthetic) and `aml replay` both resolve data through
+    `generate_dataset_for_spec`. This drives both commands via CliRunner
+    and asserts replay reports the per-rule output hashes all MATCH.
+
+    Fail-mode this guards: if `aml replay` regressed to the shared
+    `generate_dataset`, it would replay us_rtp_fednow against the OLD
+    community-bank data (no C9xxx plants), the RTP-rule hashes would
+    diverge, and replay would print "Hash mismatch detected." — making
+    this test fail. (Verified by temporarily reverting the routing.)
     """
+    runner = CliRunner()
     spec_path = _EXAMPLES / "us_rtp_fednow" / "aml.yaml"
-    original = generate_dataset_for_spec(spec=load_spec(spec_path), as_of=AS_OF, seed=42)
-    replay = generate_dataset_for_spec(spec=load_spec(spec_path), as_of=AS_OF, seed=42)
+    artifacts = tmp_path / "art"
 
-    orig_hashes = _rule_outputs(spec_path, original, tmp_path / "orig")
-    replay_hashes = _rule_outputs(spec_path, replay, tmp_path / "replay")
+    run_res = runner.invoke(
+        app,
+        ["run", str(spec_path), "--seed", "42", "--artifacts", str(artifacts)],
+    )
+    assert run_res.exit_code == 0, run_res.output
 
-    assert orig_hashes == replay_hashes
-    # And the hashes are for the RTP rules that only fire on the C9xxx band.
-    assert "first_use_payee_large_amount_rtp" in orig_hashes
-    assert "mule_receiver_fan_out_rtp" in orig_hashes
+    run_dirs = sorted(artifacts.glob("run-*"))
+    assert len(run_dirs) == 1, f"expected one run dir, got {run_dirs}"
+    run_dir = run_dirs[0]
+
+    # The original run's manifest must carry the RTP-only rule hashes
+    # that exist ONLY because the C9xxx plants fired — proof the run used
+    # the per-spec band, not community-bank data.
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    rule_outputs = manifest.get("rule_outputs", {})
+    assert "first_use_payee_large_amount_rtp" in rule_outputs
+    assert "mule_receiver_fan_out_rtp" in rule_outputs
+
+    replay_res = runner.invoke(
+        app,
+        ["replay", str(spec_path), str(run_dir), "--seed", "42", "--artifacts", str(artifacts)],
+    )
+    assert replay_res.exit_code == 0, replay_res.output
+    assert "All hashes match." in replay_res.output
+    assert "Hash mismatch detected." not in replay_res.output
 
 
 def test_backtest_default_loader_uses_per_spec_band() -> None:

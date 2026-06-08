@@ -32,6 +32,17 @@ _SPEC_GENERATORS: dict[str, Callable[..., dict[str, list[dict[str, Any]]]]] = {
 }
 
 
+def has_registered_generator(spec: AMLSpec) -> bool:
+    """True when `spec` has a dedicated planted-positive generator.
+
+    Callers that special-case data resolution (e.g. the dashboard's
+    root-CSV preference) use this to keep registered specs on their
+    per-spec C9xxx band while leaving every unregistered spec's path
+    unchanged.
+    """
+    return spec.program.name in _SPEC_GENERATORS
+
+
 def generate_dataset_for_spec(
     spec: AMLSpec,
     as_of: datetime,
@@ -55,4 +66,5 @@ __all__ = [
     "generate_rtp_fednow_dataset",
     "generate_trade_based_ml_dataset",
     "generate_uk_app_fraud_dataset",
+    "has_registered_generator",
 ]
