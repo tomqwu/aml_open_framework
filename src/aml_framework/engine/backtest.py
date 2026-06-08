@@ -150,17 +150,23 @@ DataLoader = Callable[[BacktestPeriod], dict[str, list[dict[str, Any]]]]
 LabelLoader = Callable[[BacktestPeriod], dict[str, bool] | None]
 
 
-def _default_data_loader(period: BacktestPeriod) -> dict[str, list[dict[str, Any]]]:
-    """Synthetic-data loader varying `as_of` per period.
+def _make_default_data_loader(spec: AMLSpec) -> DataLoader:
+    """Build the synthetic-data loader, spec-aware, varying `as_of` per period.
 
-    Uses the standard `generate_dataset` so backtested numbers come from
-    the same data generator the engine runs against. Importing here
-    keeps backtest cheap to import in environments without the data
-    extras.
+    Routes through `generate_dataset_for_spec` so backtested numbers come
+    from the SAME generator the engine runs against for this spec — the
+    three newer specs (us_rtp_fednow, uk_app_fraud, trade_based_ml) get
+    their dedicated planted-positive band, every other spec falls back to
+    the shared community-bank generator byte-identically. Importing here
+    keeps backtest cheap to import in environments without the data extras.
     """
-    from aml_framework.data import generate_dataset
 
-    return generate_dataset(as_of=period.as_of, seed=period.seed)
+    def _loader(period: BacktestPeriod) -> dict[str, list[dict[str, Any]]]:
+        from aml_framework.data import generate_dataset_for_spec
+
+        return generate_dataset_for_spec(spec=spec, as_of=period.as_of, seed=period.seed)
+
+    return _loader
 
 
 def backtest_rule(
@@ -187,7 +193,7 @@ def backtest_rule(
     if rule is None:
         raise ValueError(f"No rule with id {rule_id!r} in spec")
 
-    data_loader = data_loader or _default_data_loader
+    data_loader = data_loader or _make_default_data_loader(spec)
     period_list = list(periods)
     if not period_list:
         raise ValueError("backtest_rule requires at least one period")

@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from aml_framework.data import generate_dataset
+from aml_framework.data import generate_dataset_for_spec, has_registered_generator
 from aml_framework.dashboard.tenants import (
     TenantConfig,
     load_tenants,
@@ -106,10 +106,17 @@ def initialize_session() -> None:
 
     spec = load_spec(spec_path)
 
-    # Check for CSV files in data/input/ — use them if present.
+    # Check for CSV files in data/input/ — use them if present. The root
+    # data/input/*.csv files are the community-bank shape, so they MUST
+    # NOT shadow a spec that has its own planted-positive band: for a
+    # registered spec (us_rtp_fednow / uk_app_fraud / trade_based_ml) we
+    # fall through to its per-spec generator so the dashboard shows the
+    # same C9xxx data as `aml run`. Unregistered specs keep today's
+    # root-CSV preference.
     data_input_dir = _PROJECT_ROOT / "data" / "input"
     csv_files_present = (
-        data_input_dir.exists()
+        not has_registered_generator(spec)
+        and data_input_dir.exists()
         and (data_input_dir / "txn.csv").exists()
         and (data_input_dir / "customer.csv").exists()
     )
@@ -122,7 +129,10 @@ def initialize_session() -> None:
     else:
         from aml_framework.data.sources import infer_source_paths
 
-        data = generate_dataset(as_of=as_of, seed=seed)
+        # Spec-aware: the newer specs serve their own planted-positive
+        # band; every other spec falls back to community_bank
+        # byte-identically.
+        data = generate_dataset_for_spec(spec=spec, as_of=as_of, seed=seed)
         data_source_mode = "synthetic"
         data_sources = infer_source_paths("synthetic", spec)
 

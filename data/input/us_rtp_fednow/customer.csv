@@ -1,0 +1,30 @@
+customer_id,full_name,country,risk_rating,onboarded_at,typical_send_window_start_hour,typical_send_window_end_hour,device_id
+C9001,Daniel Reyes,US,medium,2024-10-09T12:00:00,9,17,
+C9002,Mule Ventures LLC,US,medium,2026-05-14T12:00:00,,,
+C9003,Ramp Source LLC,US,medium,2026-02-01T12:00:00,,,
+C9004,Mule Ring Member 1,US,medium,2026-05-22T12:00:00,,,DEV-RTP-MULE-001
+C9005,Mule Ring Member 2,US,medium,2026-05-21T12:00:00,,,DEV-RTP-MULE-001
+C9006,Mule Ring Member 3,US,medium,2026-05-20T12:00:00,,,DEV-RTP-MULE-001
+C9007,Mule Ring Member 4,US,medium,2026-05-19T12:00:00,,,DEV-RTP-MULE-001
+C9008,Retail Customer 8,US,low,2025-11-13T12:00:00,8,20,
+C9009,Retail Customer 9,US,low,2025-11-08T12:00:00,8,20,
+C9010,Retail Customer 10,US,low,2025-11-03T12:00:00,8,20,
+C9011,Retail Customer 11,US,low,2025-10-29T12:00:00,8,20,
+C9012,Retail Customer 12,US,low,2025-10-24T12:00:00,8,20,
+C9013,Retail Customer 13,US,low,2025-10-19T12:00:00,8,20,
+C9014,Retail Customer 14,US,low,2025-10-14T12:00:00,8,20,
+C9015,Retail Customer 15,US,low,2025-10-09T12:00:00,8,20,
+C9016,Retail Customer 16,US,low,2025-10-04T12:00:00,8,20,
+C9017,Retail Customer 17,US,low,2025-09-29T12:00:00,8,20,
+C9018,Retail Customer 18,US,low,2025-09-24T12:00:00,8,20,
+C9019,Retail Customer 19,US,low,2025-09-19T12:00:00,8,20,
+C9020,Retail Customer 20,US,low,2025-09-14T12:00:00,8,20,
+C9021,Retail Customer 21,US,low,2025-09-09T12:00:00,8,20,
+C9022,Retail Customer 22,US,low,2025-09-04T12:00:00,8,20,
+C9023,Retail Customer 23,US,low,2025-08-30T12:00:00,8,20,
+C9024,Retail Customer 24,US,low,2025-08-25T12:00:00,8,20,
+C9025,Retail Customer 25,US,low,2025-08-20T12:00:00,8,20,
+C9026,Retail Customer 26,US,low,2025-08-15T12:00:00,8,20,
+C9027,Retail Customer 27,US,low,2025-08-10T12:00:00,8,20,
+C9028,Retail Customer 28,US,low,2025-08-05T12:00:00,8,20,
+C9029,Retail Customer 29,US,low,2025-07-31T12:00:00,8,20,

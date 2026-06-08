@@ -10,7 +10,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from aml_framework.data import generate_dataset
+from aml_framework.data import generate_dataset_for_spec
 from aml_framework.engine import run_spec
 from aml_framework.export import export_bundle
 from aml_framework.generators import render_control_matrix, render_dag_stub
@@ -3223,7 +3223,9 @@ def demo(
     # Step 2 — run engine.
     console.print("\n[bold]2.[/bold] Running the engine on synthetic data…")
     as_of_dt = _parse_as_of(None)
-    data = generate_dataset(as_of=as_of_dt, seed=seed)
+    # Spec-aware: the newer specs serve their own planted-positive band;
+    # every other spec falls back to community_bank byte-identically.
+    data = generate_dataset_for_spec(spec=spec, as_of=as_of_dt, seed=seed)
     result = run_spec(
         spec=spec,
         spec_path=spec_path,
@@ -3372,7 +3374,12 @@ def replay(
         as_of_str = manifest.get("as_of")
 
     as_of_dt = _parse_as_of(as_of_str)
-    data = generate_dataset(as_of=as_of_dt, seed=seed)
+    # Spec-aware: replay MUST use the same generator the original run did,
+    # or a newer spec (us_rtp_fednow / uk_app_fraud / trade_based_ml) would
+    # replay against the OLD community-bank data and the hash comparison
+    # would spuriously diverge. Falls back to community_bank for every
+    # unregistered spec, byte-identical to before.
+    data = generate_dataset_for_spec(spec=spec, as_of=as_of_dt, seed=seed)
 
     replay_root = artifacts / "replay"
     result = run_spec(
