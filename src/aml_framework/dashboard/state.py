@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from aml_framework.data import generate_dataset
+from aml_framework.data import generate_dataset_for_spec
 from aml_framework.dashboard.tenants import (
     TenantConfig,
     load_tenants,
@@ -122,7 +122,10 @@ def initialize_session() -> None:
     else:
         from aml_framework.data.sources import infer_source_paths
 
-        data = generate_dataset(as_of=as_of, seed=seed)
+        # Spec-aware: the newer specs serve their own planted-positive
+        # band; every other spec falls back to community_bank
+        # byte-identically.
+        data = generate_dataset_for_spec(spec=spec, as_of=as_of, seed=seed)
         data_source_mode = "synthetic"
         data_sources = infer_source_paths("synthetic", spec)
 

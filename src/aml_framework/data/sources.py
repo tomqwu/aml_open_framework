@@ -120,7 +120,7 @@ def _load_local_mock(
     import duckdb
     import pyarrow as pa
 
-    from aml_framework.data import generate_dataset
+    from aml_framework.data import generate_dataset_for_spec
 
     logger.warning(
         "%s: LOCAL MOCK (no live credentials) — serving the seeded "
@@ -128,7 +128,9 @@ def _load_local_mock(
         source_type,
         source_type,
     )
-    data = generate_dataset(as_of=as_of, seed=seed)
+    # Spec-aware: the newer specs serve their own planted-positive band;
+    # every other spec falls back to community_bank byte-identically.
+    data = generate_dataset_for_spec(spec=spec, as_of=as_of, seed=seed)
     out: dict[str, list[dict[str, Any]]] = {}
     con = duckdb.connect(":memory:")
     try:

@@ -31,6 +31,7 @@ from aml_framework.data import (
     generate_trade_based_ml_dataset,
     generate_uk_app_fraud_dataset,
 )
+from aml_framework.engine.backtest import BacktestPeriod, _make_default_data_loader
 from aml_framework.engine.runner import run_spec
 from aml_framework.spec.loader import load_spec
 
@@ -246,3 +247,70 @@ def test_tbml_fires_every_typology(tmp_path) -> None:
         "trad_to_high_risk_jurisdiction",
     ):
         assert counts.get(rule, 0) >= 1, f"{rule} did not fire: {counts}"
+
+
+# ---------------------------------------------------------------------------
+# codex P2 (#522): ALL synthetic entry points route through the per-spec
+# dispatcher. The replay path is the determinism-critical one — a run
+# created via the spec-aware source must replay against the SAME data.
+# ---------------------------------------------------------------------------
+
+
+def _rule_outputs(spec_path: Path, data, artifacts_root: Path) -> dict[str, str]:
+    spec = load_spec(spec_path)
+    result = run_spec(
+        spec=spec,
+        spec_path=spec_path,
+        data=data,
+        as_of=AS_OF,
+        artifacts_root=artifacts_root,
+    )
+    return result.manifest.get("rule_outputs", {})
+
+
+def test_rtp_replay_reproduces_same_rule_output_hashes(tmp_path) -> None:
+    """The replay determinism invariant for a newer spec.
+
+    `aml run` and `aml replay` both now resolve synthetic data through
+    `generate_dataset_for_spec`. Re-running us_rtp_fednow at the same
+    (as_of, seed) must reproduce identical per-rule output hashes — if
+    replay had stayed on the shared `generate_dataset`, it would replay
+    against the OLD community-bank data (no C9xxx plants) and every
+    RTP-rule hash would diverge.
+    """
+    spec_path = _EXAMPLES / "us_rtp_fednow" / "aml.yaml"
+    original = generate_dataset_for_spec(spec=load_spec(spec_path), as_of=AS_OF, seed=42)
+    replay = generate_dataset_for_spec(spec=load_spec(spec_path), as_of=AS_OF, seed=42)
+
+    orig_hashes = _rule_outputs(spec_path, original, tmp_path / "orig")
+    replay_hashes = _rule_outputs(spec_path, replay, tmp_path / "replay")
+
+    assert orig_hashes == replay_hashes
+    # And the hashes are for the RTP rules that only fire on the C9xxx band.
+    assert "first_use_payee_large_amount_rtp" in orig_hashes
+    assert "mule_receiver_fan_out_rtp" in orig_hashes
+
+
+def test_backtest_default_loader_uses_per_spec_band() -> None:
+    """The backtest default loader is spec-aware (#522 codex P2).
+
+    For us_rtp_fednow it must serve the dedicated C9xxx planted band, not
+    the shared community-bank C0xxx dataset — otherwise backtested numbers
+    would diverge from what the engine run path produces.
+    """
+    spec = load_spec(_EXAMPLES / "us_rtp_fednow" / "aml.yaml")
+    loader = _make_default_data_loader(spec)
+    period = BacktestPeriod(label="2026-Q2", as_of=AS_OF, seed=42)
+    data = loader(period)
+    ids = {c["customer_id"] for c in data["customer"]}
+    assert "C9001" in ids and "C9029" in ids
+    assert not any(cid.startswith("C00") for cid in ids)
+    # Byte-identical to calling the dedicated generator directly.
+    assert data == generate_dataset_for_spec(spec=spec, as_of=AS_OF, seed=42)
+
+
+def test_backtest_default_loader_falls_back_for_community_bank() -> None:
+    spec = load_spec(_EXAMPLES / "community_bank" / "aml.yaml")
+    loader = _make_default_data_loader(spec)
+    period = BacktestPeriod(label="2026-Q2", as_of=AS_OF, seed=42)
+    assert loader(period) == generate_dataset(as_of=AS_OF, seed=42)
