@@ -80,21 +80,34 @@ class TestAPPFraudSpec:
         assert spec.program.jurisdiction == "UK"
         assert spec.program.regulator == "FCA"
 
-    def test_has_four_app_rules(self):
+    def test_has_four_app_rules_plus_aml_layering(self):
+        # Four fraud-domain APP rules + one AML-domain layering rule (#523)
+        # that shares the planted mule, demonstrating fraud↔AML linkage.
         spec = load_spec(SPEC_APP)
-        assert len(spec.rules) == 4
+        assert len(spec.rules) == 5
         rule_ids = {r.id for r in spec.rules}
         assert rule_ids == {
             "first_use_payee_large_amount",
             "cop_mismatch_override",
             "vulnerable_customer_atypical_payment",
             "rapid_pass_through_mule",
+            "rapid_outbound_dispersal",
         }
 
-    def test_every_rule_has_app_fraud_tag(self):
+    def test_fraud_rules_tagged_aml_rule_is_aml_domain(self):
+        # The four fraud rules carry the `app_fraud` tag AND `aml_priority:
+        # fraud`; the layering rule is AML-domain (#523) — NOT app_fraud —
+        # so `cases/linkage.py` classifies the two streams into opposite
+        # domains and emits a cross-program link on the shared mule.
         spec = load_spec(SPEC_APP)
         for rule in spec.rules:
-            assert "app_fraud" in rule.tags, f"rule {rule.id} missing app_fraud tag"
+            if rule.id == "rapid_outbound_dispersal":
+                assert "app_fraud" not in rule.tags
+                assert rule.aml_priority != "fraud"
+                assert "aml" in rule.tags
+            else:
+                assert "app_fraud" in rule.tags, f"rule {rule.id} missing app_fraud tag"
+                assert rule.aml_priority == "fraud", f"rule {rule.id} must be fraud-domain"
 
     def test_every_rule_cites_psr_or_fca(self):
         spec = load_spec(SPEC_APP)

@@ -252,6 +252,10 @@ _FROZEN_SNAPSHOT_TARGETS = (
     # the row-count survival story across bronze→silver→gold→alert
     # can't be edited after finalize.
     "reconciliation_report.json",
+    # #523 — fraud↔AML cross-program case-link inventory. Frozen so the
+    # parallel-investigation evidence can't be edited after finalize
+    # (same posture as the other regulator-facing artifacts above).
+    "case_links.jsonl",
 )
 
 
@@ -617,6 +621,17 @@ class AuditLedger:
             _sha256(reconciliation_path.read_bytes()) if reconciliation_path.exists() else None
         )
 
+        # #523: pin the SHA-256 of `case_links.jsonl` — the fraud↔AML
+        # cross-program linkage inventory is regulator-facing evidence
+        # ("these subjects were under parallel investigation by both
+        # teams"), so a post-finalize edit must be detectable the same way
+        # the DQ / lineage / SLA artifacts are. File always written by the
+        # runner (possibly empty); guarded for older runs that predate it.
+        case_links_path = self.run_dir / "case_links.jsonl"
+        case_links_hash = (
+            _sha256(case_links_path.read_bytes()) if case_links_path.exists() else None
+        )
+
         manifest = {
             "engine_version": ENGINE_VERSION,
             "run_dir": str(self.run_dir),
@@ -634,6 +649,7 @@ class AuditLedger:
             "monitoring_digest_hash": monitoring_digest_hash,
             "defect_log_hash": defect_log_hash,
             "reconciliation_report_hash": reconciliation_report_hash,
+            "case_links_hash": case_links_hash,
             "finalised_at": datetime.now(tz=timezone.utc).isoformat(),
         }
         # Pin the outcome hash only when the artifact exists (labels supplied) —

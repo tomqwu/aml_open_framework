@@ -696,9 +696,16 @@ def test_rebased_anchor_is_deterministic() -> None:
     # replica positives, with the replica slots C0030-C0059 stripped of
     # incidental prior noise (so each carries ONLY its planted shape).
     # Any drift from these exact figures means an unintended re-base.
-    assert len(data["txn"]) == 1311, (
-        f"txn count drifted to {len(data['txn'])} — expected 1311 "
-        "(v0.1.16 100-customer re-baseline); unintended re-base"
+    #
+    # 1314 = 1311 (v0.1.16 re-base) + 3 deterministic C0019 layering legs
+    # added by #523 (APPENDED at the end of the planted section so no
+    # later txn_id shifts) so the planted mule trips BOTH the fraud-domain
+    # `rapid_pass_through_mule` rule and the AML-domain
+    # `rapid_outbound_dispersal` rule, demonstrating the fraud↔AML
+    # cross-program `case_links.jsonl` linkage.
+    assert len(data["txn"]) == 1314, (
+        f"txn count drifted to {len(data['txn'])} — expected 1314 "
+        "(v0.1.16 re-base + 3 #523 C0019 layering legs); unintended re-base"
     )
     cash_count = sum(1 for t in data["txn"] if t["channel"] == "cash")
     assert cash_count == 342, (
@@ -716,4 +723,4 @@ def test_rebased_anchor_is_deterministic() -> None:
         f"all 30 of C0030..C0059, got {len(replica_with_txns)}"
     )
     # Determinism: same seed + same args ⇒ byte-identical txn count.
-    assert len(generate_dataset(as_of=AS_OF, seed=42)["txn"]) == 1311
+    assert len(generate_dataset(as_of=AS_OF, seed=42)["txn"]) == 1314

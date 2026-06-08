@@ -76,6 +76,10 @@ assert expected == manifest["signature"]["value"]
 
 Share the key out-of-band (not in the ZIP).
 
+### 5 · Export a linked case (cross-domain)
+
+When a subject is flagged across domains — a row in `case_links.jsonl` (fraud↔AML cross-program linkage, #523) — each linked case still exports as its own pack. Run `aml export-case <spec> <run-dir> <case_id>` once per `case_id` in the link's `fraud_case_ids` / `aml_case_ids` to hand a regulator both sides of the parallel investigation. To bundle the cross-program link record itself, use the full-run `aml export <run-dir>` ZIP — it includes `case_links.jsonl`; the single-case `export-case` pack does not. Example: the `uk_app_fraud` mule `C0019` produces a fraud case (`rapid_pass_through_mule`) and an AML case (`rapid_outbound_dispersal`) — export both case packs, or the full-run ZIP for the link.
+
 ---
 
 ## What's in the pack

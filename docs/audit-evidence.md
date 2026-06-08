@@ -30,6 +30,7 @@ Every `aml run` produces an evidence bundle containing:
 | `monitoring_digest.json`    | post-run rollup: alerts per rule/queue/severity, top-3 firers, DQ totals, per-rule diff vs prior run (hash pinned on the manifest) |
 | `defect_log.jsonl`          | Pillar-2 defect tickets: severity + 11-category classifier + data/rule/mapping triage + lifecycle (open/acknowledged/resolved/closed/wont_fix); always written, hash pinned on the manifest |
 | `reconciliation_report.json`| Pillar-4 row-count survival per contract across bronze→silver→gold→alert + signed drop attribution (hash pinned on the manifest) |
+| `case_links.jsonl`          | fraud↔AML cross-program case links (#523): one record per customer with open cases in BOTH the fraud and AML domains (`aml_priority`-driven); always written (empty when nothing links), `customer_id` masked under `AML_PII_MASKING`, hash pinned on the manifest |
 | `signatures/manifest.sig`   | detached signature over `manifest.json` (if signing key set)    |
 
 ## Granular evidence exports (PR-D4, #377)
