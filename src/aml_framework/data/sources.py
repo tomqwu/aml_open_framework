@@ -399,9 +399,13 @@ def resolve_source(
 ) -> dict[str, list[dict[str, Any]]]:
     """Resolve a data source by type string. Used by CLI and API."""
     if source_type == "synthetic":
-        from aml_framework.data import generate_dataset
+        from aml_framework.data import generate_dataset_for_spec
 
-        return generate_dataset(as_of=as_of, seed=seed)
+        # Spec-aware: the three newer specs (us_rtp_fednow, uk_app_fraud,
+        # trade_based_ml) serve their own isolated C9xxx planted-positive
+        # band; every other spec falls back to the shared community-bank
+        # generator (byte-identical to the legacy path).
+        return generate_dataset_for_spec(spec=spec, as_of=as_of, seed=seed)
 
     if source_type == "csv":
         if not data_dir:
