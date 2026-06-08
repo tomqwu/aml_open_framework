@@ -110,6 +110,30 @@ Filing form: **UK SAR** to the National Crime Agency (NCA) under POCA s.330-332.
 aml dashboard examples/uk_bank/aml.yaml
 ```
 
+### Fraud ↔ AML cross-program case linkage (`uk_app_fraud`)
+
+`examples/uk_app_fraud/aml.yaml` is the bundled demonstrator of
+**cross-program case linkage** — the [`cases/linkage.py`](../src/aml_framework/cases/linkage.py)
+mechanism that surfaces a subject under parallel investigation by both
+the fraud team and the financial-crime (AML) team. The spec carries two
+alert streams over the same accounts:
+
+- **Fraud-domain** — the four APP-fraud rules (`first_use_payee_large_amount`,
+  `cop_mismatch_override`, `vulnerable_customer_atypical_payment`,
+  `rapid_pass_through_mule`), each tagged `aml_priority: fraud`.
+- **AML-domain** — `layering_dispersal_to_multiple_payees`
+  (`aml_priority: other`), the AML team's POCA s.327 layering detector
+  for rapid dispersal of received funds across multiple payees.
+
+The planted mule **C0019** trips both the fraud-domain
+`rapid_pass_through_mule` and the AML-domain layering rule, so
+`aml run examples/uk_app_fraud/aml.yaml --seed 42` writes a
+**`case_links.jsonl`** artifact (manifest-pinned, frozen post-finalize)
+with one cross-program link, and the dashboard's
+[Case Investigation page](dashboard-tour.md) shows a *Linked across
+domains* row. Export the full linked-case evidence bundle with
+`aml export` (the run-dir ZIP includes `case_links.jsonl`).
+
 ---
 
 ## Australia — AUSTRAC / AML-CTF Act
