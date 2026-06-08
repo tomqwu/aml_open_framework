@@ -122,6 +122,8 @@ nav:
       - how-to/index.md
       - "Add a detection rule": how-to/add-a-rule.md
       - "Wire a python_ref scorer": how-to/python-ref-scorer.md
+      - "Discover candidate typologies": how-to/discover-typologies.md
+      - "Detect mule rings": how-to/detect-mule-rings.md
       - "Verify the audit chain": how-to/verify-audit-chain.md
       - "Run a 5-year lookback": how-to/run-five-year-lookback.md
       - "Migrate from legacy stack": legacy-import.md
@@ -130,6 +132,9 @@ nav:
       - "Walk the lineage chain": how-to/walk-lineage.md
       - "Configure SLA monitoring": how-to/configure-sla.md
       - "Triage defects": how-to/triage-defects.md
+      - "Configure risk segmentation": how-to/configure-risk-segmentation.md
+      - "Monitor model risk + drift": how-to/monitor-model-risk.md
+      - "Use the Case Copilot": how-to/use-case-copilot.md
       - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md
 
   # ─── Operate ───────────────────────────────────────────────
@@ -148,10 +153,16 @@ nav:
       - architecture.md
       - personas.md
       - "Research whitepapers":
+          - research/2026-07-regulator-pulse.md
+          - research/2026-07-competitive-positioning.md
+          - research/2026-07-aml-process-pain.md
+          - research/2026-07-fintech-aml-reality.md
+          - research/2026-07-aml-data-problem.md
           - research/2026-06-regulator-pulse.md
           - research/2026-06-competitive-positioning.md
           - research/2026-06-aml-process-pain.md
           - research/2026-06-fintech-aml-reality.md
+          - research/2026-06-aml-data-problem.md
           - research/2026-05-aml-process-pain.md
           - research/2026-05-competitive-positioning.md
           - research/2026-05-fintech-aml-reality.md
