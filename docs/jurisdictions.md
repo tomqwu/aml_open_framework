@@ -210,6 +210,40 @@ aml dashboard examples/crypto_vasp/aml.yaml
 
 ---
 
+## Spec-specific planted-positive demo data (#522)
+
+Three of the newer specs ship with their **own** deterministic
+planted-positive synthetic data rather than inheriting the shared
+community-bank dataset. `aml run examples/<spec>/aml.yaml --seed 42`
+(synthetic source) now resolves the spec's dedicated generator by
+`program.name`, so a prospective user sees only that spec's typologies —
+not 60 community-bank customers. Every other spec is unchanged (it falls
+back to the shared `generate_dataset`, byte-identical to before).
+
+| Spec | Generator | Customer band | Planted typologies (one alert each) |
+|---|---|---|---|
+| `examples/us_rtp_fednow/aml.yaml` | `data/synthetic_rtp_fednow.py` | **C9001–C9029** | first-use large RTP send · receive-velocity spike · ramp-up-then-drain · 4-mule device fan-out (network) · unusual send-hour |
+| `examples/uk_app_fraud/aml.yaml` | `data/synthetic_uk_app_fraud.py` | **C9101–C9129** | first-use large payee · vulnerable-customer atypical payment · CoP-mismatch override · rapid pass-through mule (PSP-switching, account < 30 days) |
+| `examples/trade_based_ml/aml.yaml` | `data/synthetic_trade_based_ml.py` | **C9201–C9229** | over-invoicing · under-invoicing (over/under pair share an invoice corridor) · phantom shipping · multiple invoicing · TRAD-to-high-risk-jurisdiction |
+
+The generators are stdlib-only, deterministic (every amount + time
+offset is hardcoded; output depends only on `as_of`), and isolated from
+the community-bank `C0xxx` band. Seed-42 sample CSVs (anchored at
+`as_of = 2026-06-01T12:00:00`) are committed under
+`data/input/<spec>/` for offline use:
+
+```bash
+# Synthetic (dedicated generator picked automatically by program.name):
+aml run examples/us_rtp_fednow/aml.yaml --seed 42
+
+# From the committed CSVs (pass the matching --as-of):
+aml run examples/trade_based_ml/aml.yaml \
+  --data-source csv --data-dir data/input/trade_based_ml \
+  --as-of 2026-06-01T12:00:00
+```
+
+---
+
 ## Adapting a Spec to Your Institution
 
 The bundled specs are reference designs, not turnkey deployments. To adapt:

@@ -120,7 +120,7 @@ def _load_local_mock(
     import duckdb
     import pyarrow as pa
 
-    from aml_framework.data import generate_dataset
+    from aml_framework.data import generate_dataset_for_spec
 
     logger.warning(
         "%s: LOCAL MOCK (no live credentials) — serving the seeded "
@@ -128,7 +128,9 @@ def _load_local_mock(
         source_type,
         source_type,
     )
-    data = generate_dataset(as_of=as_of, seed=seed)
+    # Spec-aware: the newer specs serve their own planted-positive band;
+    # every other spec falls back to community_bank byte-identically.
+    data = generate_dataset_for_spec(spec=spec, as_of=as_of, seed=seed)
     out: dict[str, list[dict[str, Any]]] = {}
     con = duckdb.connect(":memory:")
     try:
@@ -399,9 +401,13 @@ def resolve_source(
 ) -> dict[str, list[dict[str, Any]]]:
     """Resolve a data source by type string. Used by CLI and API."""
     if source_type == "synthetic":
-        from aml_framework.data import generate_dataset
+        from aml_framework.data import generate_dataset_for_spec
 
-        return generate_dataset(as_of=as_of, seed=seed)
+        # Spec-aware: the three newer specs (us_rtp_fednow, uk_app_fraud,
+        # trade_based_ml) serve their own isolated C9xxx planted-positive
+        # band; every other spec falls back to the shared community-bank
+        # generator (byte-identical to the legacy path).
+        return generate_dataset_for_spec(spec=spec, as_of=as_of, seed=seed)
 
     if source_type == "csv":
         if not data_dir:
