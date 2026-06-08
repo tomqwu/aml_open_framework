@@ -72,6 +72,7 @@ rules:
   - id: first_use_payee_large_amount
     name: APP — first-use payee with payment > GBP 1,000
     severity: high
+    aml_priority: fraud   # fraud-domain — see layering_dispersal rule note
     regulation_refs:
       - citation: "PSR Specific Direction SD20 (APP scams reimbursement)"
         description: "PSR mandatory reimbursement scheme — sending PSP liable for 50%."
@@ -118,6 +119,7 @@ rules:
   - id: cop_mismatch_override
     name: APP — Confirmation of Payee mismatch with override
     severity: critical
+    aml_priority: fraud
     regulation_refs:
       - citation: "PSR Specific Direction SD17 (Confirmation of Payee)"
         description: "Mandatory CoP for Faster Payments + CHAPS."
@@ -162,6 +164,7 @@ rules:
   - id: vulnerable_customer_atypical_payment
     name: APP — vulnerable customer makes payment > 5x typical
     severity: critical
+    aml_priority: fraud
     regulation_refs:
       - citation: "PSR CRS Annex 4 — consumer standard of caution"
         description: "Vulnerable customer exemption from gross-negligence test."
@@ -216,6 +219,7 @@ rules:
   - id: rapid_pass_through_mule
     name: APP — rapid pass-through (in then out within 1h)
     severity: high
+    aml_priority: fraud
     regulation_refs:
       - citation: "PSR Specific Direction SD20 (APP scams reimbursement)"
         description: "Receiving PSP liability — mule-account detection obligation."
@@ -272,6 +276,67 @@ rules:
       - outbound legs below the 80% pass-through ratio (treated as ordinary spend)
       - inbound credits without a matched outbound leg (handled by other behavioural rules)
       - genuine treasury sweeps between a customer's own accounts
+
+  # --- AML Typology: Layering — rapid dispersal to multiple payees ---
+  # #523 — fraud↔AML cross-program case linkage demonstrator.
+  #
+  # The four rules above are all FRAUD-domain (each carries
+  # `aml_priority: fraud`): they are the APP-fraud team's detectors. This
+  # rule is the financial-crime (AML) team's layering detector — it
+  # carries `aml_priority: other`, so `cases/linkage.py` classifies its
+  # cases as AML-domain, NOT fraud.
+  #
+  # A laundering mule that receives victim funds (the
+  # `rapid_pass_through_mule` fraud signature) then breaks the proceeds
+  # into several smaller outbound transfers to distinct payees within a
+  # short window is performing classic LAYERING. When the same customer
+  # (the planted mule C0019) trips BOTH a fraud-domain rule and this
+  # AML-domain rule, the run emits a cross-program link in
+  # `case_links.jsonl` and the Case Investigation page surfaces a
+  # "Linked across domains" row — so the fraud analyst and the AML
+  # analyst each see the other team's open case on the same subject,
+  # instead of writing two contradictory narratives blind to each other.
+  - id: layering_dispersal_to_multiple_payees
+    name: AML — layering dispersal (≥3 outbound payees within 7d, ≥ GBP 1,500)
+    severity: high
+    aml_priority: other   # AML-domain (not fraud) — drives cross-domain linkage
+    regulation_refs:
+      - citation: "POCA 2002 s.327"
+        description: "Concealing / converting / transferring criminal property (layering)."
+      - citation: "JMLSG Guidance Part I 5.3 — layering indicators"
+        description: "Rapid dispersal of received funds across multiple payees."
+      - citation: "FATF Recommendation 20 — suspicious transaction reporting"
+        description: "STR obligation where funds are suspected proceeds of crime."
+    logic:
+      type: aggregation_window
+      source: txn
+      filter:
+        direction: out
+        channel: { in: [faster_payments, chaps] }
+      group_by: [customer_id]
+      window: 7d
+      having:
+        count:      { gte: 3 }
+        sum_amount: { gte: 1500 }
+    escalate_to: l2_investigator
+    evidence:
+      - matching_outbound_dispersal_legs
+      - inbound_funding_source
+      - customer_kyc_profile
+      - linked_fraud_case_reference
+    tags: [aml, layering, mule, poca, cross_program_linkage]
+    business_intent: >
+      Flag a customer dispersing GBP 1,500+ across three or more outbound
+      transfers inside 7 days — the layering leg of the place-layer-
+      integrate cycle that an APP-fraud mule runs after receiving victim
+      funds. The AML team owns this detector; when it fires on a subject
+      the APP-fraud team has also alerted on, the framework links the two
+      cases so neither team investigates blind.
+    out_of_scope:
+      - inbound fan-in (this rule analyses outbound dispersal only)
+      - dispersal under GBP 1,500 cumulative or fewer than three legs
+      - a customer's own-account treasury sweeps (handled by KYC exclusion)
+      - single large outbound to one payee (covered by the fraud-domain rules)
 
 workflow:
   queues:

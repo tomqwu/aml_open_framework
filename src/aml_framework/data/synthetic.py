@@ -995,6 +995,34 @@ def generate_dataset(
             )
         )
         tid += 1
+        # #523: fraud↔AML cross-program linkage. The same mule that trips
+        # the fraud-domain `rapid_pass_through_mule` rule above also
+        # disperses the laundered funds across several smaller outbound
+        # legs to distinct payees within the hour — a textbook AML
+        # *layering* shape that trips the AML-domain
+        # `layering_dispersal_to_multiple_payees` rule. With one customer
+        # in BOTH the fraud and AML domains, `cases/linkage.py` emits a
+        # LinkedCustomer and the run writes a cross-program `case_links.jsonl`.
+        # Each leg is < £500 so it adds no `rapid_pass_through_mule` match;
+        # the four-way dispersal (incl. the £1,700 leg above) sums to
+        # £2,600 across 4 payees, clearing the layering rule's
+        # count >= 3 / sum >= £1,500 floor. GBP/faster_payments keeps the
+        # shape rule-inert for non-UK specs (same guard as the rows above).
+        for leg, amt in enumerate((300, 300, 300), start=1):
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0019",
+                    amt,
+                    pass_in + timedelta(minutes=30 + 5 * leg),
+                    channel="faster_payments",
+                    direction="out",
+                    currency="GBP",
+                    customer_session_id="SESS-C0019-1",
+                    counterparty_id=f"CP-MULE-LAYER-2026-{leg:03d}",
+                )
+            )
+            tid += 1
 
     # ---------------------------------------------------------------------
     # Trade-based ML planted positives (trade_based_ml spec)

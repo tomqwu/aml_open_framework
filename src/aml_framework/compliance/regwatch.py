@@ -116,6 +116,7 @@ CITATION_URL_MAP: dict[str, str] = {
     "FATF Recommendation 16 — wire transfer information": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
     "FATF Recommendation 19": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
     "FATF Recommendation 24": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
+    "FATF Recommendation 20 — suspicious transaction reporting": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html",
     "FATF Cyber-Enabled Fraud (Feb 2026)": "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Cyber-enabled-fraud.html",
     "FATF Trade-Based Money Laundering (Sep 2025 update)": "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Trade-based-money-laundering.html",
     "FATF High-Risk Jurisdictions Subject to Call for Action": "https://www.fatf-gafi.org/en/publications/High-risk-and-other-monitored-jurisdictions/Call-for-action-june-2025.html",
@@ -128,7 +129,9 @@ CITATION_URL_MAP: dict[str, str] = {
     # UK
     "MLR 2017 reg. 28": "https://www.legislation.gov.uk/uksi/2017/692/regulation/28",
     "MLR 2017 reg. 33": "https://www.legislation.gov.uk/uksi/2017/692/regulation/33",
+    "POCA 2002 s.327": "https://www.legislation.gov.uk/ukpga/2002/29/section/327",
     "POCA 2002 s.330": "https://www.legislation.gov.uk/ukpga/2002/29/section/330",
+    "JMLSG Guidance Part I 5.3 — layering indicators": "https://www.jmlsg.org.uk/guidance/current-guidance/",
     "OFSI Financial Sanctions": "https://www.gov.uk/government/organisations/office-of-financial-sanctions-implementation",
     "FCA FG24/4 — APP fraud detection expectations": "https://www.fca.org.uk/publications/finalised-guidance/fg24-4",
     "FCA Vulnerable Customer Guidance FG21/1": "https://www.fca.org.uk/publication/finalised-guidance/fg21-1.pdf",
