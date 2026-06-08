@@ -91,7 +91,7 @@ class TestAPPFraudSpec:
             "cop_mismatch_override",
             "vulnerable_customer_atypical_payment",
             "rapid_pass_through_mule",
-            "layering_dispersal_to_multiple_payees",
+            "rapid_outbound_dispersal",
         }
 
     def test_fraud_rules_tagged_aml_rule_is_aml_domain(self):
@@ -101,7 +101,7 @@ class TestAPPFraudSpec:
         # domains and emits a cross-program link on the shared mule.
         spec = load_spec(SPEC_APP)
         for rule in spec.rules:
-            if rule.id == "layering_dispersal_to_multiple_payees":
+            if rule.id == "rapid_outbound_dispersal":
                 assert "app_fraud" not in rule.tags
                 assert rule.aml_priority != "fraud"
                 assert "aml" in rule.tags

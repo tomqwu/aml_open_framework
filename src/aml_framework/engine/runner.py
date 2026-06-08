@@ -937,9 +937,14 @@ def _write_case_links(
     `mask_customer_id` (PR-PRIO/#495 parity) masks the top-level
     `customer_id` when PII masking is active, mirroring how
     `priority_report.json` and the `alerts/*.jsonl` are masked. The
-    `*_case_ids` are left intact — they are filename references into
-    `cases/*.json` (those files already carry the raw id on disk), so
-    masking them would break the link to the constituent case file.
+    engine builds each `case_id` as a COMPOUND string
+    `<rule>__<customer>__<window_end>` (see `_build_case`), so the raw
+    customer id is embedded in every entry of `fraud_case_ids` /
+    `aml_case_ids`. To stop that leak under masking we token-mask each
+    compound id — splitting on `__` and swapping only the token that
+    equals the raw customer id — exactly the posture the case-pack
+    exporter uses (`audit_pack._mask_compound_string`), so the two paths
+    stay consistent. `*_rule_ids` carry no customer id and are left as-is.
     """
     path = run_dir / "case_links.jsonl"
     if not linked:
@@ -949,7 +954,16 @@ def _write_case_links(
     for lc in linked:
         row = lc.to_dict()
         if mask_customer_id is not None:
-            row["customer_id"] = mask_customer_id(row["customer_id"])
+            raw_cid = row["customer_id"]
+            masked_cid = mask_customer_id(raw_cid)
+            row["customer_id"] = masked_cid
+            # Token-level mask of the customer-id substring inside each
+            # compound case_id (mirrors audit_pack._mask_compound_string).
+            for key in ("fraud_case_ids", "aml_case_ids"):
+                row[key] = [
+                    "__".join(masked_cid if tok == raw_cid else tok for tok in cid.split("__"))
+                    for cid in row[key]
+                ]
         lines.append(json.dumps(row, sort_keys=True, default=str).encode("utf-8"))
     path.write_bytes(b"\n".join(lines) + b"\n")
 

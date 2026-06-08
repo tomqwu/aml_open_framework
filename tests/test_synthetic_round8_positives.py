@@ -698,10 +698,11 @@ def test_rebased_anchor_is_deterministic() -> None:
     # Any drift from these exact figures means an unintended re-base.
     #
     # 1314 = 1311 (v0.1.16 re-base) + 3 deterministic C0019 layering legs
-    # added by #523 so the planted mule trips BOTH the fraud-domain
+    # added by #523 (APPENDED at the end of the planted section so no
+    # later txn_id shifts) so the planted mule trips BOTH the fraud-domain
     # `rapid_pass_through_mule` rule and the AML-domain
-    # `layering_dispersal_to_multiple_payees` rule, demonstrating the
-    # fraud↔AML cross-program `case_links.jsonl` linkage.
+    # `rapid_outbound_dispersal` rule, demonstrating the fraud↔AML
+    # cross-program `case_links.jsonl` linkage.
     assert len(data["txn"]) == 1314, (
         f"txn count drifted to {len(data['txn'])} — expected 1314 "
         "(v0.1.16 re-base + 3 #523 C0019 layering legs); unintended re-base"

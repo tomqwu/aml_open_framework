@@ -130,6 +130,32 @@ def test_runner_emits_cross_program_link(tmp_path: Path):
     assert link["severity"] == "high"
 
 
+def test_runner_masks_compound_case_ids_under_pii_masking(tmp_path: Path, monkeypatch):
+    # Codex #536 P2-1: with AML_PII_MASKING on, neither the top-level
+    # customer_id NOR the customer-id substring embedded in each compound
+    # case_id may appear in plaintext in case_links.jsonl. The `txn`
+    # contract here marks customer_id pii=true, so the ledger masks it.
+    monkeypatch.setenv("AML_PII_MASKING", "1")
+    spec = _make_spec(
+        [
+            _rule("fraud_rule", aml_priority="fraud"),
+            _rule("aml_rule", aml_priority="corruption"),
+        ]
+    )
+    run_dir = _run(tmp_path, spec, {"txn": [_txn("T1", "C1")]})
+    text = (run_dir / "case_links.jsonl").read_text(encoding="utf-8")
+    assert text.strip(), "expected one masked cross-program link"
+    assert "C1" not in text, "raw customer_id leaked into case_links.jsonl"
+    row = json.loads(text.splitlines()[0])
+    assert row["customer_id"] != "C1"
+    # Every compound case_id has its customer token replaced by the same
+    # hash as the top-level customer_id (consistent with the pii_map).
+    masked_cid = row["customer_id"]
+    for cid in row["fraud_case_ids"] + row["aml_case_ids"]:
+        assert masked_cid in cid.split("__")
+        assert "C1" not in cid
+
+
 def test_single_domain_customer_produces_no_link(tmp_path: Path):
     # Both rules are fraud-domain — no AML case, so no cross-program link.
     spec = _make_spec(
@@ -193,16 +219,42 @@ def test_write_case_links_is_byte_stable(tmp_path: Path):
     assert (a / "case_links.jsonl").read_bytes() == (b / "case_links.jsonl").read_bytes()
 
 
-def test_write_case_links_masks_customer_id(tmp_path: Path):
-    _write_case_links(tmp_path, [_linked("C1")], mask_customer_id=lambda v: f"masked::{v}")
+def test_write_case_links_masks_customer_id_and_compound_case_ids(tmp_path: Path):
+    # Codex #536 P2-1: the compound case_id embeds the plaintext customer
+    # id (<rule>__<customer>__<ts>), so masking must token-mask that
+    # substring too — exactly like audit_pack._mask_compound_string — or
+    # the customer id leaks through the *_case_ids lists. Use an opaque
+    # hash-like masker (as the real HMAC masker is) so the no-leak
+    # assertion is meaningful.
+    _write_case_links(tmp_path, [_linked("C1")], mask_customer_id=lambda v: "deadbeefdeadbeef")
     rows = [
         json.loads(line)
         for line in (tmp_path / "case_links.jsonl").read_text().splitlines()
         if line
     ]
-    assert rows[0]["customer_id"] == "masked::C1"
-    # Case-id references (filenames on disk) are NOT masked.
+    assert rows[0]["customer_id"] == "deadbeefdeadbeef"
+    # The customer-id token inside each compound case_id is masked; the
+    # rule_id and timestamp tokens are preserved.
+    assert rows[0]["fraud_case_ids"] == ["fraud_rule__deadbeefdeadbeef__x"]
+    assert rows[0]["aml_case_ids"] == ["aml_rule__deadbeefdeadbeef__x"]
+    # rule_id lists carry no customer id and stay verbatim.
+    assert rows[0]["fraud_rule_ids"] == ["fraud_rule"]
+    # No plaintext customer id survives anywhere in the file.
+    assert "C1" not in (tmp_path / "case_links.jsonl").read_text()
+
+
+def test_write_case_links_preserves_case_ids_when_masking_off(tmp_path: Path):
+    # With masking off (mask_customer_id=None) the raw compound ids are
+    # written verbatim so they still reference the on-disk cases/*.json.
+    _write_case_links(tmp_path, [_linked("C1")])
+    rows = [
+        json.loads(line)
+        for line in (tmp_path / "case_links.jsonl").read_text().splitlines()
+        if line
+    ]
+    assert rows[0]["customer_id"] == "C1"
     assert rows[0]["fraud_case_ids"] == ["fraud_rule__C1__x"]
+    assert rows[0]["aml_case_ids"] == ["aml_rule__C1__x"]
 
 
 def test_write_case_links_empty_is_empty_file(tmp_path: Path):
@@ -231,4 +283,4 @@ def test_uk_app_fraud_example_links_fraud_and_aml(tmp_path: Path):
     assert c0019, "C0019 (the planted mule) must be linked across fraud and AML"
     link = c0019[0]
     assert "rapid_pass_through_mule" in link["fraud_rule_ids"]
-    assert "layering_dispersal_to_multiple_payees" in link["aml_rule_ids"]
+    assert "rapid_outbound_dispersal" in link["aml_rule_ids"]

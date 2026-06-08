@@ -995,34 +995,6 @@ def generate_dataset(
             )
         )
         tid += 1
-        # #523: fraud↔AML cross-program linkage. The same mule that trips
-        # the fraud-domain `rapid_pass_through_mule` rule above also
-        # disperses the laundered funds across several smaller outbound
-        # legs to distinct payees within the hour — a textbook AML
-        # *layering* shape that trips the AML-domain
-        # `layering_dispersal_to_multiple_payees` rule. With one customer
-        # in BOTH the fraud and AML domains, `cases/linkage.py` emits a
-        # LinkedCustomer and the run writes a cross-program `case_links.jsonl`.
-        # Each leg is < £500 so it adds no `rapid_pass_through_mule` match;
-        # the four-way dispersal (incl. the £1,700 leg above) sums to
-        # £2,600 across 4 payees, clearing the layering rule's
-        # count >= 3 / sum >= £1,500 floor. GBP/faster_payments keeps the
-        # shape rule-inert for non-UK specs (same guard as the rows above).
-        for leg, amt in enumerate((300, 300, 300), start=1):
-            txns.append(
-                _make_txn(
-                    tid,
-                    "C0019",
-                    amt,
-                    pass_in + timedelta(minutes=30 + 5 * leg),
-                    channel="faster_payments",
-                    direction="out",
-                    currency="GBP",
-                    customer_session_id="SESS-C0019-1",
-                    counterparty_id=f"CP-MULE-LAYER-2026-{leg:03d}",
-                )
-            )
-            tid += 1
 
     # ---------------------------------------------------------------------
     # Trade-based ML planted positives (trade_based_ml spec)
@@ -1444,6 +1416,47 @@ def generate_dataset(
                     as_of - timedelta(days=2, hours=14),
                     channel="wire",
                     direction="in",
+                )
+            )
+            tid += 1
+
+    # ---------------------------------------------------------------------
+    # #523 fraud↔AML linkage — C0019 rapid-outbound-dispersal layering legs
+    # ---------------------------------------------------------------------
+    # APPENDED here (after every other planted block) on purpose: inserting
+    # these mid-list inside the C0019 block would advance `tid` and shift
+    # the txn_ids of every later planted customer (C0020+), breaking any
+    # test that pins an exact txn_id (Codex #536 P2). Appending keeps all
+    # earlier planted row positions stable; the layering rule keys on
+    # customer_id + a 7-day time window (not list position or txn_id), so
+    # position is irrelevant to firing.
+    #
+    # The same mule that trips the fraud-domain `rapid_pass_through_mule`
+    # rule also pushes the laundered funds out across three more small
+    # CHAPS/Faster-Payments legs in quick succession — a rapid-dispersal
+    # layering shape that trips the AML-domain `rapid_outbound_dispersal`
+    # rule. One customer in BOTH domains ⇒ `cases/linkage.py` emits a
+    # LinkedCustomer and the run writes a cross-program `case_links.jsonl`.
+    # Each leg is < £500 (no extra `rapid_pass_through_mule` match); with
+    # the £1,700 pass-through leg above the four outbound legs sum £2,600
+    # over 7d, clearing the rule's count>=3 / sum>=£1,500 floor. Distinct
+    # `counterparty_id`s model the fan-out an investigator confirms, though
+    # the rule itself keys on volume, not distinct-payee count. GBP keeps
+    # the shape rule-inert for non-UK specs (same guard as the C0019 block).
+    if n_customers > 19:
+        _disperse_anchor = as_of - timedelta(days=1, hours=12) + timedelta(minutes=30)
+        for leg, amt in enumerate((300, 300, 300), start=1):
+            txns.append(
+                _make_txn(
+                    tid,
+                    "C0019",
+                    amt,
+                    _disperse_anchor + timedelta(minutes=5 * leg),
+                    channel="faster_payments",
+                    direction="out",
+                    currency="GBP",
+                    customer_session_id="SESS-C0019-1",
+                    counterparty_id=f"CP-MULE-LAYER-2026-{leg:03d}",
                 )
             )
             tid += 1
