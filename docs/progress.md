@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-06. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-08. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 35 — Roadmap wave #522–#525 + Getting Started reframe** (`code`+`docs`, 2026-06-08):
+>
+> - **#522 — spec-specific synthetic data** (`feat/synthetic-data-newer-specs`): `us_rtp_fednow`, `uk_app_fraud`, `trade_based_ml` now have dedicated planted-positive generators (`data/synthetic_*.py`, customer bands C9001–C9029 / C9101–C9129 / C9201–C9229) selected by a `program.name` dispatch registry (`generate_dataset_for_spec`); every unregistered spec falls back byte-identically. All synthetic entry points (run, replay, backtest, demo, dashboard, cloud-mock) route through the dispatcher so a run replays against its own data. RNG-free + deterministic; sample CSVs under `data/input/<spec>/`. Each spec fires every planted typology at `--seed 42`.
+> - **#523 — fraud↔AML case links** (`feat/cross-spec-linkage-example`): `_finalize_run` materializes `cases/linkage.py::find_linked_customers` as a frozen, manifest-pinned `case_links.jsonl` (one record per customer with cases in both the fraud domain — `aml_priority: fraud` — and the AML domain). Pure read, advisory; never changes alert counts/cases/dispositions; always written (empty when none); `customer_id` masked top-level AND inside every compound `*_case_ids` token under `AML_PII_MASKING`. `examples/uk_app_fraud/aml.yaml` is the demonstrator — its 4 APP rules carry `aml_priority: fraud` plus a new AML-domain `rapid_outbound_dispersal` (POCA s.327) rule firing on the planted mule C0019.
+> - **#524 — how-to pages marked Detailed**: the 5 "placeholder" how-to pages (promote-rule, export-case-pack, walk-lineage, configure-sla, triage-defects) were already fully written; the how-to index now tags them `**Detailed.**` with time estimates instead of `(Placeholder)`.
+> - **#525 — July 2026 research refresh**: all 5 research editions carried forward to a 2026-07-01 as-of date (June-9 NPRM comment window closed; AUSTRAC Tranche 2 effective; AMLA RTS 9 days; SR 26-2 75 days), every citation traced to a verified June edition or the regulatory calendar — no fabricated citations, fact-checked.
+> - **#527 — Getting Started reframed** around a realistic production arc (synthetic warm-up → your data → real business month → legacy↔new equivalence → externally-verified evidence); stale 10→14 spec / 5→6 jurisdiction table fixed. **#520** bumped the e2e CI timeout 25→35min. **#521** (Getting Started 3-lesson split) closed as superseded by #527. **#526** (Round 34) synced the MkDocs nav.
+>
+> CI green; #522/#523 are engine/data changes (deployed in v0.1.59), the rest docs-only.
+
+---
 
 > **Round 34 — Static-site nav sync + feature roadmap issues** (`docs`, 2026-06-06): six documentation-surface gaps closed; five GitHub roadmap issues filed.
 >
