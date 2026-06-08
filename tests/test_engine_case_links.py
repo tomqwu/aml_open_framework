@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date as _date, datetime, timezone
+from datetime import date as _date, datetime, timedelta, timezone
 from pathlib import Path
 
 from aml_framework.cases.linkage import LinkedCustomer
@@ -36,6 +36,15 @@ from aml_framework.spec.models import (
 )
 
 _AS_OF = datetime(2026, 5, 1, tzinfo=timezone.utc)
+# A txn timestamp strictly INSIDE the aggregation window. The engine's
+# aggregation_window filter is half-open `[as_of - window, as_of)`, so a
+# txn booked exactly at `as_of` is correctly EXCLUDED. Using `as_of`
+# itself only "passed" on a non-UTC dev machine (the tz-naive TIMESTAMP
+# column shifted the aware datetime backwards into the window); under
+# UTC — the stripped docker-build image, and real deployments — it fell
+# on the exclusive upper bound and no alert fired (no link). Anchoring a
+# day before `as_of` makes the rule fire regardless of host timezone.
+_BOOKED_AT = _AS_OF - timedelta(days=1)
 
 
 def _txn_contract() -> DataContract:
@@ -100,7 +109,7 @@ def _run(tmp_path: Path, spec: AMLSpec, data: dict) -> Path:
 
 
 def _txn(tid: str, cid: str) -> dict:
-    return {"txn_id": tid, "customer_id": cid, "amount": 10.0, "booked_at": _AS_OF}
+    return {"txn_id": tid, "customer_id": cid, "amount": 10.0, "booked_at": _BOOKED_AT}
 
 
 # ---------------------------------------------------------------------------
