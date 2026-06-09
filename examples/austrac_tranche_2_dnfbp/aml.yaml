@@ -63,6 +63,7 @@ rules:
   - id: cash_structuring_below_ttr
     name: Cash structuring — deposits below the AUD $10,000 TTR threshold
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "AML/CTF Act s.43"
         description: "Threshold transaction reports — cash transactions of AUD $10,000+."
@@ -99,6 +100,7 @@ rules:
   - id: rapid_pass_through_churn
     name: Rapid pass-through — cash-in followed by wire-out within 48h
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "AML/CTF Act s.41"
         description: "Suspicious matter reporting — pass-through pattern indicative of layering."
@@ -167,6 +169,7 @@ rules:
   - id: high_risk_jurisdiction_wires
     name: Outbound wires to FATF call-for-action jurisdictions
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "AML/CTF Act s.36"
         description: "Ongoing customer due diligence — geographic risk factors."
@@ -209,6 +212,7 @@ rules:
   - id: dormant_account_reactivation
     name: Dormant client reactivation with large transaction
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "AML/CTF Act s.41"
         description: "Suspicious matter reporting — dormant client with sudden large activity."
@@ -263,6 +267,7 @@ rules:
   - id: sanctions_screening
     name: Sanctions list screening — DFAT Consolidated List
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "Autonomous Sanctions Act 2011 (Cth)"
         description: "Dealings with property of designated / listed persons prohibited."
@@ -294,6 +299,7 @@ rules:
   - id: adverse_media_screening
     name: Adverse media screening
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "AML/CTF Act s.36"
         description: "Ongoing customer due diligence — adverse media as risk indicator."

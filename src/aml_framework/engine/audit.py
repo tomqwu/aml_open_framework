@@ -174,6 +174,13 @@ def rule_version_hash(rule: Any) -> str:
     doesn't churn rule_versions. Once authored, an explicit risk-tier
     change IS a rule_version change (the alert population it implies
     is different).
+
+    #529 (Pillar 7): same discipline for `approval_status` — excluded
+    from the hash when at its default (`"pending"`) so the schema bump
+    alone doesn't churn rule_versions for existing specs that don't
+    author an approval state. Once moved to `approved` / `rejected`, the
+    approval state IS part of the rule version (a governance change the
+    lineage chain should reflect).
     """
     if hasattr(rule, "model_dump_json"):
         exclude_fields: set[str] = set()
@@ -183,6 +190,8 @@ def rule_version_hash(rule: Any) -> str:
             exclude_fields.add("out_of_scope")
         if getattr(rule, "risk_tier", None) is None:
             exclude_fields.add("risk_tier")
+        if getattr(rule, "approval_status", None) in (None, "pending"):
+            exclude_fields.add("approval_status")
         body = rule.model_dump_json(exclude=exclude_fields).encode("utf-8")
     else:
         # Same normalization for the plain-dict path so callers that
@@ -195,6 +204,8 @@ def rule_version_hash(rule: Any) -> str:
             normalized.pop("out_of_scope", None)
         if normalized.get("risk_tier") is None:
             normalized.pop("risk_tier", None)
+        if normalized.get("approval_status") in (None, "pending"):
+            normalized.pop("approval_status", None)
         body = _canonical_json(normalized)
     return _sha256(body)[:16]
 

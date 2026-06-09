@@ -53,6 +53,7 @@ rules:
   - id: structuring_cash_deposits
     name: Cash structuring — just-below-threshold deposits
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "31 CFR 1010.314"
         description: "Prohibition on structuring transactions to evade reporting."
@@ -90,6 +91,7 @@ rules:
   - id: rapid_movement_cash_to_wire
     name: Rapid movement — cash in followed by outgoing wire
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "FinCEN Advisory FIN-2014-A005"
         description: "Pass-through typology associated with layering."
@@ -122,6 +124,7 @@ rules:
   - id: high_risk_jurisdiction
     name: Significant activity from FATF high-risk jurisdiction
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "31 CFR 1010.610"
         description: "Enhanced due diligence for correspondent accounts."
@@ -179,6 +182,7 @@ rules:
   - id: large_cash_ctr
     name: Cash activity exceeding CTR threshold ($10,000/day)
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "31 CFR 1010.311"
         description: "Filing obligations for currency transactions over $10,000."
@@ -212,6 +216,7 @@ rules:
   - id: unusual_volume_spike
     name: Unusual volume spike — recent activity far exceeds baseline
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "FinCEN Advisory FIN-2006-A003"
         description: "Potential suspicious activity — unusual transactions inconsistent with profile."
@@ -266,6 +271,7 @@ rules:
   - id: dormant_account_activity
     name: Dormant account reactivation with large transaction
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FinCEN Advisory FIN-2006-A003"
         description: "Potential suspicious activity — dormant accounts with sudden large transactions."
@@ -319,6 +325,7 @@ rules:
   - id: investment_scam_invs_velocity
     name: Investment-scam (pig-butchering) — INVS payout velocity
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FinCEN FIN-2023-Alert005"
         description: "Pig-butchering / investment-scam payout indicators (INVS misuse)."

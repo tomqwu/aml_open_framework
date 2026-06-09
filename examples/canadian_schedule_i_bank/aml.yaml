@@ -54,6 +54,15 @@ program:
   # (drift_high_ratio 2.0, baseline_runs 10).
   model_risk_monitoring:
     enabled: true
+    # #529 (Pillar 7): opt into the model-risk approval gate. The gate
+    # only *engages* in prod under strict env-gating (this spec ships at
+    # the dev default, so the bundled run is unaffected); when an
+    # institution promotes this spec to prod-strict, any material-tier
+    # (model_tier medium/high) rule still `approval_status: pending` is
+    # BLOCKED. The python_ref `passthrough_funnel_scorer` below carries
+    # `approval_status: approved` so it passes the gate — the worked
+    # demonstrator.
+    require_approval_before_prod: true
 
 # ---------------------------------------------------------------------------
 # Data contracts — one per channel to enforce channel-level coverage.
@@ -97,6 +106,7 @@ rules:
   - id: structuring_cash_deposits
     name: Cash structuring — deposits below LCTR $10,000 threshold
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.11.1"
         description: "Structuring offence — splitting transactions to avoid reporting."
@@ -143,6 +153,7 @@ rules:
   - id: rapid_pass_through
     name: Rapid pass-through — cash-in followed by e-transfer-out within 48h
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — pass-through pattern indicative of layering."
@@ -224,6 +235,7 @@ rules:
   - id: passthrough_funnel_scorer
     name: Pass-through funnel (procedural, cross-channel)
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — pass-through pattern indicative of layering."
@@ -242,6 +254,10 @@ rules:
       - prior_alerts_90d
     tags: [pass_through, layering, funnel, ml_governed]
     model_tier: medium
+    # #529 (Pillar 7): this material-tier ML scorer has cleared model-risk
+    # validation sign-off, so it passes the approval gate when the spec is
+    # promoted to prod-strict (see program.model_risk_monitoring above).
+    approval_status: approved
     validation_cadence_months: 18
     business_intent: >
       Channel-agnostic pass-through funnel scorer that complements the
@@ -261,6 +277,7 @@ rules:
   - id: crypto_vasp_rapid_passthrough
     name: Crypto VASP rapid pass-through — cash-in followed by crypto-out within 48h
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — pass-through pattern indicative of layering."
@@ -334,6 +351,7 @@ rules:
   - id: rtp_instant_payment_burst
     name: RTP instant-payment burst — rapid real-time sends within a short window
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — rapid layering inconsistent with client profile."
@@ -380,6 +398,7 @@ rules:
   - id: prepaid_load_structuring
     name: Prepaid-load structuring — loads below the $3,000 reporting threshold
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.11.1"
         description: "Structuring offence — splitting transactions to avoid reporting."
@@ -425,6 +444,7 @@ rules:
   - id: shell_company_indicators
     name: Shell company — no business activity with high-volume multi-jurisdiction wires
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — shell company indicators."
@@ -483,6 +503,7 @@ rules:
   - id: high_risk_jurisdiction
     name: Significant activity from FATF high-risk jurisdiction
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.9.4"
         description: "Correspondent banking and high-risk country due diligence."
@@ -527,6 +548,7 @@ rules:
   - id: large_cash_lctr
     name: Cash activity exceeding LCTR threshold ($10,000 CAD/day)
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "PCMLTFR s.7(1)"
         description: "LCTR filing obligation for cash transactions of $10,000+ CAD."
@@ -561,6 +583,7 @@ rules:
   - id: unusual_volume_spike
     name: Unusual volume spike — recent activity far exceeds baseline
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — transactions inconsistent with client profile."
@@ -617,6 +640,7 @@ rules:
   - id: dormant_account_activity
     name: Dormant account reactivation with large transaction
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — dormant accounts with sudden large transactions."
@@ -674,6 +698,7 @@ rules:
   - id: sanctions_screening
     name: Sanctions list screening — SEMA and OFAC SDN
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "Criminal Code s.83.08"
         description: "Offence to deal with property of listed persons (terrorist financing)."
@@ -709,6 +734,7 @@ rules:
   - id: adverse_media_screening
     name: Adverse media screening
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "PCMLTFR s.123.1"
         description: "Ongoing monitoring — adverse media as risk indicator."
@@ -745,6 +771,7 @@ rules:
   - id: ml_risk_scorer
     name: ML-driven behavioral risk scoring
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "OSFI Guideline E-23"
         description: "Model risk management — models must be inventoried, validated, and monitored."

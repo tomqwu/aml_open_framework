@@ -49,6 +49,16 @@ AmlPriority = Literal[
 # Interagency Statement validation cadence is risk-proportional.
 ModelTier = Literal["high", "medium", "low"]
 
+# #529 (Pillar 7): model-risk approval gate state for a rule. Defaults to
+# `pending` — a rule is unapproved until a model-validation sign-off flips
+# it to `approved` (or `rejected`). When
+# `program.model_risk_monitoring.require_approval_before_prod` is on and the
+# spec runs in `prod` under strict environment gating, a material-tier
+# (`model_tier` medium/high) rule still `pending` is BLOCKED at run time
+# (same `EnvironmentGatingError` the env-gate raises). Independent of
+# `Rule.environments` lane sign-off — this is the MODEL-risk sign-off.
+ApprovalStatus = Literal["pending", "approved", "rejected"]
+
 # PR-RISK-1: first-class risk tier for a rule. Closes the Pillar 5
 # "risk-based controls" gap on the North-Star Coverage page — today the
 # priority signal is `severity` and routing is `escalate_to`, neither of
@@ -323,6 +333,16 @@ class ModelRiskMonitoring(_Base):
     # RESERVED — a future multi-run baseline will consider this many prior
     # runs. The current MVP compares against the immediately-prior run only.
     baseline_runs: int = Field(default=10, ge=1)
+    # #529 (Pillar 7): model-risk approval gate. When True AND the spec
+    # runs in `prod` (`program.environment == "prod"`) under
+    # `program.strict_environment_gating`, the engine BLOCKS any
+    # material-tier rule (`model_tier` medium/high) whose
+    # `approval_status` is still `pending` — raising the same
+    # `EnvironmentGatingError` the environment gate uses and recording an
+    # `approval_gate_check` event on `decisions.jsonl`. Defaults to False
+    # — institutions opt in once model-validation sign-off is wired up;
+    # the disabled path is byte-identical to the pre-#529 baseline.
+    require_approval_before_prod: bool = False
 
 
 class Program(_Base):
@@ -567,6 +587,16 @@ class Rule(_Base):
     # generator with a flag asking the second-line model-validation team
     # to classify explicitly.
     model_tier: ModelTier | None = None
+    # #529 (Pillar 7): model-risk approval gate state. Defaults to
+    # `pending` so a freshly-authored rule is unapproved until a
+    # model-validation sign-off flips it. When
+    # `program.model_risk_monitoring.require_approval_before_prod` is on
+    # and the spec runs in `prod` under `strict_environment_gating`, a
+    # `model_tier` medium/high rule still `pending` is BLOCKED at run
+    # time (`EnvironmentGatingError`). Additive — defaults to `pending`,
+    # which only ever matters when an institution opts into the gate AND
+    # runs in prod-strict; every other path is unaffected.
+    approval_status: ApprovalStatus = "pending"
     # Required validation cadence in months. SR 26-2 expects high-tier
     # models annually (12), medium every 18-24, low every 24-36.
     # If unset, the MRM generator picks a default by tier.

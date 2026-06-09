@@ -68,6 +68,7 @@ rules:
   - id: structuring_cash
     name: Cash structuring below EUR 15,000 threshold
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "AMLD6 Art. 50"
         description: "Suspicious transaction reporting obligation."
@@ -104,6 +105,7 @@ rules:
   - id: high_risk_jurisdiction
     name: Transactions with EU high-risk third countries
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "AMLD6 Art. 18a"
         description: "Enhanced due diligence for high-risk third countries."
@@ -146,6 +148,7 @@ rules:
   - id: pep_screening
     name: Politically Exposed Person screening
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "AMLD6 Art. 20-23"
         description: "Enhanced due diligence for PEPs and their family members."
@@ -190,6 +193,7 @@ rules:
   - id: rapid_movement_sepa
     name: Rapid SEPA pass-through within 48h
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "AMLD6 Art. 50"
         description: "STR for layering via SEPA transfers."
@@ -221,6 +225,7 @@ rules:
   - id: sanctions_screening
     name: EU sanctions list screening
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "EU Regulation 269/2014"
         description: "Restrictive measures against Russia."
@@ -259,6 +264,7 @@ rules:
   - id: travel_rule_completeness
     name: FATF R.16 — cross-border wire missing required fields
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF R.16 (June 2025 revision)"
         description: "Originator + beneficiary info required on cross-border wires ≥ USD/EUR 1,000."
@@ -297,6 +303,7 @@ rules:
   - id: invs_velocity_investment_scam
     name: INVS purpose-code velocity — investment-scam indicator
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
         description: "Investment-scam typology — purpose-code INVS misuse."
@@ -346,6 +353,7 @@ rules:
   - id: investment_scam_scorer
     name: Investment-scam amplifier (counterparty + foreign-dest + accel)
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
         description: "Investment-scam typology — purpose-code INVS misuse."

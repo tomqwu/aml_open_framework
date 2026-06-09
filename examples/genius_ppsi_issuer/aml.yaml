@@ -71,6 +71,7 @@ rules:
   - id: rapid_stablecoin_redemption
     name: Rapid stablecoin mint-then-redeem within 24h
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "GENIUS Act s.4"
         description: "PPSI mint/redemption controls — rapid round-tripping indicative of layering."
@@ -141,6 +142,7 @@ rules:
   - id: high_risk_jurisdiction_exposure
     name: Outbound stablecoin transfers to FATF high-risk jurisdictions
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF High-Risk Jurisdictions Subject to Call for Action"
         description: "Geographic risk — call-for-action jurisdictions require enhanced due diligence."
@@ -186,6 +188,7 @@ rules:
   - id: structuring_below_reporting_threshold
     name: Suspicious structuring below the USD $10,000 reporting threshold
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "31 CFR 1022.320"
         description: "MSB suspicious activity report — structuring to evade reporting is reportable."
@@ -224,6 +227,7 @@ rules:
   - id: ofac_sanctions_screening
     name: OFAC SDN sanctions list screening
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "OFAC SDN — virtual currency addenda"
         description: "OFAC SDN list — dealings with designated persons/wallets are prohibited."
@@ -257,6 +261,7 @@ rules:
   - id: nested_vasp_passthrough
     name: Nested-VASP pass-through — same-day in/out churn
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "FIN-2019-G001"
         description: "FinCEN guidance — unregistered nested/pass-through money transmission."
@@ -328,6 +333,7 @@ rules:
   - id: adverse_media_screening
     name: Adverse media screening
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "31 CFR 1022.210"
         description: "MSB AML program — ongoing customer due diligence, adverse media as risk indicator."

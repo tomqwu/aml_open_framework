@@ -42,6 +42,7 @@ rules:
   - id: structuring_cash_deposits
     name: Cash structuring — deposits below LCTR $10,000 threshold
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.11.1"
         description: "Structuring offence — splitting transactions to avoid reporting."
@@ -80,6 +81,7 @@ rules:
   - id: rapid_movement_cash_to_eft
     name: Rapid movement — cash in followed by outgoing EFT
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "FINTRAC Operational Alert 2016-01"
         description: "Pass-through typology — layering through Canadian accounts."
@@ -114,6 +116,7 @@ rules:
   - id: high_risk_jurisdiction
     name: Significant activity from FATF high-risk jurisdiction
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.9.4"
         description: "Correspondent banking and high-risk country due diligence."
@@ -159,6 +162,7 @@ rules:
   - id: large_cash_lctr
     name: Cash activity exceeding LCTR threshold ($10,000 CAD/day)
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "PCMLTFR s.7(1)"
         description: "LCTR filing obligation for cash transactions of $10,000+ CAD."
@@ -192,6 +196,7 @@ rules:
   - id: unusual_volume_spike
     name: Unusual volume spike — recent activity far exceeds baseline
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — transactions inconsistent with client profile."
@@ -248,6 +253,7 @@ rules:
   - id: dormant_account_activity
     name: Dormant account reactivation with large transaction
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "PCMLTFA s.7"
         description: "STR obligation — dormant accounts with sudden large transactions."
