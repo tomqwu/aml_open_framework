@@ -2410,6 +2410,112 @@ def verify_decisions_cmd(
         raise typer.Exit(code=1)
 
 
+@app.command(name="defect-update")
+def defect_update_cmd(
+    run_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="Run directory containing the frozen defect_log.jsonl.",
+    ),
+    defect_id: str = typer.Argument(
+        ...,
+        help="Defect ticket id (must exist in the run's frozen defect_log.jsonl).",
+    ),
+    status: str = typer.Option(
+        ...,
+        "--status",
+        help="Lifecycle transition: acknowledged | resolved | closed.",
+    ),
+    reviewer: str = typer.Option(
+        ...,
+        "--reviewer",
+        help="Reviewer id taking the action (recorded on the lifecycle event).",
+    ),
+    resolution: str = typer.Option(
+        "",
+        "--resolution",
+        help="Resolution note. Required (non-empty) for resolved/closed.",
+    ),
+) -> None:
+    """Append a defect lifecycle transition (Pillar 2 — issue #529).
+
+    The frozen ``defect_log.jsonl`` is the minted, manifest-pinned defect
+    artifact — it stays immutable post-finalize. This command records a
+    2LoD reviewer's lifecycle action (acknowledge / resolve / close) on a
+    separate, append-only **companion** file ``defect_lifecycle.jsonl``,
+    mirroring the append-only posture of ``decisions.jsonl``. The event
+    timestamp derives from the run's ``as_of`` (read from
+    ``manifest.json``), not wall-clock, so the companion file stays
+    byte-stable for a given run + sequence of actions.
+
+    Offline / post-run only — never on the engine run path. Exits 1 if
+    the defect id is not in the frozen log, or if the status is unknown.
+    """
+    import json as _json
+
+    from aml_framework.engine.defect_lifecycle import (
+        DefectLifecycleEvent,
+        LifecycleStatus,
+        append_lifecycle_event,
+        read_defect_ids,
+    )
+
+    # Resolve the lifecycle transition against the small enum. A typo is a
+    # hard reject — we never silently coerce an unknown status.
+    try:
+        lifecycle_status = LifecycleStatus(status)
+    except ValueError:
+        valid = ", ".join(s.value for s in LifecycleStatus)
+        console.print(
+            f"[red]Unknown --status '{status}'.[/red] Expected one of: {valid}."
+        )
+        raise typer.Exit(code=1) from None
+
+    # The frozen defect log is the source of valid ids — reject a
+    # lifecycle event that references a defect this run never minted, so
+    # the companion file can't drift away from the artifact it tracks.
+    valid_ids = read_defect_ids(run_dir)
+    if defect_id not in valid_ids:
+        console.print(
+            f"[red]Defect id '{defect_id}' not found in {run_dir}/defect_log.jsonl.[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    # Deterministic timestamp — derive from the run's as_of (manifest),
+    # never wall-clock. Mirrors decisions.jsonl's as_of-derived posture.
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[red]No manifest.json in {run_dir} — cannot resolve as_of.[/red]")
+        raise typer.Exit(code=1)
+    manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+    as_of_raw = manifest.get("as_of")
+    if not as_of_raw:
+        console.print(f"[red]manifest.json in {run_dir} has no as_of.[/red]")
+        raise typer.Exit(code=1)
+    timestamp = datetime.fromisoformat(as_of_raw)
+
+    try:
+        event = DefectLifecycleEvent(
+            defect_id=defect_id,
+            lifecycle_status=lifecycle_status,
+            reviewer=reviewer,
+            timestamp=timestamp,
+            resolution=resolution,
+        )
+    except ValueError as exc:
+        console.print(f"[red]Invalid lifecycle event:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+
+    path = append_lifecycle_event(run_dir, event)
+    console.print(
+        f"[green]Recorded[/green] {defect_id} -> {lifecycle_status.value} "
+        f"by {reviewer} (appended to {path.name})."
+    )
+
+
 @app.command(name="equivalence")
 def equivalence_cmd(
     run_dir: Path = typer.Argument(

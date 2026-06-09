@@ -223,7 +223,7 @@ _render_pillar(
         "run logs, defect tickets, approvals, rule-version history, and "
         "supporting records by design."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         f"**In:** audit ledger — {_decision_count} decisions on this run's "
         "append-only `decisions.jsonl` hash chain (SHA-256, tamper-detected "
@@ -235,10 +235,14 @@ _render_pillar(
         "captured with spec hash, seed, as-of timestamp, data source "
         "fingerprint — surfaced on the Audit & Evidence and Lineage "
         "Explorer pages.",
-        "**Missing:** defect tickets + approvals as first-class spec "
-        "artefacts (severity model, owner, aging, lifecycle). Today, DQ "
-        "and rule failures surface as gauges/alerts rather than tracked "
-        "defects — overlaps with the pillar-4 defect-model gap below.",
+        "**In (#529):** defect tickets are now a first-class, tracked "
+        "artefact — the engine mints a frozen, manifest-pinned "
+        "`defect_log.jsonl` (one ticket per qualifying issue, with severity "
+        "+ data/rule/mapping classification), and a 2LoD reviewer drives it "
+        "through a **lifecycle** (acknowledge → resolve → close) via "
+        "`aml defect-update`, which appends to an append-only companion "
+        "`defect_lifecycle.jsonl` (mirrors the `decisions.jsonl` posture; the "
+        "minted log stays frozen post-finalize).",
     ],
     links=[
         ("Audit & Evidence — replay + chain verification", "pages/7_Audit_Evidence.py"),
@@ -514,15 +518,13 @@ col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.metric(
         "Covered",
-        "3",
-        help="Pillars 1 (PR-EQ-3 / Round 27), 6 (PR-PAY-1 — uniform alert payload), 8",
+        "5",
+        help="Pillars 1, 2 (#529 defect lifecycle), 3, 6, 8.",
     )
 with col_b:
-    st.metric("Partial", "5", help="Pillars 2, 3, 4, 5, 7")
+    st.metric("Partial", "3", help="Pillars 4, 5, 7.")
 with col_c:
-    st.metric(
-        "Gap", "0", help="Pillar 1 equivalence engine + dashboard shipped in PR-EQ-3 (Round 27)"
-    )
+    st.metric("Gap", "0", help="No gaps — every pillar points to a concrete artefact.")
 
 st.caption(
     "Coverage is asserted, not aspirational — every COVERED claim above "

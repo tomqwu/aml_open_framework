@@ -172,21 +172,20 @@ class TestPillarCoverage:
         )
 
     def test_status_classifications_named_explicitly(self):
-        # The page's contract is that it MUST name COVERED and PARTIAL
-        # classifications explicitly so a reviewer can scan the source
-        # for honest coverage signals. GAP was a required status until
-        # PR-EQ-3 (Round 27) closed the equivalence pillar — now that
-        # every pillar is COVERED or PARTIAL, GAP is allowed but not
-        # required. The original "honest about gaps" intent is
-        # preserved: the page WILL re-name a GAP the moment a real one
-        # surfaces (e.g. a new pillar is added to the north-star
-        # memory). Until then, having zero GAPs is the desired state.
+        # The page MUST name the COVERED classification explicitly so a
+        # reviewer can scan the source for the coverage signal. As of
+        # issue #529 the four remaining PARTIAL pillars (2 defect
+        # lifecycle, 4 risk_tier/DQ, 5 risk-based controls, 7 model-risk
+        # approval gates) were closed — every pillar is now COVERED.
+        # PARTIAL / GAP are allowed but no longer required: the page WILL
+        # re-name one the moment a real gap surfaces (e.g. a new pillar
+        # is added to the north-star memory). Until then, all-COVERED is
+        # the desired state.
         body = PAGE.read_text(encoding="utf-8")
-        for status in ("COVERED", "PARTIAL"):
-            assert f'status="{status}"' in body, (
-                f"page has no pillar classified {status!r} — the contract "
-                f"requires the page name {status} pillars explicitly"
-            )
+        assert 'status="COVERED"' in body, (
+            "page has no pillar classified 'COVERED' — the contract "
+            "requires the page name COVERED pillars explicitly"
+        )
 
 
 class TestRegistration:

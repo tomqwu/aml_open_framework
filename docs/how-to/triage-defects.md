@@ -6,7 +6,7 @@
 >
 > **Time:** ~2 min per defect on average. Critical-severity entries should be triaged same-day.
 
-`defect_log.jsonl` is one of the eight manifest-hashed artifacts — the **detected-defect snapshot at run finalize** is part of the immutable audit ledger. Later triage actions (acknowledge / resolve / close) are NOT re-written to the ledger; track those externally (see §5 below).
+`defect_log.jsonl` is one of the eight manifest-hashed artifacts — the **detected-defect snapshot at run finalize** is part of the immutable audit ledger and stays frozen. Later triage actions (acknowledge / resolve / close) are recorded on a separate, append-only **companion** file `defect_lifecycle.jsonl` via `aml defect-update` (#529) — see §4a below. The frozen minted log never changes; the companion mirrors `decisions.jsonl`'s append-only posture.
 
 ---
 
@@ -82,7 +82,35 @@ For each defect, choose a target lifecycle:
 - **`closed`** — resolved + verified across a subsequent run (manifest-hash-pinned proof)
 - **`wont_fix`** — accepted as a known limitation; document why on the spec
 
-Track transitions in your ticket-of-record system (Linear / Jira / GitHub issues) cross-referencing the defect `id` + `source_run_id`. The defect log itself is emitted fresh per run from the detected exceptions — a recurring underlying issue produces a new `Defect` row each run with a new `id`, so the absence of the defect in a later run IS the closure proof (verified via the manifest's `defect_log_hash`).
+The defect log itself is emitted fresh per run from the detected exceptions — a recurring underlying issue produces a new `Defect` row each run with a new `id`, so the absence of the defect in a later run IS the closure proof (verified via the manifest's `defect_log_hash`).
+
+### 4a · Record lifecycle transitions with `aml defect-update` (#529)
+
+The minted `defect_log.jsonl` stays frozen, so transitions go on the append-only companion `defect_lifecycle.jsonl` next to it:
+
+```bash
+aml defect-update .artifacts/run-2026-05-25T10-15-30Z \
+  defect:a1b2c3d4e5f6a7b8:0000:txn_amount_not_null \
+  --status acknowledged --reviewer "alice@2lod"
+
+aml defect-update .artifacts/run-2026-05-25T10-15-30Z \
+  defect:a1b2c3d4e5f6a7b8:0000:txn_amount_not_null \
+  --status resolved --reviewer "alice@2lod" \
+  --resolution "Upstream feed nulls fixed in ETL-1421; re-run confirms 0 nulls."
+```
+
+- `--status` is one of `acknowledged | resolved | closed`. `resolved` / `closed` require a non-empty `--resolution`.
+- The `defect_id` must exist in that run's frozen `defect_log.jsonl` — an unknown id is rejected so the companion can't drift from the artifact it tracks.
+- The event **timestamp derives from the run's `manifest.json::as_of`**, not wall-clock, so the companion file stays byte-stable for a given run + sequence of actions (same determinism posture as `decisions.jsonl`).
+- The command is **offline / post-run** — it never runs on the engine path.
+
+Read the lifecycle back with `jq`:
+
+```bash
+jq -c . .artifacts/run-2026-05-25T10-15-30Z/defect_lifecycle.jsonl
+```
+
+You can still cross-reference the defect `id` + `source_run_id` in your ticket-of-record system (Linear / Jira / GitHub) for richer workflow.
 
 ### 5 · Re-run to confirm
 
@@ -133,5 +161,5 @@ Four checks:
 ## Next steps
 
 - [How to configure SLA monitoring](configure-sla.md) — the sibling Pillar-6 evidence (`sla_report.json`). Together: "is alert stale?" + "did the pipeline produce something processable?"
-- [How to verify the audit chain](verify-audit-chain.md) — the **initial** `defect_log.jsonl` is one of the eight manifest-hashed artifacts, so the detected-state snapshot is on the chain. Lifecycle transitions after the run (acknowledged → resolved → closed) are NOT currently re-written to the ledger; track those externally (Linear / Jira) and rely on the absence of the same defect in a later run as the closure proof.
+- [How to verify the audit chain](verify-audit-chain.md) — the **initial** `defect_log.jsonl` is one of the eight manifest-hashed artifacts, so the detected-state snapshot is on the chain and stays frozen. Lifecycle transitions after the run (acknowledged → resolved → closed) land on the append-only companion `defect_lifecycle.jsonl` via `aml defect-update` (#529) — mirroring `decisions.jsonl`'s append-only posture — and you can additionally track them in your ticket-of-record system.
 - [`audit-evidence.md`](../audit-evidence.md) — the eight manifest-hashed artifacts and how `defect_log.jsonl` sits among them.
