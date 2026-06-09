@@ -14,9 +14,9 @@ The whistleblower audit is **advisory / readiness only**. The `whistleblower_aud
 
 | Signal | Derived from | Reads as |
 |---|---|---|
-| `sar_backlog_exposure` | cases with a `case_opened` event but **no** terminal disposition, aged from `as_of` | `{open_stale_alerts, oldest_days}` — alerts open > 30 days never resolved to a SAR or a documented non-suspicious disposition |
+| `sar_backlog_exposure` | cases with a `case_opened` event but **no** terminal close-out (`closed` / `escalated_to_str` — the same terminal set `engine/sla.py` uses), aged from `as_of` | `{open_stale_alerts, oldest_days}` — alerts open > 30 days never resolved to a SAR or a documented non-suspicious close. An `escalated` / `manual_review` case is still in-flight and **counts** as backlog |
 | `escalation_coverage_pct` | disposition decisions (`escalated` / `escalated_to_str` / `closed` / `manual_review`) | % that carry **both** a documented reviewer (`reviewer`/`override_by`/… or a human `source`) **and** a rationale (`rationale`/`override_reason`/`narrative`/…) — vs system-auto |
-| `triage_time` | `case_opened` → first terminal disposition (prefers the engine-stamped `resolution_hours`) | `{median_days, p95_days, n_decisions}` |
+| `triage_time` | `case_opened` → terminal close-out, derived from ledger timestamps (`resolution_hours` only as a fallback when both `ts` aren't present) | `{median_days, p95_days, n_decisions}` |
 | `board_documented_decisions` | disposition decisions whose case also has a `board_report` / `board_review` / `board_escalation` event | a count — or **not-tracked** when no board markers appear anywhere |
 | `ledger_integrity` | `AuditLedger.verify_decisions()` over the hash chain | `"verified"` / `"broken"` |
 
@@ -42,7 +42,7 @@ This writes `whistleblower_audit_report.json` into the run directory (atomic wri
 
 ```
 Wrote whistleblower audit JSON -> .artifacts/run-<ts>/whistleblower_audit_report.json
-backlog: 0 stale (oldest 0d) | escalation coverage: 0% | triage median: 0.825d | ledger: verified
+backlog: 0 stale (oldest 0d) | escalation coverage: 0% | triage median: 1.1d | ledger: verified
 ```
 
 `--out <path>` overrides the destination. The report's `generated_at` is anchored to `manifest.json::as_of`, so re-running the audit against the same run is byte-deterministic.
@@ -59,7 +59,7 @@ jq . .artifacts/run-<ts>/whistleblower_audit_report.json
   "sar_backlog_exposure": { "open_stale_alerts": 0, "oldest_days": 0 },
   "escalation_coverage_pct": 0.0,
   "n_disposition_decisions": 46,
-  "triage_time": { "median_days": 0.825, "p95_days": 3.9, "n_decisions": 46 },
+  "triage_time": { "median_days": 1.1, "p95_days": 3.9, "n_decisions": 32 },
   "board_documented_decisions": 0,
   "board_reporting_tracked": false,
   "ledger_integrity": "verified",
@@ -84,7 +84,7 @@ A pipe table you can paste straight into a board pack:
 | SAR backlog — open stale alerts (>30d) | 0 |
 | SAR backlog — oldest (days) | 0 |
 | Escalation coverage (documented reviewer + rationale) | 0% (46 disposition decisions) |
-| Triage time — median (days) | 0.825 |
+| Triage time — median (days) | 1.1 |
 | Triage time — p95 (days) | 3.9 |
 | Board-documented decisions | not tracked |
 | Ledger integrity | verified |
@@ -102,7 +102,7 @@ A structured gap table mapping each NPRM-proposed expectation to ✓ / ⚠ / ✗
 | Proposed requirement | Status | Evidence |
 | --- | :---: | --- |
 | Internal reporting channel documented | ✓ | `ledger_integrity=verified` |
-| Median triage < 30d | ✓ | `triage_time.median_days=0.825` |
+| Median triage < 30d | ✓ | `triage_time.median_days=1.1` |
 | SAR backlog ≤ 0 | ✓ | `sar_backlog_exposure.open_stale_alerts=0` |
 | Board-level escalation documented | ⚠ | `board_documented_decisions=not tracked` |
 ```

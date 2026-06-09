@@ -14,7 +14,7 @@ Covers:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -43,6 +43,7 @@ def _make_run(tmp_path: Path, decisions: list[dict]) -> Path:
     genuine hash chain over the lines we write (so `verify_decisions`
     is exercised end to end, not stubbed).
     """
+    tmp_path.mkdir(parents=True, exist_ok=True)
     spec_path = tmp_path / "aml.yaml"
     spec_path.write_text("program: {}\n", encoding="utf-8")
     ledger = AuditLedger.create(
@@ -70,6 +71,12 @@ def _closed(case_id: str, ts: datetime, **extra) -> dict:
         "disposition": "closed_no_action",
         "_ts": ts,
     }
+    base.update(extra)
+    return base
+
+
+def _event(name: str, case_id: str, ts: datetime, **extra) -> dict:
+    base = {"event": name, "case_id": case_id, "rule_id": "r", "_ts": ts}
     base.update(extra)
     return base
 
@@ -145,6 +152,57 @@ def test_sar_resolution_clears_backlog(tmp_path):
     )
     report = build_whistleblower_audit_report(run, generated_at=_AS_OF)
     assert report.sar_backlog_exposure.open_stale_alerts == 0
+
+
+def test_old_escalated_case_still_counts_as_backlog(tmp_path):
+    # P1-2: an `escalated` event is NOT terminal (mirrors sla.py) — an old
+    # in-flight escalation must still count toward the SAR backlog.
+    run = _make_run(
+        tmp_path,
+        [
+            _opened("C1", datetime(2026, 1, 1)),  # 120d before as_of
+            _event("escalated", "C1", datetime(2026, 1, 2), disposition="l2_investigator"),
+        ],
+    )
+    report = build_whistleblower_audit_report(run, generated_at=_AS_OF)
+    assert report.sar_backlog_exposure.open_stale_alerts == 1
+    assert report.sar_backlog_exposure.oldest_days == 120
+
+
+def test_old_manual_review_case_still_counts_as_backlog(tmp_path):
+    # P1-2: `manual_review` is likewise in-flight, not terminal.
+    run = _make_run(
+        tmp_path,
+        [
+            _opened("C1", datetime(2026, 1, 1)),
+            _event("manual_review", "C1", datetime(2026, 1, 5)),
+        ],
+    )
+    report = build_whistleblower_audit_report(run, generated_at=_AS_OF)
+    assert report.sar_backlog_exposure.open_stale_alerts == 1
+
+
+def test_backlog_age_boundary_exactly_30_days_not_stale(tmp_path):
+    # P2-2: the code uses `age_days > STALE_BACKLOG_DAYS`, so EXACTLY 30 days
+    # is NOT stale; 30 days + epsilon IS. as_of = 2026-05-01 00:00:00.
+    on_boundary = _AS_OF - timedelta(days=STALE_BACKLOG_DAYS)  # exactly 30d old
+    just_over = _AS_OF - timedelta(days=STALE_BACKLOG_DAYS, seconds=1)  # 30d + 1s
+
+    run_boundary = _make_run(tmp_path / "a", [_opened("C1", on_boundary)])
+    assert (
+        build_whistleblower_audit_report(
+            run_boundary, generated_at=_AS_OF
+        ).sar_backlog_exposure.open_stale_alerts
+        == 0
+    )
+
+    run_over = _make_run(tmp_path / "b", [_opened("C1", just_over)])
+    assert (
+        build_whistleblower_audit_report(
+            run_over, generated_at=_AS_OF
+        ).sar_backlog_exposure.open_stale_alerts
+        == 1
+    )
 
 
 # --------------------------------------------------------------------------
@@ -223,17 +281,18 @@ def test_reviewer_without_rationale_is_not_documented(tmp_path):
 # --------------------------------------------------------------------------
 
 
-def test_triage_time_from_resolution_hours(tmp_path):
-    # resolution_hours: 24 (1d), 48 (2d), 72 (3d) -> median 2d, p95 ~3d.
+def test_triage_time_from_ledger_timestamps(tmp_path):
+    # ts deltas: 1d, 2d, 3d -> median 2d, p95 3d. Ledger ts is the primary
+    # (authoritative) signal.
     run = _make_run(
         tmp_path,
         [
             _opened("C1", datetime(2026, 4, 1)),
-            _closed("C1", datetime(2026, 4, 2), resolution_hours=24.0),
+            _closed("C1", datetime(2026, 4, 2)),
             _opened("C2", datetime(2026, 4, 1)),
-            _closed("C2", datetime(2026, 4, 3), resolution_hours=48.0),
+            _closed("C2", datetime(2026, 4, 3)),
             _opened("C3", datetime(2026, 4, 1)),
-            _closed("C3", datetime(2026, 4, 4), resolution_hours=72.0),
+            _closed("C3", datetime(2026, 4, 4)),
         ],
     )
     report = build_whistleblower_audit_report(run, generated_at=_AS_OF)
@@ -242,16 +301,29 @@ def test_triage_time_from_resolution_hours(tmp_path):
     assert report.triage_time.p95_days == 3.0
 
 
-def test_triage_time_falls_back_to_ts_delta(tmp_path):
-    # No resolution_hours -> compute from case_opened to terminal ts.
+def test_triage_time_prefers_ledger_ts_over_resolution_hours(tmp_path):
+    # P2-1: ledger ts (2 days) wins over a divergent resolution_hours
+    # (which would imply 10 days) — the ts is the authoritative signal.
     run = _make_run(
         tmp_path,
         [
-            _opened("C1", datetime(2026, 4, 1, 0, 0, 0)),
-            _closed("C1", datetime(2026, 4, 3, 0, 0, 0)),  # 2 days
+            _opened("C1", datetime(2026, 4, 1)),
+            _closed("C1", datetime(2026, 4, 3), resolution_hours=240.0),  # 10d if used
         ],
     )
     report = build_whistleblower_audit_report(run, generated_at=_AS_OF)
+    assert report.triage_time.median_days == 2.0
+
+
+def test_triage_time_falls_back_to_resolution_hours_when_open_ts_absent(tmp_path):
+    # No `case_opened` event (so no open ts) but a terminal event with
+    # resolution_hours -> the fallback path computes from resolution_hours.
+    run = _make_run(
+        tmp_path,
+        [_closed("C1", datetime(2026, 4, 3), resolution_hours=48.0)],  # 2 days
+    )
+    report = build_whistleblower_audit_report(run, generated_at=_AS_OF)
+    assert report.triage_time.n_decisions == 1
     assert report.triage_time.median_days == 2.0
 
 
@@ -524,16 +596,18 @@ def test_nprm_gap_board_tracked_but_zero_documented(tmp_path):
 
 
 def test_nprm_gap_broken_ledger_and_late_triage(tmp_path):
+    # 45-day ledger gap between open and close -> triage 45d > 30d threshold.
     run = _make_run(
         tmp_path,
         [
             _opened("C1", datetime(2026, 4, 1)),
-            _closed("C1", datetime(2026, 4, 2), resolution_hours=24.0 * 45),  # 45d > 30d
+            _closed("C1", datetime(2026, 5, 16)),  # 45 days after open
         ],
     )
     dpath = run / "decisions.jsonl"
     dpath.write_text(dpath.read_text(encoding="utf-8") + '{"x":1}\n', encoding="utf-8")
     report = build_whistleblower_audit_report(run, generated_at=_AS_OF)
+    assert report.triage_time.median_days == 45.0
     gap = render_nprm_gap_markdown(report)
     assert "ledger_integrity=broken" in gap
     assert "Median triage < 30d | ✗" in gap
@@ -604,6 +678,37 @@ def test_cli_rejects_unknown_format(tmp_path):
         ["whistleblower-audit", str(spec_path), str(run), "--format", "bogus"],
     )
     assert result.exit_code == 1
+
+
+def test_cli_fails_closed_when_manifest_missing(tmp_path):
+    # P1-1: no manifest.json -> refuse rather than invent a wall-clock as_of.
+    from typer.testing import CliRunner
+
+    from aml_framework.cli import app
+
+    run = _make_run(tmp_path, [_opened("C1", datetime(2026, 4, 1))])
+    (run / "manifest.json").unlink()  # remove the as_of anchor
+    spec_path = Path("examples/community_bank/aml.yaml")
+    runner = CliRunner()
+    result = runner.invoke(app, ["whistleblower-audit", str(spec_path), str(run)])
+    assert result.exit_code == 1
+    assert "as_of" in result.output
+    assert not (run / "whistleblower_audit_report.json").exists()
+
+
+def test_cli_fails_closed_when_manifest_has_no_as_of(tmp_path):
+    # P1-1: manifest present but no `as_of` key -> still refuse.
+    from typer.testing import CliRunner
+
+    from aml_framework.cli import app
+
+    run = _make_run(tmp_path, [_opened("C1", datetime(2026, 4, 1))])
+    (run / "manifest.json").write_text('{"engine_version": "x"}', encoding="utf-8")
+    spec_path = Path("examples/community_bank/aml.yaml")
+    runner = CliRunner()
+    result = runner.invoke(app, ["whistleblower-audit", str(spec_path), str(run)])
+    assert result.exit_code == 1
+    assert not (run / "whistleblower_audit_report.json").exists()
 
 
 def test_stale_backlog_days_constant():

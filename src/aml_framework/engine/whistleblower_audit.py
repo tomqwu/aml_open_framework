@@ -42,14 +42,26 @@ from pydantic import BaseModel, ConfigDict
 
 from aml_framework.engine.audit import AuditLedger
 from aml_framework.engine.constants import Event
+from aml_framework.engine.sla import _TERMINAL_EVENTS
 
 # An alert open longer than this (days, measured from the run's `as_of`)
 # without a resolving disposition is "stale backlog". 30 days mirrors the
 # SAR filing clock investigators work against.
 STALE_BACKLOG_DAYS = 30
 
-# Decision events that represent a *human disposition* of an alert — the
-# population escalation-coverage and triage-time are computed over.
+# Events that genuinely CLOSE OUT a case for SAR-backlog purposes. Reused
+# verbatim from `engine/sla.py::_TERMINAL_EVENTS` (`closed` +
+# `escalated_to_str`) so the two operational lenses cannot diverge on
+# "what counts as still-open". An old `escalated` / `manual_review` case
+# is in-flight work, NOT resolved — it must still count toward backlog
+# (Pillar-6 SLA defines it the same way).
+_BACKLOG_CLEARING_EVENTS = _TERMINAL_EVENTS
+
+# Decision events that represent a *human disposition action* on an alert —
+# the population escalation-coverage and triage-time are computed over. This
+# is a WIDER set than `_BACKLOG_CLEARING_EVENTS`: an analyst `escalated` /
+# `manual_review` IS a documented action worth measuring coverage on, even
+# though it does not yet close the case out of the SAR backlog.
 # `case_opened` (engine bookkeeping) and `environment_gate_check`
 # (promotion gate) are excluded.
 _DISPOSITION_EVENTS = frozenset(
@@ -188,16 +200,19 @@ def build_whistleblower_audit_report(
     """
     decisions = _read_decisions(run_dir)
 
-    # --- per-case open time + terminal disposition --------------------
-    # First `case_opened` ts per case (alert birth), and the EARLIEST
-    # terminal disposition ts per case (alert resolution). A case may have
-    # several human dispositions; the first terminal one stops the clock.
-    # A SAR/STR escalation and a documented non-suspicious close are BOTH
-    # terminal dispositions (they're all in `_DISPOSITION_EVENTS`), so a case
-    # landing in `resolved_at` is — by definition — no longer SAR backlog.
+    # --- per-case open time + TERMINAL resolution ---------------------
+    # `opened_at`:  first `case_opened` ts per case (alert birth).
+    # `terminal_at`: EARLIEST genuinely-terminal (`closed` / `escalated_to_str`)
+    #   ts per case (alert close-out). A case that has only an `escalated` /
+    #   `manual_review` event is STILL OPEN — it never lands here, mirroring
+    #   `engine/sla.py`'s open-vs-terminal definition, so an old in-flight
+    #   escalation is correctly counted as SAR backlog.
+    # `terminal_hours`: engine-stamped `resolution_hours` on the winning
+    #   terminal event — used ONLY as the triage-time fallback when ledger
+    #   timestamps aren't both present.
     opened_at: dict[str, datetime] = {}
-    resolved_at: dict[str, datetime] = {}
-    resolution_hours: dict[str, float] = {}
+    terminal_at: dict[str, datetime] = {}
+    terminal_hours: dict[str, float] = {}
 
     for event in decisions:
         case_id = event.get("case_id")
@@ -208,26 +223,24 @@ def build_whistleblower_audit_report(
         if name == Event.CASE_OPENED:
             if ts is not None and (case_id not in opened_at or ts < opened_at[case_id]):
                 opened_at[case_id] = ts
-        elif name in _DISPOSITION_EVENTS:
-            if ts is not None and (case_id not in resolved_at or ts < resolved_at[case_id]):
-                resolved_at[case_id] = ts
-                # Capture the engine-stamped resolution_hours alongside the
-                # winning (earliest) terminal event for a deterministic
-                # triage time even when ts precision differs.
+        elif name in _BACKLOG_CLEARING_EVENTS:
+            if ts is not None and (case_id not in terminal_at or ts < terminal_at[case_id]):
+                terminal_at[case_id] = ts
                 rh = event.get("resolution_hours")
                 if isinstance(rh, (int, float)):
-                    resolution_hours[case_id] = float(rh)
+                    terminal_hours[case_id] = float(rh)
                 else:
-                    resolution_hours.pop(case_id, None)
+                    terminal_hours.pop(case_id, None)
 
     # --- SAR backlog exposure -----------------------------------------
-    # An alert (case) is stale-backlog when it has NO terminal disposition
-    # AND its age from `as_of` exceeds STALE_BACKLOG_DAYS. A case resolved
-    # to a SAR or any documented disposition is, by definition, not backlog.
+    # An alert (case) is stale-backlog when it has NO terminal close-out AND
+    # its age from `as_of` exceeds STALE_BACKLOG_DAYS. A case `escalated` or
+    # under `manual_review` but not yet `closed` / `escalated_to_str` is
+    # still in-flight and DOES count (same as Pillar-6 SLA).
     stale_days: list[int] = []
     for case_id, opened in opened_at.items():
-        if case_id in resolved_at:
-            continue  # documented disposition (SAR or non-suspicious close)
+        if case_id in terminal_at:
+            continue  # genuinely closed out (closed / escalated_to_str)
         age_days = (generated_at - opened).total_seconds() / 86400.0
         if age_days > STALE_BACKLOG_DAYS:
             stale_days.append(int(age_days))
@@ -243,17 +256,19 @@ def build_whistleblower_audit_report(
     escalation_coverage_pct = round(100.0 * n_documented / n_disp, 2) if n_disp else 0.0
 
     # --- triage time ---------------------------------------------------
-    # Alert-to-decision per resolved case, in days. Prefer the engine's
-    # `resolution_hours` (deterministic, captured at decision time); fall
-    # back to the ts delta from case_opened to the terminal decision.
+    # Alert-to-decision per CLOSED-OUT case, in days. PREFER the ledger
+    # timestamps (`case_opened.ts` -> terminal-decision `.ts`) — the
+    # authoritative, audit-chained signal — and fall back to the engine's
+    # `resolution_hours` ONLY when both timestamps aren't present. Both
+    # paths are deterministic (all from the ledger, no clock read).
     triage_days: list[float] = []
-    for case_id, resolved in resolved_at.items():
-        if case_id in resolution_hours:
-            triage_days.append(resolution_hours[case_id] / 24.0)
-        elif case_id in opened_at:
-            delta = (resolved - opened_at[case_id]).total_seconds() / 86400.0
+    for case_id, terminal in terminal_at.items():
+        if case_id in opened_at:
+            delta = (terminal - opened_at[case_id]).total_seconds() / 86400.0
             if delta >= 0:
                 triage_days.append(delta)
+        elif case_id in terminal_hours:
+            triage_days.append(terminal_hours[case_id] / 24.0)
     triage_days.sort()
     triage = TriageTime(
         median_days=round(_median(triage_days), 3) if triage_days else None,

@@ -1651,14 +1651,23 @@ def whistleblower_audit_cmd(
 
     load_spec(spec_path)  # validate the spec resolves (cross-reference integrity)
 
-    # Determinism (#531): anchor `as_of` to the run's own manifest.json so a
-    # re-run against the same run is byte-deterministic. Falls back to the
-    # wall-clock only when the manifest is missing / carries no `as_of`.
+    # Determinism (#531, codex P1): the report MUST anchor `as_of` to the run's
+    # manifest.json. FAIL CLOSED — if the manifest is absent / unreadable / has
+    # no `as_of`, refuse rather than silently inventing a wall-clock `now()`
+    # (which would make the report nondeterministic). Mirrors the other offline
+    # report CLIs that won't fabricate an as_of.
     manifest_as_of: str | None = None
     manifest_path = run_dir / "manifest.json"
     if manifest_path.exists():
         with contextlib.suppress(ValueError, OSError):
             manifest_as_of = _json.loads(manifest_path.read_bytes()).get("as_of")
+    if not manifest_as_of:
+        console.print(
+            "[red]whistleblower-audit needs the run's manifest.json as_of — "
+            "none found[/red] (manifest absent, unreadable, or missing `as_of`). "
+            "Run `aml run` to produce a finalized run directory first."
+        )
+        raise typer.Exit(code=1)
     generated_at = _parse_as_of(manifest_as_of)
 
     report = build_whistleblower_audit_report(run_dir, generated_at=generated_at)
