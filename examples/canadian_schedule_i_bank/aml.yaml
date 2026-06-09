@@ -54,6 +54,15 @@ program:
   # (drift_high_ratio 2.0, baseline_runs 10).
   model_risk_monitoring:
     enabled: true
+    # #529 (Pillar 7): opt into the model-risk approval gate. The gate
+    # only *engages* in prod under strict env-gating (this spec ships at
+    # the dev default, so the bundled run is unaffected); when an
+    # institution promotes this spec to prod-strict, any material-tier
+    # (model_tier medium/high) rule still `approval_status: pending` is
+    # BLOCKED. The python_ref `passthrough_funnel_scorer` below carries
+    # `approval_status: approved` so it passes the gate — the worked
+    # demonstrator.
+    require_approval_before_prod: true
 
 # ---------------------------------------------------------------------------
 # Data contracts — one per channel to enforce channel-level coverage.
@@ -245,6 +254,10 @@ rules:
       - prior_alerts_90d
     tags: [pass_through, layering, funnel, ml_governed]
     model_tier: medium
+    # #529 (Pillar 7): this material-tier ML scorer has cleared model-risk
+    # validation sign-off, so it passes the approval gate when the spec is
+    # promoted to prod-strict (see program.model_risk_monitoring above).
+    approval_status: approved
     validation_cadence_months: 18
     business_intent: >
       Channel-agnostic pass-through funnel scorer that complements the

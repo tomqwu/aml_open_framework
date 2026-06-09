@@ -458,7 +458,7 @@ _render_pillar(
         "leakage, imperfect labels, imbalanced evaluation, feature-window "
         "correctness."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         "**In:** deterministic rule baseline is the governed product "
         f"({_rule_count} rules + {_metric_count} metrics in this spec); "
@@ -466,10 +466,20 @@ _render_pillar(
         "**In:** Model Performance + Tuning Lab + Rule Tuning surfaces "
         "ML-assisted threshold tuning with explainability and CI-checked "
         "validation.",
-        "**Missing:** a formal model-risk lifecycle in the spec — "
-        "challenger-model registry, approval gates, temporal-leakage / "
-        "feature-window checks as first-class spec artefacts rather than "
-        "analyst discipline.",
+        "**In (#497):** governed model-risk monitoring — "
+        "`program.model_risk_monitoring` emits a frozen, manifest-pinned "
+        "`model_risk_report.json` rolling the model inventory + per-rule "
+        "count drift + validation cadence (SR 11-7 / OSFI E-23), surfaced "
+        "on the Drift Monitor page.",
+        "**In (#529):** a first-class **model-risk approval gate** — a "
+        "rule carries `approval_status` (pending/approved/rejected), and "
+        "`program.model_risk_monitoring.require_approval_before_prod` makes "
+        "the engine BLOCK any material-tier (`model_tier` medium/high) rule "
+        "still `pending` when the spec runs in `prod` under strict "
+        "env-gating (same `EnvironmentGatingError`, recorded as an "
+        "`approval_gate_check` audit event). The "
+        "`canadian_schedule_i_bank` ML scorer ships `approval_status: "
+        "approved` as the worked demonstrator.",
     ],
     links=[
         ("Model Performance — ML metric drift + monitoring", "pages/13_Model_Performance.py"),
@@ -529,11 +539,12 @@ col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.metric(
         "Covered",
-        "7",
-        help="Pillars 1, 2 (#529 defect lifecycle), 3, 4, 5 (#529 risk_tier), 6, 8.",
+        "8",
+        help="All 8 pillars — the last four (2 defect lifecycle, 4 risk_tier/DQ, "
+        "5 risk-based controls, 7 model-risk approval gates) closed in #529.",
     )
 with col_b:
-    st.metric("Partial", "1", help="Pillar 7.")
+    st.metric("Partial", "0", help="All pillars closed as of #529.")
 with col_c:
     st.metric("Gap", "0", help="No gaps — every pillar points to a concrete artefact.")
 

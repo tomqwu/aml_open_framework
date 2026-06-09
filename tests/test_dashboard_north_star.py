@@ -187,6 +187,29 @@ class TestPillarCoverage:
             "requires the page name COVERED pillars explicitly"
         )
 
+    def test_all_eight_pillars_covered(self):
+        # Issue #529 closed the last four PARTIAL pillars. Every one of
+        # the eight `_render_pillar(...)` call sites must now carry
+        # `status="COVERED"`, and no card may be PARTIAL or GAP. Pins the
+        # 8/8 North-Star state so a regression that re-opens a pillar (or
+        # silently drops the page back to PARTIAL prose) fails loudly.
+        body = PAGE.read_text(encoding="utf-8")
+        call_marker = "_render_pillar(\n    number="
+        cards = body.split(call_marker)[1:]
+        assert len(cards) == 8, f"expected 8 pillar cards, got {len(cards)}"
+        for idx, card in enumerate(cards, start=1):
+            # Look only at the status declared inside this card segment
+            # (up to the next call site, already split out).
+            assert 'status="COVERED"' in card, (
+                f"pillar #{idx} ({PILLAR_NAMES[idx - 1]}) is not COVERED — "
+                "issue #529 requires all 8 pillars COVERED"
+            )
+            for not_covered in ('status="PARTIAL"', 'status="GAP"'):
+                assert not_covered not in card, (
+                    f"pillar #{idx} ({PILLAR_NAMES[idx - 1]}) still declares "
+                    f"{not_covered} — issue #529 requires all 8 pillars COVERED"
+                )
+
 
 class TestRegistration:
     def test_audience_has_north_star_pages_constant(self):
