@@ -38,6 +38,7 @@ The US specs (`community_bank`, `cyber_enabled_fraud`) align with:
 - **FinCEN BSA 6 Pillars** including the April 2026 proposed 6th pillar (formalized risk assessment)
 - **OFAC SDN list** screening via the `list_match` rule type
 - **FinCEN advisories** (FIN-2014-A005 cash-to-wire, FIN-2023-Alert005 pig-butchering, FIN-2006-A003 unusual volume)
+- **FinCEN Whistleblower Incentives and Protections NPRM** ([Federal Register 2026-06271](https://www.federalregister.gov/documents/2026/04/01/2026-06271/whistleblower-incentives-and-protections)) — the offline `aml whistleblower-audit` CLI (#531) rolls a run's audit ledger into a frozen `whistleblower_audit_report.json` (SAR-backlog exposure, escalation coverage, triage time, board-documented decisions, ledger integrity) + a `--format nprm-gap` readiness table. Advisory readiness lens; never blocks or changes a run. See [how-to: run a whistleblower audit](how-to/run-whistleblower-audit.md).
 
 Filing forms: **SAR** (Suspicious Activity Report) and **CTR** (Currency Transaction Report) for cash >$10,000.
 
