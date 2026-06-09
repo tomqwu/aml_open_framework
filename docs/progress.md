@@ -1,6 +1,10 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-05. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-09.
+
+> **#528 — AMLA RTS effectiveness telemetry pack** (`feat/amla-effectiveness`, 2026-06-09): new `aml amla-effectiveness-report` CLI command emits `amla_effectiveness_report.json` — per-rule AMLA RTS citation coverage (AMLR Art. 28(1) CDD RTS, AMLR Art. 19(9) business-relationships RTS, AMLD6 Art. 53(10) pecuniary-sanctions RTS) + optional alert→case→STR funnel (composes with `metrics/outcomes.py:compute_outcomes()`). Pure deterministic builder in `metrics/amla_effectiveness.py` (stdlib + pydantic; no new deps). `--markdown` flag writes a pipe-formatted table for model-risk committee reports. EU bank spec (`examples/eu_bank/aml.yaml`) annotated with AMLA RTS citations on all relevant rules. Dashboard Framework Alignment page (page 8) adds an **AMLA RTS Coverage** tab for EU jurisdiction — per-article status (✓/⚠/✗). 7 new citations added to `CITATION_URL_MAP`. How-to recipe at `docs/how-to/amla-effectiveness-report.md`. 23 unit tests + EU-spec integration test. **Deadline: July 10, 2026 (31 days).**
+
+--- This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
 > **Round 33 — June 2026 research complete** (`docs`, 2026-06-05): all five research documents now have June 2026 editions.
 >

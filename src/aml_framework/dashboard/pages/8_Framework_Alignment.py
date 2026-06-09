@@ -177,6 +177,27 @@ for tab_widget, tab_def in zip(tabs, framework_tabs):
                 )
             _render_table(rows)
 
+        elif tab_def["type"] == "amla_rts":
+            st.caption(
+                "AMLA must submit three Regulatory Technical Standards to the European Commission "
+                "by July 10, 2026. The table below shows how each RTS obligation maps to the "
+                "spec's rules and workflow. Run `aml amla-effectiveness-report` for the "
+                "one-command evidence pack."
+            )
+            rows = []
+            for a in data:
+                rows.append(
+                    {
+                        "Status": STATUS_LABELS.get(a["status"], "? Unknown"),
+                        "Article": a["article"],
+                        "RTS Name": a["rts_name"],
+                        "Title": a["title"],
+                        "Spec Element": a["spec_element"],
+                        "Notes": a.get("notes", ""),
+                    }
+                )
+            _render_table(rows)
+
         elif tab_def["type"] == "principles":
             if "OSFI" in tab_def["label"]:
                 st.caption(

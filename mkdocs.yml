@@ -131,6 +131,7 @@ nav:
       - "Configure SLA monitoring": how-to/configure-sla.md
       - "Triage defects": how-to/triage-defects.md
       - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md
+      - "Produce an AMLA RTS effectiveness report": how-to/amla-effectiveness-report.md
 
   # ─── Operate ───────────────────────────────────────────────
   # Day-2 — running the framework in real environments.

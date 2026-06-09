@@ -91,6 +91,18 @@ aml dashboard examples/eu_bank/aml.yaml
 
 The framework ships a goAML 5.0.2 exporter (`aml export-goaml`) and an AMLA RTS JSON draft exporter (`aml export-amla-str`) — see [`api-reference.md`](api-reference.md) for invocation details.
 
+### AMLA RTS Effectiveness Report (2026-07-10 deadline)
+
+Run `aml amla-effectiveness-report` to produce a one-command evidence pack for the three AMLA RTS submissions due July 10, 2026:
+
+```bash
+aml amla-effectiveness-report examples/eu_bank/aml.yaml \
+    --out amla_effectiveness_report.json \
+    --markdown amla_effectiveness_report.md
+```
+
+The command scans each rule's `regulation_refs` for AMLA citations (AMLR Art. 28(1), Art. 19(9), AMLD6 Art. 53(10)) and, when a run directory is available, adds the alert→case→STR funnel per rule. See [how-to/amla-effectiveness-report.md](how-to/amla-effectiveness-report.md) for the full recipe.
+
 ---
 
 ## United Kingdom — FCA / POCA

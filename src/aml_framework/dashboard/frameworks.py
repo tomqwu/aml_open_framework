@@ -263,6 +263,45 @@ AMLD6_REQUIREMENTS = [
     },
 ]
 
+AMLA_RTS_COVERAGE = [
+    {
+        "article": "AMLR Art. 28(1)",
+        "rts_name": "CDD RTS",
+        "title": "Customer due diligence — effectiveness demonstration",
+        "spec_element": "structuring_cash + pep_screening + high_risk_jurisdiction + rapid_movement_sepa",
+        "status": "mapped",
+        "notes": (
+            "Four rules carry AMLR Art. 28(1) citations, satisfying the CDD RTS "
+            "obligation to demonstrate transaction-monitoring effectiveness. "
+            "Run `aml amla-effectiveness-report` for the one-command evidence pack."
+        ),
+    },
+    {
+        "article": "AMLR Art. 19(9)",
+        "rts_name": "Business-relationships RTS",
+        "title": "Ongoing monitoring of business relationships",
+        "spec_element": "high_risk_jurisdiction + pep_screening",
+        "status": "mapped",
+        "notes": (
+            "High-risk-jurisdiction and PEP screening rules implement the ongoing "
+            "monitoring obligation; senior-management approval flow is in the "
+            "l2_investigator queue."
+        ),
+    },
+    {
+        "article": "AMLD6 Art. 53(10)",
+        "rts_name": "Pecuniary-sanctions RTS",
+        "title": "Administrative pecuniary sanctions",
+        "spec_element": "sanctions_screening",
+        "status": "partial",
+        "notes": (
+            "Sanctions screening is a prerequisite for the Art. 53(10) compliance regime. "
+            "Full pecuniary-sanctions governance (sanction-exposure register, board reporting) "
+            "is a programme-level obligation beyond the detection layer."
+        ),
+    },
+]
+
 WOLFSBERG_MAPPING = [
     {
         "principle": "Risk-Based Approach",
@@ -301,6 +340,7 @@ def get_framework_tabs(jurisdiction: str) -> list[dict[str, Any]]:
         )
     elif jurisdiction == "EU":
         tabs.append({"label": "AMLD6 Requirements", "data": AMLD6_REQUIREMENTS, "type": "pillars"})
+        tabs.append({"label": "AMLA RTS Coverage", "data": AMLA_RTS_COVERAGE, "type": "amla_rts"})
     else:
         tabs.append({"label": "FinCEN BSA Pillars", "data": FINCEN_BSA_PILLARS, "type": "pillars"})
     tabs.append({"label": "Wolfsberg Principles", "data": WOLFSBERG_MAPPING, "type": "principles"})

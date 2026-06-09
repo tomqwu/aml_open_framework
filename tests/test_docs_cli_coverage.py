@@ -62,7 +62,7 @@ KNOWN_UNDOCUMENTED: frozenset[str] = frozenset(
         "init",
         "mrm-bundle",
         # notify-digest documented in docs/how-to/configure-sla.md (PR-DOCS-3).
-        "outcomes-pack",
+        # outcomes-pack documented in docs/how-to/amla-effectiveness-report.md (#528).
         "pkyc-scan",
         "propose-change",
         "queue-rank",

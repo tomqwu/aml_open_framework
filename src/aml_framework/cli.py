@@ -1243,6 +1243,128 @@ def outcomes_pack_cmd(
     )
 
 
+@app.command(name="amla-effectiveness-report")
+def amla_effectiveness_report_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Option(
+        None, "--run-dir", help="Run directory; defaults to newest under artifacts/."
+    ),
+    artifacts: Path = typer.Option(
+        Path("artifacts"), "--artifacts", help="Where engine runs are written."
+    ),
+    out: Path = typer.Option(
+        Path("amla_effectiveness_report.json"),
+        "--out",
+        help="Output JSON path.",
+    ),
+    markdown: Path | None = typer.Option(
+        None, "--markdown", help="Write Markdown table (MRC-ready) here."
+    ),
+    lei: str = typer.Option("", "--lei", help="Legal Entity Identifier (20 chars)."),
+    entity_type: str = typer.Option(
+        "credit_institution", "--entity-type", help="AMLA obliged-entity type."
+    ),
+    home_state: str = typer.Option(
+        "", "--home-state", help="ISO 3166-1 alpha-2 home Member State."
+    ),
+    period_start: str = typer.Option(
+        "", "--period-start", help="Reporting period start (YYYY-MM-DD)."
+    ),
+    period_end: str = typer.Option("", "--period-end", help="Reporting period end (YYYY-MM-DD)."),
+    labels_csv: Path | None = typer.Option(
+        None, "--labels", help="Optional CSV: case_id,is_true_positive (1/0) for precision."
+    ),
+) -> None:
+    """AMLA RTS effectiveness report — citation coverage + alert→case→STR funnel.
+
+    Reads the spec's regulation_refs to assess AMLA RTS citation coverage
+    (AMLR Art. 28(1), Art. 19(9), AMLD6 Art. 53(10)) and, when a run
+    directory is available, computes the alert→case→STR funnel per rule.
+
+    Emits `amla_effectiveness_report.json`. Use `--markdown` to also write
+    a pipe-formatted table ready for model-risk committee reports.
+    """
+    import csv as _csv
+    import json as _json
+    from datetime import datetime, timezone
+
+    from aml_framework.metrics.amla_effectiveness import (
+        build_effectiveness_report,
+        format_effectiveness_json,
+        format_effectiveness_markdown,
+    )
+    from aml_framework.metrics.outcomes import compute_outcomes
+
+    spec = load_spec(spec_path)
+    as_of = datetime.now(tz=timezone.utc).isoformat(timespec="seconds")
+
+    # Load cases + decisions when a run directory is resolvable.
+    # Avoids calling _resolve_run_dir (which exits on no runs) — instead we
+    # check candidates directly so the command works spec-only.
+    funnel = None
+    resolved: Path | None = run_dir
+    if resolved is None:
+        candidates = sorted(artifacts.glob("run-*"), reverse=True)
+        resolved = candidates[0] if candidates else None
+
+    if resolved is not None:
+        cases: list[dict] = []
+        cases_dir = resolved / "cases"
+        if cases_dir.exists():
+            for f in sorted(cases_dir.glob("*.json")):
+                cases.append(_json.loads(f.read_text()))
+        decisions: list[dict] = []
+        dec_path = resolved / "decisions.jsonl"
+        if dec_path.exists():
+            for line in dec_path.read_text().splitlines():
+                line = line.strip()
+                if line:
+                    decisions.append(_json.loads(line))
+
+        labels: dict[str, bool] | None = None
+        if labels_csv is not None:
+            labels = {}
+            with labels_csv.open() as lf:
+                for row in _csv.DictReader(lf):
+                    labels[row["case_id"]] = row.get("is_true_positive", "0") in (
+                        "1",
+                        "true",
+                        "True",
+                        "yes",
+                    )
+
+        funnel = compute_outcomes(
+            cases=cases,
+            decisions=decisions,
+            spec_program=spec.program.name,
+            labels=labels,
+        )
+    else:
+        console.print("[yellow]No run directory found — emitting citation-coverage only.[/yellow]")
+
+    report = build_effectiveness_report(spec, funnel=funnel, as_of=as_of)
+    payload = format_effectiveness_json(report)
+    out.write_bytes(payload)
+
+    covered = sum(1 for c in report.rts_coverage if c.status == "covered")
+    partial = sum(1 for c in report.rts_coverage if c.status == "partial")
+    gaps = sum(1 for c in report.rts_coverage if c.status == "gap")
+    console.print(
+        f"[green]AMLA effectiveness report[/green] {out}\n"
+        f"  RTS coverage — ✓ {covered} covered · ⚠ {partial} partial · ✗ {gaps} gap(s)"
+    )
+    if funnel is not None:
+        console.print(
+            f"  Funnel — alerts: {funnel.total_alerts} · cases: {funnel.total_cases}"
+            f" · STR filed: {funnel.total_str_filed} · alert→STR: {funnel.alert_to_str_pct}%"
+        )
+
+    if markdown is not None:
+        markdown.parent.mkdir(parents=True, exist_ok=True)
+        markdown.write_text(format_effectiveness_markdown(report), encoding="utf-8")
+        console.print(f"[green]Markdown[/green] {markdown}")
+
+
 @app.command(name="regwatch")
 def regwatch_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),

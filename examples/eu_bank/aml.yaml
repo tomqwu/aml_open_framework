@@ -73,6 +73,8 @@ rules:
         description: "Suspicious transaction reporting obligation."
       - citation: "Directive 2015/849 Art. 11"
         description: "CDD threshold for cash transactions >= EUR 15,000."
+      - citation: "AMLR Art. 28(1)"
+        description: "CDD RTS — obliged entities must demonstrate effectiveness of transaction monitoring."
     logic:
       type: aggregation_window
       source: txn
@@ -109,6 +111,10 @@ rules:
         description: "Enhanced due diligence for high-risk third countries."
       - citation: "EU Delegated Regulation 2016/1675"
         description: "List of high-risk third countries."
+      - citation: "AMLR Art. 19(9)"
+        description: "Business-relationships RTS — ongoing monitoring obligations for high-risk relationships."
+      - citation: "AMLR Art. 28(1)"
+        description: "CDD RTS — rule must demonstrate EDD effectiveness for high-risk third-country customers."
     logic:
       type: custom_sql
       sql: |
@@ -151,6 +157,10 @@ rules:
         description: "Enhanced due diligence for PEPs and their family members."
       - citation: "AMLD6 Art. 3(9)"
         description: "Definition of politically exposed person."
+      - citation: "AMLR Art. 19(9)"
+        description: "Business-relationships RTS — senior-management approval + ongoing EDD for PEP business relationships."
+      - citation: "AMLR Art. 28(1)"
+        description: "CDD RTS — PEP screening demonstrates effectiveness of the enhanced due diligence program."
     logic:
       type: custom_sql
       sql: |
@@ -193,6 +203,8 @@ rules:
     regulation_refs:
       - citation: "AMLD6 Art. 50"
         description: "STR for layering via SEPA transfers."
+      - citation: "AMLR Art. 28(1)"
+        description: "CDD RTS — layering detection demonstrates effectiveness of the transaction monitoring program."
     logic:
       type: aggregation_window
       source: txn
@@ -226,6 +238,8 @@ rules:
         description: "Restrictive measures against Russia."
       - citation: "EU Regulation 2580/2001"
         description: "Measures against terrorism financing."
+      - citation: "AMLD6 Art. 53(10)"
+        description: "Pecuniary-sanctions RTS — sanctions screening is a precondition for the administrative-sanction compliance regime."
     logic:
       type: list_match
       source: customer

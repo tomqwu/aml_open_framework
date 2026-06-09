@@ -99,11 +99,17 @@ CITATION_URL_MAP: dict[str, str] = {
     "OSFI Guideline B-8 s.4": "https://www.osfi-bsif.gc.ca/Eng/fi-if/rg-ro/gdn-ort/gl-ld/Pages/b8.aspx",
     "OSFI Guideline E-23": "https://www.osfi-bsif.gc.ca/Eng/fi-if/rg-ro/gdn-ort/gl-ld/Pages/e23.aspx",
     "SEMA s.4": "https://laws-lois.justice.gc.ca/eng/acts/S-14.5/section-4.html",
-    # European Union
+    # European Union — AMLD6 / AMLR / AMLA RTS
     "AMLD6 Art. 50": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L1673",
     "AMLD6 Art. 18a": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L0843",
     "AMLD6 Art. 20-23": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L0843",
     "AMLD6 Art. 3(9)": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L0843",
+    "AMLD6 Art. 53(10)": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L1673",
+    # AMLA / AMLR RTS articles — three RTS due 2026-07-10:
+    #   CDD RTS (AMLR Art. 28(1)), Business-relationships RTS (AMLR Art. 19(9)),
+    #   Pecuniary-sanctions RTS (AMLD6 Art. 53(10) — above)
+    "AMLR Art. 28(1)": "https://www.amla.europa.eu/policy/public-consultations/consultation-draft-rts-customer-due-diligence_en",
+    "AMLR Art. 19(9)": "https://www.amla.europa.eu/policy/public-consultations/",
     "Directive 2015/849 Art. 11": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015L0849",
     "EU Delegated Regulation 2016/1675": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R1675",
     "EU Regulation 2023/1113 (Transfer of Funds)": "https://eur-lex.europa.eu/eli/reg/2023/1113/oj",
