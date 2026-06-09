@@ -52,6 +52,7 @@ rules:
   - id: stablecoin_velocity_48h
     name: Stablecoin layering — 3+ swaps within 48h totalling $20k+
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF R.16 (revised June 2025)"
         description: "Travel Rule + Confirmation of Payee for VASP-to-VASP transfers."
@@ -90,6 +91,7 @@ rules:
   - id: sanctioned_wallet_screening
     name: Customer wallet appears on a sanctions list
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "OFAC SDN — virtual currency addenda"
         description: "OFAC sanctions list updates include identified wallet addresses."
@@ -124,6 +126,7 @@ rules:
   - id: nested_wallet_ring
     name: Nested wallet ring (3+ customers sharing identifiers)
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF R.16 nested service guidance"
         description: "VASPs should detect customers acting as unregistered nested services."
@@ -157,6 +160,7 @@ rules:
   - id: large_single_swap
     name: Large single virtual-asset swap (>= $10k USD-eq)
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "FINTRAC LVCTR (Large Virtual Currency Transaction Report)"
         description: "Reportable threshold for virtual currency dealers."

@@ -135,7 +135,8 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "drift_high_ratio": { "type": "number", "minimum": 1 },
-        "baseline_runs": { "type": "integer", "minimum": 1, "description": "Reserved — number of prior runs a future multi-run baseline will consider. The current MVP compares against the immediately-prior run only." }
+        "baseline_runs": { "type": "integer", "minimum": 1, "description": "Reserved — number of prior runs a future multi-run baseline will consider. The current MVP compares against the immediately-prior run only." },
+        "require_approval_before_prod": { "type": "boolean", "default": false, "description": "#529 (Pillar 7): when true AND the spec runs in `prod` under `strict_environment_gating`, the engine BLOCKS any material-tier rule (`model_tier` medium/high) whose `approval_status` is still `pending` — raising EnvironmentGatingError and recording an `approval_gate_check` event on decisions.jsonl. Defaults to false; the disabled path is byte-identical to the pre-#529 baseline." }
       }
     },
     "program_sla": {
@@ -294,6 +295,12 @@
           "type": "string",
           "description": "MRM tier (SR 26-2 / Interagency Statement) used by `generators/mrm.py` to set validation cadence and materiality.",
           "enum": ["high", "medium", "low"]
+        },
+        "approval_status": {
+          "type": "string",
+          "description": "#529 (Pillar 7): model-risk approval gate state. Defaults to `pending`. When `program.model_risk_monitoring.require_approval_before_prod` is true and the spec runs in `prod` under `strict_environment_gating`, a `model_tier` medium/high rule still `pending` is BLOCKED at run time (EnvironmentGatingError). Additive — only matters when the gate is opted into AND running prod-strict.",
+          "enum": ["pending", "approved", "rejected"],
+          "default": "pending"
         },
         "validation_cadence_months": {
           "type": "integer",

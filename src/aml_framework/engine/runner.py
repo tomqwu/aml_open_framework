@@ -40,6 +40,9 @@ from aml_framework.engine.suppression import build_suppression_report, stamp_sup
 from aml_framework.engine.promotion import (
     EnvironmentGatingError,
     is_rule_approved_for_environment,
+    is_rule_model_approved,
+    model_approval_audit_event,
+    model_approval_gate_applies,
     promotion_audit_event,
 )
 from aml_framework.engine.reconciliation import (
@@ -1269,6 +1272,32 @@ def run_spec(
                 spec.program.environment,
                 list(rule.environments),
             )
+
+        # #529 (Pillar 7): model-risk approval gate. ONLY active when the
+        # institution opts in (`model_risk_monitoring.require_approval_before_prod`)
+        # AND the spec runs in `prod` under strict env-gating AND the rule
+        # is a material model tier (medium/high). When the gate applies,
+        # record an `approval_gate_check` event (mirrors the env-gate's
+        # always-emit posture) and, if the rule is still `pending`/`rejected`,
+        # raise `EnvironmentGatingError` to abort the run. The disabled path
+        # (gate not opted in / not prod-strict / immaterial tier) emits
+        # nothing — byte-identical to the pre-#529 baseline.
+        if model_approval_gate_applies(rule, spec.program):
+            model_approved = is_rule_model_approved(rule)
+            ledger.append_decision(
+                model_approval_audit_event(rule, spec.program, approved=model_approved)
+            )
+            if not model_approved:
+                raise EnvironmentGatingError(
+                    rule_id=rule.id,
+                    environment=spec.program.environment,
+                    approved=list(rule.environments),
+                    reason=(
+                        f"model_tier '{rule.model_tier}' rule requires model-risk "
+                        f"approval before prod but approval_status is "
+                        f"'{rule.approval_status}' (set approval_status: approved)"
+                    ),
+                )
 
         # --- python_ref: dynamically load and call the scorer ---
         if rule.logic.type == "python_ref":

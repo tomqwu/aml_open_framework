@@ -122,6 +122,7 @@ nav:
       - how-to/index.md
       - "Add a detection rule": how-to/add-a-rule.md
       - "Wire a python_ref scorer": how-to/python-ref-scorer.md
+      - "Wire point-in-time reference data": how-to/point-in-time-enrichment.md
       - "Discover candidate typologies": how-to/discover-typologies.md
       - "Detect mule rings": how-to/detect-mule-rings.md
       - "Verify the audit chain": how-to/verify-audit-chain.md
@@ -132,7 +133,9 @@ nav:
       - "Walk the lineage chain": how-to/walk-lineage.md
       - "Configure SLA monitoring": how-to/configure-sla.md
       - "Triage defects": how-to/triage-defects.md
+      - "Enable alert prioritization": how-to/enable-prioritization.md
       - "Configure risk segmentation": how-to/configure-risk-segmentation.md
+      - "Run a champion-challenger validation": how-to/run-champion-challenger.md
       - "Monitor model risk + drift": how-to/monitor-model-risk.md
       - "Use the Case Copilot": how-to/use-case-copilot.md
       - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md

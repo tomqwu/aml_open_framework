@@ -291,8 +291,58 @@ WOLFSBERG_MAPPING = [
 ]
 
 
-def get_framework_tabs(jurisdiction: str) -> list[dict[str, Any]]:
-    """Return the framework alignment tabs appropriate for the jurisdiction."""
+def build_amla_rts_alignment(spec: Any) -> list[dict[str, Any]]:
+    """Map a spec onto the three AMLA RTS effectiveness articles (#528).
+
+    Pure, streamlit-free, unit-testable under `.[dev]`. Reuses the canonical
+    citation→article mapping from `metrics.amla_effectiveness`. For each RTS
+    article it returns a `status` of:
+
+    - ``mapped`` (✓) — ≥1 rule cites the article AND at least one covering
+      rule carries an evidence trail (`rule.evidence`);
+    - ``partial`` (∼/⚠) — cited, but no covering rule declares evidence;
+    - ``gap`` (✗) — no rule cites the article.
+
+    The shape matches the page's `pillars`/`principles` row schema so the
+    existing `_render_table` renders it unchanged.
+    """
+    from aml_framework.compliance.regwatch import citation_url
+    from aml_framework.metrics.amla_effectiveness import build_rts_coverage
+
+    rule_citations = {
+        rule.id: [ref.citation for ref in rule.regulation_refs] for rule in spec.rules
+    }
+    rules_by_id = {rule.id: rule for rule in spec.rules}
+    coverage, _ = build_rts_coverage(rule_citations)
+
+    rows: list[dict[str, Any]] = []
+    for c in coverage:
+        if not c.covering_rule_ids:
+            status = "gap"
+        elif any(getattr(rules_by_id.get(rid), "evidence", None) for rid in c.covering_rule_ids):
+            status = "mapped"
+        else:
+            status = "partial"
+        rows.append(
+            {
+                "pillar": c.instrument,
+                "name": c.citation,
+                "url": citation_url(c.citation),
+                "spec_element": (", ".join(c.covering_rule_ids) if c.covering_rule_ids else "—"),
+                "status": status,
+                "notes": c.title,
+            }
+        )
+    return rows
+
+
+def get_framework_tabs(jurisdiction: str, spec: Any | None = None) -> list[dict[str, Any]]:
+    """Return the framework alignment tabs appropriate for the jurisdiction.
+
+    When `spec` is supplied for an EU program, an "AMLA RTS coverage" tab is
+    appended mapping the spec's rule citations onto the three AMLA RTS
+    effectiveness articles (#528).
+    """
     tabs = [{"label": "FATF Recommendations", "data": FATF_MAPPING, "type": "fatf"}]
     if jurisdiction == "CA":
         tabs.append({"label": "PCMLTFA Pillars", "data": PCMLTFA_PILLARS, "type": "pillars"})
@@ -301,6 +351,14 @@ def get_framework_tabs(jurisdiction: str) -> list[dict[str, Any]]:
         )
     elif jurisdiction == "EU":
         tabs.append({"label": "AMLD6 Requirements", "data": AMLD6_REQUIREMENTS, "type": "pillars"})
+        if spec is not None:
+            tabs.append(
+                {
+                    "label": "AMLA RTS coverage",
+                    "data": build_amla_rts_alignment(spec),
+                    "type": "pillars",
+                }
+            )
     else:
         tabs.append({"label": "FinCEN BSA Pillars", "data": FINCEN_BSA_PILLARS, "type": "pillars"})
     tabs.append({"label": "Wolfsberg Principles", "data": WOLFSBERG_MAPPING, "type": "principles"})

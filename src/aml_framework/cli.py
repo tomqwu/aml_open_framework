@@ -1103,14 +1103,47 @@ def byod(
 
 
 @app.command()
-def validate(spec_path: Path = typer.Argument(..., exists=True, readable=True)) -> None:
-    """Validate aml.yaml against the JSON Schema and cross-reference checks."""
+def validate(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help=(
+            "Promote advisory governance warnings (e.g. an active rule "
+            "missing risk_tier — Pillars 4/5) to validation errors. "
+            "Exits 1 if any warning is present."
+        ),
+    ),
+) -> None:
+    """Validate aml.yaml against the JSON Schema and cross-reference checks.
+
+    The structural (JSON Schema) + cross-reference (Pydantic) layers always
+    run. On top of those, advisory governance passes run: an `active` rule
+    missing a first-class `risk_tier` (low/medium/high) is a WARN by default
+    and — with `--strict` — a hard validation error. This mirrors the
+    runtime environment-gating posture (WARN by default, raise under
+    `program.strict_environment_gating`).
+    """
+    from aml_framework.spec.validation import (
+        SpecValidationError,
+        validate_risk_tier_coverage,
+    )
+
     spec = load_spec(spec_path)
     console.print(
         f"[green]OK[/green] {spec_path} — "
         f"{len(spec.data_contracts)} contract(s), {len(spec.rules)} rule(s), "
         f"{len(spec.workflow.queues)} queue(s)."
     )
+
+    # Advisory governance pass — risk_tier coverage (Pillars 4 + 5).
+    try:
+        warnings = validate_risk_tier_coverage(spec, strict=strict)
+    except SpecValidationError as exc:
+        console.print(f"[red]FAILED[/red] {exc}")
+        raise typer.Exit(code=1) from None
+    for w in warnings:
+        console.print(f"[yellow]WARN[/yellow] {w}")
 
 
 @app.command(name="generate-dbt")
@@ -1599,6 +1632,210 @@ def model_inventory_cmd(
         f"{s['total_models']} models "
         f"(by kind: {dict(sorted(s['by_kind'].items()))}; by tier: {s['by_tier']})"
     )
+
+
+@app.command(name="amla-effectiveness-report")
+def amla_effectiveness_report_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Argument(..., exists=True, readable=True),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Write the report JSON here (default: <run-dir>/amla_effectiveness_report.json).",
+    ),
+    markdown: Path | None = typer.Option(
+        None, "--markdown", help="Write an MRC-pack markdown table here."
+    ),
+) -> None:
+    """Emit the AMLA RTS effectiveness pack (#528) for one engine run.
+
+    Rolls the run's cases + decisions into the alert→case→STR funnel +
+    per-rule precision/recall + AMLA citation coverage (CDD AMLR
+    Art. 28(1), ongoing monitoring AMLR Art. 26, targeted-financial-
+    sanctions screening AMLR Art. 20(1)(d)). Deterministic — `generated_at`
+    is the run manifest's `as_of`, no wall-clock read. Offline / post-run.
+    """
+    import contextlib
+    import json as _json
+    import os
+    import tempfile
+
+    from aml_framework.metrics.amla_effectiveness import (
+        build_amla_effectiveness_report,
+        render_markdown,
+    )
+
+    spec = load_spec(spec_path)
+
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[red]No manifest.json in {run_dir}[/red]")
+        raise typer.Exit(code=1)
+    manifest = _json.loads(manifest_path.read_bytes())
+    generated_at = datetime.fromisoformat(manifest["as_of"])
+
+    cases: list[dict] = []
+    cases_dir = run_dir / "cases"
+    if cases_dir.exists():
+        for f in sorted(cases_dir.glob("*.json")):
+            cases.append(_json.loads(f.read_text()))
+    decisions: list[dict] = []
+    dec_path = run_dir / "decisions.jsonl"
+    if dec_path.exists():
+        for line in dec_path.read_text().splitlines():
+            line = line.strip()
+            if line:
+                decisions.append(_json.loads(line))
+
+    rule_citations = {
+        rule.id: [ref.citation for ref in rule.regulation_refs] for rule in spec.rules
+    }
+
+    report = build_amla_effectiveness_report(
+        cases=cases,
+        decisions=decisions,
+        rule_citations=rule_citations,
+        spec_program=spec.program.name,
+        generated_at=generated_at,
+    )
+
+    out_path = out if out is not None else run_dir / "amla_effectiveness_report.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = report.model_dump_json(indent=2) + "\n"
+    # Atomic write: temp file in the SAME directory then os.replace, so an
+    # I/O error never leaves a partial amla_effectiveness_report.json.
+    fd, tmp_name = tempfile.mkstemp(dir=out_path.parent, prefix=out_path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+        os.replace(tmp_name, out_path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+    typer.echo(f"Wrote AMLA effectiveness report JSON -> {out_path}")
+
+    if markdown is not None:
+        markdown.parent.mkdir(parents=True, exist_ok=True)
+        markdown.write_text(render_markdown(report))
+        typer.echo(f"Wrote AMLA effectiveness report markdown -> {markdown}")
+
+    console.print(
+        f"[green]AMLA RTS effectiveness[/green] {spec.program.name}\n"
+        f"  alerts: {report.total_alerts}  cases: {report.total_cases}  "
+        f"str_filed: {report.total_str_filed}\n"
+        f"  alert→str: {report.alert_to_str_pct}%  "
+        f"str_acceptance: {report.str_acceptance_status}\n"
+        f"  RTS coverage: {report.n_rts_covered}/{report.n_rts_articles} articles"
+    )
+
+
+@app.command(name="whistleblower-audit")
+def whistleblower_audit_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="Run directory whose manifest + decisions.jsonl + cases/ are audited.",
+    ),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Where to write the JSON report. Default: <run_dir>/whistleblower_audit_report.json.",
+    ),
+    markdown: Path | None = typer.Option(
+        None, "--markdown", help="Write a board-report pipe table here."
+    ),
+    fmt: str | None = typer.Option(
+        None,
+        "--format",
+        help="Console render format. Currently: 'nprm-gap' for the NPRM readiness gap table.",
+    ),
+) -> None:
+    """Audit a run's internal-channel readiness vs the FinCEN Whistleblower NPRM (#531).
+
+    OFFLINE, advisory readiness lens (Federal Register 2026-06271). Reads the
+    run's manifest + decisions.jsonl + cases and reports SAR-backlog exposure,
+    escalation coverage (documented reviewer + rationale), alert-to-decision
+    triage time (median + p95), board-documented decisions, and ledger
+    integrity. Deterministic — `as_of` is anchored to the run's manifest.json;
+    never blocks or changes a run.
+
+    Signals a run does not record (e.g. board-report events) are reported as 0 /
+    not-tracked — never fabricated.
+    """
+    import contextlib
+    import json as _json
+    import os
+    import tempfile
+
+    from aml_framework.engine.whistleblower_audit import (
+        build_whistleblower_audit_report,
+        render_nprm_gap_markdown,
+        render_whistleblower_markdown,
+    )
+
+    load_spec(spec_path)  # validate the spec resolves (cross-reference integrity)
+
+    # Determinism (#531, codex P1): the report MUST anchor `as_of` to the run's
+    # manifest.json. FAIL CLOSED — if the manifest is absent / unreadable / has
+    # no `as_of`, refuse rather than silently inventing a wall-clock `now()`
+    # (which would make the report nondeterministic). Mirrors the other offline
+    # report CLIs that won't fabricate an as_of.
+    manifest_as_of: str | None = None
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.exists():
+        with contextlib.suppress(ValueError, OSError):
+            manifest_as_of = _json.loads(manifest_path.read_bytes()).get("as_of")
+    if not manifest_as_of:
+        console.print(
+            "[red]whistleblower-audit needs the run's manifest.json as_of — "
+            "none found[/red] (manifest absent, unreadable, or missing `as_of`). "
+            "Run `aml run` to produce a finalized run directory first."
+        )
+        raise typer.Exit(code=1)
+    generated_at = _parse_as_of(manifest_as_of)
+
+    report = build_whistleblower_audit_report(run_dir, generated_at=generated_at)
+
+    out_path = out if out is not None else run_dir / "whistleblower_audit_report.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    # Atomic write: render to a temp file in the SAME directory then os.replace,
+    # so an I/O error never leaves a partial whistleblower_audit_report.json.
+    rendered = report.model_dump_json(indent=2) + "\n"
+    fd, tmp_name = tempfile.mkstemp(dir=out_path.parent, prefix=out_path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(rendered)
+        os.replace(tmp_name, out_path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+    typer.echo(f"Wrote whistleblower audit JSON -> {out_path}")
+
+    if markdown is not None:
+        markdown.parent.mkdir(parents=True, exist_ok=True)
+        markdown.write_text(render_whistleblower_markdown(report), encoding="utf-8")
+        typer.echo(f"Wrote whistleblower audit markdown -> {markdown}")
+
+    if fmt == "nprm-gap":
+        typer.echo(render_nprm_gap_markdown(report))
+    elif fmt is not None:
+        console.print(f"[red]Unknown --format '{fmt}'[/red] — supported: nprm-gap")
+        raise typer.Exit(code=1)
+    else:
+        b = report.sar_backlog_exposure
+        t = report.triage_time
+        median = "n/a" if t.median_days is None else f"{t.median_days:g}d"
+        typer.echo(
+            f"backlog: {b.open_stale_alerts} stale (oldest {b.oldest_days}d) | "
+            f"escalation coverage: {report.escalation_coverage_pct:g}% | "
+            f"triage median: {median} | ledger: {report.ledger_integrity}"
+        )
 
 
 @app.command(name="audit-pack")
@@ -2408,6 +2645,110 @@ def verify_decisions_cmd(
     console.print(f"[{color}]{msg}[/{color}]")
     if not valid:
         raise typer.Exit(code=1)
+
+
+@app.command(name="defect-update")
+def defect_update_cmd(
+    run_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="Run directory containing the frozen defect_log.jsonl.",
+    ),
+    defect_id: str = typer.Argument(
+        ...,
+        help="Defect ticket id (must exist in the run's frozen defect_log.jsonl).",
+    ),
+    status: str = typer.Option(
+        ...,
+        "--status",
+        help="Lifecycle transition: acknowledged | resolved | closed.",
+    ),
+    reviewer: str = typer.Option(
+        ...,
+        "--reviewer",
+        help="Reviewer id taking the action (recorded on the lifecycle event).",
+    ),
+    resolution: str = typer.Option(
+        "",
+        "--resolution",
+        help="Resolution note. Required (non-empty) for resolved/closed.",
+    ),
+) -> None:
+    """Append a defect lifecycle transition (Pillar 2 — issue #529).
+
+    The frozen ``defect_log.jsonl`` is the minted, manifest-pinned defect
+    artifact — it stays immutable post-finalize. This command records a
+    2LoD reviewer's lifecycle action (acknowledge / resolve / close) on a
+    separate, append-only **companion** file ``defect_lifecycle.jsonl``,
+    mirroring the append-only posture of ``decisions.jsonl``. The event
+    timestamp derives from the run's ``as_of`` (read from
+    ``manifest.json``), not wall-clock, so the companion file stays
+    byte-stable for a given run + sequence of actions.
+
+    Offline / post-run only — never on the engine run path. Exits 1 if
+    the defect id is not in the frozen log, or if the status is unknown.
+    """
+    import json as _json
+
+    from aml_framework.engine.defect_lifecycle import (
+        DefectLifecycleEvent,
+        LifecycleStatus,
+        append_lifecycle_event,
+        read_defect_ids,
+    )
+
+    # Resolve the lifecycle transition against the small enum. A typo is a
+    # hard reject — we never silently coerce an unknown status.
+    try:
+        lifecycle_status = LifecycleStatus(status)
+    except ValueError:
+        valid = ", ".join(s.value for s in LifecycleStatus)
+        console.print(f"[red]Unknown --status '{status}'.[/red] Expected one of: {valid}.")
+        raise typer.Exit(code=1) from None
+
+    # The frozen defect log is the source of valid ids — reject a
+    # lifecycle event that references a defect this run never minted, so
+    # the companion file can't drift away from the artifact it tracks.
+    valid_ids = read_defect_ids(run_dir)
+    if defect_id not in valid_ids:
+        console.print(
+            f"[red]Defect id '{defect_id}' not found in {run_dir}/defect_log.jsonl.[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    # Deterministic timestamp — derive from the run's as_of (manifest),
+    # never wall-clock. Mirrors decisions.jsonl's as_of-derived posture.
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[red]No manifest.json in {run_dir} — cannot resolve as_of.[/red]")
+        raise typer.Exit(code=1)
+    manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+    as_of_raw = manifest.get("as_of")
+    if not as_of_raw:
+        console.print(f"[red]manifest.json in {run_dir} has no as_of.[/red]")
+        raise typer.Exit(code=1)
+    timestamp = datetime.fromisoformat(as_of_raw)
+
+    try:
+        event = DefectLifecycleEvent(
+            defect_id=defect_id,
+            lifecycle_status=lifecycle_status,
+            reviewer=reviewer,
+            timestamp=timestamp,
+            resolution=resolution,
+        )
+    except ValueError as exc:
+        console.print(f"[red]Invalid lifecycle event:[/red] {exc}")
+        raise typer.Exit(code=1) from None
+
+    path = append_lifecycle_event(run_dir, event)
+    console.print(
+        f"[green]Recorded[/green] {defect_id} -> {lifecycle_status.value} "
+        f"by {reviewer} (appended to {path.name})."
+    )
 
 
 @app.command(name="equivalence")

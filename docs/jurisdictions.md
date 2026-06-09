@@ -38,6 +38,7 @@ The US specs (`community_bank`, `cyber_enabled_fraud`) align with:
 - **FinCEN BSA 6 Pillars** including the April 2026 proposed 6th pillar (formalized risk assessment)
 - **OFAC SDN list** screening via the `list_match` rule type
 - **FinCEN advisories** (FIN-2014-A005 cash-to-wire, FIN-2023-Alert005 pig-butchering, FIN-2006-A003 unusual volume)
+- **FinCEN Whistleblower Incentives and Protections NPRM** ([Federal Register 2026-06271](https://www.federalregister.gov/documents/2026/04/01/2026-06271/whistleblower-incentives-and-protections)) — the offline `aml whistleblower-audit` CLI (#531) rolls a run's audit ledger into a frozen `whistleblower_audit_report.json` (SAR-backlog exposure, escalation coverage, triage time, board-documented decisions, ledger integrity) + a `--format nprm-gap` readiness table. Advisory readiness lens; never blocks or changes a run. See [how-to: run a whistleblower audit](how-to/run-whistleblower-audit.md).
 
 Filing forms: **SAR** (Suspicious Activity Report) and **CTR** (Currency Transaction Report) for cash >$10,000.
 
@@ -79,6 +80,7 @@ The EU spec (`eu_bank`) aligns with:
 - **EU Regulation 2023/1113** (Transfer of Funds) — EU implementation of FATF R.16 Travel Rule
 - **AMLA** (Anti-Money Laundering Authority, operational July 2026) — direct supervision of high-risk cross-border institutions
 - **AMLA RTS draft (July 2026)** — STR submission format
+- **AMLA RTS effectiveness telemetry (#528)** — the `eu_bank` rules carry the three AMLR effectiveness citations (CDD **AMLR Art. 28(1)** (CDD-information RTS), ongoing monitoring of the business relationship **AMLR Art. 26** (CDD measure Art. 20(1)(f)), and targeted-financial-sanctions screening **AMLR Art. 20(1)(d)**; all in AMLR = Regulation (EU) 2024/1624, article numbers verified against the EUR-Lex text). The offline `aml amla-effectiveness-report <spec> <run-dir>` command rolls a run into the alert→case→STR funnel + per-rule precision + per-article citation coverage — see [How to produce an AMLA RTS effectiveness pack](how-to/produce-amla-effectiveness-pack.md). STR *acceptance* is honestly reported as `not_tracked` (the run records STR *filing*, not regulator feedback).
 
 Spec includes:
 - 7 detection rules covering structuring, high-risk-jurisdiction, PEP screening, rapid-movement, sanctions, FATF R.16 travel-rule completeness, and INVS pig-butchering
