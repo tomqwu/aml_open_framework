@@ -1601,6 +1601,102 @@ def model_inventory_cmd(
     )
 
 
+@app.command(name="amla-effectiveness-report")
+def amla_effectiveness_report_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Argument(..., exists=True, readable=True),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Write the report JSON here (default: <run-dir>/amla_effectiveness_report.json).",
+    ),
+    markdown: Path | None = typer.Option(
+        None, "--markdown", help="Write an MRC-pack markdown table here."
+    ),
+) -> None:
+    """Emit the AMLA RTS effectiveness pack (#528) for one engine run.
+
+    Rolls the run's cases + decisions into the alert→case→STR funnel +
+    per-rule precision/recall + AMLA RTS citation coverage (CDD RTS
+    AMLR Art. 28(1), business-relationships AMLR Art. 19(9),
+    pecuniary-sanctions AMLD6 Art. 53(10)). Deterministic — `generated_at`
+    is the run manifest's `as_of`, no wall-clock read. Offline / post-run.
+    """
+    import contextlib
+    import json as _json
+    import os
+    import tempfile
+
+    from aml_framework.metrics.amla_effectiveness import (
+        build_amla_effectiveness_report,
+        render_markdown,
+    )
+
+    spec = load_spec(spec_path)
+
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[red]No manifest.json in {run_dir}[/red]")
+        raise typer.Exit(code=1)
+    manifest = _json.loads(manifest_path.read_bytes())
+    generated_at = datetime.fromisoformat(manifest["as_of"])
+
+    cases: list[dict] = []
+    cases_dir = run_dir / "cases"
+    if cases_dir.exists():
+        for f in sorted(cases_dir.glob("*.json")):
+            cases.append(_json.loads(f.read_text()))
+    decisions: list[dict] = []
+    dec_path = run_dir / "decisions.jsonl"
+    if dec_path.exists():
+        for line in dec_path.read_text().splitlines():
+            line = line.strip()
+            if line:
+                decisions.append(_json.loads(line))
+
+    rule_citations = {
+        rule.id: [ref.citation for ref in rule.regulation_refs] for rule in spec.rules
+    }
+
+    report = build_amla_effectiveness_report(
+        cases=cases,
+        decisions=decisions,
+        rule_citations=rule_citations,
+        spec_program=spec.program.name,
+        generated_at=generated_at,
+    )
+
+    out_path = out if out is not None else run_dir / "amla_effectiveness_report.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = report.model_dump_json(indent=2) + "\n"
+    # Atomic write: temp file in the SAME directory then os.replace, so an
+    # I/O error never leaves a partial amla_effectiveness_report.json.
+    fd, tmp_name = tempfile.mkstemp(dir=out_path.parent, prefix=out_path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+        os.replace(tmp_name, out_path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+    typer.echo(f"Wrote AMLA effectiveness report JSON -> {out_path}")
+
+    if markdown is not None:
+        markdown.parent.mkdir(parents=True, exist_ok=True)
+        markdown.write_text(render_markdown(report))
+        typer.echo(f"Wrote AMLA effectiveness report markdown -> {markdown}")
+
+    console.print(
+        f"[green]AMLA RTS effectiveness[/green] {spec.program.name}\n"
+        f"  alerts: {report.total_alerts}  cases: {report.total_cases}  "
+        f"str_filed: {report.total_str_filed}\n"
+        f"  alert→str: {report.alert_to_str_pct}%  "
+        f"str_acceptance: {report.str_acceptance_status}\n"
+        f"  RTS coverage: {report.n_rts_covered}/{report.n_rts_articles} articles"
+    )
+
+
 @app.command(name="audit-pack")
 def audit_pack_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
