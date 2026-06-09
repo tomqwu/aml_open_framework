@@ -53,6 +53,16 @@ class TestLineageExplorerPage:
         )
         assert "if deep_link in case_ids:" in body
 
+    def test_invalid_deep_link_warns_instead_of_silent_swap(self):
+        body = PAGE.read_text(encoding="utf-8")
+        # A deep-link naming a case absent from the current run (stale
+        # bookmark after the loaded run changed) must surface a warning,
+        # not silently resolve to a different case.
+        assert "deep_link and deep_link not in case_ids" in body, (
+            "must detect a deep-link case_id missing from the current run"
+        )
+        assert "st.warning(" in body
+
     def test_renders_all_seven_sections(self):
         body = PAGE.read_text(encoding="utf-8")
         for header in (

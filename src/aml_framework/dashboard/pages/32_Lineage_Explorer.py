@@ -104,6 +104,16 @@ case_ids = sorted(df_cases["case_id"].tolist())
 # continuity) → the first case.
 deep_link = consume_param("case_id")
 _session_case = st.session_state.get("selected_case_id")
+# A deep-link that names a case absent from this run (e.g. a stale
+# bookmark / audit link after the loaded run changed) must NOT silently
+# resolve to a different case — that would make an invalid link look
+# valid. Surface the requested id and fall back to the picker.
+if deep_link and deep_link not in case_ids:
+    st.warning(
+        f"The linked case_id `{deep_link}` is not in the current run — it may "
+        "be from a previous run. Pick a case from this run below.",
+        icon="⚠️",
+    )
 if deep_link in case_ids:
     default_idx = case_ids.index(deep_link)
 elif _session_case in case_ids:
