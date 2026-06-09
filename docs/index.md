@@ -49,7 +49,7 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Full research archive: April–July 2026, 20 editions. Deadline status (as of **2026-06-09**): Effectiveness NPRM + GENIUS Act NPRM comment windows **closed today** (rulemaking pending, final rule expected late 2026 / early 2027); AUSTRAC Tranche 2 **2026-07-01 — 22 days**; AMLA RTS **2026-07-10 — 31 days**; SR 26-2 **53 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
+    Research archive — 20 editions across five areas (April–July 2026): regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Deadline status (as of **2026-06-09**): Effectiveness NPRM + GENIUS Act NPRM comment windows **closed today** (rulemaking pending, final rule expected late 2026 / early 2027); AUSTRAC Tranche 2 **2026-07-01 — 22 days**; AMLA RTS **2026-07-10 — 31 days**; SR 26-2 **53 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
 
     [:octicons-arrow-right-24: Research](research/2026-06-regulator-pulse.md)
 
