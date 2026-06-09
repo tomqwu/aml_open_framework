@@ -1601,6 +1601,105 @@ def model_inventory_cmd(
     )
 
 
+@app.command(name="whistleblower-audit")
+def whistleblower_audit_cmd(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    run_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="Run directory whose manifest + decisions.jsonl + cases/ are audited.",
+    ),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Where to write the JSON report. Default: <run_dir>/whistleblower_audit_report.json.",
+    ),
+    markdown: Path | None = typer.Option(
+        None, "--markdown", help="Write a board-report pipe table here."
+    ),
+    fmt: str | None = typer.Option(
+        None,
+        "--format",
+        help="Console render format. Currently: 'nprm-gap' for the NPRM readiness gap table.",
+    ),
+) -> None:
+    """Audit a run's internal-channel readiness vs the FinCEN Whistleblower NPRM (#531).
+
+    OFFLINE, advisory readiness lens (Federal Register 2026-06271). Reads the
+    run's manifest + decisions.jsonl + cases and reports SAR-backlog exposure,
+    escalation coverage (documented reviewer + rationale), alert-to-decision
+    triage time (median + p95), board-documented decisions, and ledger
+    integrity. Deterministic — `as_of` is anchored to the run's manifest.json;
+    never blocks or changes a run.
+
+    Signals a run does not record (e.g. board-report events) are reported as 0 /
+    not-tracked — never fabricated.
+    """
+    import contextlib
+    import json as _json
+    import os
+    import tempfile
+
+    from aml_framework.engine.whistleblower_audit import (
+        build_whistleblower_audit_report,
+        render_nprm_gap_markdown,
+        render_whistleblower_markdown,
+    )
+
+    load_spec(spec_path)  # validate the spec resolves (cross-reference integrity)
+
+    # Determinism (#531): anchor `as_of` to the run's own manifest.json so a
+    # re-run against the same run is byte-deterministic. Falls back to the
+    # wall-clock only when the manifest is missing / carries no `as_of`.
+    manifest_as_of: str | None = None
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.exists():
+        with contextlib.suppress(ValueError, OSError):
+            manifest_as_of = _json.loads(manifest_path.read_bytes()).get("as_of")
+    generated_at = _parse_as_of(manifest_as_of)
+
+    report = build_whistleblower_audit_report(run_dir, generated_at=generated_at)
+
+    out_path = out if out is not None else run_dir / "whistleblower_audit_report.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    # Atomic write: render to a temp file in the SAME directory then os.replace,
+    # so an I/O error never leaves a partial whistleblower_audit_report.json.
+    rendered = report.model_dump_json(indent=2) + "\n"
+    fd, tmp_name = tempfile.mkstemp(dir=out_path.parent, prefix=out_path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(rendered)
+        os.replace(tmp_name, out_path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+    typer.echo(f"Wrote whistleblower audit JSON -> {out_path}")
+
+    if markdown is not None:
+        markdown.parent.mkdir(parents=True, exist_ok=True)
+        markdown.write_text(render_whistleblower_markdown(report), encoding="utf-8")
+        typer.echo(f"Wrote whistleblower audit markdown -> {markdown}")
+
+    if fmt == "nprm-gap":
+        typer.echo(render_nprm_gap_markdown(report))
+    elif fmt is not None:
+        console.print(f"[red]Unknown --format '{fmt}'[/red] — supported: nprm-gap")
+        raise typer.Exit(code=1)
+    else:
+        b = report.sar_backlog_exposure
+        t = report.triage_time
+        median = "n/a" if t.median_days is None else f"{t.median_days:g}d"
+        typer.echo(
+            f"backlog: {b.open_stale_alerts} stale (oldest {b.oldest_days}d) | "
+            f"escalation coverage: {report.escalation_coverage_pct:g}% | "
+            f"triage median: {median} | ledger: {report.ledger_integrity}"
+        )
+
+
 @app.command(name="audit-pack")
 def audit_pack_cmd(
     spec_path: Path = typer.Argument(..., exists=True, readable=True),
