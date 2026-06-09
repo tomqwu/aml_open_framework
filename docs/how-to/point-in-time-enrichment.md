@@ -144,6 +144,6 @@ With the SCD-2 fixture above, `count` is `2` (high-period transactions only); a 
 
 ## Next steps
 
-- The as-of join also works with non-customer reference tables (e.g. product codes, country lists). Any `effective_dated` contract can be enriched into any rule.
+- The as-of join also works with non-customer reference tables (e.g. product codes, country lists). Any `effective_dated` contract can be enriched into any **`aggregation_window`** rule — `enrich` is defined only on `aggregation_window` logic, not on `custom_sql`, `python_ref`, `list_match`, or `network_pattern` rules.
 - See [add-a-rule.md](add-a-rule.md) for the full rule authoring flow.
 - See [walk-lineage.md](walk-lineage.md) to trace an alert back to its source rows (note: lineage shows the source→rule→alert→case chain, not the reference as-of interval).

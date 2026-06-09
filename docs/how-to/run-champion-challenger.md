@@ -75,7 +75,10 @@ aml run my_aml.yaml --seed 42 \
 The scorer only ever reads the as-of alert-feature keys in the `LEAKAGE_SAFE_FEATURES` allowlist (`sum_amount`, `amount`, `count`, `matched_row_ids`) — never a post-as_of field that happens to ride on the alert dict — so a champion-challenger replay cannot bias scores with future-dated data. Separately, the **challenger weights themselves** are constrained: `PrioritizationWeights` is `extra="forbid"`, so a `--challenger-weights` key outside `{severity, risk_tier, amount, volume}` is rejected at load time with a pydantic validation error:
 
 ```
-ValidationError: Extra inputs are not permitted [type=extra_forbidden, input=future_field]
+1 validation error for PrioritizationWeights
+future_field
+  Extra inputs are not permitted [type=extra_forbidden, input_value=1.0, input_type=float]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
 ```
 
 This is not a bug — it is the SR 26-2 invariant enforced at runtime.
@@ -86,7 +89,7 @@ This is not a bug — it is the SR 26-2 invariant enforced at runtime.
 jq .priority_outcome_hash .artifacts/run-*/manifest.json
 ```
 
-Run twice with the same inputs — the hash must be identical. The artifact is read-only after `finalize()`.
+Run twice with the same inputs — the hash must be identical. The artifact is read-only after `finalize()`. (When no `--labels` are supplied the `priority_outcome.json` artifact is never written and the `priority_outcome_hash` key is **omitted entirely** from the manifest — not stored as `null` — so a run without champion-challenger stays manifest-key-identical to the pre-M3 baseline. The `jq` above prints `null` in that case simply because the key is absent.)
 
 ---
 
@@ -105,7 +108,7 @@ The `priority_outcome.json` is ready for your model-risk committee (MRC) report 
 | No `priority_outcome.json` written, no error | Passed `--challenger-weights` but forgot `--labels` | The outcome artifact is only emitted when `--labels` is supplied; always pass both |
 | A row counts as a negative you meant as positive | `is_true_positive` value not in the true-set | The parser treats only `1`/`true`/`yes`/`y`/`t` (case-insensitive) as a positive; anything else (incl. blank) is a negative — no error is raised, so check the CSV |
 | `ValidationError: extra_forbidden` on a challenger key | Misspelled or non-existent weight name | Challenger keys must be exactly `severity`, `risk_tier`, `amount`, or `volume` |
-| `priority_outcome_hash` is `null` in the manifest | `--labels` not supplied, or `prioritization.enabled: false` | The outcome file is written (and its hash pinned) only when both hold |
+| `priority_outcome_hash` key missing from the manifest | `--labels` not supplied, or `prioritization.enabled: false` | The outcome file is written (and its hash key added to the manifest) only when both hold; otherwise the key is omitted entirely (`jq` prints `null` for an absent key) |
 
 ---
 
