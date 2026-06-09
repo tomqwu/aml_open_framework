@@ -102,8 +102,11 @@ case_ids = sorted(df_cases["case_id"].tolist())
 # Default selection priority: deep-link (if it names a real case in this
 # run) → a case already selected on Case Investigation (cross-page
 # continuity) → the first case.
-deep_link = consume_param("case_id")
+# Capture the cross-page selection BEFORE consume_param pops the
+# `selected_case_id` mirror — otherwise the session-case fallback below
+# is always lost when a (possibly stale) `?case_id` URL param is present.
 _session_case = st.session_state.get("selected_case_id")
+deep_link = consume_param("case_id")
 # A deep-link that names a case absent from this run (e.g. a stale
 # bookmark / audit link after the loaded run changed) must NOT silently
 # resolve to a different case — that would make an invalid link look
