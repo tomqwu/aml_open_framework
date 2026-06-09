@@ -16,19 +16,18 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ---
 
-### ⚠️ 2026-06-09 · FinCEN / OCC / FDIC / NCUA + OFAC — Effectiveness NPRM AND GENIUS Act Stablecoin NPRM comment deadlines (same day)
+### ✓ COMMENT WINDOW CLOSED · 2026-06-09 · FinCEN / OCC / FDIC / NCUA + OFAC — Effectiveness NPRM AND GENIUS Act Stablecoin NPRM comment deadlines (same day)
 
-**What it is:** Two major NPRMs share a single comment deadline. **5 days remain.**
+**What it was:** Two major NPRMs shared a single comment deadline that **closed 2026-06-09**. The comment window is now closed; FinCEN will consolidate the docket and a final rule is expected late 2026 / early 2027. *No final-rule outcome has been published — the rulemakings are pending.*
 
 1. **AML/CFT Program "Effectiveness" NPRM (Federal Register 2026-07033):** FinCEN, OCC, FDIC, and NCUA jointly reframe the BSA program rule around an "effective, risk-based, reasonably designed" standard implementing the AMLA 2020 mandate. A documented enterprise-wide risk assessment becomes a pillar (not just expected practice), and FinCEN national priorities must be incorporated into the program. "Effectiveness" is split into (1) program established and (2) program maintained — distinguishing technical from systemic failure. Proposed implementation period: 12 months after a final rule. Expected final rule late 2026 / early 2027.
 
 2. **GENIUS Act PPSI NPRM (Federal Register 2026-06963):** FinCEN and OFAC jointly propose treating permitted payment stablecoin issuers (PPSIs) as financial institutions under the Bank Secrecy Act, and — for the first time — imposing mandatory, legally-binding OFAC sanctions compliance programs under new 31 CFR Part 502.
 
-**What MLROs need to do by June 9 (5 days):**
-- **Complete gap analyses now.** The last realistic working window for completing, reviewing, and filing a comment letter is Friday June 5, with Monday June 8 the final business day before the Tuesday June 9 deadline for most firms. Gap analyses started after today may not finish before the concurrent deadline compresses industry filing bandwidth.
-- Complete a gap analysis against the Effectiveness NPRM's risk-assessment and program-structure requirements. The 12-month implementation clock starts at the final rule — late 2026 gap analyses may not leave enough time.
-- Stablecoin issuers and banks sponsoring PPSIs: assess BSA-program equivalence and OFAC-sanctions-program gaps against the PPSI NPRM framework.
-- File comment letters if your firm has positions. The concurrent deadline compresses industry comment bandwidth.
+**What MLROs need to do now that the window has closed:**
+- **The comment window has closed — the work it triggered has not.** Firms that filed a comment letter or completed a gap analysis during the window now hold that work as documented evidence of proactive compliance posture. Firms that deferred should complete the gap analysis anyway: the 12-month implementation clock starts at the *final* rule, and a gap analysis done now is a head start, not a missed deadline.
+- Complete a gap analysis against the Effectiveness NPRM's risk-assessment and program-structure requirements if not already done. The 12-month implementation clock starts at the final rule — late-2026 gap analyses may not leave enough time.
+- Stablecoin issuers and banks sponsoring PPSIs: continue assessing BSA-program equivalence and OFAC-sanctions-program gaps against the PPSI NPRM framework while the rulemaking is pending.
 
 **Sources:**
 - [Federal Register 2026-07033 — Effectiveness NPRM](https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs)

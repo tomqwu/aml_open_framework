@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-08. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 36 — Research archive completion + live deadline refresh** (`docs`, 2026-06-09):
+>
+> - **`docs/research/2026-04-aml-data-problem.md` added** — the April 2026 inaugural edition of the data-problem whitepaper, completing the 20-edition research archive (5 research areas × 4 months, April–July 2026). Covers the DATA-1 through DATA-11 framework with April-appropriate context: SR 26-2 as newly effective (April 17), the Effectiveness NPRM and GENIUS Act PPSI NPRM as newly filed (April 10, comment deadline June 9 — 41 days from the April 29 as-of date), and the full artifact map reflecting the April v0.1.x capabilities (no M2/M4 references, which shipped in June).
+> - **`docs/research/2026-06-regulator-pulse.md` updated** — the June 9 Effectiveness NPRM + GENIUS Act NPRM entry changed from `⚠️` (5 days remain) to `✓ COMMENT WINDOW CLOSED`. The "What MLROs need to do" rewritten to post-deadline language (complete gap analysis now; the 12-month clock starts at the final rule). No fabricated outcomes asserted — rulemaking remains pending.
+> - **`docs/index.md` deadline countdown updated** — researcher/regulator card now reads "as of 2026-06-09": NPRM windows closed today, AUSTRAC Tranche 2 22 days, AMLA RTS 31 days, SR 26-2 53 days examination-active. Full research archive noted (20 editions). Round 36 What's-new row added.
+> - **`mkdocs.yml` nav updated** — `research/2026-04-aml-data-problem.md` added to the April research section, completing all 20 editions in the static-site sidebar.
+> - **Three GitHub roadmap issues filed**: #538 (August 2026 research refresh prep), #539 (`aml sr26-2-examination-report` CLI — SR 26-2 53 days in, examination-active), #540 (AMLA direct-supervision selection exercise data pack — July 10 companion to #528).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 35 — Roadmap wave #522–#525 + Getting Started reframe** (`code`+`docs`, 2026-06-08):
 >
