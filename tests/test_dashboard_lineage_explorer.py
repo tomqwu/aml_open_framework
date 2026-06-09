@@ -33,6 +33,26 @@ class TestLineageExplorerPage:
         assert "consume_param(" in body, "must accept deep-link from Audit/Case pages"
         assert '"case_id"' in body
 
+    def test_case_id_is_a_dropdown_over_run_cases(self):
+        body = PAGE.read_text(encoding="utf-8")
+        # The case_id input must be a searchable selectbox built from the
+        # current run's cases — not a free-text paste box that forces the
+        # analyst to type an exact, run-stamped case_id by hand.
+        assert "st.selectbox(" in body, "case_id input must be a dropdown"
+        assert 'sorted(df_cases["case_id"].tolist())' in body, (
+            "dropdown options must be the run's sorted case_ids"
+        )
+        assert "st.text_input(" not in body, "case_id paste box must be removed"
+
+    def test_deep_link_preselects_dropdown_default(self):
+        body = PAGE.read_text(encoding="utf-8")
+        # A "Why this fired" deep-link must still pre-select the matching
+        # case via the selectbox `index`, not lose the inbound case_id.
+        assert "default_idx" in body and "index=default_idx" in body, (
+            "deep-link / session case must drive the selectbox default index"
+        )
+        assert "if deep_link in case_ids:" in body
+
     def test_renders_all_seven_sections(self):
         body = PAGE.read_text(encoding="utf-8")
         for header in (

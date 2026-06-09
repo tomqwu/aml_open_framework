@@ -9,8 +9,9 @@ the Phase A backend PRs (PR-LIN-1..4) added:
                                       ↓
                                    Case  →  Investigation  →  STR
 
-Inputs: case_id (paste box or URL param via deep-link from Alert Queue
-/ Case Investigation / Audit & Evidence).
+Inputs: case_id (searchable dropdown over the current run's cases, or a
+URL param via deep-link from Alert Queue / Case Investigation / Audit &
+Evidence that pre-selects the matching case).
 
 Output sections, top-to-bottom:
   1. Mermaid lineage graph
@@ -79,37 +80,57 @@ section_explainer(
 
 run_dir = Path(st.session_state.run_dir)
 
-# --- Input: case_id (deep-link or paste) -----------------------------------
-deep_link = consume_param("case_id")
-case_id_input = st.text_input(
-    "case_id",
-    value=deep_link or "",
-    placeholder="Paste any case_id from this run, or arrive here via 'Why this fired' deep-link",
-    key="lineage_explorer_case_input",
-)
-
-if not case_id_input.strip():
+# --- Input: case_id (searchable dropdown; deep-link pre-selects) ------------
+# Every case_id is known from the current run, so offer a searchable
+# dropdown rather than a free-text paste box — no one should have to type
+# `dormant_account_activity__C0041__2026-04-28T220000` by hand. A "Why this
+# fired" deep-link (from Alert Queue / Case Investigation / Audit & Evidence)
+# still pre-selects the matching case.
+df_cases = st.session_state.get("df_cases")
+if df_cases is None or df_cases.empty:
     empty_state(
-        "No case_id selected.",
+        "No cases in this run.",
         icon="🧭",
         detail=(
-            "Paste a case_id, or open the Lineage Explorer from a row-click on "
-            "Alert Queue / Case Investigation / Audit & Evidence. Every case_id "
-            "from the current run is supported."
+            "This run produced no cases to trace. Run a spec that fires at "
+            "least one alert, then refresh the dashboard to load the run."
         ),
         stop=True,
     )
 
-chain = walk_lineage(run_dir, case_id_input.strip())
+case_ids = sorted(df_cases["case_id"].tolist())
+# Default selection priority: deep-link (if it names a real case in this
+# run) → a case already selected on Case Investigation (cross-page
+# continuity) → the first case.
+deep_link = consume_param("case_id")
+_session_case = st.session_state.get("selected_case_id")
+if deep_link in case_ids:
+    default_idx = case_ids.index(deep_link)
+elif _session_case in case_ids:
+    default_idx = case_ids.index(_session_case)
+else:
+    default_idx = 0
+case_id_input = st.selectbox(
+    "case_id",
+    case_ids,
+    index=default_idx,
+    help=(
+        "Every case_id from the current run. Type to filter. Arriving via a "
+        "'Why this fired' deep-link pre-selects the matching case."
+    ),
+)
+# Publish the selection for cross-page continuity (mirrors Case Investigation).
+st.session_state["selected_case_id"] = case_id_input
+
+chain = walk_lineage(run_dir, case_id_input)
 
 if chain.get("case") is None:
     empty_state(
-        f"No case file found for `{case_id_input.strip()}` in this run.",
+        f"No case file found for `{case_id_input}` in this run.",
         icon="🚫",
         detail=(
-            "The case_id may be from a previous run. Refresh the dashboard to "
-            "load the current run, or paste a case_id from this run's Alert "
-            "Queue."
+            "This case_id is listed in the run's case index but its case file "
+            "could not be read. Refresh the dashboard to reload the current run."
         ),
         stop=True,
     )
