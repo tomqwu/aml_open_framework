@@ -113,7 +113,7 @@ DATA_N_MAP: list[dict[str, str]] = [
             "Shipped — Source → Contract → Table mapping above · "
             "schema_hash detects column drift across runs"
         ),
-        "CLI": "`aml run` emits `reconciliation.jsonl` per contract",
+        "CLI": "`aml run` emits `reconciliation_report.json` per contract",
     },
     {
         "DATA-N": "DATA-4 · Lineage walk-back from KPI",
@@ -121,7 +121,7 @@ DATA_N_MAP: list[dict[str, str]] = [
             "Shipped — Audit & Evidence walk-back · Case Investigation 'Why this fired' · "
             "`walk_lineage()` now returns rule_sql + source_path + schema_hash + matched_row_ids"
         ),
-        "CLI": "`aml export --include-lineage`",
+        "CLI": "`aml lineage <case_id>`",
     },
     {
         "DATA-N": "DATA-5 · In-bank, not SaaS (data sovereignty)",
@@ -130,7 +130,7 @@ DATA_N_MAP: list[dict[str, str]] = [
     },
     {
         "DATA-N": "DATA-6 · AI presumes data (fail-closed gate)",
-        "See in framework": "Closes transitively via DATA-1 · `engine/runner.py:_validate_contracts`",
+        "See in framework": "Closes transitively via DATA-1 · `engine/runner.py:_build_warehouse`",
         "CLI": "`aml run --strict` halts on contract violation",
     },
     {

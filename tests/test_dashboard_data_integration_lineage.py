@@ -46,3 +46,15 @@ class TestSourceContractTableSection:
         )
         # And the new copy must reference the shipped surface.
         assert "Shipped" in body, "DATA-3 / DATA-4 status must reference shipped surface"
+
+    def test_artifact_map_cites_real_commands(self):
+        body = PAGE.read_text(encoding="utf-8")
+        # The DATA-N map self-describes as the verification contract, so its
+        # CLI/symbol cells must name commands that actually exist. Guards
+        # against the dead `aml export --include-lineage` / `reconciliation.jsonl`
+        # / `_validate_contracts` references (corrected to match the docs).
+        assert "reconciliation.jsonl" not in body
+        assert "--include-lineage" not in body
+        assert "_validate_contracts" not in body
+        assert "`aml lineage <case_id>`" in body
+        assert "`aml run` emits `reconciliation_report.json` per contract" in body
