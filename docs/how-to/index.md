@@ -30,6 +30,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     The offline `aml detect-mule-rings` CLI runs deterministic union-find + density community detection over the `resolved_entity_link` graph into a governed `mule_rings.json`. Surfaced on Network Explorer. Advisory — an investigator confirms, never auto-escalated. ~5 min. **Detailed.**
 
+-   :material-clock-time-four-outline:{ .lg .middle } **[Wire point-in-time reference data (M4)](point-in-time-enrichment.md)**
+
+    ---
+
+    Declare a reference contract `effective_dated` + add an `enrich` block to an `aggregation_window` rule so each transaction joins the reference row in force at its `booked_at` — not the latest row. Closes the Pillar-3 SCD-2 gap. ~15 min. **Detailed.**
+
 </div>
 
 ## Migrating + operating
@@ -114,17 +120,35 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     Round 28's 11-category classifier + data/rule/mapping decision tree. ~2 min per defect. **Detailed.**
 
+-   :material-sort-variant:{ .lg .middle } **[Enable the alert prioritization scorer](enable-prioritization.md)**
+
+    ---
+
+    Advisory, deterministic, explainable `priority_score` (0–1) per alert via `program.prioritization`. Stamps `priority_explanation`, emits a manifest-pinned `priority_report.json`, ranks the Triage Queue. Never changes a disposition. ~10 min. **Detailed.**
+
 -   :material-layers-triple:{ .lg .middle } **[Configure risk segmentation + governed suppression](configure-risk-segmentation.md)**
 
     ---
 
     Advisory de-prioritization of low-score alerts on low-risk customers via `program.risk_segmentation`. Never auto-closes; emits `suppression_report.json`. Requires `program.prioritization`. ~10 min. **Detailed.**
 
+-   :material-ab-testing:{ .lg .middle } **[Run a champion-challenger validation](run-champion-challenger.md)**
+
+    ---
+
+    Compare two `prioritization` weight sets on a labelled alert set with `aml run --labels --challenger-weights`. Emits a frozen, manifest-pinned `priority_outcome.json` (precision@k / recall / winner) for the model-risk committee. SR 26-2; temporal-leakage guard enforced. ~5 min. **Detailed.**
+
 -   :material-monitor-dashboard:{ .lg .middle } **[Monitor model risk + per-rule drift](monitor-model-risk.md)**
 
     ---
 
     Governed model-risk monitoring via `program.model_risk_monitoring`. Emits a frozen, manifest-pinned `model_risk_report.json` (model inventory + per-rule count drift vs prior run + validation cadence). Advisory only; SR 11-7 / OSFI E-23. ~10 min. **Detailed.**
+
+-   :material-star-shooting:{ .lg .middle } **[Produce an AMLA RTS effectiveness pack](produce-amla-effectiveness-pack.md)**
+
+    ---
+
+    The offline `aml amla-effectiveness-report` CLI rolls one run into the alert→case→STR funnel + per-rule precision + AMLA citation coverage (CDD AMLR Art. 28(1), ongoing monitoring AMLR Art. 26, targeted-financial-sanctions screening AMLR Art. 20(1)(d)) for EU-supervised obliged entities. Deterministic, manifest-pinned; STR acceptance honestly reported as not-tracked. ~5 min. **Detailed.**
 
 </div>
 

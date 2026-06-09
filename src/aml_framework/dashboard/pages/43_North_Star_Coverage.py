@@ -223,7 +223,7 @@ _render_pillar(
         "run logs, defect tickets, approvals, rule-version history, and "
         "supporting records by design."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         f"**In:** audit ledger — {_decision_count} decisions on this run's "
         "append-only `decisions.jsonl` hash chain (SHA-256, tamper-detected "
@@ -235,10 +235,14 @@ _render_pillar(
         "captured with spec hash, seed, as-of timestamp, data source "
         "fingerprint — surfaced on the Audit & Evidence and Lineage "
         "Explorer pages.",
-        "**Missing:** defect tickets + approvals as first-class spec "
-        "artefacts (severity model, owner, aging, lifecycle). Today, DQ "
-        "and rule failures surface as gauges/alerts rather than tracked "
-        "defects — overlaps with the pillar-4 defect-model gap below.",
+        "**In (#529):** defect tickets are now a first-class, tracked "
+        "artefact — the engine mints a frozen, manifest-pinned "
+        "`defect_log.jsonl` (one ticket per qualifying issue, with severity "
+        "+ data/rule/mapping classification), and a 2LoD reviewer drives it "
+        "through a **lifecycle** (acknowledge → resolve → close) via "
+        "`aml defect-update`, which appends to an append-only companion "
+        "`defect_lifecycle.jsonl` (mirrors the `decisions.jsonl` posture; the "
+        "minted log stays frozen post-finalize).",
     ],
     links=[
         ("Audit & Evidence — replay + chain verification", "pages/7_Audit_Evidence.py"),
@@ -307,16 +311,22 @@ _render_pillar(
         "model, defect lifecycle; surface and distinguish data vs rule "
         "vs mapping defects."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         "**In:** Data Quality page ships DQ dimension checks "
         "(completeness, validity, uniqueness, timeliness) per source.",
         "**In:** Data Integration page surfaces source-catalogue rollups, "
         "ISO 20022 message-type counts, contract roll-ups (PR-DATAVIZ).",
-        "**Missing:** a defect ticket model with severity + lifecycle + "
-        "data-vs-rule-vs-mapping classifier in the spec schema. Today, "
-        "DQ failures surface as gauge breaches rather than as tracked "
-        "defects with owners and aging.",
+        "**In (#420):** a first-class defect ticket model — `defect_log.jsonl` "
+        "carries severity (5 tiers) + a data/rule/mapping **classification** "
+        "(the `classify_defect()` triage decision tree) + 11 categories, one "
+        "ticket per qualifying DQ exception / scorer failure.",
+        "**In (#529):** the defect **lifecycle** is now tracked — "
+        "`aml defect-update` records acknowledge → resolve → close on the "
+        "append-only `defect_lifecycle.jsonl` companion, and every `active` "
+        "rule carries a first-class `risk_tier` (low/medium/high) that "
+        "`aml validate --strict` enforces (an active rule missing it is a "
+        "WARN by default, a hard error under `--strict`).",
     ],
     links=[
         ("Data Quality — DQ dimensions + control totals", "pages/14_Data_Quality.py"),
@@ -344,7 +354,7 @@ _render_pillar(
         "Risk attributes drive scenario eligibility, thresholds, alert "
         "priority, and case routing — not decorative metadata."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         f"**In:** {_rule_count} rules each declare `severity` + "
         "`escalate_to` — Alert Queue orders by severity, cases route to "
@@ -352,10 +362,15 @@ _render_pillar(
         "**In:** Risk Assessment page surfaces customer-segment exposure "
         "and the typology-vs-rule coverage matrix.",
         "**In:** Typology Catalogue cross-references each typology to its detection rule(s).",
-        "**Missing:** a first-class `risk_tier` / `risk_rating` Rule "
-        "attribute (today the priority signal is `severity` and routing "
-        "is `escalate_to`, not a risk attribute), and customer-segment "
-        "risk attributes driving scenario eligibility at engine time.",
+        "**In (PR-RISK-1 / #529):** a first-class `risk_tier` "
+        "(low/medium/high) Rule attribute — a risk axis independent of "
+        "`severity` (alert urgency) and `model_tier` (MRM cadence). Every "
+        "bundled example tiers all of its active rules; `aml validate "
+        "--strict` enforces the expectation (an active rule missing "
+        "`risk_tier` is a WARN by default, a hard validation error under "
+        "`--strict`), and `aml diff` surfaces re-tiering events. The "
+        "advisory `program.prioritization` already weights `risk_tier` into "
+        "the alert `priority_score`.",
     ],
     links=[
         ("Risk Assessment — exposure → scenario eligibility", "pages/6_Risk_Assessment.py"),
@@ -443,7 +458,7 @@ _render_pillar(
         "leakage, imperfect labels, imbalanced evaluation, feature-window "
         "correctness."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         "**In:** deterministic rule baseline is the governed product "
         f"({_rule_count} rules + {_metric_count} metrics in this spec); "
@@ -451,10 +466,20 @@ _render_pillar(
         "**In:** Model Performance + Tuning Lab + Rule Tuning surfaces "
         "ML-assisted threshold tuning with explainability and CI-checked "
         "validation.",
-        "**Missing:** a formal model-risk lifecycle in the spec — "
-        "challenger-model registry, approval gates, temporal-leakage / "
-        "feature-window checks as first-class spec artefacts rather than "
-        "analyst discipline.",
+        "**In (#497):** governed model-risk monitoring — "
+        "`program.model_risk_monitoring` emits a frozen, manifest-pinned "
+        "`model_risk_report.json` rolling the model inventory + per-rule "
+        "count drift + validation cadence (SR 11-7 / OSFI E-23), surfaced "
+        "on the Drift Monitor page.",
+        "**In (#529):** a first-class **model-risk approval gate** — a "
+        "rule carries `approval_status` (pending/approved/rejected), and "
+        "`program.model_risk_monitoring.require_approval_before_prod` makes "
+        "the engine BLOCK any material-tier (`model_tier` medium/high) rule "
+        "still `pending` when the spec runs in `prod` under strict "
+        "env-gating (same `EnvironmentGatingError`, recorded as an "
+        "`approval_gate_check` audit event). The "
+        "`canadian_schedule_i_bank` ML scorer ships `approval_status: "
+        "approved` as the worked demonstrator.",
     ],
     links=[
         ("Model Performance — ML metric drift + monitoring", "pages/13_Model_Performance.py"),
@@ -514,15 +539,14 @@ col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.metric(
         "Covered",
-        "3",
-        help="Pillars 1 (PR-EQ-3 / Round 27), 6 (PR-PAY-1 — uniform alert payload), 8",
+        "8",
+        help="All 8 pillars — the last four (2 defect lifecycle, 4 risk_tier/DQ, "
+        "5 risk-based controls, 7 model-risk approval gates) closed in #529.",
     )
 with col_b:
-    st.metric("Partial", "5", help="Pillars 2, 3, 4, 5, 7")
+    st.metric("Partial", "0", help="All pillars closed as of #529.")
 with col_c:
-    st.metric(
-        "Gap", "0", help="Pillar 1 equivalence engine + dashboard shipped in PR-EQ-3 (Round 27)"
-    )
+    st.metric("Gap", "0", help="No gaps — every pillar points to a concrete artefact.")
 
 st.caption(
     "Coverage is asserted, not aspirational — every COVERED claim above "

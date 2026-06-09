@@ -68,11 +68,14 @@ rules:
   - id: structuring_cash
     name: Cash structuring below EUR 15,000 threshold
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "AMLD6 Art. 50"
         description: "Suspicious transaction reporting obligation."
       - citation: "Directive 2015/849 Art. 11"
         description: "CDD threshold for cash transactions >= EUR 15,000."
+      - citation: "AMLR Art. 28(1)"
+        description: "CDD RTS — customer-due-diligence measures the monitoring rule reflects (AMLA effectiveness)."
     logic:
       type: aggregation_window
       source: txn
@@ -104,11 +107,14 @@ rules:
   - id: high_risk_jurisdiction
     name: Transactions with EU high-risk third countries
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "AMLD6 Art. 18a"
         description: "Enhanced due diligence for high-risk third countries."
       - citation: "EU Delegated Regulation 2016/1675"
         description: "List of high-risk third countries."
+      - citation: "AMLR Art. 28(1)"
+        description: "CDD RTS — enhanced customer-due-diligence measures for high-risk third countries (AMLA effectiveness)."
     logic:
       type: custom_sql
       sql: |
@@ -146,11 +152,14 @@ rules:
   - id: pep_screening
     name: Politically Exposed Person screening
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "AMLD6 Art. 20-23"
         description: "Enhanced due diligence for PEPs and their family members."
       - citation: "AMLD6 Art. 3(9)"
         description: "Definition of politically exposed person."
+      - citation: "AMLR Art. 26"
+        description: "Ongoing monitoring of the PEP business relationship and the transactions performed (AMLA effectiveness; CDD measure Art. 20(1)(f))."
     logic:
       type: custom_sql
       sql: |
@@ -190,9 +199,12 @@ rules:
   - id: rapid_movement_sepa
     name: Rapid SEPA pass-through within 48h
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "AMLD6 Art. 50"
         description: "STR for layering via SEPA transfers."
+      - citation: "AMLR Art. 26"
+        description: "Ongoing monitoring of SEPA pass-through activity in the business relationship (AMLA effectiveness; CDD measure Art. 20(1)(f))."
     logic:
       type: aggregation_window
       source: txn
@@ -221,11 +233,14 @@ rules:
   - id: sanctions_screening
     name: EU sanctions list screening
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "EU Regulation 269/2014"
         description: "Restrictive measures against Russia."
       - citation: "EU Regulation 2580/2001"
         description: "Measures against terrorism financing."
+      - citation: "AMLR Art. 20(1)(d)"
+        description: "Targeted-financial-sanctions screening — verifying whether the customer/beneficial owner is subject to TFS (AMLA effectiveness; CDD measure Art. 20(1)(d))."
     logic:
       type: list_match
       source: customer
@@ -259,6 +274,7 @@ rules:
   - id: travel_rule_completeness
     name: FATF R.16 — cross-border wire missing required fields
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF R.16 (June 2025 revision)"
         description: "Originator + beneficiary info required on cross-border wires ≥ USD/EUR 1,000."
@@ -297,6 +313,7 @@ rules:
   - id: invs_velocity_investment_scam
     name: INVS purpose-code velocity — investment-scam indicator
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
         description: "Investment-scam typology — purpose-code INVS misuse."
@@ -346,6 +363,7 @@ rules:
   - id: investment_scam_scorer
     name: Investment-scam amplifier (counterparty + foreign-dest + accel)
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF Cyber-Enabled Fraud (Feb 2026)"
         description: "Investment-scam typology — purpose-code INVS misuse."

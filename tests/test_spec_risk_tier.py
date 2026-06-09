@@ -21,13 +21,21 @@ EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "canadian_schedule_
 
 
 class TestRuleRiskTier:
-    def test_default_is_none(self):
-        """Existing specs without `risk_tier` keep loading — additive
-        contract holds. Default None means "no risk-tier signal
-        authored" (different from any of the three enum values)."""
-        spec = load_spec(EXAMPLE)
-        rule = spec.rules[0]
-        assert rule.risk_tier is None
+    def test_default_is_none(self, tmp_path):
+        """A spec WITHOUT `risk_tier` keeps loading — additive contract
+        holds (the field stays optional on the pydantic model; #529 adds
+        only an advisory validation pass, never a required field).
+        Default None means "no risk-tier signal authored" (distinct from
+        any of the three enum values). NB: the bundled examples now carry
+        risk_tier on every active rule (#529), so this test strips it to
+        exercise the legacy-spec path explicitly."""
+        raw = yaml.safe_load(EXAMPLE.read_text())
+        for r in raw["rules"]:
+            r.pop("risk_tier", None)
+        f = tmp_path / "aml.yaml"
+        f.write_text(yaml.safe_dump(raw))
+        spec = load_spec(f)
+        assert spec.rules[0].risk_tier is None
 
     def test_valid_tier_round_trips(self, tmp_path):
         raw = yaml.safe_load(EXAMPLE.read_text())
@@ -200,9 +208,14 @@ class TestSpecDiffSurfacesRiskTier:
         from aml_framework.diff import compute_spec_diff
 
         raw = yaml.safe_load(EXAMPLE.read_text())
+        # The bundled example now tiers every active rule (#529); strip the
+        # first rule's tier on side `a` so this exercises the None -> authored
+        # transition explicitly.
+        raw_a = {**raw, "rules": [dict(raw["rules"][0]), *raw["rules"][1:]]}
+        raw_a["rules"][0] = {k: v for k, v in raw_a["rules"][0].items() if k != "risk_tier"}
         a = tmp_path / "a.yaml"
         b = tmp_path / "b.yaml"
-        a.write_text(yaml.safe_dump(raw))
+        a.write_text(yaml.safe_dump(raw_a))
         raw_b = {**raw, "rules": [dict(raw["rules"][0]), *raw["rules"][1:]]}
         raw_b["rules"][0] = {**raw_b["rules"][0], "risk_tier": "medium"}
         b.write_text(yaml.safe_dump(raw_b))
