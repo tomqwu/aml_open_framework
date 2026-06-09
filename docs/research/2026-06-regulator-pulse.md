@@ -80,7 +80,7 @@ Four ML/AI roadmap features delivered 2026-06-04 across `v0.1.46` + `v0.1.47`:
 | **M3 — champion-challenger `priority_outcome.json`** | v0.1.47 | Precision@k / recall comparison between champion and challenger weights; temporal-leakage guard enforced at runtime — satisfies SR 26-2's independent-challenger validation requirement |
 | **M4 — point-in-time effective-dated joins** | v0.1.47 | `DataContract.effective_dated` + `aggregation_window.enrich` emit as-of SQL JOINs so rules resolve reference state contemporaneous with each transaction; closes Pillar 3 (PARTIAL → COVERED) |
 
-These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (48 days from April 17): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, and a model inventory that can be produced on demand.
+These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (53 days from April 17, as of 2026-06-09): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, and a model inventory that can be produced on demand.
 
 ---
 
