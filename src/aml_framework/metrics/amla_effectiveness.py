@@ -1,16 +1,20 @@
 """AMLA RTS effectiveness telemetry pack (#528).
 
-The EU AML Authority (AMLA) supervises obliged entities against a set of
-Regulatory Technical Standards (RTS). Three of those RTS each carry an
-*effectiveness* expectation that an obliged entity must be able to
-evidence from its transaction-monitoring program:
+The EU AML Authority (AMLA) supervises obliged entities against the
+AMLR (Regulation (EU) 2024/1624). Three of its customer-due-diligence
+obligations each carry an *effectiveness* expectation that an obliged
+entity must be able to evidence from its transaction-monitoring program
+(article numbers verified against the EUR-Lex AMLR text, 2026-06):
 
-- **CDD RTS** — AMLR (Regulation (EU) 2024/1624) **Art. 28(1)**: the
-  customer-due-diligence measures a monitoring rule must reflect.
-- **Business-relationships RTS** — AMLR **Art. 19(9)**: ongoing
-  monitoring of the business relationship.
-- **Pecuniary-sanctions RTS** — AMLD6 (Directive (EU) 2024/1640)
-  **Art. 53(10)**: the targeted-financial-sanctions screening obligation.
+- **CDD** — AMLR **Art. 28(1)** (RTS on the information necessary to
+  perform CDD): the customer-due-diligence measures a rule must reflect.
+- **Ongoing monitoring of the business relationship** — AMLR **Art. 26**
+  ("Ongoing monitoring of the business relationship and monitoring of
+  transactions performed by customers"; listed as a CDD measure in
+  Art. 20(1)(f)).
+- **Targeted financial sanctions screening** — AMLR **Art. 20(1)(d)**:
+  verifying whether the customer or beneficial owners are subject to
+  targeted financial sanctions.
 
 This module rolls a run's existing artifacts (cases, decisions, metrics)
 into a frozen, deterministic `AmlaEffectivenessReport`:
@@ -18,9 +22,9 @@ into a frozen, deterministic `AmlaEffectivenessReport`:
 1. **Funnel + per-rule precision/recall** — reused from
    `metrics.outcomes.compute_outcomes`; nothing reinvented here.
 2. **AMLA RTS citation coverage** — which rules carry a citation that
-   maps to each of the three RTS articles, so a supervisor can see at a
-   glance whether the CDD / business-relationship / sanctions standards
-   are evidenced in the spec.
+   maps to each of the three AMLR articles, so a supervisor can see at a
+   glance whether the CDD / ongoing-monitoring / targeted-financial-
+   sanctions obligations are evidenced in the spec.
 
 Everything is *derived* from the run dir — no metric is fabricated. The
 run does not track STR *acceptance* (a regulator-feedback event), so
@@ -69,16 +73,16 @@ AMLA_RTS_ARTICLES: tuple[AmlaRtsArticle, ...] = (
         instrument="AMLR",
     ),
     AmlaRtsArticle(
-        key="business_relationships",
+        key="ongoing_monitoring",
         title="Ongoing monitoring of the business relationship",
-        citation="AMLR Art. 19(9)",
+        citation="AMLR Art. 26",
         instrument="AMLR",
     ),
     AmlaRtsArticle(
-        key="pecuniary_sanctions",
-        title="Targeted financial / pecuniary sanctions",
-        citation="AMLD6 Art. 53(10)",
-        instrument="AMLD6",
+        key="targeted_financial_sanctions",
+        title="Targeted financial sanctions screening",
+        citation="AMLR Art. 20(1)(d)",
+        instrument="AMLR",
     ),
 )
 
@@ -87,17 +91,16 @@ AMLA_RTS_ARTICLES: tuple[AmlaRtsArticle, ...] = (
 # author variants without false-positiving onto an unrelated article.
 _ARTICLE_TOKENS: dict[str, tuple[str, ...]] = {
     "cdd": ("amlr art. 28(1)", "amlr art 28(1)", "amlr article 28(1)", "art. 28(1)"),
-    "business_relationships": (
-        "amlr art. 19(9)",
-        "amlr art 19(9)",
-        "amlr article 19(9)",
-        "art. 19(9)",
+    "ongoing_monitoring": (
+        "amlr art. 26",
+        "amlr art 26",
+        "amlr article 26",
     ),
-    "pecuniary_sanctions": (
-        "amld6 art. 53(10)",
-        "amld6 art 53(10)",
-        "amld6 article 53(10)",
-        "art. 53(10)",
+    "targeted_financial_sanctions": (
+        "amlr art. 20(1)(d)",
+        "amlr art 20(1)(d)",
+        "amlr article 20(1)(d)",
+        "art. 20(1)(d)",
     ),
 }
 

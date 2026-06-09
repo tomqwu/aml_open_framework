@@ -124,7 +124,7 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     ---
 
-    The offline `aml amla-effectiveness-report` CLI rolls one run into the alert→case→STR funnel + per-rule precision + AMLA RTS citation coverage (CDD RTS AMLR Art. 28(1), business-relationships AMLR Art. 19(9), pecuniary-sanctions AMLD6 Art. 53(10)) for EU-supervised obliged entities. Deterministic, manifest-pinned; STR acceptance honestly reported as not-tracked. ~5 min. **Detailed.**
+    The offline `aml amla-effectiveness-report` CLI rolls one run into the alert→case→STR funnel + per-rule precision + AMLA citation coverage (CDD AMLR Art. 28(1), ongoing monitoring AMLR Art. 26, targeted-financial-sanctions screening AMLR Art. 20(1)(d)) for EU-supervised obliged entities. Deterministic, manifest-pinned; STR acceptance honestly reported as not-tracked. ~5 min. **Detailed.**
 
 </div>
 

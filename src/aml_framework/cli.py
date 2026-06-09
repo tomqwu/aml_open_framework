@@ -1617,9 +1617,9 @@ def amla_effectiveness_report_cmd(
     """Emit the AMLA RTS effectiveness pack (#528) for one engine run.
 
     Rolls the run's cases + decisions into the alert→case→STR funnel +
-    per-rule precision/recall + AMLA RTS citation coverage (CDD RTS
-    AMLR Art. 28(1), business-relationships AMLR Art. 19(9),
-    pecuniary-sanctions AMLD6 Art. 53(10)). Deterministic — `generated_at`
+    per-rule precision/recall + AMLA citation coverage (CDD AMLR
+    Art. 28(1), ongoing monitoring AMLR Art. 26, targeted-financial-
+    sanctions screening AMLR Art. 20(1)(d)). Deterministic — `generated_at`
     is the run manifest's `as_of`, no wall-clock read. Offline / post-run.
     """
     import contextlib

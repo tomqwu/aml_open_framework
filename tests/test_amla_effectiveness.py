@@ -49,8 +49,8 @@ _DECISIONS = [
 ]
 _RULE_CITATIONS = {
     "structuring_cash": ["AMLD6 Art. 50", "AMLR Art. 28(1)"],
-    "pep_screening": ["AMLD6 Art. 20-23", "AMLR Art. 19(9)"],
-    "sanctions_screening": ["EU Regulation 269/2014", "AMLD6 Art. 53(10)"],
+    "pep_screening": ["AMLD6 Art. 20-23", "AMLR Art. 26"],
+    "sanctions_screening": ["EU Regulation 269/2014", "AMLR Art. 20(1)(d)"],
     "travel_rule_completeness": ["FATF R.16 (June 2025 revision)"],
 }
 
@@ -124,8 +124,8 @@ def test_rts_coverage_maps_three_articles() -> None:
     assert r.n_rts_covered == 3
     by_key = {c.key: c for c in r.rts_coverage}
     assert by_key["cdd"].covering_rule_ids == ["structuring_cash"]
-    assert by_key["business_relationships"].covering_rule_ids == ["pep_screening"]
-    assert by_key["pecuniary_sanctions"].covering_rule_ids == ["sanctions_screening"]
+    assert by_key["ongoing_monitoring"].covering_rule_ids == ["pep_screening"]
+    assert by_key["targeted_financial_sanctions"].covering_rule_ids == ["sanctions_screening"]
     assert all(c.status == "covered" for c in r.rts_coverage)
 
 
@@ -139,13 +139,13 @@ def test_per_rule_article_keys() -> None:
     r = _build()
     by_id = {rule.rule_id: rule for rule in r.rules}
     assert by_id["structuring_cash"].amla_rts_articles == ["cdd"]
-    assert by_id["sanctions_screening"].amla_rts_articles == ["pecuniary_sanctions"]
+    assert by_id["sanctions_screening"].amla_rts_articles == ["targeted_financial_sanctions"]
     assert by_id["travel_rule_completeness"].amla_rts_articles == []
 
 
 def test_article_constants() -> None:
     keys = [a.key for a in AMLA_RTS_ARTICLES]
-    assert keys == ["cdd", "business_relationships", "pecuniary_sanctions"]
+    assert keys == ["cdd", "ongoing_monitoring", "targeted_financial_sanctions"]
 
 
 # --- Determinism -----------------------------------------------------------
@@ -179,8 +179,8 @@ def test_dashboard_alignment_mapping_eu_spec() -> None:
     # eu_bank rules carry evidence trails, so every cited article is "mapped".
     statuses = {row["name"]: row["status"] for row in rows}
     assert statuses["AMLR Art. 28(1)"] == "mapped"
-    assert statuses["AMLR Art. 19(9)"] == "mapped"
-    assert statuses["AMLD6 Art. 53(10)"] == "mapped"
+    assert statuses["AMLR Art. 26"] == "mapped"
+    assert statuses["AMLR Art. 20(1)(d)"] == "mapped"
     # The AMLA tab is appended for EU specs only when spec is supplied.
     labels = [t["label"] for t in get_framework_tabs("EU", spec)]
     assert "AMLA RTS coverage" in labels
@@ -214,8 +214,8 @@ def test_dashboard_alignment_gap_and_partial() -> None:
     rows = build_amla_rts_alignment(spec)
     statuses = {row["name"]: row["status"] for row in rows}
     assert statuses["AMLR Art. 28(1)"] == "partial"
-    assert statuses["AMLR Art. 19(9)"] == "gap"
-    assert statuses["AMLD6 Art. 53(10)"] == "gap"
+    assert statuses["AMLR Art. 26"] == "gap"
+    assert statuses["AMLR Art. 20(1)(d)"] == "gap"
 
 
 # --- CLI -------------------------------------------------------------------
@@ -272,12 +272,12 @@ def test_eu_bank_spec_validates_with_amla_citations() -> None:
     spec = load_spec(EU_SPEC)
     citations = {ref.citation for rule in spec.rules for ref in rule.regulation_refs}
     assert "AMLR Art. 28(1)" in citations
-    assert "AMLR Art. 19(9)" in citations
-    assert "AMLD6 Art. 53(10)" in citations
+    assert "AMLR Art. 26" in citations
+    assert "AMLR Art. 20(1)(d)" in citations
 
 
 def test_eu_bank_amla_citations_resolvable() -> None:
     from aml_framework.compliance.regwatch import citation_url
 
-    for c in ("AMLR Art. 28(1)", "AMLR Art. 19(9)", "AMLD6 Art. 53(10)"):
+    for c in ("AMLR Art. 28(1)", "AMLR Art. 26", "AMLR Art. 20(1)(d)"):
         assert citation_url(c) is not None

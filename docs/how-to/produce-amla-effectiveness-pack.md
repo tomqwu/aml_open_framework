@@ -1,6 +1,6 @@
 # How to produce an AMLA RTS effectiveness pack
 
-> **When you need this:** You are an EU-supervised obliged entity (a credit institution, payment institution, EMI, or VASP) and the EU AML Authority (AMLA) wants to see, for one engine run, that your transaction-monitoring program is *effective* — the alert→case→STR funnel — and that your detection rules *evidence* the three RTS effectiveness standards: the CDD RTS (AMLR Art. 28(1)), the business-relationships RTS (AMLR Art. 19(9)), and the pecuniary-sanctions RTS (AMLD6 Art. 53(10)). The offline `aml amla-effectiveness-report` command (#528) rolls all of that into one frozen, deterministic artifact for your Model Risk Committee (MRC) / supervisory pack.
+> **When you need this:** You are an EU-supervised obliged entity (a credit institution, payment institution, EMI, or VASP) and the EU AML Authority (AMLA) wants to see, for one engine run, that your transaction-monitoring program is *effective* — the alert→case→STR funnel — and that your detection rules *evidence* the three AMLR (Regulation (EU) 2024/1624) effectiveness obligations: CDD (Art. 28(1), the CDD-information RTS), ongoing monitoring of the business relationship (Art. 26; CDD measure Art. 20(1)(f)), and targeted-financial-sanctions screening (Art. 20(1)(d)). The offline `aml amla-effectiveness-report` command (#528) rolls all of that into one frozen, deterministic artifact for your Model Risk Committee (MRC) / supervisory pack.
 >
 > **Prereqs:** A spec whose EU rules carry the AMLA RTS citations in their `regulation_refs` (the bundled `examples/eu_bank/aml.yaml` is the demonstrator). One completed `aml run` so the run dir has `cases/`, `decisions.jsonl`, and `manifest.json`. `metrics/amla_effectiveness.py::build_amla_effectiveness_report` is the canonical, pure builder.
 >
@@ -24,15 +24,15 @@ rules:
         description: "CDD RTS — customer-due-diligence measures the rule reflects."
   - id: pep_screening
     regulation_refs:
-      - citation: "AMLR Art. 19(9)"        # business-relationships RTS
-        description: "Ongoing monitoring of the PEP business relationship."
+      - citation: "AMLR Art. 26"           # ongoing monitoring of the business relationship
+        description: "Ongoing monitoring of the PEP business relationship (CDD measure Art. 20(1)(f))."
   - id: sanctions_screening
     regulation_refs:
-      - citation: "AMLD6 Art. 53(10)"      # pecuniary-sanctions RTS
-        description: "Targeted-financial-sanctions screening obligation."
+      - citation: "AMLR Art. 20(1)(d)"     # targeted-financial-sanctions screening
+        description: "Targeted-financial-sanctions screening obligation (CDD measure Art. 20(1)(d))."
 ```
 
-The report maps a rule onto an RTS article when one of the rule's citations contains the article's reference (`AMLR Art. 28(1)`, `AMLR Art. 19(9)`, `AMLD6 Art. 53(10)`). A rule with no AMLA citation simply isn't counted toward coverage — it still appears in the per-rule funnel.
+The report maps a rule onto an AMLR article when one of the rule's citations contains the article's reference (`AMLR Art. 28(1)`, `AMLR Art. 26`, `AMLR Art. 20(1)(d)`). A rule with no AMLA citation simply isn't counted toward coverage — it still appears in the per-rule funnel.
 
 ### 2 · Validate + run
 
@@ -116,7 +116,7 @@ Three checks:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `RTS coverage: 0/3 articles` | No rule carries an `AMLR Art. 28(1)` / `AMLR Art. 19(9)` / `AMLD6 Art. 53(10)` citation | Add the citation to the relevant rule's `regulation_refs`; re-validate |
+| `RTS coverage: 0/3 articles` | No rule carries an `AMLR Art. 28(1)` / `AMLR Art. 26` / `AMLR Art. 20(1)(d)` citation | Add the citation to the relevant rule's `regulation_refs`; re-validate |
 | `No manifest.json in <run-dir>` | You pointed at a directory that isn't an engine run dir | Pass a real `.artifacts/run-<TS>` dir (or run `aml run` first) |
 | `precision` is `null` for every rule | No labels supplied — precision needs ground-truth true/false-positive labels | The run doesn't carry labels; supply them from your QA system if you need precision (the funnel + coverage are label-free) |
 | A citation won't resolve to a URL | The AMLA citation isn't in `CITATION_URL_MAP` | The three RTS citations ship resolvable; for a novel one add a `url:` to the `regulation_refs` entry |

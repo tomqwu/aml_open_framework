@@ -109,11 +109,13 @@ CITATION_URL_MAP: dict[str, str] = {
     "EU Regulation 2023/1113 (Transfer of Funds)": "https://eur-lex.europa.eu/eli/reg/2023/1113/oj",
     "EU Regulation 269/2014": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0269",
     "EU Regulation 2580/2001": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32001R2580",
-    # AMLA RTS effectiveness articles (#528). AMLR = Regulation (EU) 2024/1624;
-    # AMLD6 (2024) = Directive (EU) 2024/1640. Supervised by the EU AML Authority.
+    # AMLA effectiveness articles (#528). All in AMLR = Regulation (EU) 2024/1624
+    # (CELEX 32024R1624). Article numbers verified against the EUR-Lex AMLR text
+    # (2026-06): Art. 28(1) CDD-information RTS; Art. 26 ongoing monitoring of the
+    # business relationship; Art. 20(1)(d) targeted-financial-sanctions screening.
     "AMLR Art. 28(1)": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1624",
-    "AMLR Art. 19(9)": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1624",
-    "AMLD6 Art. 53(10)": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640",
+    "AMLR Art. 26": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1624",
+    "AMLR Art. 20(1)(d)": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1624",
     # FATF
     "FATF R.16 (June 2025 revision)": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Travel-rule.html",
     "FATF R.16 (revised June 2025)": "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Travel-rule.html",

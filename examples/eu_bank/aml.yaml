@@ -155,8 +155,8 @@ rules:
         description: "Enhanced due diligence for PEPs and their family members."
       - citation: "AMLD6 Art. 3(9)"
         description: "Definition of politically exposed person."
-      - citation: "AMLR Art. 19(9)"
-        description: "Business-relationships RTS — ongoing monitoring of the PEP business relationship (AMLA effectiveness)."
+      - citation: "AMLR Art. 26"
+        description: "Ongoing monitoring of the PEP business relationship and the transactions performed (AMLA effectiveness; CDD measure Art. 20(1)(f))."
     logic:
       type: custom_sql
       sql: |
@@ -199,8 +199,8 @@ rules:
     regulation_refs:
       - citation: "AMLD6 Art. 50"
         description: "STR for layering via SEPA transfers."
-      - citation: "AMLR Art. 19(9)"
-        description: "Business-relationships RTS — ongoing monitoring of SEPA pass-through activity in the business relationship (AMLA effectiveness)."
+      - citation: "AMLR Art. 26"
+        description: "Ongoing monitoring of SEPA pass-through activity in the business relationship (AMLA effectiveness; CDD measure Art. 20(1)(f))."
     logic:
       type: aggregation_window
       source: txn
@@ -234,8 +234,8 @@ rules:
         description: "Restrictive measures against Russia."
       - citation: "EU Regulation 2580/2001"
         description: "Measures against terrorism financing."
-      - citation: "AMLD6 Art. 53(10)"
-        description: "Pecuniary-sanctions RTS — targeted-financial-sanctions screening obligation (AMLA effectiveness)."
+      - citation: "AMLR Art. 20(1)(d)"
+        description: "Targeted-financial-sanctions screening — verifying whether the customer/beneficial owner is subject to TFS (AMLA effectiveness; CDD measure Art. 20(1)(d))."
     logic:
       type: list_match
       source: customer
