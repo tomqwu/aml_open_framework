@@ -122,7 +122,7 @@ def _render_table(rows: list[dict]) -> None:
             st.markdown(df.to_markdown(index=False), unsafe_allow_html=True)
 
 
-framework_tabs = get_framework_tabs(jurisdiction)
+framework_tabs = get_framework_tabs(jurisdiction, spec)
 tabs = st.tabs([t["label"] for t in framework_tabs])
 
 for tab_widget, tab_def in zip(tabs, framework_tabs):

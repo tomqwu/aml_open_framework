@@ -138,6 +138,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     Governed model-risk monitoring via `program.model_risk_monitoring`. Emits a frozen, manifest-pinned `model_risk_report.json` (model inventory + per-rule count drift vs prior run + validation cadence). Advisory only; SR 11-7 / OSFI E-23. ~10 min. **Detailed.**
 
+-   :material-star-shooting:{ .lg .middle } **[Produce an AMLA RTS effectiveness pack](produce-amla-effectiveness-pack.md)**
+
+    ---
+
+    The offline `aml amla-effectiveness-report` CLI rolls one run into the alert→case→STR funnel + per-rule precision + AMLA citation coverage (CDD AMLR Art. 28(1), ongoing monitoring AMLR Art. 26, targeted-financial-sanctions screening AMLR Art. 20(1)(d)) for EU-supervised obliged entities. Deterministic, manifest-pinned; STR acceptance honestly reported as not-tracked. ~5 min. **Detailed.**
+
 </div>
 
 ## Deploying

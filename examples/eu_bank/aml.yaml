@@ -74,6 +74,8 @@ rules:
         description: "Suspicious transaction reporting obligation."
       - citation: "Directive 2015/849 Art. 11"
         description: "CDD threshold for cash transactions >= EUR 15,000."
+      - citation: "AMLR Art. 28(1)"
+        description: "CDD RTS — customer-due-diligence measures the monitoring rule reflects (AMLA effectiveness)."
     logic:
       type: aggregation_window
       source: txn
@@ -111,6 +113,8 @@ rules:
         description: "Enhanced due diligence for high-risk third countries."
       - citation: "EU Delegated Regulation 2016/1675"
         description: "List of high-risk third countries."
+      - citation: "AMLR Art. 28(1)"
+        description: "CDD RTS — enhanced customer-due-diligence measures for high-risk third countries (AMLA effectiveness)."
     logic:
       type: custom_sql
       sql: |
@@ -154,6 +158,8 @@ rules:
         description: "Enhanced due diligence for PEPs and their family members."
       - citation: "AMLD6 Art. 3(9)"
         description: "Definition of politically exposed person."
+      - citation: "AMLR Art. 26"
+        description: "Ongoing monitoring of the PEP business relationship and the transactions performed (AMLA effectiveness; CDD measure Art. 20(1)(f))."
     logic:
       type: custom_sql
       sql: |
@@ -197,6 +203,8 @@ rules:
     regulation_refs:
       - citation: "AMLD6 Art. 50"
         description: "STR for layering via SEPA transfers."
+      - citation: "AMLR Art. 26"
+        description: "Ongoing monitoring of SEPA pass-through activity in the business relationship (AMLA effectiveness; CDD measure Art. 20(1)(f))."
     logic:
       type: aggregation_window
       source: txn
@@ -231,6 +239,8 @@ rules:
         description: "Restrictive measures against Russia."
       - citation: "EU Regulation 2580/2001"
         description: "Measures against terrorism financing."
+      - citation: "AMLR Art. 20(1)(d)"
+        description: "Targeted-financial-sanctions screening — verifying whether the customer/beneficial owner is subject to TFS (AMLA effectiveness; CDD measure Art. 20(1)(d))."
     logic:
       type: list_match
       source: customer

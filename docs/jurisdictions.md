@@ -79,6 +79,7 @@ The EU spec (`eu_bank`) aligns with:
 - **EU Regulation 2023/1113** (Transfer of Funds) — EU implementation of FATF R.16 Travel Rule
 - **AMLA** (Anti-Money Laundering Authority, operational July 2026) — direct supervision of high-risk cross-border institutions
 - **AMLA RTS draft (July 2026)** — STR submission format
+- **AMLA RTS effectiveness telemetry (#528)** — the `eu_bank` rules carry the three AMLR effectiveness citations (CDD **AMLR Art. 28(1)** (CDD-information RTS), ongoing monitoring of the business relationship **AMLR Art. 26** (CDD measure Art. 20(1)(f)), and targeted-financial-sanctions screening **AMLR Art. 20(1)(d)**; all in AMLR = Regulation (EU) 2024/1624, article numbers verified against the EUR-Lex text). The offline `aml amla-effectiveness-report <spec> <run-dir>` command rolls a run into the alert→case→STR funnel + per-rule precision + per-article citation coverage — see [How to produce an AMLA RTS effectiveness pack](how-to/produce-amla-effectiveness-pack.md). STR *acceptance* is honestly reported as `not_tracked` (the run records STR *filing*, not regulator feedback).
 
 Spec includes:
 - 7 detection rules covering structuring, high-risk-jurisdiction, PEP screening, rapid-movement, sanctions, FATF R.16 travel-rule completeness, and INVS pig-butchering
