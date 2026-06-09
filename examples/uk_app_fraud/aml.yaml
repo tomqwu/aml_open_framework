@@ -72,6 +72,7 @@ rules:
   - id: first_use_payee_large_amount
     name: APP — first-use payee with payment > GBP 1,000
     severity: high
+    risk_tier: high
     aml_priority: fraud   # fraud-domain — see layering_dispersal rule note
     regulation_refs:
       - citation: "PSR Specific Direction SD20 (APP scams reimbursement)"
@@ -119,6 +120,7 @@ rules:
   - id: cop_mismatch_override
     name: APP — Confirmation of Payee mismatch with override
     severity: critical
+    risk_tier: high
     aml_priority: fraud
     regulation_refs:
       - citation: "PSR Specific Direction SD17 (Confirmation of Payee)"
@@ -164,6 +166,7 @@ rules:
   - id: vulnerable_customer_atypical_payment
     name: APP — vulnerable customer makes payment > 5x typical
     severity: critical
+    risk_tier: high
     aml_priority: fraud
     regulation_refs:
       - citation: "PSR CRS Annex 4 — consumer standard of caution"
@@ -219,6 +222,7 @@ rules:
   - id: rapid_pass_through_mule
     name: APP — rapid pass-through (in then out within 1h)
     severity: high
+    risk_tier: high
     aml_priority: fraud
     regulation_refs:
       - citation: "PSR Specific Direction SD20 (APP scams reimbursement)"
@@ -307,6 +311,7 @@ rules:
   - id: rapid_outbound_dispersal
     name: AML — rapid outbound dispersal (≥3 outbound legs within 7d, ≥ GBP 1,500)
     severity: high
+    risk_tier: high
     aml_priority: other   # AML-domain (not fraud) — drives cross-domain linkage
     regulation_refs:
       - citation: "POCA 2002 s.327"

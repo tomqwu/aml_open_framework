@@ -33,14 +33,30 @@ class EnvironmentGatingError(RuntimeError):
     spec with mismatched lanes is valid — strict gating is a runtime
     posture, not a spec contract)."""
 
-    def __init__(self, rule_id: str, environment: str, approved: list[str]) -> None:
+    def __init__(
+        self,
+        rule_id: str,
+        environment: str,
+        approved: list[str],
+        *,
+        reason: str | None = None,
+    ) -> None:
         self.rule_id = rule_id
         self.environment = environment
         self.approved = list(approved)
-        super().__init__(
-            f"rule '{rule_id}' is not approved for environment '{environment}' "
-            f"(approved lanes: {self.approved or ['<none>']})"
-        )
+        self.reason = reason
+        # #529 (Pillar 7): the model-risk approval gate reuses this same
+        # error class but with a `reason` so the message is accurate for
+        # an approval block (vs a lane-promotion block).
+        if reason is not None:
+            super().__init__(
+                f"rule '{rule_id}' is blocked in environment '{environment}': {reason}"
+            )
+        else:
+            super().__init__(
+                f"rule '{rule_id}' is not approved for environment '{environment}' "
+                f"(approved lanes: {self.approved or ['<none>']})"
+            )
 
 
 class _Base(BaseModel):
@@ -73,6 +89,63 @@ class EnvironmentPromotion(_Base):
     current_environment: Environment
     approved_environments: list[Environment]
     signoffs: list[SignoffEvent] = Field(default_factory=list)
+
+
+# Model-risk tiers that carry an approval-gate expectation. `low` is
+# immaterial — tier-1 in SR 26-2 terms — so it is never gated; only the
+# material tiers (medium/high = tiers 2/3) require approval before prod.
+_MATERIAL_MODEL_TIERS = frozenset({"medium", "high"})
+
+
+def model_approval_gate_applies(rule: Rule, program: Program) -> bool:
+    """Return True when the model-risk approval gate is in force for `rule`.
+
+    The gate fires only when ALL of the following hold (#529, Pillar 7):
+      * `program.model_risk_monitoring.require_approval_before_prod` is on;
+      * `program.environment == "prod"`;
+      * `program.strict_environment_gating` is on (the gate raises the
+        same `EnvironmentGatingError`, so it shares the strict posture);
+      * the rule is a material model tier (`model_tier` medium/high).
+
+    Pure — no I/O. Whether the rule is actually BLOCKED additionally
+    depends on its `approval_status` (see `is_rule_model_approved`).
+    """
+    mrm = getattr(program, "model_risk_monitoring", None)
+    if mrm is None or not getattr(mrm, "require_approval_before_prod", False):
+        return False
+    if program.environment != "prod":
+        return False
+    if not program.strict_environment_gating:
+        return False
+    return rule.model_tier in _MATERIAL_MODEL_TIERS
+
+
+def is_rule_model_approved(rule: Rule) -> bool:
+    """Return True when the rule has cleared model-risk approval.
+
+    Only `approved` clears the gate; `pending` (the default) and
+    `rejected` do not. Pure function.
+    """
+    return rule.approval_status == "approved"
+
+
+def model_approval_audit_event(rule: Rule, program: Program, *, approved: bool) -> dict[str, Any]:
+    """Build the `approval_gate_check` audit-ledger event dict.
+
+    Emitted once per rule per run WHEN the gate applies (mirrors the
+    `environment_gate_check` event), so the regulator pack can prove the
+    model-risk approval gate was consulted, not just that blocked rules
+    existed. `approved` is the gate outcome for this rule.
+    """
+    return {
+        "event": "approval_gate_check",
+        "rule_id": rule.id,
+        "program_environment": program.environment,
+        "model_tier": rule.model_tier,
+        "approval_status": rule.approval_status,
+        "approved": approved,
+        "outcome": "approved" if approved else "blocked",
+    }
 
 
 def is_rule_approved_for_environment(rule: Rule, program: Program) -> bool:

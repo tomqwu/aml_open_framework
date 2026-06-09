@@ -172,21 +172,43 @@ class TestPillarCoverage:
         )
 
     def test_status_classifications_named_explicitly(self):
-        # The page's contract is that it MUST name COVERED and PARTIAL
-        # classifications explicitly so a reviewer can scan the source
-        # for honest coverage signals. GAP was a required status until
-        # PR-EQ-3 (Round 27) closed the equivalence pillar — now that
-        # every pillar is COVERED or PARTIAL, GAP is allowed but not
-        # required. The original "honest about gaps" intent is
-        # preserved: the page WILL re-name a GAP the moment a real one
-        # surfaces (e.g. a new pillar is added to the north-star
-        # memory). Until then, having zero GAPs is the desired state.
+        # The page MUST name the COVERED classification explicitly so a
+        # reviewer can scan the source for the coverage signal. As of
+        # issue #529 the four remaining PARTIAL pillars (2 defect
+        # lifecycle, 4 risk_tier/DQ, 5 risk-based controls, 7 model-risk
+        # approval gates) were closed — every pillar is now COVERED.
+        # PARTIAL / GAP are allowed but no longer required: the page WILL
+        # re-name one the moment a real gap surfaces (e.g. a new pillar
+        # is added to the north-star memory). Until then, all-COVERED is
+        # the desired state.
         body = PAGE.read_text(encoding="utf-8")
-        for status in ("COVERED", "PARTIAL"):
-            assert f'status="{status}"' in body, (
-                f"page has no pillar classified {status!r} — the contract "
-                f"requires the page name {status} pillars explicitly"
+        assert 'status="COVERED"' in body, (
+            "page has no pillar classified 'COVERED' — the contract "
+            "requires the page name COVERED pillars explicitly"
+        )
+
+    def test_all_eight_pillars_covered(self):
+        # Issue #529 closed the last four PARTIAL pillars. Every one of
+        # the eight `_render_pillar(...)` call sites must now carry
+        # `status="COVERED"`, and no card may be PARTIAL or GAP. Pins the
+        # 8/8 North-Star state so a regression that re-opens a pillar (or
+        # silently drops the page back to PARTIAL prose) fails loudly.
+        body = PAGE.read_text(encoding="utf-8")
+        call_marker = "_render_pillar(\n    number="
+        cards = body.split(call_marker)[1:]
+        assert len(cards) == 8, f"expected 8 pillar cards, got {len(cards)}"
+        for idx, card in enumerate(cards, start=1):
+            # Look only at the status declared inside this card segment
+            # (up to the next call site, already split out).
+            assert 'status="COVERED"' in card, (
+                f"pillar #{idx} ({PILLAR_NAMES[idx - 1]}) is not COVERED — "
+                "issue #529 requires all 8 pillars COVERED"
             )
+            for not_covered in ('status="PARTIAL"', 'status="GAP"'):
+                assert not_covered not in card, (
+                    f"pillar #{idx} ({PILLAR_NAMES[idx - 1]}) still declares "
+                    f"{not_covered} — issue #529 requires all 8 pillars COVERED"
+                )
 
 
 class TestRegistration:

@@ -72,6 +72,7 @@ rules:
   - id: structuring_cash
     name: Cash structuring below GBP 10,000
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "POCA 2002 s.330"
         description: "Regulated sector SAR obligation."
@@ -109,6 +110,7 @@ rules:
   - id: high_risk_jurisdiction
     name: Transactions with FATF high-risk jurisdictions
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "MLR 2017 reg. 33"
         description: "Enhanced due diligence for high-risk countries."
@@ -150,6 +152,7 @@ rules:
   - id: sanctions_ofsi
     name: OFSI sanctions screening
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "SAMLA 2018"
         description: "Sanctions and Anti-Money Laundering Act 2018."
@@ -181,6 +184,7 @@ rules:
   - id: unusual_volume_spike
     name: Unusual volume spike
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "POCA 2002 s.330"
         description: "SAR obligation for suspicious activity."
@@ -241,6 +245,7 @@ rules:
   - id: mule_return_burst_scorer
     name: Mule return-burst (pacs.004 + cross-signal)
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "POCA 2002 s.330"
         description: "Regulated sector SAR obligation."

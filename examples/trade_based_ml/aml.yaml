@@ -87,6 +87,7 @@ rules:
   - id: over_invoicing_unit_price
     name: TBML — declared unit price > 3x WCO baseline median
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF Trade-Based Money Laundering (Sep 2025 update)"
         description: "TBML typology — invoice manipulation via over-invoicing."
@@ -141,6 +142,7 @@ rules:
   - id: under_invoicing_unit_price
     name: TBML — declared unit price < 0.5x WCO baseline median
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF Trade-Based Money Laundering (Sep 2025 update)"
         description: "TBML typology — under-invoicing for value transfer."
@@ -191,6 +193,7 @@ rules:
   - id: phantom_shipping
     name: TBML — TRAD payment without shipping record
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "Egmont Group TBML Indicators (Sep 2024)"
         description: "Ref. Indicator T-08: trade payment without shipping documentation."
@@ -232,6 +235,7 @@ rules:
   - id: multiple_invoicing
     name: TBML — same invoice paid multiple times
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "Egmont Group TBML Indicators (Sep 2024)"
         description: "Ref. Indicator T-07: multiple invoicing — duplicate trade payment."
@@ -281,6 +285,7 @@ rules:
   - id: trad_to_high_risk_jurisdiction
     name: TBML — TRAD payment to FATF high-risk jurisdiction
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF High-Risk Jurisdictions Subject to Call for Action"
         description: "FATF black-list / grey-list countries (updated quarterly)."
