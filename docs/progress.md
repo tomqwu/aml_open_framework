@@ -11,7 +11,7 @@ Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a
 > - **DATA-N artifact-map corrected (all four data-problem editions, closes #548)** — Codex review caught that the "verification contract" table cited commands/symbols that don't exist; verified against the code and fixed consistently across April–July: DATA-1 `engine/runner.py::_build_warehouse` (the real `ContractViolation` gate, was `_validate_contracts`), DATA-3 `aml run` emits `reconciliation_report.json` (was `reconciliation.jsonl`) via `engine/reconciliation.py`, DATA-4 `aml lineage <case_id>` (was a non-existent `aml export --include-lineage`), DATA-6 points at the real `--strict` `_build_warehouse` gate (was a false `assistant/factory.py` claim). The dashboard's own `DATA_N_MAP` on the Data Integration page (which the docs cite as the one-click verification surface) was synced to the same corrected commands.
 > - **Three GitHub roadmap issues filed**: #538 (August 2026 research refresh prep), #539 (`aml sr26-2-examination-report` CLI — SR 26-2 53 days in, examination-active), #540 (AMLA direct-supervision selection exercise data pack — July 10 companion to #528).
 >
-> No code changes; no CI targets affected.
+> Primarily docs; the one code change is the Data Integration page's `DATA_N_MAP` copy (corrected commands, with a `tests/test_dashboard_data_integration_lineage.py` regression guard). Exercises the lint / unit-tests / e2e-dashboard CI jobs.
 
 ---
 
