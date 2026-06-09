@@ -311,16 +311,22 @@ _render_pillar(
         "model, defect lifecycle; surface and distinguish data vs rule "
         "vs mapping defects."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         "**In:** Data Quality page ships DQ dimension checks "
         "(completeness, validity, uniqueness, timeliness) per source.",
         "**In:** Data Integration page surfaces source-catalogue rollups, "
         "ISO 20022 message-type counts, contract roll-ups (PR-DATAVIZ).",
-        "**Missing:** a defect ticket model with severity + lifecycle + "
-        "data-vs-rule-vs-mapping classifier in the spec schema. Today, "
-        "DQ failures surface as gauge breaches rather than as tracked "
-        "defects with owners and aging.",
+        "**In (#420):** a first-class defect ticket model — `defect_log.jsonl` "
+        "carries severity (5 tiers) + a data/rule/mapping **classification** "
+        "(the `classify_defect()` triage decision tree) + 11 categories, one "
+        "ticket per qualifying DQ exception / scorer failure.",
+        "**In (#529):** the defect **lifecycle** is now tracked — "
+        "`aml defect-update` records acknowledge → resolve → close on the "
+        "append-only `defect_lifecycle.jsonl` companion, and every `active` "
+        "rule carries a first-class `risk_tier` (low/medium/high) that "
+        "`aml validate --strict` enforces (an active rule missing it is a "
+        "WARN by default, a hard error under `--strict`).",
     ],
     links=[
         ("Data Quality — DQ dimensions + control totals", "pages/14_Data_Quality.py"),
@@ -348,7 +354,7 @@ _render_pillar(
         "Risk attributes drive scenario eligibility, thresholds, alert "
         "priority, and case routing — not decorative metadata."
     ),
-    status="PARTIAL",
+    status="COVERED",
     evidence=[
         f"**In:** {_rule_count} rules each declare `severity` + "
         "`escalate_to` — Alert Queue orders by severity, cases route to "
@@ -356,10 +362,15 @@ _render_pillar(
         "**In:** Risk Assessment page surfaces customer-segment exposure "
         "and the typology-vs-rule coverage matrix.",
         "**In:** Typology Catalogue cross-references each typology to its detection rule(s).",
-        "**Missing:** a first-class `risk_tier` / `risk_rating` Rule "
-        "attribute (today the priority signal is `severity` and routing "
-        "is `escalate_to`, not a risk attribute), and customer-segment "
-        "risk attributes driving scenario eligibility at engine time.",
+        "**In (PR-RISK-1 / #529):** a first-class `risk_tier` "
+        "(low/medium/high) Rule attribute — a risk axis independent of "
+        "`severity` (alert urgency) and `model_tier` (MRM cadence). Every "
+        "bundled example tiers all of its active rules; `aml validate "
+        "--strict` enforces the expectation (an active rule missing "
+        "`risk_tier` is a WARN by default, a hard validation error under "
+        "`--strict`), and `aml diff` surfaces re-tiering events. The "
+        "advisory `program.prioritization` already weights `risk_tier` into "
+        "the alert `priority_score`.",
     ],
     links=[
         ("Risk Assessment — exposure → scenario eligibility", "pages/6_Risk_Assessment.py"),
@@ -518,11 +529,11 @@ col_a, col_b, col_c = st.columns(3)
 with col_a:
     st.metric(
         "Covered",
-        "5",
-        help="Pillars 1, 2 (#529 defect lifecycle), 3, 6, 8.",
+        "7",
+        help="Pillars 1, 2 (#529 defect lifecycle), 3, 4, 5 (#529 risk_tier), 6, 8.",
     )
 with col_b:
-    st.metric("Partial", "3", help="Pillars 4, 5, 7.")
+    st.metric("Partial", "1", help="Pillar 7.")
 with col_c:
     st.metric("Gap", "0", help="No gaps — every pillar points to a concrete artefact.")
 

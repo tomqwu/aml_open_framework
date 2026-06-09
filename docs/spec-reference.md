@@ -150,6 +150,9 @@ Each rule has:
 - `escalate_to` — initial queue id from `workflow.queues`
 - `evidence` — what to attach to the case file
 - `tags` — typology labels (e.g. `structuring`, `pep`); used by coverage metrics
+- `risk_tier` (`low | medium | high`) — **expected on every `active` rule** (#529). First-class risk-based-controls posture, independent of `severity` (alert urgency) and `model_tier` (MRM cadence). Optional on the pydantic model (a legacy spec without it still loads), but `aml validate` WARNs when an active rule omits it and `aml validate --strict` turns that into a hard validation error. Weighted into the advisory `priority_score` (see `program.prioritization.weights.risk_tier`) and surfaced in `aml diff`.
+- `model_tier` (`low | medium | high`, optional) — MRM tier (SR 26-2) used by `generators/mrm.py`.
+- `environments` — promotion lanes the rule has been signed off for (default `["dev"]`).
 
 ### Logic type: `aggregation_window`
 

@@ -1103,14 +1103,47 @@ def byod(
 
 
 @app.command()
-def validate(spec_path: Path = typer.Argument(..., exists=True, readable=True)) -> None:
-    """Validate aml.yaml against the JSON Schema and cross-reference checks."""
+def validate(
+    spec_path: Path = typer.Argument(..., exists=True, readable=True),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help=(
+            "Promote advisory governance warnings (e.g. an active rule "
+            "missing risk_tier — Pillars 4/5) to validation errors. "
+            "Exits 1 if any warning is present."
+        ),
+    ),
+) -> None:
+    """Validate aml.yaml against the JSON Schema and cross-reference checks.
+
+    The structural (JSON Schema) + cross-reference (Pydantic) layers always
+    run. On top of those, advisory governance passes run: an `active` rule
+    missing a first-class `risk_tier` (low/medium/high) is a WARN by default
+    and — with `--strict` — a hard validation error. This mirrors the
+    runtime environment-gating posture (WARN by default, raise under
+    `program.strict_environment_gating`).
+    """
+    from aml_framework.spec.validation import (
+        SpecValidationError,
+        validate_risk_tier_coverage,
+    )
+
     spec = load_spec(spec_path)
     console.print(
         f"[green]OK[/green] {spec_path} — "
         f"{len(spec.data_contracts)} contract(s), {len(spec.rules)} rule(s), "
         f"{len(spec.workflow.queues)} queue(s)."
     )
+
+    # Advisory governance pass — risk_tier coverage (Pillars 4 + 5).
+    try:
+        warnings = validate_risk_tier_coverage(spec, strict=strict)
+    except SpecValidationError as exc:
+        console.print(f"[red]FAILED[/red] {exc}")
+        raise typer.Exit(code=1) from None
+    for w in warnings:
+        console.print(f"[yellow]WARN[/yellow] {w}")
 
 
 @app.command(name="generate-dbt")

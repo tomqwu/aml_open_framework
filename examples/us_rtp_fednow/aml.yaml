@@ -97,6 +97,7 @@ rules:
   - id: first_use_payee_large_amount_rtp
     name: First-use payee — large RTP/FedNow send
     severity: high
+    risk_tier: high
     aml_priority: fraud
     regulation_refs:
       - citation: "FinCEN-FBI Joint Advisory Jan 2026"
@@ -144,6 +145,7 @@ rules:
   - id: velocity_spike_on_receive_rtp
     name: Velocity spike on receive — sudden RTP/FedNow credit burst
     severity: high
+    risk_tier: high
     aml_priority: fraud
     regulation_refs:
       - citation: "FinCEN-FBI Joint Advisory Jan 2026"
@@ -184,6 +186,7 @@ rules:
   - id: ramp_up_then_drain_rtp
     name: Ramp-up then drain — small priming over RTP, then large
     severity: high
+    risk_tier: high
     aml_priority: fraud
     regulation_refs:
       - citation: "FinCEN FIN-2023-Alert005"
@@ -225,6 +228,7 @@ rules:
   - id: mule_receiver_fan_out_rtp
     name: Mule receiver — fan-out cluster on RTP/FedNow
     severity: critical
+    risk_tier: high
     aml_priority: fraud
     regulation_refs:
       - citation: "FinCEN-FBI Joint Advisory Jan 2026"
@@ -261,6 +265,7 @@ rules:
   - id: unusual_send_hour_for_customer_rtp
     name: Unusual hour — RTP/FedNow send outside customer's typical window
     severity: medium
+    risk_tier: medium
     aml_priority: fraud
     regulation_refs:
       - citation: "FinCEN-FBI Joint Advisory Jan 2026"

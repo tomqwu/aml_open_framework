@@ -108,6 +108,7 @@ rules:
   - id: stablecoin_mixing_layering
     name: Stablecoin mixing / layering — fan-in + fan-out churn in a recent window
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "GENIUS Act PPSI NPRM (FR 2026-06963)"
         description: "PPSI AML/CFT program — mixing/layering of minted stablecoin value."
@@ -187,6 +188,7 @@ rules:
   - id: rapid_onramp_offramp_cycling
     name: Rapid on-ramp / off-ramp cycling — mint + redeem in a recent window
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "GENIUS Act s.4"
         description: "PPSI mint/redemption controls — rapid on/off-ramp round-tripping indicative of layering."
@@ -263,6 +265,7 @@ rules:
   - id: structuring_below_ctr_threshold
     name: Structuring below the USD $10,000 reporting threshold
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "GENIUS Act s.4"
         description: "PPSI BSA/AML program — structuring to evade reporting is suspicious-activity reportable."
@@ -303,6 +306,7 @@ rules:
   - id: vasp_counterparty_exposure
     name: VASP counterparty exposure — outbound stablecoin to FATF high-risk jurisdictions
     severity: high
+    risk_tier: high
     regulation_refs:
       - citation: "FATF High-Risk Jurisdictions Subject to Call for Action"
         description: "Geographic risk — call-for-action jurisdictions require enhanced due diligence."
@@ -349,6 +353,7 @@ rules:
   - id: ofac_sdn_screening
     name: OFAC SDN sanctions screening (31 CFR Part 502)
     severity: critical
+    risk_tier: high
     regulation_refs:
       - citation: "31 CFR Part 502"
         description: "PPSI OFAC sanctions program — SDN screening + freeze-and-report on a match."
@@ -383,6 +388,7 @@ rules:
   - id: adverse_media_screening
     name: Adverse media screening
     severity: medium
+    risk_tier: medium
     regulation_refs:
       - citation: "GENIUS Act s.4"
         description: "PPSI BSA/AML program — ongoing customer due diligence, adverse media as risk indicator."
