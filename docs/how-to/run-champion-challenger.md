@@ -21,7 +21,7 @@ C0002,0
 C0003,1
 ```
 
-The file must have `customer_id` and `is_true_positive` (0 or 1) columns. Every `customer_id` in the file is matched against alerts in the run by `customer_id`. Alerts for customers not in the file are excluded from the outcome metrics (they are not labelled).
+The file must have `customer_id` and `is_true_positive` (0 or 1) columns. Every `customer_id` in the file is matched against alerts in the run by `customer_id`. Alerts for customers **not** in the file are still ranked and still occupy top-k slots — they are simply not counted as hits. Because `precision@k` divides hits by `k` (not by the number of *labelled* rows in the top-k), an unlabeled alert sitting in the top-k **lowers** precision rather than being dropped. So a sparse labels file penalises precision: label every alert you can adjudicate.
 
 ### 2 · Run with champion weights only (baseline)
 
