@@ -128,8 +128,8 @@ filter / count by message type. Closes DATA-8.
 **Lineage walk-back** — every alert carries the source-rule version,
 spec hash, input-file hashes, and ingestion run id (PR-DATA-4
 `walk_lineage()`). The Audit & Evidence page renders the chain;
-`aml export --include-lineage` packages it for the auditor. Closes
-DATA-4.
+`aml lineage <case_id>` emits it as JSON and `aml export` bundles it
+into the audit pack for the auditor. Closes DATA-4.
 
 For the operator-facing summary surface — *"what data is flowing
 through this AML program right now?"* — see the [Data Integration

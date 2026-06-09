@@ -335,7 +335,7 @@
 
     <div class="r-row">
       <div class="row-key">DATA-1 · Fail-closed contract validation</div>
-      <div class="row-val"><strong>Page</strong>: Data Integration · contract roll-up · Data Quality. <strong>CLI</strong>: <code>aml validate-data</code> · <code>aml run --strict</code>. <strong>Module</strong>: <code>engine/runner.py::_validate_contracts</code>.</div>
+      <div class="row-val"><strong>Page</strong>: Data Integration · contract roll-up · Data Quality. <strong>CLI</strong>: <code>aml validate-data</code> · <code>aml run --strict</code>. <strong>Module</strong>: <code>engine/runner.py::_build_warehouse</code> (raises <code>ContractViolation</code>).</div>
     </div>
     <div class="r-row">
       <div class="row-key">DATA-2 · Per-attribute freshness pinning</div>
@@ -343,11 +343,11 @@
     </div>
     <div class="r-row">
       <div class="row-key">DATA-3 · Cross-system reconciliation</div>
-      <div class="row-val"><strong>Page</strong>: Audit & Evidence (decision log) — richer reconciliation view planned. <strong>CLI</strong>: <code>aml run</code> emits <code>reconciliation.jsonl</code> per contract.</div>
+      <div class="row-val"><strong>Page</strong>: Audit & Evidence (decision log) — richer reconciliation view planned. <strong>CLI</strong>: <code>aml run</code> emits <code>reconciliation_report.json</code> per contract.</div>
     </div>
     <div class="r-row">
       <div class="row-key">DATA-4 · Lineage walk-back from KPI</div>
-      <div class="row-val"><strong>Page</strong>: Audit & Evidence · decision log. <strong>CLI</strong>: <code>aml export --include-lineage</code>. <strong>Module</strong>: <code>engine/audit.py::walk_lineage</code>.</div>
+      <div class="row-val"><strong>Page</strong>: Audit & Evidence · decision log. <strong>CLI</strong>: <code>aml lineage &lt;case_id&gt;</code>. <strong>Module</strong>: <code>engine/audit.py::walk_lineage</code>.</div>
     </div>
     <div class="r-row">
       <div class="row-key">DATA-5 · In-bank, not SaaS (data sovereignty)</div>
@@ -355,7 +355,7 @@
     </div>
     <div class="r-row">
       <div class="row-key">DATA-6 · AI presumes data (fail-closed gate)</div>
-      <div class="row-val">Closes transitively via DATA-1. <strong>CLI</strong>: <code>aml run --strict</code> halts on contract violation before any LLM call. <strong>Module</strong>: <code>assistant/factory.py</code> checks contract pass before backend invocation.</div>
+      <div class="row-val">Closes transitively via DATA-1. <strong>CLI</strong>: <code>aml run --strict</code> halts on contract violation before any LLM call. <strong>Module</strong>: <code>engine/runner.py::_build_warehouse</code> — the <code>--strict</code> <code>ContractViolation</code> gate, shared with DATA-1.</div>
     </div>
     <div class="r-row">
       <div class="row-key">DATA-7 · Engineering vs Compliance ownership boundary</div>
