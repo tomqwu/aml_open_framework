@@ -90,6 +90,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     The copy-paste runbook companion to the [5-year lookback architectural overview](../five-year-lookback.md). 60-month replay against the `community_bank_lookback` example + a deterministic synthetic generator. ~30–60 min wall time on a laptop. **Detailed.**
 
+-   :material-whistle:{ .lg .middle } **[Run a FinCEN Whistleblower internal-channel audit](run-whistleblower-audit.md)**
+
+    ---
+
+    The offline `aml whistleblower-audit` CLI (#531) rolls SAR-backlog exposure, escalation coverage (documented reviewer + rationale), triage time, board-documented decisions, and ledger integrity out of a run's audit ledger into a frozen `whistleblower_audit_report.json` (+ `--markdown` board table + `--format nprm-gap`). Advisory readiness lens against [FR 2026-06271](https://www.federalregister.gov/documents/2026/04/01/2026-06271/whistleblower-incentives-and-protections). ~5 min. **Detailed.**
+
 </div>
 
 ## Monitoring + DQ
