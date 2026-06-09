@@ -28,6 +28,7 @@ from aml_framework.engine.whistleblower_audit import (
     _parse_ts,
     _percentile,
     _read_decisions,
+    _to_naive_utc,
     build_whistleblower_audit_report,
     render_nprm_gap_markdown,
     render_whistleblower_markdown,
@@ -203,6 +204,36 @@ def test_backlog_age_boundary_exactly_30_days_not_stale(tmp_path):
         ).sar_backlog_exposure.open_stale_alerts
         == 1
     )
+
+
+def test_offset_aware_manifest_as_of_does_not_raise(tmp_path):
+    # P2: an offset-AWARE `generated_at` (manifest as_of with a +HH:MM offset)
+    # must not raise `TypeError: can't subtract offset-naive and offset-aware`
+    # in the backlog loop for an UNRESOLVED open case. The report computes and
+    # the backlog age is correct.
+    from datetime import timezone as _tz
+
+    # 2026-05-01T00:00:00+02:00 == 2026-04-30T22:00:00 UTC.
+    aware_as_of = datetime(2026, 5, 1, tzinfo=_tz(timedelta(hours=2)))
+    # Case opened exactly 40 days before that UTC instant, unresolved.
+    opened = datetime(2026, 4, 30, 22, 0, 0) - timedelta(days=40)
+    run = _make_run(tmp_path, [_opened("C1", opened)])
+
+    report = build_whistleblower_audit_report(run, generated_at=aware_as_of)
+    assert report.sar_backlog_exposure.open_stale_alerts == 1
+    assert report.sar_backlog_exposure.oldest_days == 40
+    # The stored generated_at is normalized to naive UTC (no tzinfo).
+    assert report.generated_at == datetime(2026, 4, 30, 22, 0, 0)
+    assert report.generated_at.tzinfo is None
+
+
+def test_to_naive_utc_helper():
+    from datetime import timezone as _tz
+
+    aware = datetime(2026, 5, 1, tzinfo=_tz(timedelta(hours=2)))
+    assert _to_naive_utc(aware) == datetime(2026, 4, 30, 22, 0, 0)
+    naive = datetime(2026, 5, 1)
+    assert _to_naive_utc(naive) is naive  # naive passes through unchanged
 
 
 # --------------------------------------------------------------------------

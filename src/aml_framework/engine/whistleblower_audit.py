@@ -137,6 +137,21 @@ def _read_decisions(run_dir: Path) -> list[dict[str, Any]]:
     return out
 
 
+def _to_naive_utc(dt: datetime) -> datetime:
+    """Normalize a datetime to NAIVE UTC.
+
+    Offset-aware inputs are converted to UTC then have their tzinfo
+    stripped; naive inputs (assumed already UTC, as the engine stamps
+    them) pass through unchanged. Every datetime in this module is run
+    through this so subtractions never mix aware/naive operands —
+    `manifest["as_of"]` may be offset-aware while the ledger `ts` values
+    are normalized naive UTC, and `aware - naive` raises TypeError.
+    """
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
 def _parse_ts(value: Any) -> datetime | None:
     """Parse an ISO-8601 `ts` into a naive UTC datetime (matching `as_of`)."""
     if not isinstance(value, str) or not value:
@@ -145,9 +160,7 @@ def _parse_ts(value: Any) -> datetime | None:
         dt = datetime.fromisoformat(value)
     except ValueError:
         return None
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-    return dt
+    return _to_naive_utc(dt)
 
 
 def _has_reviewer_and_rationale(event: dict[str, Any]) -> bool:
@@ -198,6 +211,11 @@ def build_whistleblower_audit_report(
     and the supplied `generated_at` (anchor it to `manifest.json`'s
     `as_of`). No clock reads on this path.
     """
+    # Normalize `generated_at` to naive UTC ONCE at the boundary so every
+    # subtraction in this module operates on naive-UTC operands. The ledger
+    # `ts` values are already naive UTC (via `_parse_ts`); the manifest's
+    # `as_of` may arrive offset-aware, and `aware - naive` raises TypeError.
+    generated_at = _to_naive_utc(generated_at)
     decisions = _read_decisions(run_dir)
 
     # --- per-case open time + TERMINAL resolution ---------------------
