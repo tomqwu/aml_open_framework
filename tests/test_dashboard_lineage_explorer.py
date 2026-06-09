@@ -70,9 +70,7 @@ class TestLineageExplorerPage:
         # deep-link bounces an analyst off their selected case to the first.
         sess_idx = body.index('_session_case = st.session_state.get("selected_case_id")')
         consume_idx = body.index('deep_link = consume_param("case_id")')
-        assert sess_idx < consume_idx, (
-            "_session_case must be captured before consume_param pops it"
-        )
+        assert sess_idx < consume_idx, "_session_case must be captured before consume_param pops it"
 
     def test_renders_all_seven_sections(self):
         body = PAGE.read_text(encoding="utf-8")
