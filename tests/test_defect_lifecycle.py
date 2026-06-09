@@ -147,6 +147,39 @@ class TestAppendOnlyCompanion:
         run_dir = _make_run_dir(tmp_path, ["defect:abc:0000:c1", "defect:abc:0001:c2"])
         assert read_defect_ids(run_dir) == {"defect:abc:0000:c1", "defect:abc:0001:c2"}
 
+    def test_read_defect_ids_missing_log_is_empty(self, tmp_path):
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        assert read_defect_ids(run_dir) == set()
+
+    def test_read_defect_ids_skips_blank_lines(self, tmp_path):
+        run_dir = _make_run_dir(tmp_path, ["defect:abc:0000:c1"])
+        # Append a trailing blank line — must be skipped, not parsed.
+        with (run_dir / "defect_log.jsonl").open("a") as f:
+            f.write("\n")
+        assert read_defect_ids(run_dir) == {"defect:abc:0000:c1"}
+
+    def test_read_lifecycle_events_missing_file_is_empty(self, tmp_path):
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        assert read_lifecycle_events(run_dir) == []
+
+    def test_read_lifecycle_events_skips_blank_lines(self, tmp_path):
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        append_lifecycle_event(
+            run_dir,
+            DefectLifecycleEvent(
+                defect_id="d1",
+                lifecycle_status=LifecycleStatus.ACKNOWLEDGED,
+                reviewer="r1",
+                timestamp=datetime.fromisoformat(_AS_OF),
+            ),
+        )
+        with (run_dir / DEFECT_LIFECYCLE_FILENAME).open("a") as f:
+            f.write("\n")
+        assert len(read_lifecycle_events(run_dir)) == 1
+
 
 class TestDefectUpdateCLI:
     def test_acknowledge_appends_valid_event(self, tmp_path):
