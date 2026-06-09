@@ -86,23 +86,22 @@ AMLA_RTS_ARTICLES: tuple[AmlaRtsArticle, ...] = (
     ),
 )
 
-# Substring tokens that count as "this rule cites this RTS article". The
-# canonical citation always matches; the extra tokens absorb the common
-# author variants without false-positiving onto an unrelated article.
+# Per-topic article-number tokens (lower-cased author variants). A citation
+# matches a topic's article number when it contains one of these AND it
+# references AMLR (see `_AMLR_CONTEXT_TOKENS`). The AMLR-context requirement
+# is mandatory: all three articles live in AMLR (Reg (EU) 2024/1624), and a
+# bare "art. 28(1)" / "art. 26" / "art. 20(1)(d)" could otherwise collide
+# with a DIFFERENT instrument that happens to share the article number (e.g.
+# "AMLD6 Art. 28(1)") and be wrongly credited as AMLR RTS coverage (codex P2).
 _ARTICLE_TOKENS: dict[str, tuple[str, ...]] = {
-    "cdd": ("amlr art. 28(1)", "amlr art 28(1)", "amlr article 28(1)", "art. 28(1)"),
-    "ongoing_monitoring": (
-        "amlr art. 26",
-        "amlr art 26",
-        "amlr article 26",
-    ),
-    "targeted_financial_sanctions": (
-        "amlr art. 20(1)(d)",
-        "amlr art 20(1)(d)",
-        "amlr article 20(1)(d)",
-        "art. 20(1)(d)",
-    ),
+    "cdd": ("art. 28(1)", "art 28(1)", "article 28(1)"),
+    "ongoing_monitoring": ("art. 26", "art 26", "article 26"),
+    "targeted_financial_sanctions": ("art. 20(1)(d)", "art 20(1)(d)", "article 20(1)(d)"),
 }
+
+# A citation only counts toward AMLR RTS coverage when it also names AMLR /
+# Regulation (EU) 2024/1624 — never on the article number alone.
+_AMLR_CONTEXT_TOKENS: tuple[str, ...] = ("amlr", "2024/1624")
 
 
 # ---------------------------------------------------------------------------
@@ -176,13 +175,19 @@ def _articles_for_citations(citations: list[str]) -> list[str]:
     """Return the AMLA RTS article keys a rule's citation strings map to.
 
     Deterministic, order = `AMLA_RTS_ARTICLES` order. A citation matches an
-    article when its lower-cased form contains one of that article's tokens.
+    article only when its lower-cased form contains one of that article's
+    number tokens AND references AMLR (`_AMLR_CONTEXT_TOKENS`) — the article
+    number alone is never enough, so a colliding non-AMLR citation (e.g.
+    "AMLD6 Art. 28(1)") is not wrongly credited as AMLR coverage (codex P2).
     """
-    lowered = [c.lower() for c in citations]
+    # AMLR-context citations only — both checks must hold on the SAME string.
+    amlr_lowered = [
+        c.lower() for c in citations if any(ctx in c.lower() for ctx in _AMLR_CONTEXT_TOKENS)
+    ]
     keys: list[str] = []
     for art in AMLA_RTS_ARTICLES:
         tokens = _ARTICLE_TOKENS[art.key]
-        if any(any(tok in c for tok in tokens) for c in lowered):
+        if any(any(tok in c for tok in tokens) for c in amlr_lowered):
             keys.append(art.key)
     return keys
 

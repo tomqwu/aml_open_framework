@@ -135,6 +135,40 @@ def test_rts_gap_when_no_citation() -> None:
     assert per_rule["r1"] == []
 
 
+def test_non_amlr_citation_with_colliding_article_number_not_credited() -> None:
+    """A citation to a DIFFERENT instrument that shares an AMLR article number
+    must NOT be credited as AMLR RTS coverage — the matcher requires AMLR
+    context, not just the bare article number (codex P2)."""
+    coverage, per_rule = build_rts_coverage(
+        {
+            # Colliding article numbers on NON-AMLR instruments — none should match.
+            "decoy": [
+                "AMLD6 Art. 28(1)",
+                "Directive (EU) 2024/1640 Art. 20(1)(d)",
+                "Some Other Law Art. 26",
+            ],
+            # The genuine AMLR citations — these SHOULD match.
+            "real": ["AMLR Art. 28(1)", "AMLR Art. 26", "AMLR Art. 20(1)(d)"],
+        }
+    )
+    assert per_rule["decoy"] == []
+    assert per_rule["real"] == ["cdd", "ongoing_monitoring", "targeted_financial_sanctions"]
+    by_key = {c.key: c for c in coverage}
+    # Only the AMLR-cited rule is credited toward each article.
+    assert by_key["cdd"].covering_rule_ids == ["real"]
+    assert by_key["ongoing_monitoring"].covering_rule_ids == ["real"]
+    assert by_key["targeted_financial_sanctions"].covering_rule_ids == ["real"]
+
+
+def test_amlr_context_via_full_regulation_number() -> None:
+    """A citation that names Regulation (EU) 2024/1624 (not the 'AMLR'
+    abbreviation) still counts — the AMLR-context check accepts 2024/1624."""
+    _, per_rule = build_rts_coverage(
+        {"r1": ["Regulation (EU) 2024/1624 Art. 26"]},
+    )
+    assert per_rule["r1"] == ["ongoing_monitoring"]
+
+
 def test_per_rule_article_keys() -> None:
     r = _build()
     by_id = {rule.rule_id: rule for rule in r.rules}
