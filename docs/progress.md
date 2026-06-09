@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-08. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
+>
+> - **#529 — North Star pillars 2/4/5/7 → COVERED** (page 43 now 8/8): Pillar 2 defect-ticket lifecycle (`aml defect-update` + append-only `defect_lifecycle.jsonl`, the frozen `defect_log.jsonl` untouched); Pillars 4+5 first-class `risk_tier` — kept the pydantic field optional (non-breaking) but added `validate_risk_tier_coverage` so an active rule missing it WARNs on `aml validate` / hard-ERRORs under `--strict`, with all 14 example specs tiered; Pillar 7 model-approval gate — new `rule.approval_status` + `program.model_risk_monitoring.require_approval_before_prod` (schema + models synced) blocking unapproved material-tier rules in prod+strict via `EnvironmentGatingError` + an `approval_gate_check` ledger event. Disabled path byte-identical; `approval_status` excluded from `rule_version_hash`; determinism preserved.
+> - **#528 — AMLA RTS effectiveness telemetry**: `aml amla-effectiveness-report` emits a frozen `amla_effectiveness_report.json` (funnel reused from `metrics.outcomes`, + per-RTS citation coverage). The 3 AMLR citations were corrected vs EUR-Lex (CDD **Art. 28(1)**, ongoing-monitoring **Art. 26**, targeted-financial-sanctions **Art. 20(1)(d)** — the issue's Art. 19(9)/AMLD6 53(10) were wrong); the coverage matcher requires AMLR (2024/1624) context, not a bare article number. EU-only "AMLA RTS coverage" tab on Framework Alignment. STR-acceptance/recall `not_tracked` (no ground truth), never fabricated.
+> - **#531 — FinCEN Whistleblower internal-channel audit**: offline `aml whistleblower-audit` → frozen `whistleblower_audit_report.json` (SAR-backlog exposure, escalation coverage %, triage median/p95, board-documented, ledger integrity) + `--markdown` + `--format nprm-gap`. SAR-backlog reuses `sla.py`'s terminal-event set (in-flight escalated/manual-review still counts); FAILS CLOSED if the manifest lacks `as_of` (no wall-clock); tz-normalized to naive UTC. Source: FR 2026-06271.
+> - **ML/AI how-to recipes** (#542): enable-prioritization, point-in-time-enrichment, run-champion-challenger — each code-verified against the actual artifacts/SQL/validators (salvaged + corrected from a stale draft).
+>
+> CI green; #528/#529/#531 are CLI/spec/dashboard features (deployable in v0.1.60). Each went through multi-round Codex review (miscited regulations, determinism fallbacks, backlog-counting, tz-handling all caught + fixed). Pre-existing follow-up noted: the `docs/research/` regulator-pulse editions still cite the old AMLA Art. 19(9)/53(10) numbers (corrected only in the #528 spec/code so far).
+
+---
 
 > **Round 35 — Roadmap wave #522–#525 + Getting Started reframe** (`code`+`docs`, 2026-06-08):
 >
