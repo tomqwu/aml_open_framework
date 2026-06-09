@@ -2,7 +2,7 @@
 
 This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed in the May 2026 window that generate compliance deadlines between 2026-06-01 and 2026-08-31. It is a living forward-calendar companion to the full chronological log in [`2026-05-regulator-pulse.md`](2026-05-regulator-pulse.md), which covers the 120-day event window 2026-02-01 → 2026-05-31.
 
-> **Last updated 2026-06-04.** *Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events. Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — 89 days, 30 events.*
+> **Last updated 2026-06-09.** *Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events. Previous edition: [2026-04-regulator-pulse.md](2026-04-regulator-pulse.md) — 89 days, 30 events.*
 
 ---
 
@@ -39,7 +39,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-01 · AUSTRAC — Tranche 2 enforcement begins for Australian DNFBPs
 
-**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brings Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, enforceable from 2026-07-01. **27 days remain.**
+**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brings Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, enforceable from 2026-07-01. **22 days remain (as of 2026-06-09).**
 
 **What MLROs need to do:**
 - Australian DNFBPs must be enrolled with AUSTRAC and have a documented, board-approved AML/CTF program before July 1.
@@ -54,7 +54,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-10 · AMLA — Statutory deadline to submit all final RTS to European Commission
 
-**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **36 days remain.**
+**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **31 days remain (as of 2026-06-09).**
 
 **What MLROs need to do:**
 - EU-supervised obliged entities should treat July 10 as the "locked-in" date for the RTS framework. Post-July amendments require a full new legislative cycle.
@@ -112,4 +112,4 @@ These are not operational niceties — they are the controls regulators will ins
 
 ---
 
-*Last updated: 2026-06-04 · Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*
+*Last updated: 2026-06-09 · Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*
