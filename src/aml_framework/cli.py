@@ -2502,9 +2502,7 @@ def defect_update_cmd(
         lifecycle_status = LifecycleStatus(status)
     except ValueError:
         valid = ", ".join(s.value for s in LifecycleStatus)
-        console.print(
-            f"[red]Unknown --status '{status}'.[/red] Expected one of: {valid}."
-        )
+        console.print(f"[red]Unknown --status '{status}'.[/red] Expected one of: {valid}.")
         raise typer.Exit(code=1) from None
 
     # The frozen defect log is the source of valid ids — reject a
