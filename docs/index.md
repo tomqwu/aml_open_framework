@@ -49,7 +49,7 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Deadline status (as of 2026-07-01): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **2026-07-01 — effective today**; AMLA RTS **2026-07-10 — 9 days**; SR 26-2 **75 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
+    20 research editions live across 5 areas × 4 months (Apr–Jul 2026). July editions pre-dated to 2026-07-01; June edition patched 2026-06-10. **Deadline status (as of 2026-06-10):** Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** — rulemaking pending (no final rule published); AUSTRAC Tranche 2 **2026-07-01 — 21 days**; AMLA RTS **2026-07-10 — 30 days**; SR 26-2 **54 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
 
     [:octicons-arrow-right-24: Research](research/2026-07-regulator-pulse.md)
 
@@ -123,7 +123,8 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
-| `docs` | — | 2026-07-01 | July 2026 research refresh — all five editions carried forward to a 2026-07-01 as-of date: Effectiveness NPRM + GENIUS Act comment window **closed June 9** (rulemaking pending, no outcome asserted); AUSTRAC Tranche 2 **effective today (July 1)**; AMLA RTS **9 days** (July 10); SR 26-2 **75 days** examination-active. |
+| `docs` | — | 2026-06-10 | Deadline refresh (as of June 10): Both NPRMs closed Jun 9 (rulemaking pending, no final-rule outcome); AUSTRAC Tranche 2 **21 days** (Jul 1); AMLA RTS **30 days** (Jul 10); SR 26-2 **54 days** examination-active. June regulator-pulse patched. April data-problem archive completed. Artifact-map accuracy fixed (DATA-1/4/6) across all data-problem editions. |
+| `docs` | — | 2026-07-01 | July 2026 research refresh — all five editions pre-dated to 2026-07-01 forward-looking as-of date: Effectiveness NPRM + GENIUS Act comment window **closed June 9** (rulemaking pending, no outcome asserted); AUSTRAC Tranche 2 **effective today (July 1)**; AMLA RTS **9 days** (July 10); SR 26-2 **75 days** examination-active. |
 | `docs` | — | 2026-06-05 | Regulatory Calendar — a live forward-deadline view (Regulatory Calendar page + a countdown banner on Today) mapping each NPRM/enforcement deadline to the framework features that evidence readiness. |
 | `docs` | 33 | 2026-06-05 | June 2026 research complete: data-problem June edition added (SR 26-2 examination-active 49 days, M4 point-in-time joins closes DATA-2, `aml model-inventory` closes DATA-6 gap); all 4 canonical research HTML files synced to June 2026 versions on static site. Effectiveness NPRM + GENIUS Act deadline June 9 — 4 days. |
 | `v0.1.47` + `docs` | M1–M4 | 2026-06-04 | ML/AI roadmap Now tier fully delivered: Triage Queue dashboard (M1), SR 26-2 model-inventory CLI `aml model-inventory` (M2), champion-challenger `priority_outcome.json` with temporal-leakage guard (M3), point-in-time effective-dated joins (M4, Pillar 3 COVERED). All four June 2026 research docs refreshed: June 9 NPRM deadline **5 days away** (file Fri/Sat June 5–6); AUSTRAC 27 days; AMLA RTS 36 days; SR 26-2 48 days active |
