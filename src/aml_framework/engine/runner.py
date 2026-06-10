@@ -99,10 +99,17 @@ def _harden_duckdb(con: duckdb.DuckDBPyConnection) -> None:
     ):
         try:
             con.execute(stmt)
-        except Exception:
-            # Older DuckDB releases may not support every setting; skip
-            # silently. The CI matrix pins a known version.
-            pass
+        except Exception as exc:
+            # Older DuckDB releases may not support every setting. Warn —
+            # never silently — so an operator upgrading DuckDB can see at
+            # startup that part of the sandbox did not engage. The CI
+            # matrix pins a known-good version where all four apply.
+            logger.warning(
+                "DuckDB hardening setting %r did not apply (%s) — "
+                "the custom_sql sandbox may be weaker than configured",
+                stmt,
+                exc,
+            )
 
 
 class CaseDict(TypedDict):
@@ -1223,6 +1230,23 @@ def run_spec(
     alerts_by_rule: dict[str, list[dict[str, Any]]] = {}
     case_ids: list[str] = []
     python_ref_failures: dict[str, str] = {}
+
+    # Security gate, BEFORE any rule executes: every active python_ref rule
+    # must resolve under an allowed module prefix. Checking up front means a
+    # disallowed callable on rule N can't ride behind N-1 rules of completed
+    # work (partial ledger writes, wasted compute) before being rejected —
+    # the spec is refused as a whole, fail-closed. The same check remains at
+    # the per-rule site as defense-in-depth.
+    _pyref_allowed = _allowed_python_ref_prefixes()
+    for _rule in spec.rules:
+        if _rule.status == "active" and _rule.logic.type == "python_ref":
+            _mod = _rule.logic.callable.split(":")[0]
+            if not any(_mod == p.rstrip(".") or _mod.startswith(p) for p in _pyref_allowed):
+                raise ValueError(
+                    f"python_ref module '{_mod}' (rule '{_rule.id}') is not under "
+                    f"an allowed prefix ({', '.join(_pyref_allowed)}). "
+                    f"Set AML_PYTHON_REF_PREFIX to extend."
+                )
 
     # PR-PRIO: resolve the advisory prioritization config once. ADVISORY —
     # only ADDS `priority_score` / `priority_explanation` to alerts; never

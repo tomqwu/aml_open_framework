@@ -7,6 +7,7 @@ exist to give the framework typed access and sensible defaults.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import Annotated, Any, Literal, Union
 
@@ -489,16 +490,34 @@ class EnrichJoin(_Base):
     where: list[str] = Field(default_factory=list)
 
 
+# Identifier positions (group_by columns, filter field names) are inlined
+# into generated SQL unquoted, so they are restricted to the same shape as
+# declared contract columns. Anything else is a spec-load error — a spec
+# author must never be able to reach SQL through an identifier position.
+SQLIdentifier = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]*$")]
+_SQL_IDENT_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
 class AggregationWindowLogic(_Base):
     type: Literal["aggregation_window"]
     source: str
     filter: dict[str, Any] | None = None
-    group_by: list[str]
+    group_by: list[SQLIdentifier] = Field(min_length=1)
     window: str = Field(pattern=r"^[0-9]+[smhd]$")
     having: dict[str, Any]
     # M4 (#484): optional point-in-time enrichment join. Engine wraps the
     # source in a CTE that joins the effective-dated contract as-of booked_at.
     enrich: EnrichJoin | None = None
+
+    @model_validator(mode="after")
+    def _check_filter_field_names(self) -> "AggregationWindowLogic":
+        for field_name in self.filter or {}:
+            if not _SQL_IDENT_RE.match(field_name):
+                raise ValueError(
+                    f"filter field '{field_name}' is not a valid column identifier "
+                    f"(must match ^[a-z][a-z0-9_]*$)"
+                )
+        return self
 
 
 class ListMatchLogic(_Base):

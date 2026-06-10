@@ -10,6 +10,7 @@ exact query that produced each alert.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -40,6 +41,25 @@ def parse_window(window: str) -> timedelta:
     raise ValueError(f"unsupported window unit in '{window}'")
 
 
+_IDENT_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _ident(name: str, position: str) -> str:
+    """Gate every identifier interpolated into generated SQL.
+
+    The spec models already reject bad identifiers at load time; this is
+    defense-in-depth for rule objects constructed programmatically (tests,
+    future API surfaces) that bypass pydantic validation. Identifiers are
+    never quoted-and-escaped — they are rejected — so the generated SQL
+    stays byte-identical for every spec that was valid before this gate.
+    """
+    if not _IDENT_RE.match(name):
+        raise ValueError(
+            f"unsafe SQL identifier in {position}: {name!r} (must match ^[a-z][a-z0-9_]*$)"
+        )
+    return name
+
+
 def _sql_literal(v: Any) -> str:
     if isinstance(v, bool):
         return "TRUE" if v else "FALSE"
@@ -58,6 +78,7 @@ def _compile_filter(filter_dict: dict[str, Any] | None) -> list[str]:
 
     preds: list[str] = []
     for field, cond in filter_dict.items():
+        _ident(field, "filter field")
         if not isinstance(cond, dict):
             preds.append(f"{field} = {_sql_literal(cond)}")
             continue
@@ -132,20 +153,27 @@ def _enrich_join_sql(logic: AggregationWindowLogic, src_alias: str, contracts: d
     enr = logic.enrich
     ref = contracts[enr.contract]
     ed = ref.effective_dated
+    # Identifiers here come from EnrichJoin / effective_dated, all regex-gated
+    # in the spec models — re-gate at compile time so a programmatically built
+    # rule can't reach the JOIN clause. `where` is raw SQL by design (see the
+    # custom_sql-grade review note in the spec reference).
+    contract = _ident(enr.contract, "enrich.contract")
+    key = _ident(enr.key, "enrich.key")
+    valid_from = _ident(ed.valid_from, "effective_dated.valid_from")
     preds = [
-        f"{src_alias}.{enr.key} = {enr.contract}.{enr.key}",
-        f"{enr.contract}.{ed.valid_from} <= {src_alias}.booked_at",
+        f"{src_alias}.{key} = {contract}.{key}",
+        f"{contract}.{valid_from} <= {src_alias}.booked_at",
     ]
     if ed.valid_to:
+        valid_to = _ident(ed.valid_to, "effective_dated.valid_to")
         preds.append(
-            f"({enr.contract}.{ed.valid_to} IS NULL "
-            f"OR {src_alias}.booked_at < {enr.contract}.{ed.valid_to})"
+            f"({contract}.{valid_to} IS NULL OR {src_alias}.booked_at < {contract}.{valid_to})"
         )
     # Parenthesize each raw `where` predicate so an `OR` inside one can't change
     # the AND-joined ON-clause precedence.
     preds.extend(f"({w})" for w in enr.where)
     on_clause = "\n        AND ".join(preds)
-    return f"JOIN {enr.contract}\n        ON {on_clause}"
+    return f"JOIN {contract}\n        ON {on_clause}"
 
 
 def compile_rule_sql(
@@ -192,11 +220,11 @@ def compile_rule_sql(
     )
     where_clause = "\n    AND ".join(filter_preds)
 
-    group_by = ", ".join(logic.group_by)
+    group_by = ", ".join(_ident(g, "group_by") for g in logic.group_by)
     having_selects, having_preds = _compile_having(logic.having)
     having_clause = " AND ".join(having_preds)
 
-    group_select = ", ".join(logic.group_by)
+    group_select = ", ".join(_ident(g, "group_by") for g in logic.group_by)
     agg_selects = ",\n    ".join(having_selects)
 
     # M4 (#484): when the rule enriches against an effective-dated contract,

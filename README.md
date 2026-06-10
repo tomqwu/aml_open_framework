@@ -54,7 +54,7 @@ Practical implications:
 | **Auditor** | Replay any historical run; verify the hash chain (CLI: `aml verify-decisions`); **paste any case_id and walk the 7-link lineage chain to its source rows** (dashboard, CLI: `aml lineage`, or API `/runs/{id}/cases/{id}/lineage`); pull the FINTRAC / OSFI / FinCEN exam pack — every regulator bundle now carries the lineage chain inline |
 | **CRO / CFO** | Apache 2.0 — runs in your perimeter, no per-seat licence. Effectiveness pack quantifies what the spend bought. **Now deployable on AKS with Microsoft Entra ID + Key Vault + workload identity — zero static secrets** (Round 15) |
 
-A live multi-audience pitch deck walking the framework slide by slide is at [`docs/pitch/deck/index.html`](https://github.com/tomqwu/aml_open_framework/blob/docs/pitch-deck/docs/pitch/deck/index.html) — start there if you have 5 minutes.
+A live multi-audience pitch deck walking the framework slide by slide is at [`docs/pitch/deck/index.html`](docs/pitch/deck/index.html) — start there if you have 5 minutes.
 
 ## How it works · 4 layers, one Compliance Manifest
 
