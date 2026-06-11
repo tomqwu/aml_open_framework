@@ -1,6 +1,19 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-11. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 37 — Deadline refresh + docs accuracy pass** (`docs`, 2026-06-11):
+>
+> - **Deadline status updated to 2026-06-11**: AUSTRAC Tranche 2 **20 days** (July 1), AMLA RTS **29 days** (July 10), SR 26-2 **55 days** examination-active. Previous as-of was July 1 perspective; corrected for current visitors.
+> - **New how-to: `docs/how-to/austrac-tranche2-readiness.md`** (closes #552): step-by-step go-live checklist for Australian DNFBPs — AUSTRAC enrolment → spec customisation → validate → run → Compliance Manifest board attestation → SMR/TTR filing readiness → ongoing monitoring. Covers all four Tranche 2 entity types. **20 days to enforcement.**
+> - **New how-to: `docs/how-to/post-nprm-implementation-planning.md`** (closes #551): post-comment-window implementation planning guide for the FinCEN Effectiveness NPRM (FR 2026-07033) + GENIUS Act PPSI NPRM (FR 2026-06963), both closed June 9. Covers Effectiveness NPRM four-pillar gap analysis, FinCEN Whistleblower NPRM readiness, GENIUS Act PPSI BSA equivalence + OFAC 31 CFR Part 502 + ISO 20022 checks, and implementation timeline to the 12-month clock.
+> - **DATA-N artifact map fixes across all data-problem editions** (closes #548): three inaccurate cells corrected consistently across 2026-05, 2026-06, 2026-07 data-problem editions: DATA-1 module ref `_validate_contracts` → `_build_warehouse` + `dq.py::evaluate_contract_checks`; DATA-4 CLI `aml export --include-lineage` → `aml lineage <case_id>`; DATA-6 module ref `assistant/factory.py` → `engine/runner.py::_build_warehouse raises ContractViolation`.
+> - **Created `docs/research/2026-04-aml-data-problem.md`**: April 2026 edition of the data-problem whitepaper (completing the 4-month archive), covering SR 26-2 effective April 17, the Effectiveness NPRM + GENIUS Act NPRM published April 10 (comment window open), and AUSTRAC Tranche 2 83 days away. DATA-N table uses the corrected symbols.
+> - **`mkdocs.yml` nav**: added `2026-04-aml-data-problem.md` to research nav; added two new how-to nav entries.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >

@@ -139,6 +139,8 @@ nav:
       - "Monitor model risk + drift": how-to/monitor-model-risk.md
       - "Use the Case Copilot": how-to/use-case-copilot.md
       - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md
+      - "AUSTRAC Tranche 2 go-live readiness": how-to/austrac-tranche2-readiness.md
+      - "Post-NPRM implementation planning": how-to/post-nprm-implementation-planning.md
 
   # ─── Operate ───────────────────────────────────────────────
   # Day-2 — running the framework in real environments.
@@ -175,6 +177,7 @@ nav:
           - research/2026-04-fintech-aml-reality.md
           - research/2026-04-competitive-positioning.md
           - research/2026-04-regulator-pulse.md
+          - research/2026-04-aml-data-problem.md
       - "Progress journal":
           - progress.md
           - five-year-lookback.md

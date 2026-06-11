@@ -152,6 +152,24 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
 </div>
 
+## Regulatory readiness
+
+<div class="grid cards" markdown>
+
+-   :material-bank-alert:{ .lg .middle } **[AUSTRAC Tranche 2 go-live readiness](austrac-tranche2-readiness.md)**
+
+    ---
+
+    Stand up a board-approved AML/CTF program for Australian DNFBPs (lawyers / accountants / real-estate / DPMS) by the **July 1, 2026 enforcement date**. Enrolment → spec → validate → run → Compliance Manifest → SMR/TTR filing. ~2–4 hours. **Urgent — enforcement active.**
+
+-   :material-file-clock:{ .lg .middle } **[Post-NPRM implementation planning](post-nprm-implementation-planning.md)**
+
+    ---
+
+    FinCEN Effectiveness NPRM + GENIUS Act PPSI NPRM comment windows **closed June 9, 2026**. Use this guide to complete your gap analysis now, before the 12-month implementation clock starts at the final rule. ~30–60 min. **Time-sensitive.**
+
+</div>
+
 ## Deploying
 
 <div class="grid cards" markdown>
