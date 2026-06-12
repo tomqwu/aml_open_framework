@@ -139,6 +139,11 @@ nav:
       - "Monitor model risk + drift": how-to/monitor-model-risk.md
       - "Use the Case Copilot": how-to/use-case-copilot.md
       - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md
+      - "Produce an AMLA RTS effectiveness pack": how-to/produce-amla-effectiveness-pack.md
+      - "Run a FinCEN Whistleblower audit": how-to/run-whistleblower-audit.md
+      - "AUSTRAC Tranche 2 go-live readiness": how-to/austrac-tranche2-readiness.md
+      - "Post-NPRM implementation planning": how-to/post-nprm-implementation-planning.md
+      - "Prepare an AMLA RTS submission pack": how-to/produce-amla-rts-submission-pack.md
 
   # ─── Operate ───────────────────────────────────────────────
   # Day-2 — running the framework in real environments.

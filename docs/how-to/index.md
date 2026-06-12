@@ -152,6 +152,30 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
 </div>
 
+## Regulatory readiness
+
+<div class="grid cards" markdown>
+
+-   :material-calendar-check:{ .lg .middle } **[AUSTRAC Tranche 2 go-live readiness](austrac-tranche2-readiness.md)**
+
+    ---
+
+    Step-by-step checklist for Australian DNFBPs (lawyers / accountants / real-estate / DPMS) to stand up a board-approved AML/CTF program, enrol with AUSTRAC, and confirm SMR/TTR filing readiness before the 2026-07-01 enforcement date. ~30 min. **Detailed.**
+
+-   :material-timeline-clock:{ .lg .middle } **[Post-NPRM implementation planning](post-nprm-implementation-planning.md)**
+
+    ---
+
+    Planning guide for the 12-month window after the FinCEN Effectiveness NPRM (FR 2026-07033) and GENIUS Act PPSI NPRM (FR 2026-06963) comment windows closed June 9. Covers Effectiveness NPRM strict-validation gap list, Whistleblower NPRM readiness table, and PPSI stablecoin BSA-equivalence checklist. ~20 min. **Detailed.**
+
+-   :material-certificate:{ .lg .middle } **[Prepare an AMLA RTS submission pack](produce-amla-rts-submission-pack.md)**
+
+    ---
+
+    Pre-submission alignment checklist for EU-supervised obliged entities ahead of the AMLA RTS statutory submission deadline (2026-07-10 — 28 days). Annotate rules with the three AMLR effectiveness citations, produce `amla_effectiveness_report.json`, close ✗ gaps, and export the regulator-ready bundle. ~15 min. **Detailed.**
+
+</div>
+
 ## Deploying
 
 <div class="grid cards" markdown>

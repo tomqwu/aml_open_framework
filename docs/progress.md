@@ -2,6 +2,22 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **Round 37 — Research doc + static-site freshness pass** (`docs`, 2026-06-12):
+>
+> - **AMLA citation correction (research docs)**: fixed the incorrect AMLA RTS article citations in `docs/research/2026-07-regulator-pulse.md` and `docs/research/2026-06-regulator-pulse.md`. Both editions previously cited the RTS as "Article 19(9)" (business-relationships) and "AMLD6 Article 53(10)" (pecuniary sanctions) — corrected to the verified EUR-Lex 2026-06 references: CDD information RTS → **AMLR Art. 28(1)**, ongoing-monitoring-of-business-relationships RTS → **AMLR Art. 26 (CDD measure Art. 20(1)(f))**, targeted-financial-sanctions screening RTS → **AMLR Art. 20(1)(d)**. These match the `#528` code corrections (which were done for the spec/engine but not yet backported to the research docs — Round 36 noted this as a pre-existing follow-up item).
+> - **docs/index.md deadline refresh**: updated researcher/regulator card from the forward-dated 2026-07-01 perspective to the current **2026-06-12** perspective: AUSTRAC Tranche 2 19 days, AMLA RTS 28 days, SR 26-2 56 days examination-active.
+> - **mkdocs.yml nav gaps closed**: `how-to/produce-amla-effectiveness-pack.md` and `how-to/run-whistleblower-audit.md` were present on disk and linked from the how-to index but absent from the MkDocs sidebar nav — both added.
+> - **Three regulatory-readiness how-to pages created** (closes #551, #552, #556):
+>   - `docs/how-to/austrac-tranche2-readiness.md` (#552) — AUSTRAC Tranche 2 DNFBP go-live checklist: enrolment, board-approved program activation, SMR/TTR filing readiness, manifest-hash attestation, audit-chain verification.
+>   - `docs/how-to/post-nprm-implementation-planning.md` (#551) — Post-NPRM 12-month implementation planning for the Effectiveness NPRM + GENIUS Act PPSI NPRM: strict-validation gap list, Whistleblower NPRM readiness table, PPSI BSA-equivalence checklist, monthly evidence-trail runbook.
+>   - `docs/how-to/produce-amla-rts-submission-pack.md` (#556) — AMLA RTS pre-submission alignment checklist: annotate rules with the three AMLR effectiveness citations, produce `amla_effectiveness_report.json`, interpret ✓/∼/✗ coverage rows, close gaps, export the regulator-ready ZIP.
+> - **"Regulatory readiness" section added to `docs/how-to/index.md`** — groups the three new how-tos with the same card grid pattern as existing sections.
+> - **mkdocs.yml nav**: five new entries wired (produce-amla-effectiveness-pack, run-whistleblower-audit, austrac-tranche2-readiness, post-nprm-implementation-planning, produce-amla-rts-submission-pack).
+>
+> No code changes; no CI targets affected.
+
+---
+
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >
 > - **#529 — North Star pillars 2/4/5/7 → COVERED** (page 43 now 8/8): Pillar 2 defect-ticket lifecycle (`aml defect-update` + append-only `defect_lifecycle.jsonl`, the frozen `defect_log.jsonl` untouched); Pillars 4+5 first-class `risk_tier` — kept the pydantic field optional (non-breaking) but added `validate_risk_tier_coverage` so an active rule missing it WARNs on `aml validate` / hard-ERRORs under `--strict`, with all 14 example specs tiered; Pillar 7 model-approval gate — new `rule.approval_status` + `program.model_risk_monitoring.require_approval_before_prod` (schema + models synced) blocking unapproved material-tier rules in prod+strict via `EnvironmentGatingError` + an `approval_gate_check` ledger event. Disabled path byte-identical; `approval_status` excluded from `rule_version_hash`; determinism preserved.

@@ -47,7 +47,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ⚠️ 2026-07-10 · AMLA — Statutory deadline to submit all final RTS to European Commission
 
-**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD RTS (AMLR Article 28(1)), the business-relationships and occasional/linked-transactions RTS (Article 19(9)), and the pecuniary-sanctions RTS (AMLD6 Article 53(10)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **9 days remain.**
+**What it is:** AMLA must submit final draft regulatory technical standards — including the CDD information RTS (AMLR Art. 28(1)), the ongoing-monitoring-of-business-relationships RTS (AMLR Art. 26, CDD measure Art. 20(1)(f)), and the targeted-financial-sanctions screening RTS (AMLR Art. 20(1)(d)) — to the European Commission by July 10. After submission, the Commission has three months to endorse before the RTS become binding law. **9 days remain.**
 
 **What MLROs need to do:**
 - EU-supervised obliged entities should treat July 10 as the "locked-in" date for the RTS framework. Post-July amendments require a full new legislative cycle. The window to influence the standard has already closed (all consultations closed by 2026-05-08).
