@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-13. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 37 — Docs + static-site real-time accuracy pass** (`docs`, 2026-06-13):
+>
+> - **`docs/index.md` deadline refresh**: researcher/regulator card updated to as-of 2026-06-13 accurate deadlines (AUSTRAC Tranche 2 **18 days**, AMLA RTS **27 days**, SR 26-2 **57 days** active); dashboard page count corrected 53+ → 45; "What's new" table rows added for Round 35 (fraud↔AML case links, spec-specific synthetic data, July research refresh) and Round 36 (AMLA RTS effectiveness telemetry, North Star pillars 2/4/5/7, whistleblower audit).
+> - **AMLA RTS citation corrections in archive editions** (closes #557): `docs/research/2026-04-regulator-pulse.md` and `docs/research/2026-05-regulator-pulse.md` (two occurrences in May) updated from the incorrect Art. 19(9)/AMLD6 53(10) references to the EUR-Lex-verified AMLR Arts. 26 / 20(1)(f) (ongoing monitoring of the business relationship) and 20(1)(d) (targeted-financial-sanctions screening) — matching the June/July editions and the `metrics/amla_effectiveness.py::CITATION_URL_MAP` canonical set.
+> - **`mkdocs.yml` nav gaps closed**: `how-to/produce-amla-effectiveness-pack.md` and `how-to/run-whistleblower-audit.md` were on disk (from #528/#531) but absent from the sidebar nav; both added to the Build section.
+> - **GitHub roadmap issues filed**: missing `2026-04-aml-data-problem.md` April edition, and three missing how-to recipes for Round 36 features (model approval gate, risk_tier coverage, fraud↔AML case linkage).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >

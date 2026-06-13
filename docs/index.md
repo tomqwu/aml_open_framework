@@ -49,7 +49,7 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Deadline status (as of 2026-07-01): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **2026-07-01 — effective today**; AMLA RTS **2026-07-10 — 9 days**; SR 26-2 **75 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
+    19 research editions live (Apr–Jul 2026, five topics). Round 35/36 shipped: AMLA RTS effectiveness telemetry (`aml amla-effectiveness-report`), FinCEN whistleblower audit, fraud↔AML cross-program case links, North Star governance pillars 2/4/5/7. **Deadline status (as of 2026-06-13):** Effectiveness NPRM + GENIUS Act NPRM **closed 2026-06-09** (rulemaking pending, 12-month implementation clock starts at final rule); AUSTRAC Tranche 2 **18 days** (July 1); AMLA RTS **27 days** (July 10); SR 26-2 **57 days** examination-active.
 
     [:octicons-arrow-right-24: Research](research/2026-07-regulator-pulse.md)
 
@@ -76,7 +76,7 @@ artifacts</strong> per run so reconciliation isn't an offline spreadsheet.
 
     ---
 
-    All 53+ Streamlit pages walked through by persona.
+    All 45 Streamlit pages walked through by persona.
 
     [:octicons-arrow-right-24: Dashboard Tour](dashboard-tour.md)
 
@@ -123,6 +123,8 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
+| `v0.1.60` + `docs` | 36 | 2026-06-09 | #528 AMLA RTS effectiveness telemetry (`aml amla-effectiveness-report` — alert→case→STR funnel + AMLR Art. 28(1)/26/20(1)(d) citation coverage); #529 North Star pillars 2/4/5/7 (defect lifecycle `aml defect-update`, `risk_tier` advisory validation, model approval gate); #531 FinCEN whistleblower audit (`aml whistleblower-audit` — SAR backlog, escalation coverage, triage p95, ledger integrity). ML/AI how-to recipes code-verified (#542). |
+| `v0.1.59` + `docs` | 35 | 2026-06-08 | #522 spec-specific synthetic data (UK APP fraud, RTP/FedNow, trade-based ML); #523 fraud↔AML cross-program case links (`case_links.jsonl`, mule C0019 linked across domains via POCA s.327 `rapid_outbound_dispersal` rule); #525 July 2026 research refresh (all 5 editions, forward-dated 2026-07-01). |
 | `docs` | — | 2026-07-01 | July 2026 research refresh — all five editions carried forward to a 2026-07-01 as-of date: Effectiveness NPRM + GENIUS Act comment window **closed June 9** (rulemaking pending, no outcome asserted); AUSTRAC Tranche 2 **effective today (July 1)**; AMLA RTS **9 days** (July 10); SR 26-2 **75 days** examination-active. |
 | `docs` | — | 2026-06-05 | Regulatory Calendar — a live forward-deadline view (Regulatory Calendar page + a countdown banner on Today) mapping each NPRM/enforcement deadline to the framework features that evidence readiness. |
 | `docs` | 33 | 2026-06-05 | June 2026 research complete: data-problem June edition added (SR 26-2 examination-active 49 days, M4 point-in-time joins closes DATA-2, `aml model-inventory` closes DATA-6 gap); all 4 canonical research HTML files synced to June 2026 versions on static site. Effectiveness NPRM + GENIUS Act deadline June 9 — 4 days. |
