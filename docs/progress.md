@@ -1,6 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-14. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 37 — Documentation freshness sweep + roadmap issues** (`docs`, 2026-06-14):
+>
+> - **AMLA citation corrections across all four regulator-pulse editions (April / May / June / July 2026)**: the stub generator ran before the #528 EUR-Lex verification corrected the article numbers, so all four editions cited `Art. 19(9)` (business-relationships RTS) and `AMLD6 Art. 53(10)` (TFS-screening RTS). Both corrected in every occurrence to `AMLR Art. 26` and `AMLR Art. 20(1)(d)` respectively (Reg (EU) 2024/1624, verified vs EUR-Lex 2026-06 — consistent with `CITATION_URL_MAP` in #528).
+> - **`docs/index.md` date refresh**: researcher/regulator card updated from `as of 2026-07-01` (forward-dated) to `as of 2026-06-14` with correct live countdown — AUSTRAC Tranche 2 17 days (July 1); AMLA RTS 26 days (July 10); SR 26-2 58 days examination-active (since April 17). `v0.1.60` / Round 36 row added to What's new table (North-Star pillars 2/4/5/7 + AMLA RTS effectiveness telemetry + FinCEN Whistleblower audit + Fraud↔AML case links).
+> - **GitHub roadmap issues filed**:
+>   - #566 — `feat: FinCEN Effectiveness NPRM final-rule 12-month implementation gap tracker` (`aml effectiveness-gap-report` — pillar-by-pillar ✓/⚠/✗, mirrors `whistleblower-audit --format nprm-gap`; needed before the 12-month clock starts at the final rule)
+>   - #567 — `feat: AMLA 2027 direct-supervision selection readiness report` (`aml amla-selection-readiness` — member-state coverage + RTS citation coverage + risk-band; data-collection exercise underway now for July 2027 selection)
+>   - #568 — `docs: EU and AU enforcement case studies` (EU AMLD6 walkthrough + AUSTRAC Tranche 1 walkthrough — rounds out the single TD-2024 US case study; timed to AMLA RTS July 10 and Tranche 2 July 1)
+>   - #569 — `feat: Regulatory Calendar live feed from Federal Register and EUR-Lex RSS` (daily feed-ingest + draft-PR for human review; `urgency_band` recomputed daily from `date.today()` not static at stub-generation time)
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >
