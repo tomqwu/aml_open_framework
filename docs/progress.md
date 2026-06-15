@@ -2,6 +2,20 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **Round 37 — Research docs refresh + AMLA citation corrections** (`docs`, 2026-06-15):
+>
+> Refreshed all date-sensitive research surfaces to 2026-06-15 (deadline counts had been frozen at the 2026-07-01 forward-date from Round 35):
+>
+> - **`docs/index.md`**: Researcher/regulator card updated from "as of 2026-07-01" → "as of 2026-06-15". Deadline counts corrected: AUSTRAC Tranche 2 **16 days** (not "effective today"), AMLA RTS **25 days** (not "9 days"), SR 26-2 **59 days** examination-active (not "75 days"). North Star v0.1.60 feature summary added (#528/#529/#531/#549). What's new table: Round 36 row split out; Round 37 row added.
+>
+> - **`docs/research/2026-07-regulator-pulse.md`**: AMLA article citations corrected per EUR-Lex 2026-06 verification done in #528 (which had fixed the spec/code but not the research docs): "business-relationships RTS (Article 19(9))" → **ongoing-monitoring RTS (AMLR Art. 26)**; "pecuniary-sanctions RTS (AMLD6 Article 53(10))" → **targeted-financial-sanctions screening RTS (AMLR Art. 20(1)(d))**. The CDD RTS (Art. 28(1)) was already correct. AUSTRAC "effective today" language updated to "16 days remaining". AMLA RTS countdown updated to "25 days". "What the Framework Shipped in June 2026" table expanded from 4 rows (M1–M4) to 8 rows, adding #528/#529/#531/#549. Last-updated header and footer: 2026-07-01 → 2026-06-15.
+>
+> - **`docs/research/2026-07-competitive-positioning.md`**: Update box added at top noting Round 36 deliveries. Date updated from 2026-07-01 → 2026-06-15. Priority table: row #2 (AMLA telemetry) status "6" → **Shipped v0.1.60 (Round 36, June 9)**; row #4 (Whistleblower audit) status "2" → **Shipped v0.1.60 (#531, June 9)**. SR 26-2 day counts updated to 59 (was 75). AUSTRAC "effective today" → "16 days".
+>
+> No code changes; no CI targets affected. Follow-up: #557 tracks the same citation correction for the April and May regulator-pulse archive editions.
+
+---
+
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >
 > - **#529 — North Star pillars 2/4/5/7 → COVERED** (page 43 now 8/8): Pillar 2 defect-ticket lifecycle (`aml defect-update` + append-only `defect_lifecycle.jsonl`, the frozen `defect_log.jsonl` untouched); Pillars 4+5 first-class `risk_tier` — kept the pydantic field optional (non-breaking) but added `validate_risk_tier_coverage` so an active rule missing it WARNs on `aml validate` / hard-ERRORs under `--strict`, with all 14 example specs tiered; Pillar 7 model-approval gate — new `rule.approval_status` + `program.model_risk_monitoring.require_approval_before_prod` (schema + models synced) blocking unapproved material-tier rules in prod+strict via `EnvironmentGatingError` + an `approval_gate_check` ledger event. Disabled path byte-identical; `approval_status` excluded from `rule_version_hash`; determinism preserved.
