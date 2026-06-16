@@ -1,20 +1,26 @@
 # AML Open Framework — Competitive Positioning Report: July 2026
 
-*Date: 2026-07-01 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery, carried into the July deadline window · Companion: [`2026-07-regulator-pulse.md`](./2026-07-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-06-competitive-positioning.md`](./2026-06-competitive-positioning.md).*
+*Date: 2026-07-01 · Drafted: 2026-06-16 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap + Wave 2 governance sprint (#523, #528, #529, #531) · Companion: [`2026-07-regulator-pulse.md`](./2026-07-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-06-competitive-positioning.md`](./2026-06-competitive-positioning.md).*
 
-> Refresh anchored to 2026-07-01. Four facts shape the competitive map this month: (1) the Effectiveness NPRM + GENIUS Act NPRM dual comment window **closed 2026-06-09** — the rulemakings are now pending (final rule expected late 2026 / early 2027), and comment-window work becomes documented proactive-posture evidence; (2) AUSTRAC Tranche 2 enforcement is **effective today** (2026-07-01); (3) the AMLA RTS submission deadline is **9 days out** (2026-07-10); (4) SR 26-2 is **75 days examination-active** (April 17 anchor) and the M1–M4 ML roadmap continues to strengthen the framework's challenger-model position.
+> Forward-calendar edition drafted 2026-06-16. Six facts shape the competitive map entering July: (1) Effectiveness NPRM + GENIUS Act NPRM dual comment window **closed 2026-06-09** — rulemakings pending; (2) AUSTRAC Tranche 2 enforcement is **15 days out** (2026-07-01); (3) AMLA RTS submission deadline is **24 days out** (2026-07-10); (4) SR 26-2 is **60 days examination-active** (April 17 anchor); (5) M1–M4 ML roadmap fully delivered in v0.1.46–v0.1.47; (6) Wave 2 governance sprint — AMLA RTS telemetry (#528), FinCEN Whistleblower audit (#531), Fraud↔AML case links (#523), defect lifecycle + risk-tier + model-risk approval gate (#529) — **shipped before July 1**, closing North-Star Pillars 2, 4, 5, 7.
 
 ---
 
-## What changed since June
+## What changed since June (as of 2026-06-16)
 
-**The June 9 comment window has closed.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline passed on 2026-06-09. There is no published final-rule outcome — both rulemakings are pending. The competitive implication has shifted from "file before the window closes" to "hold the comment-window work as proactive-posture evidence." Firms that completed a gap analysis or filed a comment letter can cite that work in SR 26-2 model governance; firms that deferred are now playing catch-up against a 12-month implementation clock that starts at the final rule.
+**The June 9 comment window has closed.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline passed on 2026-06-09. Both rulemakings are pending (final rule expected late 2026 / early 2027). Comment-window work becomes documented proactive-posture evidence; firms that deferred should complete gap analyses now — the 12-month implementation clock starts at the final rule.
 
-**AUSTRAC Tranche 2 is effective today.** Enforcement begins 2026-07-01. No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with *documented* good-faith compliance efforts — but it has narrowed from "27 days out" to "live." Programs stood up before today are inside the favourable posture.
+**Wave 2 governance sprint delivered ahead of July 1.** Six features shipped in mid-June (#523, #528, #529 ×3, #531), completing the compliance-governance seam commercial platforms don't publish:
+- **AMLA RTS effectiveness telemetry** (#528) — `aml amla-effectiveness-report` CLI; Art. 28/26/20 citation-coverage; Framework Alignment page 8 EU tab. The only OSS tool that produces the AMLA examiner artifact on demand.
+- **FinCEN Whistleblower audit** (#531) — `aml whistleblower-audit` CLI; five governance signals; `--format nprm-gap` readiness table.
+- **Fraud↔AML cross-program case links** (#523) — `case_links.jsonl` frozen at run-end; UK APP-fraud demonstrator; "Linked across domains" panel on Case Investigation.
+- **Defect lifecycle + risk-tier + model-risk approval gate** (#529 / Pillars 2, 4, 5, 7) — `aml defect-update` CLI; `Rule.risk_tier` advisory validation; `Rule.approval_status` production gate.
 
-**AMLA RTS submission is 9 days away.** AMLA must submit final draft RTS to the European Commission by 2026-07-10. After submission the Commission has three months to endorse before the RTS bind. For EU-supervised obliged entities, the standard locks in 9 days; gaps against it become implementation backlogs against the July 2027 application date.
+**AUSTRAC Tranche 2 is 15 days away.** `examples/austrac_tranche_2_dnfbp/` is in tree — no OSS competitor. AUSTRAC's first-cycle EU posture still applies to firms with documented good-faith compliance efforts.
 
-**SR 26-2 is 75 days examination-active** (up from 48 on June 4, April 17 anchor). Q2 examination cycles have run and Q3 cycles are forming. The M2 model-inventory CLI ships the exact artifact second-line MRM teams have been building manually in Excel: `aml model-inventory --markdown` outputs a pipe-formatted table of every rule, every `python_ref` scorer, and the N1 prioritization model — ready for the Q3 model-risk committee report with one command.
+**AMLA RTS submission is 24 days away.** AMLA must submit final draft RTS to the European Commission by 2026-07-10. The framework now ships the AMLA Art. 28/26/20 citation-coverage artifact on demand (#528) — the only OSS tool aligned to the RTS framework before its July 10 lock-in.
+
+**SR 26-2 is 60 days examination-active** (April 17 anchor). Q2 examination cycles have run and Q3 cycles are forming. The M2 model-inventory CLI + Wave 2 approval-gate audit event are the exact artifacts Q3 board reports require.
 
 ---
 
@@ -64,12 +70,16 @@ No OSS competitor has shipped: (a) an AUSTRAC Tranche 2 example spec, (b) a PPSI
 
 ## 3. Highest-Leverage Next Features — July 2026 Re-ranking
 
+*Updated 2026-06-16: Wave 2 governance sprint shipped ahead of July 1. #2 (AMLA telemetry) and #4 (Whistleblower audit) were delivered in June; priorities re-ranked.*
+
 | Priority | Feature | Status | Why now |
 |---|---|---|---|
-| #1 | **AUSTRAC Tranche 2 example spec** (`examples/austrac_tranche_2_dnfbp/`) | Shipped — sustain | Enforcement effective today (July 1). No OSS competitor. First-mover in an uncontested buyer segment; sustain the lead with audit-pack jurisdiction tags. |
-| #2 | **AMLA STR/RTS effectiveness telemetry pack** | 6 | **9 days to AMLA RTS submission July 10.** Alert→case→STR funnel per-rule precision/recall, packaged against AMLA standard. |
-| #3 | **GENIUS Act / PPSI compliance template** (`examples/genius_ppsi_*`) | Shipped — sustain | Comment window closed June 9; rulemaking pending. Two PPSI specs already ship — maintain as the PPSI baseline ahead of a final rule. |
-| #4 | **FinCEN Whistleblower internal-channel audit tool** | 2 | Comment period closed June 1. Final rule coming late 2026. Internal-escalation audit is the pre-implementation action. |
+| #1 | **AUSTRAC Tranche 2 example spec** (`examples/austrac_tranche_2_dnfbp/`) | ✅ Shipped — sustain | Enforcement effective July 1. No OSS competitor. First-mover in an uncontested buyer segment; sustain the lead with audit-pack jurisdiction tags. |
+| ~~#2~~ | ~~**AMLA STR/RTS effectiveness telemetry pack**~~ | ~~6 days~~ | **✅ SHIPPED (#528)** — `aml amla-effectiveness-report` CLI + `amla_effectiveness_report.json` + AMLA Art. 28/26/20 citation-coverage; surfaced on Framework Alignment page 8. Ships *before* July 1. |
+| #2 | **GENIUS Act / PPSI compliance template** (`examples/genius_ppsi_*`) | ✅ Shipped — sustain | Comment window closed June 9; rulemaking pending. Two PPSI specs already ship — maintain as the PPSI baseline ahead of a final rule. |
+| ~~#4~~ | ~~**FinCEN Whistleblower internal-channel audit tool**~~ | ~~2 days~~ | **✅ SHIPPED (#531)** — `aml whistleblower-audit` CLI + five governance signals + `--format nprm-gap` readiness table. Ships *before* July 1. |
+| **#3** | **Regulatory-change diff watcher** (`compliance/regwatch.py`) | ~3 days | Hash every `regulation_ref` URL in every shipped spec; alert on drift. With the Effectiveness NPRM final rule expected H2 2026, a final rule that materially rewrites the BSA program rule will silently invalidate citations in existing specs. First-mover with no commercial equivalent. |
+| **#4** | **PSD3 / Verification-of-Payee (VoP) ingestion adapter** (`data/psd3/`) | ~5 days | PSD3 in Official Journal H2 2026; 24-month VoP liability clock starts at publication. OSS reference adapter before the clock starts positions the framework as the payments-ops baseline. |
 
 ---
 

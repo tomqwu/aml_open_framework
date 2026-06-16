@@ -64,7 +64,9 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ## What the Framework Shipped in June 2026
 
-Four ML/AI roadmap features delivered 2026-06-04 across `v0.1.46` + `v0.1.47`:
+Ten features shipped across two waves in June:
+
+**Wave 1 — ML/AI roadmap (2026-06-04, v0.1.46 + v0.1.47):**
 
 | Feature | Version | SR 26-2 / Effectiveness NPRM relevance |
 |---------|---------|----------------------------------------|
@@ -73,7 +75,18 @@ Four ML/AI roadmap features delivered 2026-06-04 across `v0.1.46` + `v0.1.47`:
 | **M3 — champion-challenger `priority_outcome.json`** | v0.1.47 | Precision@k / recall comparison between champion and challenger weights; temporal-leakage guard enforced at runtime — satisfies SR 26-2's independent-challenger validation requirement |
 | **M4 — point-in-time effective-dated joins** | v0.1.47 | `DataContract.effective_dated` + `aggregation_window.enrich` emit as-of SQL JOINs so rules resolve reference state contemporaneous with each transaction; closes Pillar 3 (PARTIAL → COVERED) |
 
-These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (**75 days from April 17 as of July 1**): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, and a model inventory that can be produced on demand.
+**Wave 2 — Governance completeness sprint (2026-06-16, v0.1.48+):**
+
+| Feature | PR | Regulatory relevance |
+|---------|---|----------------------|
+| **AMLA RTS effectiveness telemetry** — `aml amla-effectiveness-report` CLI; `amla_effectiveness_report.json` with alert→case→STR funnel + per-rule precision/recall + AMLA Art. 28(1)/26/20(1)(d) citation-coverage | #528 | The artifact AMLA examiners will require under the July 10 RTS submission; surfaced on Framework Alignment page 8 |
+| **FinCEN Whistleblower internal-channel audit** — `aml whistleblower-audit` CLI; five governance signals; `--format nprm-gap` readiness table against NPRM expectations | #531 | Pre-implementation action now that comment window closed June 1; final rule expected late 2026 |
+| **Fraud↔AML cross-program case links** — `case_links.jsonl` frozen at run-end; UK APP-fraud demonstrator; "Linked across domains" panel on Case Investigation page | #523 | FRAML convergence: PSR APP reimbursement + FinCEN NPRM "investigation outcomes" |
+| **Defect-ticket lifecycle** — `aml defect-update` CLI; append-only `defect_lifecycle.jsonl` companion to frozen `defect_log.jsonl` | #529 / Pillar 2 | Effectiveness NPRM "program maintained" standard: demonstrable defect-tracking separate from the alert ledger |
+| **Risk tier on all active rules** — `Rule.risk_tier` expected on every active rule; WARN/strict-ERROR from `aml validate` | #529 / Pillars 4+5 | Risk-based controls: independent axis from `severity` and `model_tier` |
+| **Model-risk approval gate** — `Rule.approval_status` + `require_approval_before_prod`; blocks unapproved material-tier rules in prod-strict mode | #529 / Pillar 7 | SR 26-2 model governance: ledger-auditable `approval_gate_check` event |
+
+These collectively address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (**60 days from April 17 as of June 16**) — from deterministic ML scoring through to governance evidence for board reports.
 
 ---
 
