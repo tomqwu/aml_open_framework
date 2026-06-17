@@ -2,6 +2,16 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **Round 37 — Research docs refresh + AMLA citation corrections** (`docs`, 2026-06-17):
+>
+> - **AMLA RTS article citation corrections (#557 closes):** All four regulator-pulse archive editions (Apr/May/Jun/Jul 2026) carried the wrong article numbers for two of the three AMLA RTS. Corrected to match the EUR-Lex-verified citations shipped in #528: the ongoing-monitoring RTS is **AMLR Art. 26** (not Art. 19(9)) and the targeted-financial-sanctions RTS is **AMLR Art. 20(1)(d)** (not AMLD6 53(10)). The CDD RTS citation Art. 28(1) was already correct. Affected files: `2026-04-regulator-pulse.md` (1 instance), `2026-05-regulator-pulse.md` (2 instances — the February-consultation entry and the May-8-close entry), `2026-06-regulator-pulse.md` (1 instance), `2026-07-regulator-pulse.md` (1 instance).
+> - **April 2026 data-problem edition (#561 closes):** Created `docs/research/2026-04-aml-data-problem.md` — the inaugural 2026 data-problem edition, anchored to the April 2026 regulatory burst (SR 26-2, Effectiveness NPRM, GENIUS Act NPRM). Covers the full DATA-1 through DATA-11 artifact map with April-specific SR 26-2 hooks, plus deep dives on DATA-2 (stale KYC now an MRM deficiency), DATA-4 (lineage now SR 26-2 mandatory), DATA-6 (AI presumes data we don't have — SR 26-2 gives this a formal inventory entry), and DATA-9 (SAR chain — Effectiveness NPRM makes it an explicit program requirement). Added to `mkdocs.yml` nav; completes the April archive to 5/5 editions.
+> - **`docs/index.md` deadline counts refreshed:** Researcher/Regulator card updated from "as of 2026-07-01" to "as of 2026-06-17": AUSTRAC Tranche 2 → 14 days (2026-07-01); AMLA RTS → 23 days (2026-07-10); SR 26-2 → 61 days examination-active. What's new table gains Round 35 (v0.1.59) and Round 36 (v0.1.60) entries that were missing.
+>
+> No code changes; no CI targets affected. Closes #557 and #561.
+
+---
+
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >
 > - **#529 — North Star pillars 2/4/5/7 → COVERED** (page 43 now 8/8): Pillar 2 defect-ticket lifecycle (`aml defect-update` + append-only `defect_lifecycle.jsonl`, the frozen `defect_log.jsonl` untouched); Pillars 4+5 first-class `risk_tier` — kept the pydantic field optional (non-breaking) but added `validate_risk_tier_coverage` so an active rule missing it WARNs on `aml validate` / hard-ERRORs under `--strict`, with all 14 example specs tiered; Pillar 7 model-approval gate — new `rule.approval_status` + `program.model_risk_monitoring.require_approval_before_prod` (schema + models synced) blocking unapproved material-tier rules in prod+strict via `EnvironmentGatingError` + an `approval_gate_check` ledger event. Disabled path byte-identical; `approval_status` excluded from `rule_version_hash`; determinism preserved.
