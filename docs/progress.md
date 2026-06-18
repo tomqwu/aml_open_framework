@@ -1,6 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-18. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 37 — Docs refresh: nav fixes, citation corrections, new how-to guides, April research archive** (`docs`, 2026-06-18):
+>
+> - **Deadline counts updated (docs/index.md):** Researcher/regulator card corrected to 2026-06-18 as-of date — AUSTRAC Tranche 2 **13 days** (Jul 1), AMLA RTS **22 days** (Jul 10), SR 26-2 **62 days** examination-active (effective Apr 17). Replaces the forward-looking Jul-1 anchor shipped with the July research refresh.
+> - **AMLA RTS citation corrections (#557):** `docs/research/2026-04-regulator-pulse.md` and `docs/research/2026-05-regulator-pulse.md` each had the three-RTS-consultations entry that cited Art. 19(9) and AMLD6 53(10) without distinguishing the *consultation-basis articles* from the *substantive effectiveness obligations* mapped in the framework's AMLA effectiveness pack (#528). Added a `> Citation note (corrected 2026-06-18)` block to both editions: the consultations are grounded in Art. 28(1) (CDD), Art. 19(9) (business-relationships identification criteria), and AMLD6 53(10) (pecuniary sanctions); the effectiveness obligations are CDD (Art. 28(1) ✓), ongoing monitoring of business relationships (**AMLR Art. 26**), and targeted-financial-sanctions screening (**AMLR Art. 20(1)(d)**). Citations verified vs EUR-Lex 2026-06.
+> - **Nav fixes (mkdocs.yml):** `how-to/run-whistleblower-audit.md` and `how-to/produce-amla-effectiveness-pack.md` existed on disk (shipped in Round 36) but were absent from the MkDocs sidebar nav; now added under the Build section alongside the two new guides below.
+> - **New how-to: manage-defect-lifecycle.md (#575):** Step-by-step recipe for the `aml defect-update` CLI — acknowledge / resolve / close defect lifecycle events on the append-only `defect_lifecycle.jsonl` companion. Documents the frozen `defect_log.jsonl` posture, the reviewer+resolution requirements for `resolved`/`closed`, and the deterministic `as_of`-anchored timestamp. Closes #575.
+> - **New how-to: configure-model-approval-gate.md (#562):** Recipe for opt-in prod gate for material-tier rules — `Rule.approval_status` (pending/approved/rejected) + `program.model_risk_monitoring.require_approval_before_prod`. Documents all three required gate conditions, the `approval_gate_check` ledger event, the low-tier exemption, and the non-prod / non-strict silent path. Closes #562.
+> - **April 2026 data-problem research edition (#561):** `docs/research/2026-04-aml-data-problem.md` added — the missing fifth edition in the April research archive (April had only 4/5). Follows the same DATA-1–DATA-11 + artifact-map + style-guide structure as the May/June/July editions; anchored 2026-04-01 with SR 26-2 effective-in-16-days framing, OSFI E-23 just published, NPRM expected, and M2/M4 roadmap items marked **Planned** (not yet shipped). Added to `mkdocs.yml` nav under Research whitepapers. Closes #561.
+> - **How-to index updated:** `docs/how-to/index.md` now includes Monitoring+DQ cards for "Manage the defect lifecycle" and "Configure the model-approval gate".
+>
+> No code changes; no CI targets affected. 29 open roadmap issues reviewed; no new issues filed (all tracked gaps already have open issues).
+
+---
 
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >

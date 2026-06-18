@@ -120,6 +120,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
 
     Round 28's 11-category classifier + data/rule/mapping decision tree. ~2 min per defect. **Detailed.**
 
+-   :material-timeline-check:{ .lg .middle } **[Manage the defect lifecycle](manage-defect-lifecycle.md)**
+
+    ---
+
+    Use the offline `aml defect-update` CLI (#529, Pillar 2) to acknowledge, resolve, and close defects against the frozen `defect_log.jsonl`. Append-only companion `defect_lifecycle.jsonl` — same posture as `decisions.jsonl`. ~5 min per defect. **Detailed.**
+
 -   :material-sort-variant:{ .lg .middle } **[Enable the alert prioritization scorer](enable-prioritization.md)**
 
     ---
@@ -143,6 +149,12 @@ Task-oriented recipes. Each one assumes you've completed [Getting Started](../ge
     ---
 
     Governed model-risk monitoring via `program.model_risk_monitoring`. Emits a frozen, manifest-pinned `model_risk_report.json` (model inventory + per-rule count drift vs prior run + validation cadence). Advisory only; SR 11-7 / OSFI E-23. ~10 min. **Detailed.**
+
+-   :material-gate:{ .lg .middle } **[Configure the model-approval gate](configure-model-approval-gate.md)**
+
+    ---
+
+    Opt-in prod gate for material-tier rules (`model_tier: medium/high`). Set `Rule.approval_status: approved` + `program.model_risk_monitoring.require_approval_before_prod: true` to block unapproved models from executing in prod-strict mode. Closes North Star Pillar 7 (#529). ~10 min. **Detailed.**
 
 -   :material-star-shooting:{ .lg .middle } **[Produce an AMLA RTS effectiveness pack](produce-amla-effectiveness-pack.md)**
 

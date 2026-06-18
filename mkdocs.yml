@@ -133,12 +133,16 @@ nav:
       - "Walk the lineage chain": how-to/walk-lineage.md
       - "Configure SLA monitoring": how-to/configure-sla.md
       - "Triage defects": how-to/triage-defects.md
+      - "Manage the defect lifecycle": how-to/manage-defect-lifecycle.md
       - "Enable alert prioritization": how-to/enable-prioritization.md
       - "Configure risk segmentation": how-to/configure-risk-segmentation.md
       - "Run a champion-challenger validation": how-to/run-champion-challenger.md
       - "Monitor model risk + drift": how-to/monitor-model-risk.md
+      - "Configure the model-approval gate": how-to/configure-model-approval-gate.md
+      - "Produce an AMLA RTS effectiveness pack": how-to/produce-amla-effectiveness-pack.md
       - "Use the Case Copilot": how-to/use-case-copilot.md
       - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md
+      - "Run a FinCEN Whistleblower internal-channel audit": how-to/run-whistleblower-audit.md
 
   # ─── Operate ───────────────────────────────────────────────
   # Day-2 — running the framework in real environments.
@@ -175,6 +179,7 @@ nav:
           - research/2026-04-fintech-aml-reality.md
           - research/2026-04-competitive-positioning.md
           - research/2026-04-regulator-pulse.md
+          - research/2026-04-aml-data-problem.md
       - "Progress journal":
           - progress.md
           - five-year-lookback.md
