@@ -49,7 +49,7 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Deadline status (as of 2026-07-01): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **2026-07-01 — effective today**; AMLA RTS **2026-07-10 — 9 days**; SR 26-2 **75 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
+    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Archive now complete: April 2026 data-problem edition added. Three new how-to guides: AMLA RTS effectiveness report, FinCEN Whistleblower audit, defect-ticket lifecycle. Deadline status (as of 2026-06-19): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **2026-07-01 — 12 days**; AMLA RTS **2026-07-10 — 21 days**; SR 26-2 **63 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47; #528/#529/#531 shipped v0.1.60.
 
     [:octicons-arrow-right-24: Research](research/2026-07-regulator-pulse.md)
 
@@ -123,6 +123,7 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
+| `docs` | 37 | 2026-06-19 | Three new how-to guides (#582 `aml amla-effectiveness-report`, #583 `aml whistleblower-audit`, #575 `aml defect-update`). April 2026 data-problem archive edition added (#561). MkDocs nav updated. Deadline status: AUSTRAC Tranche 2 **12 days** (July 1); AMLA RTS **21 days** (July 10); SR 26-2 **63 days** examination-active. |
 | `docs` | — | 2026-07-01 | July 2026 research refresh — all five editions carried forward to a 2026-07-01 as-of date: Effectiveness NPRM + GENIUS Act comment window **closed June 9** (rulemaking pending, no outcome asserted); AUSTRAC Tranche 2 **effective today (July 1)**; AMLA RTS **9 days** (July 10); SR 26-2 **75 days** examination-active. |
 | `docs` | — | 2026-06-05 | Regulatory Calendar — a live forward-deadline view (Regulatory Calendar page + a countdown banner on Today) mapping each NPRM/enforcement deadline to the framework features that evidence readiness. |
 | `docs` | 33 | 2026-06-05 | June 2026 research complete: data-problem June edition added (SR 26-2 examination-active 49 days, M4 point-in-time joins closes DATA-2, `aml model-inventory` closes DATA-6 gap); all 4 canonical research HTML files synced to June 2026 versions on static site. Effectiveness NPRM + GENIUS Act deadline June 9 — 4 days. |

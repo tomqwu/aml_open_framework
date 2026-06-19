@@ -1,6 +1,19 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-19. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 37 — Docs refresh: 3 how-to guides + April archive + nav sync** (`docs`, 2026-06-19):
+>
+> - **#582 → `how-to/amla-effectiveness-report.md`**: step-by-step guide for `aml amla-effectiveness-report` — the AMLA RTS citation-coverage + alert→case→STR funnel report (#528). Covers spec setup, CLI invocation, JSON output anatomy, RTS coverage status interpretation, and adding AMLR citations to rules. The `--markdown` flag and the Framework Alignment page 8 EU tab are documented.
+> - **#583 → `how-to/whistleblower-audit.md`**: step-by-step guide for `aml whistleblower-audit` — the five-signal internal-channel governance audit (#531): SAR-backlog exposure, escalation coverage %, triage time median/p95, board-documented decisions, ledger integrity. Includes `--markdown` board-report pipe table and `--format nprm-gap` readiness table (✓/⚠/✗ against FR 2026-06271 proposed expectations). FAILS-CLOSED posture (non-zero exit on missing `as_of`) documented.
+> - **#575 → `how-to/defect-lifecycle.md`**: step-by-step guide for `aml defect-update` — the append-only companion `defect_lifecycle.jsonl` workflow (#529 Pillar 2). Lifecycle state machine (acknowledged → resolved → closed), `--resolution` requirement for terminal states, `timestamp` derivation from manifest `as_of` (not wall-clock), unknown-defect-id rejection documented.
+> - **#561 → `docs/research/2026-04-aml-data-problem.md`**: April 2026 archive edition of the data-problem whitepaper (the original edition, anchored 2026-04-29). Completes the 4-month rolling research archive: all 5 whitepapers now have April + May + June + July editions. April context: SR 26-2 just effective (12 days), Effectiveness NPRM 41 days to comment deadline, AUSTRAC 63 days, AMLA RTS 72 days. DATA-2 / DATA-6 framework-capability rows reflect the pre-M4/pre-M2 state (effective-dated joins and model-inventory CLI noted as roadmap items, not shipped yet in April).
+> - **mkdocs.yml nav**: 3 new how-to pages added to Build nav (`amla-effectiveness-report`, `whistleblower-audit`, `defect-lifecycle`); `2026-04-aml-data-problem.md` added to Research whitepapers nav group after the other April editions.
+> - **docs/index.md**: researcher/regulator card updated to June 19 deadline counts (AUSTRAC 12d, AMLA RTS 21d, SR 26-2 63d); new what's-new row for Round 37.
+>
+> No code changes; no CI targets affected. Open issues addressed: #561 ✓, #575 ✓, #582 ✓, #583 ✓.
+
+---
 
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >
