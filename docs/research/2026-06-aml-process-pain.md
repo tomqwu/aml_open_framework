@@ -1,12 +1,14 @@
 # 10 Daily Pain Points an AML Leader Feels — June 2026
 
-*Date: 2026-06-04 · Audience: CCO / MLRO / Head of Financial Crime at a Tier-1 / Tier-2 bank. For FinTech / EMI / MSB / VASP MLRO pain points, see [`2026-06-fintech-aml-reality.md`](./2026-06-fintech-aml-reality.md). For the data-layer analysis beneath these pains, see [`2026-05-aml-data-problem.md`](./2026-05-aml-data-problem.md). Previous edition: [`2026-05-aml-process-pain.md`](./2026-05-aml-process-pain.md).*
+*Date: 2026-06-04 · Last updated: 2026-06-20 · Audience: CCO / MLRO / Head of Financial Crime at a Tier-1 / Tier-2 bank. For FinTech / EMI / MSB / VASP MLRO pain points, see [`2026-06-fintech-aml-reality.md`](./2026-06-fintech-aml-reality.md). For the data-layer analysis beneath these pains, see [`2026-05-aml-data-problem.md`](./2026-05-aml-data-problem.md). Previous edition: [`2026-05-aml-process-pain.md`](./2026-05-aml-process-pain.md).*
+
+> **2026-06-20 status update:** SR 26-2 **64 days** examination-active. Effectiveness NPRM + GENIUS Act comment window **closed June 9** — rulemaking pending. AUSTRAC Tranche 2 **11 days** (July 1). AMLA RTS statutory submission **20 days** (July 10). July 2026 edition: [`2026-07-aml-process-pain.md`](./2026-07-aml-process-pain.md).
 
 ## What changed between May and June 2026
 
 Three inflections since the May 25 edition sharpen the enforcement perimeter:
 
-1. **SR 26-2 has been examination-active for 48 days.** The joint Fed/OCC/FDIC model risk management guidance went live April 17. Q2 2026 examination cycles are running — second-line MRM teams are now presenting gap analyses to boards, not preparing them. First examination correspondence citing SR 26-2 specifically for TM scenarios and customer risk-rating models has been issued in the first active cycle. PAIN-6 has shifted from "current examination risk" to "active examination cycle."
+1. **SR 26-2 has been examination-active for 64 days** (48 days at time of writing, June 4). The joint Fed/OCC/FDIC model risk management guidance went live April 17. Q2 2026 examination cycles are running — second-line MRM teams are now presenting gap analyses to boards, not preparing them. First examination correspondence citing SR 26-2 specifically for TM scenarios and customer risk-rating models has been issued in the first active cycle. PAIN-6 has shifted from "current examination risk" to "active examination cycle."
 
 2. **FinCEN Whistleblower NPRM comment period closed June 1.** The proposed award structure (10–30% of collected sanctions from the $300M Financial Integrity Fund; anti-retaliation protections for current and former employees) is now in outline — FinCEN will consolidate comments and publish a final rule expected late 2026 / early 2027. The terms are proposed, not final. But the incentive signal is real and targeted squarely at SAR-backlog and screening-gap failures. Boards that have seen the "backlog in red" slide (PAIN-2) should treat the pre-final-rule period as the window to audit internal reporting channels and document every escalation. PAIN-2 and PAIN-7 now carry external-report risk.
 

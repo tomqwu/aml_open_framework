@@ -1,10 +1,12 @@
 # AML Open Framework — Competitive Positioning Report: June 2026
 
-*Date: 2026-06-03 · Last updated: 2026-06-04 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery · Companion: [`2026-06-regulator-pulse.md`](./2026-06-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-05-competitive-positioning.md`](./2026-05-competitive-positioning.md).*
+*Date: 2026-06-03 · Last updated: 2026-06-20 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery · Companion: [`2026-06-regulator-pulse.md`](./2026-06-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-05-competitive-positioning.md`](./2026-05-competitive-positioning.md).*
 
-> Refresh commissioned 2026-06-01, 7 days after the May 25 edition. Four events materially shift the competitive map since May 25: (1) the FinCEN Whistleblower NPRM comment period closed 2026-06-01 — the proposed award structure (final rule expected late 2026 / early 2027) sharpens the internal-reporting risk calculus even before it's finalized; (2) the Effectiveness NPRM + GENIUS Act NPRM comment deadline is in **5 days** (2026-06-09); (3) AUSTRAC Tranche 2 enforcement is in **27 days** (2026-07-01); (4) the May 31 security hardening sprint (H0–H6) shipped determinism, injection-safety, and coverage-gate fixes that directly strengthen the framework's SR 26-2 challenger-model position.
+> **2026-06-20 status update:** Effectiveness NPRM + GENIUS Act comment window **closed June 9** — rulemaking pending. AUSTRAC Tranche 2 **11 days** (July 1). AMLA RTS submission **20 days** (July 10). SR 26-2 **64 days** examination-active. July 2026 edition: [`2026-07-competitive-positioning.md`](./2026-07-competitive-positioning.md).
+
+> Refresh commissioned 2026-06-01, 7 days after the May 25 edition. Four events materially shift the competitive map since May 25: (1) the FinCEN Whistleblower NPRM comment period closed 2026-06-01 — the proposed award structure (final rule expected late 2026 / early 2027) sharpens the internal-reporting risk calculus even before it's finalized; (2) the Effectiveness NPRM + GENIUS Act NPRM comment deadline was in **5 days** (2026-06-09) — **now closed**; (3) AUSTRAC Tranche 2 enforcement is in **11 days** (2026-07-01); (4) the May 31 security hardening sprint (H0–H6) shipped determinism, injection-safety, and coverage-gate fixes that directly strengthen the framework's SR 26-2 challenger-model position.
 >
-> *Updated 2026-06-04: day counts refreshed; M1–M4 ML roadmap (Triage Queue, model-inventory CLI, champion-challenger, point-in-time joins) shipped in v0.1.46–v0.1.47; SR 26-2 model inventory CLI (was priority #3) now complete — SR 26-2 48 days examination-active.*
+> *Updated 2026-06-04: day counts refreshed; M1–M4 ML roadmap (Triage Queue, model-inventory CLI, champion-challenger, point-in-time joins) shipped in v0.1.46–v0.1.47; SR 26-2 model inventory CLI (was priority #3) now complete — SR 26-2 48 days examination-active at time of writing (64 days as of 2026-06-20).*
 
 ---
 

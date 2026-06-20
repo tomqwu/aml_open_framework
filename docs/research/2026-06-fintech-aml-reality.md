@@ -1,12 +1,14 @@
 # 10 AML Realities a FinTech / EMI / MSB / VASP MLRO Lives With — June 2026
 
-*Date: 2026-06-04 · Audience: FinTech / EMI / MSB / VASP MLRO. Companion to [`2026-06-aml-process-pain.md`](2026-06-aml-process-pain.md) (Tier-1 bank lens). Previous edition: [`2026-05-fintech-aml-reality.md`](./2026-05-fintech-aml-reality.md).*
+*Date: 2026-06-04 · Last updated: 2026-06-20 · Audience: FinTech / EMI / MSB / VASP MLRO. Companion to [`2026-06-aml-process-pain.md`](2026-06-aml-process-pain.md) (Tier-1 bank lens). Previous edition: [`2026-05-fintech-aml-reality.md`](./2026-05-fintech-aml-reality.md).*
+
+> **2026-06-20 status update:** GENIUS Act + Effectiveness NPRM comment window **closed June 9** — rulemaking pending. AUSTRAC Tranche 2 (FINTECH-10) **11 days** (July 1). AMLA RTS submission (FINTECH-6) **20 days** (July 10). SR 26-2 **64 days** examination-active. July 2026 edition: [`2026-07-fintech-aml-reality.md`](./2026-07-fintech-aml-reality.md).
 
 ## What changed between May and June 2026
 
 Four inflections since the May 25 edition sharpen the urgency:
 
-1. **GENIUS Act NPRM comment deadline is June 9 — 5 days away.** The comment window opened in April with 62 days to go. It now closes in 5 days. Today (Thursday June 4) is the last full working day before the Friday–Saturday June 5–6 filing window that is the realistic last stop for most firms. Stablecoin issuers and banks sponsoring PPSIs that haven't completed a gap analysis against the proposed BSA-program + OFAC-compliance framework are at risk of starting implementation after the comment window has closed — and without a documented proactive engagement posture. FINTECH-9 shifts from "7 days to file or miss the window" to "file tomorrow or Friday."
+1. **GENIUS Act NPRM comment deadline — closed June 9.** *(Was 5 days at time of writing, June 4.)* The comment window opened in April and closed June 9. Stablecoin issuers and banks sponsoring PPSIs that have not yet completed a gap analysis against the proposed BSA-program + OFAC-compliance framework should do so now — the 12-month implementation clock starts at the final rule (expected late 2026 / early 2027). FINTECH-9 has shifted from "file or miss the window" to "the window closed — complete your gap analysis before the final rule lands."
 
 2. **AUSTRAC Tranche 2 enforcement begins July 1 — 27 days.** Australian DNFBPs (lawyers, accountants, real-estate agents, DPMS) that do not have a board-approved AML/CTF program and AUSTRAC enrolment before July 1 face enforceable consequences. AUSTRAC's stated first-cycle posture favours enforceable undertakings over fines — but only for firms with documented good-faith programs. For fintechs with Australian operations, the window is 27 days. FINTECH-10 urgency has increased.
 

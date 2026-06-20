@@ -1,12 +1,14 @@
 # Data is the AML problem — 2026
 
-*Date: 2026-06-05 · Audience: CCO / MLRO / Head of Financial Crime / CRO / 2LoD model-validation. Companion docs: [`2026-06-aml-process-pain.md`](./2026-06-aml-process-pain.md) for the leader-pain style guide; [`2026-06-competitive-positioning.md`](./2026-06-competitive-positioning.md) for the vendor landscape.*
+*Date: 2026-06-05 · Last updated: 2026-06-20 · Audience: CCO / MLRO / Head of Financial Crime / CRO / 2LoD model-validation. Companion docs: [`2026-06-aml-process-pain.md`](./2026-06-aml-process-pain.md) for the leader-pain style guide; [`2026-06-competitive-positioning.md`](./2026-06-competitive-positioning.md) for the vendor landscape.*
+
+> **2026-06-20 status update:** SR 26-2 **64 days** examination-active. Effectiveness NPRM + GENIUS Act comment window **closed June 9** — rulemaking pending. AUSTRAC Tranche 2 **11 days** (July 1). AMLA RTS statutory submission **20 days** (July 10). July 2026 edition: [`2026-07-aml-data-problem.md`](./2026-07-aml-data-problem.md).
 
 ## What changed between May and June 2026
 
-*Updated 2026-06-05.*
+*Updated 2026-06-05 · Day counts reflect June 5; see 2026-06-20 status callout above for current counts.*
 
-### SR 26-2 now examination-active (49 days in)
+### SR 26-2 now examination-active (64 days in as of 2026-06-20; 49 days at time of writing)
 
 FRB SR 26-2 became effective April 17, 2026. US-supervised banks are now in the examination window. The model-risk management requirements — model inventory, independent challenger validation, conceptual-soundness documentation — apply to transaction monitoring, sanctions screening, and customer-risk-rating models. **DATA-6** (AI presumes data we don't have) is the first point of examiner challenge: before a model's conceptual soundness can be validated, the completeness and accuracy of its training and inference data must be documented. The framework now ships `aml model-inventory` (v0.1.47 M2) to produce that inventory on demand.
 
