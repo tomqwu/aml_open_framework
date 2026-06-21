@@ -8,11 +8,18 @@
 
 ## What changed since June
 
+**Wave 2 governance suite shipped mid-June (#523, #528, #529, #531).** Four features delivered between June 4 and June 21 extend the framework's competitive lead in jurisdiction linkage, EU regulatory telemetry, North-Star pillar governance, and Whistleblower-audit readiness — see the June 2026 edition for details. The key competitive facts at July 1:
+
+- **#523 — Fraud↔AML case linkage**: UK APP fraud + POCA layering detection in one evidence artifact. No OSS competitor surfaces the PSR / FCA overlap.
+- **#528 — AMLA RTS effectiveness telemetry**: Only OSS CLI mapping a live run to AMLR Art. 28(1) / Art. 26 / Art. 20(1)(d) citation coverage. Directly relevant to the 9-day AMLA RTS submission clock.
+- **#529 — Defect lifecycle + risk_tier + model approval gate**: Append-only `defect_lifecycle.jsonl`, mandatory risk-tier advisory, and governed prod-promotion gate backed by the hash-chained ledger. No commercial platform publishes this combination.
+- **#531 — Whistleblower internal-channel audit**: `aml whistleblower-audit --format nprm-gap` is the only OSS tool scoped to the FinCEN NPRM's proposed examination criteria — five governance signals in one command.
+
 **The June 9 comment window has closed.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline passed on 2026-06-09. There is no published final-rule outcome — both rulemakings are pending. The competitive implication has shifted from "file before the window closes" to "hold the comment-window work as proactive-posture evidence." Firms that completed a gap analysis or filed a comment letter can cite that work in SR 26-2 model governance; firms that deferred are now playing catch-up against a 12-month implementation clock that starts at the final rule.
 
-**AUSTRAC Tranche 2 is effective today.** Enforcement begins 2026-07-01. No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with *documented* good-faith compliance efforts — but it has narrowed from "27 days out" to "live." Programs stood up before today are inside the favourable posture.
+**AUSTRAC Tranche 2 is effective today.** Enforcement begins 2026-07-01. The framework ships `examples/austrac_tranche_2_dnfbp` — the only OSS AUSTRAC spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with *documented* good-faith compliance efforts — but it has narrowed from "27 days out" to "live." Programs stood up before today are inside the favourable posture.
 
-**AMLA RTS submission is 9 days away.** AMLA must submit final draft RTS to the European Commission by 2026-07-10. After submission the Commission has three months to endorse before the RTS bind. For EU-supervised obliged entities, the standard locks in 9 days; gaps against it become implementation backlogs against the July 2027 application date.
+**AMLA RTS submission is 9 days away.** AMLA must submit final draft RTS to the European Commission by 2026-07-10. After submission the Commission has three months to endorse before the RTS bind. For EU-supervised obliged entities, the standard locks in 9 days; gaps against it become implementation backlogs against the July 2027 application date. The #528 AMLA effectiveness CLI is the only OSS tool that produces a citation-coverage table against the three AMLA RTS articles ahead of this deadline.
 
 **SR 26-2 is 75 days examination-active** (up from 48 on June 4, April 17 anchor). Q2 examination cycles have run and Q3 cycles are forming. The M2 model-inventory CLI ships the exact artifact second-line MRM teams have been building manually in Excel: `aml model-inventory --markdown` outputs a pipe-formatted table of every rule, every `python_ref` scorer, and the N1 prioritization model — ready for the Q3 model-risk committee report with one command.
 
@@ -58,18 +65,25 @@ No OSS competitor has shipped: (a) an AUSTRAC Tranche 2 example spec, (b) a PPSI
 
 **GENIUS Act PPSI template positioning held through the closed comment window.** The NPRM proposes BSA-program + OFAC sanctions compliance for permitted payment stablecoin issuers. The comment window **closed June 9**; the rulemaking is pending. The framework already ships two PPSI example specs — publishing a PPSI-compliance reference template during the comment window positioned the framework as the PPSI baseline before any competitor, and that positioning carries into the pending-rule phase.
 
-**AUSTRAC Tranche 2 is effective today.** No OSS competitor exists. One PR, one new buyer segment, enforceable from July 1.
+**AUSTRAC Tranche 2 is effective today.** The framework ships `examples/austrac_tranche_2_dnfbp` — the only OSS AML spec targeting Australian DNFBPs. One spec, one new buyer segment, enforceable from July 1.
+
+**Wave 2 governance suite (#523, #528, #529, #531) extends the lead into jurisdiction linkage and EU regulatory telemetry.** The Fraud↔AML case linkage (#523) makes the UK PSR / FCA overlap visible in a single audit artifact. The AMLA RTS telemetry (#528) is the only OSS tool that maps a live run to the three AMLA RTS articles in one command — directly relevant to the 9-day AMLA RTS submission clock. The defect lifecycle + risk_tier + model approval gate (#529) closes the governed prod-promotion gap no commercial platform addresses. The Whistleblower audit (#531) is the only OSS tool scoped to the FinCEN NPRM's proposed examination criteria.
 
 ---
 
-## 3. Highest-Leverage Next Features — July 2026 Re-ranking
+## 3. Highest-Leverage Next Features — July 2026 Status
+
+All four previously-ranked features shipped in June. The competitive priority table for Q3 2026:
 
 | Priority | Feature | Status | Why now |
 |---|---|---|---|
-| #1 | **AUSTRAC Tranche 2 example spec** (`examples/austrac_tranche_2_dnfbp/`) | Shipped — sustain | Enforcement effective today (July 1). No OSS competitor. First-mover in an uncontested buyer segment; sustain the lead with audit-pack jurisdiction tags. |
-| #2 | **AMLA STR/RTS effectiveness telemetry pack** | 6 | **9 days to AMLA RTS submission July 10.** Alert→case→STR funnel per-rule precision/recall, packaged against AMLA standard. |
-| #3 | **GENIUS Act / PPSI compliance template** (`examples/genius_ppsi_*`) | Shipped — sustain | Comment window closed June 9; rulemaking pending. Two PPSI specs already ship — maintain as the PPSI baseline ahead of a final rule. |
-| #4 | **FinCEN Whistleblower internal-channel audit tool** | 2 | Comment period closed June 1. Final rule coming late 2026. Internal-escalation audit is the pre-implementation action. |
+| ~~#1~~ | ~~**AUSTRAC Tranche 2 example spec**~~ | **✅ SHIPPED — sustain** | Enforcement effective July 1. Only OSS AUSTRAC spec. Sustain the lead: audit-pack jurisdiction tags for first enforcement cycle. |
+| ~~#2~~ | ~~**AMLA RTS effectiveness telemetry**~~ | **✅ SHIPPED #528** | `aml amla-effectiveness-report` with AMLR Art. 28(1)/26/20(1)(d) citation coverage. 9 days to AMLA RTS submission July 10. |
+| ~~#3~~ | ~~**GENIUS Act / PPSI compliance template**~~ | **✅ SHIPPED — sustain** | Two PPSI specs ship. Comment window closed June 9; rulemaking pending. Maintain as PPSI baseline ahead of final rule. |
+| ~~#4~~ | ~~**FinCEN Whistleblower audit tool**~~ | **✅ SHIPPED #531** | `aml whistleblower-audit --format nprm-gap` maps five governance signals to the NPRM's proposed examination criteria. Final rule pending late 2026. |
+| **#1** | **FinCEN Effectiveness NPRM — 12-month implementation readiness** | Roadmap | Comment window closed June 9; final rule late 2026 / early 2027. 12-month clock starts at the final rule. A `aml effectiveness-gap-check` CLI mapping Manifest rules to proposed NPRM requirements lets firms document readiness before the clock starts. Firms that defer until the final rule will implement under time pressure. |
+| **#2** | **AMLA 2027 direct supervision self-assessment** | Roadmap | AMLA selects its first 40 directly-supervised entities July 2027. Cross-border EU groups in 6+ member states need a self-assessment tool against AMLA's published selection criteria — no OSS tool exists. The data-collection exercise underway now feeds the selection methodology. |
+| **#3** | **AUSTRAC Tranche 2 sustain — audit-pack jurisdiction tags** | Roadmap | First enforcement cycle now live. Audit packs should emit AUSTRAC-specific jurisdiction metadata (SMR/TTR filing thresholds, Tranche 2 sector tags) for the first inspection cycle. AUSTRAC's first-cycle enforceable-undertaking posture favours firms with documented good-faith efforts — jurisdiction tags make the evidence bundle inspection-ready. |
 
 ---
 

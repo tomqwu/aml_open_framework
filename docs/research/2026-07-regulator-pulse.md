@@ -64,7 +64,9 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ## What the Framework Shipped in June 2026
 
-Four ML/AI roadmap features delivered 2026-06-04 across `v0.1.46` + `v0.1.47`:
+Eight features delivered across v0.1.46–v0.1.52: four ML/AI roadmap items on June 4 (Wave 1), then four additional governance features through mid-June (Wave 2).
+
+### Wave 1 — June 4 (v0.1.46 + v0.1.47)
 
 | Feature | Version | SR 26-2 / Effectiveness NPRM relevance |
 |---------|---------|----------------------------------------|
@@ -73,7 +75,16 @@ Four ML/AI roadmap features delivered 2026-06-04 across `v0.1.46` + `v0.1.47`:
 | **M3 — champion-challenger `priority_outcome.json`** | v0.1.47 | Precision@k / recall comparison between champion and challenger weights; temporal-leakage guard enforced at runtime — satisfies SR 26-2's independent-challenger validation requirement |
 | **M4 — point-in-time effective-dated joins** | v0.1.47 | `DataContract.effective_dated` + `aggregation_window.enrich` emit as-of SQL JOINs so rules resolve reference state contemporaneous with each transaction; closes Pillar 3 (PARTIAL → COVERED) |
 
-These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (**75 days from April 17 as of July 1**): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, and a model inventory that can be produced on demand.
+### Wave 2 — June 4–21 (North-Star Pillars + jurisdiction governance)
+
+| Feature | PR | Regulatory relevance |
+|---------|-----|----------------------|
+| **Fraud↔AML cross-program case links** (`case_links.jsonl`) | #523 | Frozen, manifest-pinned artifact linking customers with open cases in BOTH fraud (PSR APP-fraud / `aml_priority: fraud`) and AML domains. `examples/uk_app_fraud` ships a planted mule (C0019) demonstrating POCA s.327 layering detection. Surfaced on Case Investigation "Linked across domains" panel — closes 1LoD/2LoD ownership gap for PSR reimbursement decisions |
+| **AMLA RTS effectiveness telemetry** (`aml amla-effectiveness-report`) | #528 | Offline CLI emits frozen `amla_effectiveness_report.json`: alert→case→STR funnel + per-rule AMLR citation coverage (Art. 28(1) CDD RTS, Art. 26 ongoing monitoring, Art. 20(1)(d) TFS screening). Surfaced on Framework Alignment page as EU-only "AMLA RTS coverage" tab |
+| **North-Star Pillars 2, 4, 5, 7 governance suite** | #529 | *Pillar 2:* `aml defect-update` companion writes append-only `defect_lifecycle.jsonl` for post-run triage transitions. *Pillars 4+5:* `Rule.risk_tier` expected on every active rule; missing tier is WARN / ERROR under `--strict`. *Pillar 7:* optional `require_approval_before_prod` gate blocks material-tier rules without `approval_status: approved` from running in prod |
+| **FinCEN Whistleblower internal-channel audit** (`aml whistleblower-audit`) | #531 | Offline CLI rolls five governance signals into frozen `whistleblower_audit_report.json`: SAR-backlog exposure, escalation coverage %, triage time (median + p95), board-documented decisions, ledger integrity. `--format nprm-gap` emits a ✓/⚠/✗ readiness table against the NPRM's proposed expectations |
+
+These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (**75 days from April 17 as of July 1**): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, a model inventory that can be produced on demand, and — uniquely — a one-command internal-escalation audit that maps directly to the FinCEN Whistleblower NPRM's proposed examination criteria.
 
 ---
 
