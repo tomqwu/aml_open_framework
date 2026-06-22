@@ -139,6 +139,8 @@ nav:
       - "Monitor model risk + drift": how-to/monitor-model-risk.md
       - "Use the Case Copilot": how-to/use-case-copilot.md
       - "Stand up a GENIUS Act PPSI program": how-to/genius-ppsi-compliance.md
+      - "Produce an AMLA RTS effectiveness pack": how-to/produce-amla-effectiveness-pack.md
+      - "Run a FinCEN Whistleblower audit": how-to/run-whistleblower-audit.md
 
   # ─── Operate ───────────────────────────────────────────────
   # Day-2 — running the framework in real environments.
@@ -171,6 +173,7 @@ nav:
           - research/2026-05-fintech-aml-reality.md
           - research/2026-05-aml-data-problem.md
           - research/2026-05-regulator-pulse.md
+          - research/2026-04-aml-data-problem.md
           - research/2026-04-aml-process-pain.md
           - research/2026-04-fintech-aml-reality.md
           - research/2026-04-competitive-positioning.md
