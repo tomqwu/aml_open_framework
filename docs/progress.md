@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
+>
+> - **How-to nav gaps closed**: `produce-amla-effectiveness-pack.md` (#528) and `run-whistleblower-audit.md` (#531) were on disk and listed in `how-to/index.md` but absent from the MkDocs sidebar nav — both now reachable under the Build section. Partially addresses future issue #585 (nav-drift guard CI check).
+> - **July 2026 research docs anchored to June 22**: all five `2026-07-*` research editions were pre-written from a 2026-07-01 perspective; countdown timers corrected to June 22 baseline — AMLA RTS 18 days (July 10), AUSTRAC Tranche 2 9 days (July 1 enforcement), SR 26-2 66 days examination-active. "Effective today" AUSTRAC framing updated to "9 days." Competitive-positioning ranking table updated to reflect #528 (`aml amla-effectiveness-report`) and #531 (`aml whistleblower-audit`) as shipped, not backlog.
+> - **`docs/index.md` deadline card updated**: Researcher/regulator card now shows June 22 baseline counts; "What's new" table row added for Round 37.
+> - **April data-problem archive stub added** (closes #561): `docs/research/2026-04-aml-data-problem.md` created covering the April 2026 SR 26-2 / Effectiveness NPRM / GENIUS Act NPRM inflection points; added to `mkdocs.yml` nav so the April research archive is now 5/5 editions.
+> - **3 new GitHub roadmap issues filed**: spec-reference.md update for #529 North Star fields; dashboard-tour.md AMLA RTS coverage tab (Framework Alignment page 8); README.md CLI surface for `aml amla-effectiveness-report` + `aml whistleblower-audit`.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 36 — Feature wave #528 / #529 / #531 + ML/AI how-tos** (`code`+`docs`, 2026-06-09):
 >
