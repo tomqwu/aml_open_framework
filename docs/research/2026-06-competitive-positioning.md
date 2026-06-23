@@ -1,10 +1,35 @@
 # AML Open Framework — Competitive Positioning Report: June 2026
 
-*Date: 2026-06-03 · Last updated: 2026-06-04 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery · Companion: [`2026-06-regulator-pulse.md`](./2026-06-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-05-competitive-positioning.md`](./2026-05-competitive-positioning.md).*
+*Date: 2026-06-03 · Last updated: 2026-06-23 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery + Wave 2 governance sprint (#523/#528/#529/#531) · Companion: [`2026-06-regulator-pulse.md`](./2026-06-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-05-competitive-positioning.md`](./2026-05-competitive-positioning.md). Current edition: [`2026-07-competitive-positioning.md`](./2026-07-competitive-positioning.md).*
 
 > Refresh commissioned 2026-06-01, 7 days after the May 25 edition. Four events materially shift the competitive map since May 25: (1) the FinCEN Whistleblower NPRM comment period closed 2026-06-01 — the proposed award structure (final rule expected late 2026 / early 2027) sharpens the internal-reporting risk calculus even before it's finalized; (2) the Effectiveness NPRM + GENIUS Act NPRM comment deadline is in **5 days** (2026-06-09); (3) AUSTRAC Tranche 2 enforcement is in **27 days** (2026-07-01); (4) the May 31 security hardening sprint (H0–H6) shipped determinism, injection-safety, and coverage-gate fixes that directly strengthen the framework's SR 26-2 challenger-model position.
 >
 > *Updated 2026-06-04: day counts refreshed; M1–M4 ML roadmap (Triage Queue, model-inventory CLI, champion-challenger, point-in-time joins) shipped in v0.1.46–v0.1.47; SR 26-2 model inventory CLI (was priority #3) now complete — SR 26-2 48 days examination-active.*
+>
+> *Updated 2026-06-23: Wave 2 governance sprint shipped; June 9 comment window closed; AUSTRAC **8 days away**; AMLA RTS **17 days away**; SR 26-2 **67 days** active. See below.*
+
+---
+
+## What changed since June 4
+
+**The June 9 comment window has closed.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline passed on 2026-06-09. There is no published final-rule outcome — both rulemakings are pending. Firms that completed a gap analysis or filed a comment letter can cite that work in SR 26-2 model governance; firms that deferred are now playing catch-up against a 12-month implementation clock that starts at the final rule.
+
+**AUSTRAC Tranche 2 is 8 days away (2026-07-01).** Enforcement begins July 1. No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with *documented* good-faith compliance efforts — a board-approved program in place on July 1 is the difference between an EU and an immediate penalty.
+
+**AMLA RTS submission is 17 days away (2026-07-10).** AMLA must submit final draft RTS to the European Commission by July 10. After submission the Commission has three months to endorse before the RTS bind. Gaps against AMLR Art. 28(1)/26/20(1)(d) now become implementation backlogs against the July 2027 application date.
+
+**SR 26-2 is 67 days examination-active** (April 17 anchor). Q3 examination cycles are forming.
+
+**Wave 2 governance sprint shipped (v0.1.59–v0.1.60).** Four capabilities promoted from roadmap to shipped:
+
+| Feature | PR | Shipped | Competitive relevance |
+|---|---|---|---|
+| Fraud↔AML cross-program case links | #523 | v0.1.59 | `case_links.jsonl` — cross-domain case linkage with PII masking; no OSS equivalent |
+| AMLA RTS effectiveness telemetry | #528 | v0.1.60 | `aml amla-effectiveness-report` — alert→case→STR funnel + AMLR Art. 28(1)/26/20(1)(d) citation coverage |
+| North Star Pillars 2/4/5/7 | #529 | v0.1.60 | Defect lifecycle, `risk_tier` coverage validation, model-approval gate — closes the North Star governance suite |
+| FinCEN Whistleblower audit | #531 | v0.1.60 | `aml whistleblower-audit` → `whistleblower_audit_report.json`; FAILS CLOSED if manifest lacks `as_of` |
+
+**Priority table update:** Priorities #3 (Whistleblower audit) and #4 (AMLA RTS telemetry) from the June 4 edition are now ✅ **SHIPPED**. Q3 roadmap: Effectiveness NPRM readiness CLI (#566), AMLA 2027 selection readiness (#567), AUSTRAC post-enforcement sustain.
 
 ---
 

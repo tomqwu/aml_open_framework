@@ -1,6 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-23. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — June 23 docs refresh** (`docs`, 2026-06-23):
+>
+> - **Deadline counts updated to June 23 baseline**: AUSTRAC Tranche 2 **8 days** (July 1 enforcement — final countdown), AMLA RTS **17 days** (July 10 submission), SR 26-2 **67 days** examination-active. Applied across `docs/index.md`, `2026-07-regulator-pulse.md`, `2026-07-competitive-positioning.md`, `2026-06-regulator-pulse.md`.
+> - **AMLA RTS citation corrections in July regulator-pulse**: `AMLR Article 19(9)` → `AMLR Art. 26` (ongoing-monitoring and business-relationships RTS) and `AMLD6 Article 53(10)` → `AMLR Art. 20(1)(d)` (targeted-financial-sanctions screening RTS) in the AMLA deadline description — mirrors the corrected citations in `metrics/amla_effectiveness.py::CITATION_URL_MAP` (#528).
+> - **June regulator-pulse**: June 9 section promoted from ⚠️ to ✓ COMMENT WINDOW CLOSED; action guidance updated to post-deadline posture (gap analysis as head-start, not missed deadline); AUSTRAC/AMLA day counts refreshed.
+> - **June competitive-positioning "What changed since June 4" section added**: Wave 2 shipping table (#523/#528/#529/#531), AUSTRAC 8-day countdown, AMLA RTS 17-day countdown, priority table updated (priorities #3/#4 marked ✅ SHIPPED, Q3 roadmap listed).
+> - **README Key CLI Commands block expanded**: `aml amla-effectiveness-report`, `aml whistleblower-audit`, `aml defect-update` added — these three CLIs shipped in Round 36 (#528/#529/#531) but were absent from the top-level README CLI block.
+> - **`docs/index.md` "What's new" table**: Round 38 row added.
+> - **3 new GitHub roadmap issues filed**: AUSTRAC post-enforcement first-cycle observation doc (#new), AMLA RTS Commission 3-month adoption clock tracker (#new), SR 26-2 90-day milestone observation supplement (#new).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >

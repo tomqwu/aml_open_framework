@@ -149,6 +149,9 @@ aml import-legacy legacy.csv --output spec.yaml      # convert legacy rules to A
 aml discover-typologies spec.yaml <run-dir>          # cluster a run's unexplained anomalies into candidate typology proposals (pending_promotion)
 aml detect-mule-rings spec.yaml <run-dir>            # deterministic union-find/density community detection over the identity-link graph → mule_rings.json (advisory)
 aml equivalence <run-dir> --legacy legacy-alerts.csv # MATCH/NEW_ONLY/LEGACY_ONLY/DIFF parallel-run report (SR 11-7 / OSFI E-23)
+aml amla-effectiveness-report spec.yaml <run-dir> [--markdown]  # AMLA RTS telemetry: alert→case→STR funnel + per-rule precision/recall + AMLR Art. 28(1)/26/20(1)(d) citation coverage → amla_effectiveness_report.json
+aml whistleblower-audit spec.yaml <run-dir> [--markdown] [--format nprm-gap]  # FinCEN Whistleblower internal-channel readiness: SAR-backlog exposure, escalation coverage, triage time, board decisions, ledger integrity → whistleblower_audit_report.json
+aml defect-update <run-dir> <defect_id> --status acknowledged|resolved|closed --reviewer <id> [--resolution ...]  # append defect lifecycle event to defect_lifecycle.jsonl companion (Pillar 2, #529)
 ```
 
 Full catalogue (`aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md`](docs/getting-started.md#stage-0-warm-up-2-minute-sanity-check). Sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.
