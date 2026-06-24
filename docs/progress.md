@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-24. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — June 24 deadline refresh** (`docs`, 2026-06-24):
+>
+> - **All five July 2026 research editions refreshed to June 24 baseline**: AUSTRAC Tranche 2 9 → **7 days** (July 1); AMLA RTS 18 → **16 days** (July 10); SR 26-2 66 → **68 days** examination-active (April 17 anchor). All day-count strings updated in `2026-07-regulator-pulse.md`, `2026-07-competitive-positioning.md`, `2026-07-aml-process-pain.md`, `2026-07-fintech-aml-reality.md`, `2026-07-aml-data-problem.md`.
+> - **Consistency fix**: the Marble open-source section in `2026-07-competitive-positioning.md` cited "75 days" for SR 26-2 (a July 1 forward projection that slipped past the June 22 re-anchor); corrected to 68 days to match the June 24 baseline throughout.
+> - **`docs/index.md` deadline card updated**: Researcher/Regulator card now shows June 24 baseline; What's-new table row added for Round 38.
+> - **3 new GitHub roadmap issues filed**: #608 (`scripts/refresh_research_deadlines.py` — automated day-count refresher for all research docs, complementing #553/index.md + #592/CI guard); #609 (September 2026 research refresh — 5 editions, companion to August #538); #610 (`aml compliance-calendar export --format ical|csv` CLI — export regulatory deadlines to calendar tools).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
