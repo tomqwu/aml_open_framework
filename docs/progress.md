@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-25. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — June 25 docs refresh** (`docs`, 2026-06-25):
+>
+> - **July 2026 research baseline updated to June 25**: all five `2026-07-*` research editions corrected from June 22 to June 25 as-of date — AUSTRAC Tranche 2 countdown 9 → 6 days (July 1, 6 days away); AMLA RTS countdown 18 → 15 days (July 10); SR 26-2 66 → 69 days examination-active (April 17 anchor).
+> - **AMLA RTS article citation correction in July regulator-pulse**: the July 2026 regulator-pulse detail section still cited the pre-#528 AMLR Art. 19(9) / AMLD6 Art. 53(10) numbers (the ranking table was already correct); corrected to the EUR-Lex-verified AMLR Art. 26 (ongoing monitoring of the business relationship — CDD measure Art. 20(1)(f)) and AMLR Art. 20(1)(d) (targeted financial sanctions screening), matching the citations already in spec/code since #528.
+> - **`docs/index.md` deadline card updated**: Researcher/regulator card now shows June 25 baseline counts; "What's new" table row added for Round 38.
+> - **3 new GitHub roadmap issues filed**: #612 (AMLA citation cleanup in June 2026 research editions); #613 (AUSTRAC Tranche 2 pre-enforcement DNFBP checklist how-to — 6 days to enforcement); #614 (July 2026 research editions post-deadline framing update for July 1 / July 10).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
