@@ -1,8 +1,8 @@
 # AML Open Framework — Competitive Positioning Report: July 2026
 
-*Date: 2026-06-22 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery, carried into the July deadline window · Companion: [`2026-07-regulator-pulse.md`](./2026-07-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-06-competitive-positioning.md`](./2026-06-competitive-positioning.md).*
+*Date: 2026-06-26 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery, carried into the July deadline window · Companion: [`2026-07-regulator-pulse.md`](./2026-07-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-06-competitive-positioning.md`](./2026-06-competitive-positioning.md).*
 
-> Refresh anchored to 2026-06-22. Four facts shape the competitive map this month: (1) the Effectiveness NPRM + GENIUS Act NPRM dual comment window **closed 2026-06-09** — the rulemakings are now pending (final rule expected late 2026 / early 2027), and comment-window work becomes documented proactive-posture evidence; (2) AUSTRAC Tranche 2 enforcement is **9 days away** (2026-07-01); (3) the AMLA RTS submission deadline is **18 days out** (2026-07-10); (4) SR 26-2 is **66 days examination-active** (April 17 anchor) and the M1–M4 ML roadmap continues to strengthen the framework's challenger-model position.
+> Refresh anchored to 2026-06-26. Four facts shape the competitive map this month: (1) the Effectiveness NPRM + GENIUS Act NPRM dual comment window **closed 2026-06-09** — the rulemakings are now pending (final rule expected late 2026 / early 2027), and comment-window work becomes documented proactive-posture evidence; (2) AUSTRAC Tranche 2 enforcement is **5 days away** (2026-07-01); (3) the AMLA RTS submission deadline is **14 days out** (2026-07-10); (4) SR 26-2 is **70 days examination-active** (April 17 anchor) and the M1–M4 ML roadmap continues to strengthen the framework's challenger-model position.
 
 ---
 
@@ -10,11 +10,11 @@
 
 **The June 9 comment window has closed.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline passed on 2026-06-09. There is no published final-rule outcome — both rulemakings are pending. The competitive implication has shifted from "file before the window closes" to "hold the comment-window work as proactive-posture evidence." Firms that completed a gap analysis or filed a comment letter can cite that work in SR 26-2 model governance; firms that deferred are now playing catch-up against a 12-month implementation clock that starts at the final rule.
 
-**AUSTRAC Tranche 2 is 9 days away (2026-07-01).** Enforcement begins July 1. No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with *documented* good-faith compliance efforts. Programs stood up before July 1 enter the first cycle inside the favourable posture.
+**AUSTRAC Tranche 2 is 5 days away (2026-07-01).** Enforcement begins July 1. No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with *documented* good-faith compliance efforts. Programs stood up before July 1 enter the first cycle inside the favourable posture.
 
-**AMLA RTS submission is 18 days away.** AMLA must submit final draft RTS to the European Commission by 2026-07-10. After submission the Commission has three months to endorse before the RTS bind. For EU-supervised obliged entities, the standard locks in 18 days; gaps against it become implementation backlogs against the July 2027 application date.
+**AMLA RTS submission is 14 days away.** AMLA must submit final draft RTS to the European Commission by 2026-07-10. After submission the Commission has three months to endorse before the RTS bind. For EU-supervised obliged entities, the standard locks in 14 days; gaps against it become implementation backlogs against the July 2027 application date.
 
-**SR 26-2 is 66 days examination-active** (April 17 anchor). Q2 examination cycles have run and Q3 cycles are forming. The M2 model-inventory CLI ships the exact artifact second-line MRM teams have been building manually in Excel: `aml model-inventory --markdown` outputs a pipe-formatted table of every rule, every `python_ref` scorer, and the N1 prioritization model — ready for the Q3 model-risk committee report with one command.
+**SR 26-2 is 70 days examination-active** (April 17 anchor). Q2 examination cycles have run and Q3 cycles are forming. The M2 model-inventory CLI ships the exact artifact second-line MRM teams have been building manually in Excel: `aml model-inventory --markdown` outputs a pipe-formatted table of every rule, every `python_ref` scorer, and the N1 prioritization model — ready for the Q3 model-risk committee report with one command.
 
 ---
 

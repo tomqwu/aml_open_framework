@@ -2,6 +2,18 @@
 
 Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
+> **Round 38 — June 26 docs refresh** (`docs`, 2026-06-26):
+>
+> Deadline countdown rebased to June 26 across all research-facing surfaces:
+>
+> - **5 July 2026 research editions updated**: all five `2026-07-*` docs rebased from June 22 → June 26 — AUSTRAC Tranche 2 **5 days** (July 1, was 9), AMLA RTS **14 days** (July 10, was 18), SR 26-2 **70 days** examination-active (was 66). FINTECH-10 / AUSTRAC sections updated in `fintech-aml-reality.md` and `regulator-pulse.md`; section heading `SR 26-2 now examination-active (66 days in)` → `(70 days in)` in `aml-data-problem.md`. All `Date:` and `Last updated` headers reflect June 26.
+> - **`docs/index.md` deadline card updated**: Researcher/regulator card now shows June 26 baseline; "What's new" table row added for Round 38.
+> - **2 new GitHub roadmap issues filed**: #616 (docs: correct AMLA RTS article citations in July 2026 research editions — parallel to #612 for June); #617 (feat: August 2026 research refresh — stubs for all 5 editions via `generate_research_stub.py`, August 1 anchor).
+>
+> No code changes; no CI targets affected. AUSTRAC Tranche 2 enforcement is now **5 days away** (2026-07-01); AMLA RTS submission is **14 days away** (2026-07-10).
+
+---
+
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
 > - **How-to nav gaps closed**: `produce-amla-effectiveness-pack.md` (#528) and `run-whistleblower-audit.md` (#531) were on disk and listed in `how-to/index.md` but absent from the MkDocs sidebar nav — both now reachable under the Build section. Partially addresses future issue #585 (nav-drift guard CI check).
