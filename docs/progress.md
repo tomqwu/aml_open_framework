@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-27. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — June 27 deadline-countdown refresh** (`docs`, 2026-06-27):
+>
+> - **AUSTRAC Tranche 2 imminence update**: all five July 2026 research editions + `docs/index.md` updated to June 27 baseline — AUSTRAC Tranche 2 **4 days** (July 1, was 9 days on June 22); AMLA RTS **13 days** (July 10, was 18 days); SR 26-2 **71 days** examination-active (was 66 days). AUSTRAC Tranche 2 is the operative urgency: Australian DNFBPs without a board-approved program have 4 days before enforcement begins.
+> - **Competitive-positioning accuracy fix**: the "AUSTRAC Tranche 2 is effective today" copy on the June 22 draft was premature (enforcement begins July 1, not June 22) — corrected to "4 days away (2026-07-01)" in `2026-07-competitive-positioning.md`. Also corrected the Marble OSS section from "75 days" to "71 days" for consistency.
+> - **What's new table updated**: Round 38 row added to `docs/index.md`; the placeholder 2026-07-01 row updated to reflect post-AUSTRAC enforcement status.
+> - **GitHub roadmap issues filed**: see below.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
