@@ -1,6 +1,16 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-28. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — June 28 research refresh** (`docs`, 2026-06-28):
+>
+> - **Deadline countdown updated to June 28 baseline**: all five `2026-07-*` research editions updated from June 22 to June 28 — AUSTRAC Tranche 2 3 days (July 1 enforcement), AMLA RTS 12 days (July 10 submission), SR 26-2 72 days examination-active.
+> - **AMLA RTS article citations corrected** (closes #616): all July 2026 editions now cite the EUR-Lex-verified article numbers — CDD RTS AMLR Art. 28(1), ongoing monitoring of the business relationship RTS AMLR Art. 26, targeted-financial-sanctions screening RTS AMLR Art. 20(1)(d) (replacing the wrong Art. 19(9) / AMLD6 Art. 53(10)).
+> - **`docs/index.md` deadline card updated**: Researcher/regulator card shows June 28 baseline; "What's new" table row added for Round 38.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
