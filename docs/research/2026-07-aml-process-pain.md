@@ -1,12 +1,12 @@
 # 10 Daily Pain Points an AML Leader Feels — July 2026
 
-*Date: 2026-06-22 · Audience: CCO / MLRO / Head of Financial Crime at a Tier-1 / Tier-2 bank. For FinTech / EMI / MSB / VASP MLRO pain points, see [`2026-07-fintech-aml-reality.md`](./2026-07-fintech-aml-reality.md). For the data-layer analysis beneath these pains, see [`2026-07-aml-data-problem.md`](./2026-07-aml-data-problem.md). Previous edition: [`2026-06-aml-process-pain.md`](./2026-06-aml-process-pain.md).*
+*Date: 2026-06-29 · Audience: CCO / MLRO / Head of Financial Crime at a Tier-1 / Tier-2 bank. For FinTech / EMI / MSB / VASP MLRO pain points, see [`2026-07-fintech-aml-reality.md`](./2026-07-fintech-aml-reality.md). For the data-layer analysis beneath these pains, see [`2026-07-aml-data-problem.md`](./2026-07-aml-data-problem.md). Previous edition: [`2026-06-aml-process-pain.md`](./2026-06-aml-process-pain.md).*
 
 ## What changed between June and July 2026
 
 Three inflections move the enforcement perimeter forward into the July window:
 
-1. **SR 26-2 has been examination-active for 66 days.** The joint Fed/OCC/FDIC model risk management guidance went live April 17. Q2 2026 examination cycles have run and Q3 cycles are forming — second-line MRM teams have presented gap analyses to boards. First examination correspondence citing SR 26-2 specifically for TM scenarios and customer risk-rating models was issued in the first active cycle. PAIN-6 remains in "active examination cycle" territory, now deeper into it.
+1. **SR 26-2 has been examination-active for 73 days.** The joint Fed/OCC/FDIC model risk management guidance went live April 17. Q2 2026 examination cycles have run and Q3 cycles are forming — second-line MRM teams have presented gap analyses to boards. First examination correspondence citing SR 26-2 specifically for TM scenarios and customer risk-rating models was issued in the first active cycle. PAIN-6 remains in "active examination cycle" territory, now deeper into it.
 
 2. **FinCEN Whistleblower NPRM comment period closed June 1.** The proposed award structure (10–30% of collected sanctions from the $300M Financial Integrity Fund; anti-retaliation protections for current and former employees) is in outline — FinCEN will consolidate comments and publish a final rule expected late 2026 / early 2027. The terms are proposed, not final. The incentive signal is real and targeted squarely at SAR-backlog and screening-gap failures. PAIN-2 and PAIN-7 carry external-report risk.
 

@@ -1,6 +1,16 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-29. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — June 29 docs refresh** (`docs`, 2026-06-29):
+>
+> - **Deadline countdowns updated to June 29 baseline**: all five July 2026 research editions (`regulator-pulse`, `competitive-positioning`, `aml-process-pain`, `fintech-aml-reality`, `aml-data-problem`) updated — AUSTRAC Tranche 2 **2 days** (July 1), AMLA RTS **11 days** (July 10), SR 26-2 **73 days** examination-active. `docs/index.md` Researcher/regulator card updated; "What's new" table Row 38 added.
+> - **Corrected inconsistency in fintech-aml-reality.md**: FINTECH-1 section referenced "SR 26-2 75 days active" (stale from a previous draft) — corrected to 73 days consistent with the April 17 anchor.
+> - **3 new GitHub roadmap issues filed**: Getting Started tutorial AUSTRAC Tranche 2 path (new `how-to/austrac-tranche2-onboarding.md` and getting-started sidebar example); jurisdiction compliance status API endpoint (`GET /api/v1/compliance/status?jurisdiction=AU`); `aml sr262-checkpoint` CLI for 90-day / 6-month / 1-year SR 26-2 milestone reports.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
