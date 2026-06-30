@@ -149,6 +149,9 @@ aml import-legacy legacy.csv --output spec.yaml      # convert legacy rules to A
 aml discover-typologies spec.yaml <run-dir>          # cluster a run's unexplained anomalies into candidate typology proposals (pending_promotion)
 aml detect-mule-rings spec.yaml <run-dir>            # deterministic union-find/density community detection over the identity-link graph → mule_rings.json (advisory)
 aml equivalence <run-dir> --legacy legacy-alerts.csv # MATCH/NEW_ONLY/LEGACY_ONLY/DIFF parallel-run report (SR 11-7 / OSFI E-23)
+aml amla-effectiveness-report spec.yaml <run-dir>    # AMLA RTS citation coverage + alert→case→STR funnel (#528, EU-only)
+aml whistleblower-audit spec.yaml <run-dir>          # FinCEN Whistleblower internal-channel readiness report (#531)
+aml defect-update <run-dir> <defect_id> --status acknowledged|resolved|closed --reviewer <id>  # Pillar 2 defect lifecycle (#529)
 ```
 
 Full catalogue (`aml api`, `typology-*`, `backtest`, `replay`): [`docs/getting-started.md`](docs/getting-started.md#stage-0-warm-up-2-minute-sanity-check). Sources: `synthetic` (default), `csv`, `parquet`, `duckdb`, `iso20022`, `s3`, `gcs`, `snowflake`, `bigquery`.

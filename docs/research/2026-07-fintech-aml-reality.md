@@ -1,6 +1,6 @@
 # 10 AML Realities a FinTech / EMI / MSB / VASP MLRO Lives With — July 2026
 
-*Date: 2026-06-22 · Audience: FinTech / EMI / MSB / VASP MLRO. Companion to [`2026-07-aml-process-pain.md`](2026-07-aml-process-pain.md) (Tier-1 bank lens). Previous edition: [`2026-06-fintech-aml-reality.md`](./2026-06-fintech-aml-reality.md).*
+*Date: 2026-06-30 · Audience: FinTech / EMI / MSB / VASP MLRO. Companion to [`2026-07-aml-process-pain.md`](2026-07-aml-process-pain.md) (Tier-1 bank lens). Previous edition: [`2026-06-fintech-aml-reality.md`](./2026-06-fintech-aml-reality.md).*
 
 ## What changed between June and July 2026
 
@@ -8,13 +8,13 @@ Four inflections move the urgency forward into the July window:
 
 1. **GENIUS Act NPRM comment window closed June 9.** The comment window opened in April and **closed 2026-06-09**. It is now closed; the rulemaking is pending (final rule expected late 2026 / early 2027). Stablecoin issuers and banks sponsoring PPSIs that completed a gap analysis against the proposed BSA-program + OFAC-compliance framework — or filed a comment letter — now hold that work as a documented proactive-engagement posture. Those that deferred should still build what the NPRM proposes, because the obligation arrives with the final rule, not the (closed) comment window. FINTECH-9 shifts from "file tomorrow or Friday" to "the window has closed; the build has not."
 
-2. **AUSTRAC Tranche 2 enforcement is 9 days away (July 1).** Australian DNFBPs (lawyers, accountants, real-estate agents, DPMS) that do not have a board-approved AML/CTF program and AUSTRAC enrolment as of July 1 face enforceable consequences. AUSTRAC's stated first-cycle posture favours enforceable undertakings over fines — but only for firms with documented good-faith programs. For fintechs with Australian operations, the obligation is 9 days away. FINTECH-10 has moved from "27 days" to "9 days."
+2. **AUSTRAC Tranche 2 enforcement is 1 day away — effective TOMORROW (July 1).** Australian DNFBPs (lawyers, accountants, real-estate agents, DPMS) that do not have a board-approved AML/CTF program and AUSTRAC enrolment as of July 1 face enforceable consequences. AUSTRAC's stated first-cycle posture favours enforceable undertakings over fines — but only for firms with documented good-faith programs. For fintechs with Australian operations, the obligation is **effective TOMORROW**. FINTECH-10 has moved from "27 days" to "1 day."
 
-3. **SR 26-2 is 66 days examination-active.** FinTech MLROs who manage transaction monitoring scenarios or CDD scoring models are in scope. Q2 2026 examination cycles have run and Q3 cycles are forming. Sponsor banks conducting third-party risk reviews of fintech AML programs are applying the same SR 26-2 MRM lens — the "independent challenger" requirement extends to in-house ML-based AML models in fintech programs reviewed as part of BaaS third-party risk management. The `aml model-inventory` CLI (v0.1.47) produces the SR 26-2 model-population inventory on demand — the artifact sponsor-bank MRM reviewers are now requesting.
+3. **SR 26-2 is 74 days examination-active.** FinTech MLROs who manage transaction monitoring scenarios or CDD scoring models are in scope. Q2 2026 examination cycles have run and Q3 cycles are forming. Sponsor banks conducting third-party risk reviews of fintech AML programs are applying the same SR 26-2 MRM lens — the "independent challenger" requirement extends to in-house ML-based AML models in fintech programs reviewed as part of BaaS third-party risk management. The `aml model-inventory` CLI (v0.1.47) produces the SR 26-2 model-population inventory on demand — the artifact sponsor-bank MRM reviewers are now requesting.
 
-4. **AMLA RTS final submission deadline is July 10 — 18 days.** AMLA must submit final draft regulatory technical standards to the European Commission by July 10. After submission the Commission has three months to endorse before the RTS become binding law. For EU fintechs, the alignment window is closing — the standard locks in 18 days, and gaps against the final RTS become implementation backlogs. FINTECH-6 urgency is increasing.
+4. **AMLA RTS final submission deadline is July 10 — 10 days.** AMLA must submit final draft regulatory technical standards to the European Commission by July 10. After submission the Commission has three months to endorse before the RTS become binding law. For EU fintechs, the alignment window is closing — the standard locks in 10 days, and gaps against the final RTS become implementation backlogs. FINTECH-6 urgency is increasing.
 
-The 8 realities from May plus the 2 added in June (FINTECH-9 and FINTECH-10) remain valid. As of June 22, FINTECH-9 is "comment window closed," FINTECH-10 is "9 days to enforcement," and FINTECH-6 is 18 days to AMLA RTS lock-in.
+The 8 realities from May plus the 2 added in June (FINTECH-9 and FINTECH-10) remain valid. As of June 30, FINTECH-9 is "comment window closed," FINTECH-10 is "effective TOMORROW (1 day)," and FINTECH-6 is 10 days to AMLA RTS lock-in.
 
 ---
 
@@ -25,7 +25,7 @@ The MLRO at a fintech is exposed in ways a Tier-1 MLRO is not: personal regulato
 Three things to remember about this audience:
 
 1. **The MLRO at a fintech is exposed in ways a Tier-1 MLRO is not.** Personal named risk, sponsor-bank cure notices, and investor diligence questionnaires arrive at the same desk. Lead with the *named* risk to the role, not the program.
-2. **The sponsor bank is a regulator-by-proxy.** After Synapse's April 2024 collapse and the cascade of Federal Reserve / OCC / FDIC consent orders, the sponsor bank's risk officer can move faster than any government regulator. With SR 26-2 75 days active, sponsor-bank third-party risk reviews now apply an MRM lens to fintech AML programs.
+2. **The sponsor bank is a regulator-by-proxy.** After Synapse's April 2024 collapse and the cascade of Federal Reserve / OCC / FDIC consent orders, the sponsor bank's risk officer can move faster than any government regulator. With SR 26-2 74 days active, sponsor-bank third-party risk reviews now apply an MRM lens to fintech AML programs.
 3. **Speed of evidence > sophistication of detection.** What buys a fintech MLRO survival is the ability to produce — within the cure-notice window — a primary-source-cited record of every alert, decision, and exit.
 
 ---

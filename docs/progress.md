@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-06-30. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — June 30 docs refresh** (`docs`, 2026-06-30):
+>
+> - **AUSTRAC Tranche 2 — T-1 day urgency update**: all five July 2026 research editions (`regulator-pulse`, `competitive-positioning`, `process-pain`, `fintech-aml-reality`, `aml-data-problem`) refreshed to June 30 baseline. AUSTRAC Tranche 2 framing updated from "9 days" to "TOMORROW (1 day — July 1)"; AMLA RTS from "18 days" to "10 days" (July 10); SR 26-2 from "66 days" to "74 days" examination-active. Regulator-pulse AUSTRAC section header upgraded from ⚠️ to 🚨.
+> - **`docs/index.md` deadline card updated**: researcher/regulator card now reflects June 30 counts; "What's new" table row added for Round 38.
+> - **README.md CLI surface extended** (closes #602): `aml amla-effectiveness-report`, `aml whistleblower-audit`, and `aml defect-update` added to the Key CLI Commands block — the three CLIs shipped in #528/#529/#531 that were missing from the README.
+> - **3 new GitHub roadmap issues filed**: post-AUSTRAC enforcement day-1 framing update (#604 companion), AMLA RTS 3-month Commission adoption clock post-July 10 (#605 companion), and automated day-count freshness guard CI check (#573).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
