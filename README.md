@@ -141,11 +141,11 @@ aml run spec.yaml [--data-source csv --data-dir ./]  # execute detectors on data
 aml run spec.yaml --labels labels.csv --challenger-weights '{"amount": 5.0}'  # champion-challenger priority_outcome.json (precision@k / recall, frozen + pinned)
 aml auditor-pack spec.yaml --run-dir <run-dir>       # one-ZIP auditor self-service bundle
 aml audit-pack spec.yaml --run-dir <run-dir> --jurisdiction CA-FINTRAC  # regulator pre-exam ZIP (per jurisdiction)
-aml export-case spec.yaml <run-dir> <case_id>        # single-case subset of the audit pack (PR-D4)
-aml export-batch spec.yaml <run-dir> --cases c1,c2   # multi-case subset of the audit pack (PR-D4)
+aml export-case/export-batch spec.yaml <run-dir> <case_id>|--cases c1,c2  # single/multi-case subset of the audit pack (PR-D4)
 aml model-inventory spec.yaml --out inventory.json --markdown inventory.md  # SR 26-2 model-population inventory (rules + python_ref + N1 scorer)
-aml inventory legacy.csv                             # summary of a SAS / Actimize / Mantas rule dump
-aml import-legacy legacy.csv --output spec.yaml      # convert legacy rules to AML spec skeleton
+aml amla-effectiveness-report/whistleblower-audit spec.yaml <run-dir> --markdown out.md  # EU AMLA RTS pack (#528) / FinCEN Whistleblower audit (#531)
+aml defect-update <run-dir> <defect_id> --status resolved --reviewer <id>  # append-only defect lifecycle transition (#529)
+aml inventory legacy.csv / import-legacy legacy.csv --output spec.yaml  # summarize / convert a SAS / Actimize / Mantas rule dump
 aml discover-typologies spec.yaml <run-dir>          # cluster a run's unexplained anomalies into candidate typology proposals (pending_promotion)
 aml detect-mule-rings spec.yaml <run-dir>            # deterministic union-find/density community detection over the identity-link graph → mule_rings.json (advisory)
 aml equivalence <run-dir> --legacy legacy-alerts.csv # MATCH/NEW_ONLY/LEGACY_ONLY/DIFF parallel-run report (SR 11-7 / OSFI E-23)

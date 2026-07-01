@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-01. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — July 1 deadline refresh** (`docs`, 2026-07-01):
+>
+> - **Five July 2026 research editions rebaselined from June 22 → July 1**: AUSTRAC Tranche 2 moved from "9 days away" to **effective today** (2026-07-01 enforcement date reached); AMLA RTS moved from 18 → **9 days** (July 10); SR 26-2 moved from 66 → **75 days** examination-active (April 17 anchor). Also fixed two pre-existing inconsistencies in `competitive-positioning.md` and `fintech-aml-reality.md` where a stray "75 days" figure had already crept in ahead of the rest of each doc, which still read 66 — both docs are now internally consistent.
+> - **`docs/index.md` deadline card + "What's new" row updated** for the July 1 baseline.
+> - **README.md Key CLI Commands extended** with `aml amla-effectiveness-report`, `aml whistleblower-audit`, and `aml defect-update` (closes #602) — all three shipped in Round 36 (#528/#529/#531) but were never surfaced in the top-level command list, only in `docs/how-to/`.
+> - **Process finding, not a code change**: this repo currently has ~20 open, unmerged, draft "Round 38"-style docs-refresh PRs on `aml_open_framework` (one per day, 2026-06-23 → 2026-06-30) plus 8 open draft PRs on the docs/demo site repo (2026-05-25 → 2026-06-16) — none merged, so `main` had been stuck at the Round 37 / June 22 baseline for over a week despite daily refresh attempts. This PR is built fresh off `main` (not off any of those branches) and supersedes them; the stale duplicates should be closed as superseded rather than merged, since merging more than one would reintroduce conflicting deadline figures. Filed as a roadmap issue for the maintainer to action (see below).
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
