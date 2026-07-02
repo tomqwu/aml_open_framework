@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-02. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — July 2 docs refresh** (`docs`, 2026-07-02):
+>
+> - **Deadline countdown re-anchored to July 2** across all five `2026-07-*` research editions + `docs/index.md`: AUSTRAC Tranche 2 enforcement crossed from "9 days away" to **now in effect** (began 2026-07-01 — the previous baseline, written before July 1, had left this a future-tense countdown past its own event date); AMLA RTS submission 18 days → **8 days** (July 10); SR 26-2 examination-active 66 days → **76 days** (April 17 anchor). `regulator-pulse.md`'s AUSTRAC entry heading changed from a countdown to a status marker (`🔴 ... now in effect`), matching the existing `✓ COMMENT WINDOW CLOSED` convention for past-tense events.
+> - **Two stale open docs-debt issues closed**: #601 (`docs/dashboard-tour.md` — Framework Alignment section now documents the EU-only AMLA RTS coverage tab from #528) and #602 (`README.md` — `aml amla-effectiveness-report` + `aml whistleblower-audit` now in Key CLI Commands; merged two existing PR-D4 export lines into one to stay under the 215-line budget in `test_readme_under_target_size`). #600 closed separately as already-fixed — `docs/spec-reference.md` documents `risk_tier` / `approval_status` / `require_approval_before_prod` as of the original #529 PR (`f4195ba`); the tracking issue was simply never closed.
+> - **MkDocs nav gap check**: every `docs/how-to/*.md` and `docs/research/*.md` file is reachable from `mkdocs.yml` nav — no gaps found this round.
+> - **2 new GitHub roadmap issues filed**: `docs/pitch/landing/research/*.html` (the pre-MkDocs legacy landing-page research mirror, still deployed at `/pitch/landing/research/` on the static site) is stuck on April 2026 content while `docs/research/*.md` is on its July 2026 edition — a real end-user-facing staleness gap, out of scope for a mechanical date pass because it needs full content authoring, not number substitution; and a citation cross-check for the AMLA RTS submission item in `regulator-pulse.md` (Art. 19(9) / AMLD6 Art. 53(10)), flagged as a possible mismatch against the Art. 26 / Art. 20(1)(d) correction #528 made in a different (rule-citation-coverage) context back in Round 36 but never resolved for this doc — left unfixed rather than guessed at, per the "halt and clarify" rule for citation changes.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
