@@ -1,13 +1,13 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-27. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-08. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
 
-> **Round 38 — June 27 deadline-countdown refresh** (`docs`, 2026-06-27):
+> **Round 38 — July 8 deadline-countdown refresh** (`docs`, 2026-07-08):
 >
-> - **AUSTRAC Tranche 2 imminence update**: all five July 2026 research editions + `docs/index.md` updated to June 27 baseline — AUSTRAC Tranche 2 **4 days** (July 1, was 9 days on June 22); AMLA RTS **13 days** (July 10, was 18 days); SR 26-2 **71 days** examination-active (was 66 days). AUSTRAC Tranche 2 is the operative urgency: Australian DNFBPs without a board-approved program have 4 days before enforcement begins.
-> - **Competitive-positioning accuracy fix**: the "AUSTRAC Tranche 2 is effective today" copy on the June 22 draft was premature (enforcement begins July 1, not June 22) — corrected to "4 days away (2026-07-01)" in `2026-07-competitive-positioning.md`. Also corrected the Marble OSS section from "75 days" to "71 days" for consistency.
-> - **What's new table updated**: Round 38 row added to `docs/index.md`; the placeholder 2026-07-01 row updated to reflect post-AUSTRAC enforcement status.
-> - **GitHub roadmap issues filed**: see below.
+> - **AUSTRAC Tranche 2 enforcement live**: all five July 2026 research editions + `docs/index.md` updated to July 8 baseline — AUSTRAC Tranche 2 enforcement **went live July 1** (7 days ago); AMLA RTS **2 days** to submission (July 10); SR 26-2 **82 days** examination-active (was 66 days on June 22). regulator-pulse AUSTRAC heading flipped from ⚠️ to ✓ ENFORCEMENT LIVE; body updated from "N days away" to "enforcement live" framing across all docs.
+> - **AMLA RTS 2-day urgency**: all five research docs updated from 18 days (June 22 baseline) to 2 days remaining before the July 10 RTS submission.
+> - **SR 26-2 count corrected**: 66 days (June 22) → 82 days (July 8); two pre-existing stray "75 days" inconsistencies (competitive-positioning + fintech-aml-reality) brought to the consistent 82-day figure.
+> - **`docs/index.md` deadline card updated**: Researcher/regulator card now shows July 8 baseline: AUSTRAC enforcement live, AMLA RTS 2 days, SR 26-2 82 days.
 >
 > No code changes; no CI targets affected.
 
