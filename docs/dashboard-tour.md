@@ -127,6 +127,8 @@ Three-tab mapping of spec primitives to international regulatory standards:
 
 Tabs auto-switch based on jurisdiction (US → FinCEN BSA, CA → PCMLTFA/OSFI, EU → AMLD6).
 
+**AMLA RTS coverage tab (EU-only, #528):** for an EU-jurisdiction program whose spec carries AMLR (Reg (EU) 2024/1624) citations, a fourth tab appears alongside AMLD6 Requirements — `dashboard/frameworks.py::build_amla_rts_alignment`. It maps the spec's rule citations onto the three AMLA RTS effectiveness articles: CDD-information RTS (**AMLR Art. 28(1)**), ongoing monitoring of the business relationship (**AMLR Art. 26**), and targeted-financial-sanctions screening (**AMLR Art. 20(1)(d)**). Each shows a three-state indicator — ✓ *mapped* (a covering rule cites the article and declares an evidence trail), ∼ *partial* (cited but no covering rule declares evidence), ✗ *gap* (no rule cites the article). The same coverage data backs the offline `aml amla-effectiveness-report` CLI (`metrics/amla_effectiveness.py`). `examples/eu_bank/aml.yaml` is the reference implementation carrying all three citations.
+
 ![Framework Alignment](screenshots/08_framework_alignment.png)
 
 ### Transformation Roadmap
