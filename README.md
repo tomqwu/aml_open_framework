@@ -141,9 +141,9 @@ aml run spec.yaml [--data-source csv --data-dir ./]  # execute detectors on data
 aml run spec.yaml --labels labels.csv --challenger-weights '{"amount": 5.0}'  # champion-challenger priority_outcome.json (precision@k / recall, frozen + pinned)
 aml auditor-pack spec.yaml --run-dir <run-dir>       # one-ZIP auditor self-service bundle
 aml audit-pack spec.yaml --run-dir <run-dir> --jurisdiction CA-FINTRAC  # regulator pre-exam ZIP (per jurisdiction)
-aml export-case spec.yaml <run-dir> <case_id>        # single-case subset of the audit pack (PR-D4)
-aml export-batch spec.yaml <run-dir> --cases c1,c2   # multi-case subset of the audit pack (PR-D4)
+aml export-case/-batch spec.yaml <run-dir> <case_id>|--cases c1,c2  # single/multi-case subset of the audit pack (PR-D4)
 aml model-inventory spec.yaml --out inventory.json --markdown inventory.md  # SR 26-2 model-population inventory (rules + python_ref + N1 scorer)
+aml amla-effectiveness-report/whistleblower-audit spec.yaml <run-dir> --markdown report.md  # EU AMLA RTS coverage / FinCEN NPRM readiness (SAR-backlog, triage, ledger)
 aml inventory legacy.csv                             # summary of a SAS / Actimize / Mantas rule dump
 aml import-legacy legacy.csv --output spec.yaml      # convert legacy rules to AML spec skeleton
 aml discover-typologies spec.yaml <run-dir>          # cluster a run's unexplained anomalies into candidate typology proposals (pending_promotion)

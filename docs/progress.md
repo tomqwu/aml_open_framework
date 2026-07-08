@@ -1,6 +1,23 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-08. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — July 8 docs refresh + PR-backlog consolidation** (`docs`, 2026-07-08):
+>
+> - **Deadline countdown corrected to a July 8 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the six evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is now **in effect** (since 2026-07-01, no longer "9 days away"); AMLA RTS submission is **2 days** out (was 18); SR 26-2 is **82 days** examination-active (was 66, and inconsistently 75 in a few spots).
+> - **AMLA RTS citation fix (closes #635)**: `docs/research/2026-07-regulator-pulse.md` and the landing-page mirror's forward-calendar entry cited "AMLR Article 19(9)" and "AMLD6 Article 53(10)" for the business-relationships and pecuniary-sanctions RTS — flagged as a possible mismatch back in Round 36 and never resolved. Corrected to **AMLR Art. 26** (ongoing monitoring of the business relationship) and **AMLR Art. 20(1)(d)** (targeted-financial-sanctions screening), matching the verified `CITATION_URL_MAP` in `metrics/amla_effectiveness.py` (#528). **Not touched**: two historical narrative entries in the landing page's chronological log (the 2026-02-09 consultation-open and 2026-05-08 consultation-close events) that name the same articles via their actual AMLA consultation-page titles — left alone pending explicit EUR-Lex verification rather than guessed at; see follow-up below.
+> - **README.md (closes #602)** — added `aml amla-effectiveness-report` and `aml whistleblower-audit` to the Key CLI Commands table. **`docs/dashboard-tour.md` (closes #601)** — documented the EU-only "AMLA RTS coverage" fourth tab on Framework Alignment (page 8), its three-state ✓/∼/✗ indicator, and the `examples/eu_bank` reference implementation.
+> - **`mkdocs.yml` nav gap closed**: `docs/case-studies/td-2024.md` existed on disk and is linked from `README.md` and `regulator-mapping.md`, but was absent from the sidebar nav — added under Operate. Verified via `mkdocs build --strict`: no other on-disk `.md` outside `superpowers/`, `migration/`, `perf/`, and `pitch/deck-v2/` assets (none of which are meant for the public nav) is missing.
+>
+> **Process finding — the actual blocker was never missing content, it was an unmerged-PR backlog.** `main` had been stuck at the Round 37 commit for 16 days despite 25 open draft PRs on this repo attempting the same monthly-refresh work independently (and 9 more, now closed, on the demo repo — see #637). Every PR showed `mergeable_state: clean` against the same stale base, which hid the real problem: they were mutually redundant, not actually landable together. This PR consolidates rather than adds a 26th duplicate:
+> - Cherry-picked the two non-overlapping, CI-green files from **PR #636** (`README.md`, `docs/dashboard-tour.md`) verbatim.
+> - Applied **PR #638**'s evergreen-HTML-mirror patch (6 files under `docs/pitch/landing/`, zero overlap with anything else touched this round) and then corrected its baked-in June-22-era day-counts/day-out figures to July 8 on top — closes the content-currency half of #634.
+> - Superseded and closed PR #636 and PR #638 (content incorporated above) plus ~21 older same-purpose draft PRs (#550–#633) whose day-count edits are now moot given this round's numbers.
+> - Left PR #541 (stale base, `ready` not `draft`) and PR #554 (unrelated security-hardening) for separate human triage — out of scope for a docs-consolidation pass.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
