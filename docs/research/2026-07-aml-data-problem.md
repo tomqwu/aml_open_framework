@@ -1,14 +1,14 @@
 # Data is the AML problem — July 2026
 
-*Date: 2026-06-22 · Audience: CCO / MLRO / Head of Financial Crime / CRO / 2LoD model-validation. Companion docs: [`2026-07-aml-process-pain.md`](./2026-07-aml-process-pain.md) for the leader-pain style guide; [`2026-07-competitive-positioning.md`](./2026-07-competitive-positioning.md) for the vendor landscape. Previous edition: [`2026-06-aml-data-problem.md`](./2026-06-aml-data-problem.md).*
+*Date: 2026-07-09 · Audience: CCO / MLRO / Head of Financial Crime / CRO / 2LoD model-validation. Companion docs: [`2026-07-aml-process-pain.md`](./2026-07-aml-process-pain.md) for the leader-pain style guide; [`2026-07-competitive-positioning.md`](./2026-07-competitive-positioning.md) for the vendor landscape. Previous edition: [`2026-06-aml-data-problem.md`](./2026-06-aml-data-problem.md).*
 
 ## What changed between June and July 2026
 
-*Updated 2026-06-22.*
+*Updated 2026-07-09.*
 
-### SR 26-2 now examination-active (66 days in)
+### SR 26-2 now examination-active (83 days in)
 
-FRB SR 26-2 became effective April 17, 2026 — 66 days ago. US-supervised banks are deep in the examination window. The model-risk management requirements — model inventory, independent challenger validation, conceptual-soundness documentation — apply to transaction monitoring, sanctions screening, and customer-risk-rating models. **DATA-6** (AI presumes data we don't have) is the first point of examiner challenge: before a model's conceptual soundness can be validated, the completeness and accuracy of its training and inference data must be documented. The framework ships `aml model-inventory` (v0.1.47 M2) to produce that inventory on demand.
+FRB SR 26-2 became effective April 17, 2026 — 83 days ago. US-supervised banks are deep in the examination window. The model-risk management requirements — model inventory, independent challenger validation, conceptual-soundness documentation — apply to transaction monitoring, sanctions screening, and customer-risk-rating models. **DATA-6** (AI presumes data we don't have) is the first point of examiner challenge: before a model's conceptual soundness can be validated, the completeness and accuracy of its training and inference data must be documented. The framework ships `aml model-inventory` (v0.1.47 M2) to produce that inventory on demand.
 
 ### FinCEN / OCC / FDIC Effectiveness NPRM — comment window closed June 9
 
@@ -18,9 +18,9 @@ The joint AML/CFT Program Effectiveness NPRM ([Federal Register 2026-07033](http
 
 PPSIs (permitted payment stablecoin issuers) will face BSA obligations under 31 CFR Part 502 if the proposed rule is finalised. The comment window closed June 9; the rulemaking is pending. Stablecoin transaction flows use ISO 20022 pacs.008/009/004 formats natively — the same wire-payment parsers the framework already ships (`data/iso20022/parser.py`). **DATA-8** (MLRO has no veto over data shape) applies directly: PPSIs building compliance infrastructure after the product launches face the same structural gap as traditional banks that onboarded products before the AML schema existed.
 
-### AMLA RTS submission — July 10 (18 days)
+### AMLA RTS submission — July 10 (1 day)
 
-AMLA must submit final draft regulatory technical standards to the European Commission by July 10, 2026 — **18 days away**. After submission, the Commission has three months to endorse before the RTS become binding law. For EU-supervised obliged entities, the data-and-evidence standard locks in 18 days; gaps against the final RTS become implementation backlogs against the July 2027 AMLR application date. **DATA-11** (the compliance-defensible answer is a data contract) is the operative response: the standard binds the evidence layer, and the data-contract layer is where that evidence is produced.
+AMLA must submit final draft regulatory technical standards to the European Commission by July 10, 2026 — **1 day away**. After submission, the Commission has three months to endorse before the RTS become binding law. For EU-supervised obliged entities, the data-and-evidence standard locks in tomorrow; gaps against the final RTS become implementation backlogs against the July 2027 AMLR application date. **DATA-11** (the compliance-defensible answer is a data contract) is the operative response: the standard binds the evidence layer, and the data-contract layer is where that evidence is produced.
 
 ### v0.1.47 shipped M4 — point-in-time effective-dated joins (2026-06-04)
 

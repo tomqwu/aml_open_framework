@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — July 9 docs refresh** (`docs`, 2026-07-09):
+>
+> - **Deadline countdown corrected to July 9 baseline** across `docs/index.md` and all five `2026-07-*` research editions (Round 37 had anchored them to June 22): SR 26-2 now **83 days** examination-active (was 66); AUSTRAC Tranche 2 enforcement **began July 1 and is now active** (8 days in — was "9 days away"); AMLA RTS submission is **1 day away** (July 10, was "18 days"). Reworded past-tense where a deadline has now passed (AUSTRAC) vs. still-future (AMLA RTS).
+> - **`competitive-positioning.md` internal inconsistency fixed**: a stray "SR 26-2 examination-active for 75 days" mention (out of step with the doc's own June-22 66-day baseline) corrected to 83 days for consistency with the rest of the July edition.
+> - **`regulator-pulse.md` AMLA RTS citation corrected**: the "business-relationships RTS (AMLR Article 19(9))" and "pecuniary-sanctions RTS (AMLD6 Article 53(10))" citations were wrong — the June 9 Round-36 fix (#528) corrected these in code/spec (`metrics/amla_effectiveness.py`) but left the `docs/research/` prose citing the old numbers, a gap explicitly flagged in the Round 36 note. Now reads AMLR Article 26 (ongoing monitoring) and AMLR Article 20(1)(d) (targeted financial sanctions screening), matching `CITATION_URL_MAP`.
+> - **Static-site (pitch deck) check**: `docs/pitch/` has had zero commits since the `aml_open_framework_demo` repo's last rebuild snapshot (`a31e0cd`), so there is no new pitch-deck content to sync — `make sync-demo` would be a no-op. Investigating the demo repo surfaced that it still carries a large pre-Round-31 MkDocs snapshot (`research/2026-0{4,5,6}-*/`, `how-to/`, `getting-started/`, `api-reference/`, etc.) frozen since before the docs site migrated to `tomqwu.github.io/aml_open_framework_docs`; those subtrees are outside `sync_demo_site.sh`'s scope (root/`technical/`/`business/` only) and are now stale, orphaned duplicates of the live docs site. Filed as a roadmap issue rather than deleted unilaterally — removing public paths needs a human call.
+> - **1 new GitHub roadmap issue filed**: clean up (or explicitly archive) the pre-migration MkDocs snapshot inside `aml_open_framework_demo` so the publicly-linked pitch-deck site doesn't serve stale duplicate content next to the current deck.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >
