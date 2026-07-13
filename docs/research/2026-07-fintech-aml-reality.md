@@ -1,6 +1,6 @@
 # 10 AML Realities a FinTech / EMI / MSB / VASP MLRO Lives With — July 2026
 
-*Date: 2026-06-22 · Audience: FinTech / EMI / MSB / VASP MLRO. Companion to [`2026-07-aml-process-pain.md`](2026-07-aml-process-pain.md) (Tier-1 bank lens). Previous edition: [`2026-06-fintech-aml-reality.md`](./2026-06-fintech-aml-reality.md).*
+*Date: 2026-07-13 · Audience: FinTech / EMI / MSB / VASP MLRO. Companion to [`2026-07-aml-process-pain.md`](2026-07-aml-process-pain.md) (Tier-1 bank lens). Previous edition: [`2026-06-fintech-aml-reality.md`](./2026-06-fintech-aml-reality.md).*
 
 ## What changed between June and July 2026
 
@@ -8,13 +8,13 @@ Four inflections move the urgency forward into the July window:
 
 1. **GENIUS Act NPRM comment window closed June 9.** The comment window opened in April and **closed 2026-06-09**. It is now closed; the rulemaking is pending (final rule expected late 2026 / early 2027). Stablecoin issuers and banks sponsoring PPSIs that completed a gap analysis against the proposed BSA-program + OFAC-compliance framework — or filed a comment letter — now hold that work as a documented proactive-engagement posture. Those that deferred should still build what the NPRM proposes, because the obligation arrives with the final rule, not the (closed) comment window. FINTECH-9 shifts from "file tomorrow or Friday" to "the window has closed; the build has not."
 
-2. **AUSTRAC Tranche 2 enforcement is 9 days away (July 1).** Australian DNFBPs (lawyers, accountants, real-estate agents, DPMS) that do not have a board-approved AML/CTF program and AUSTRAC enrolment as of July 1 face enforceable consequences. AUSTRAC's stated first-cycle posture favours enforceable undertakings over fines — but only for firms with documented good-faith programs. For fintechs with Australian operations, the obligation is 9 days away. FINTECH-10 has moved from "27 days" to "9 days."
+2. **AUSTRAC Tranche 2 enforcement has been in effect for 12 days (since July 1).** Australian DNFBPs (lawyers, accountants, real-estate agents, DPMS) that do not have a board-approved AML/CTF program and AUSTRAC enrolment are now out of compliance, not approaching a deadline. AUSTRAC's stated first-cycle posture favours enforceable undertakings over fines — but only for firms with documented good-faith programs. No enforcement actions have been publicly reported yet. FINTECH-10 has moved from "9 days away" to "12 days in effect."
 
-3. **SR 26-2 is 66 days examination-active.** FinTech MLROs who manage transaction monitoring scenarios or CDD scoring models are in scope. Q2 2026 examination cycles have run and Q3 cycles are forming. Sponsor banks conducting third-party risk reviews of fintech AML programs are applying the same SR 26-2 MRM lens — the "independent challenger" requirement extends to in-house ML-based AML models in fintech programs reviewed as part of BaaS third-party risk management. The `aml model-inventory` CLI (v0.1.47) produces the SR 26-2 model-population inventory on demand — the artifact sponsor-bank MRM reviewers are now requesting.
+3. **SR 26-2 is 87 days examination-active.** FinTech MLROs who manage transaction monitoring scenarios or CDD scoring models are in scope. Q2 2026 examination cycles have run and Q3 cycles are forming. Sponsor banks conducting third-party risk reviews of fintech AML programs are applying the same SR 26-2 MRM lens — the "independent challenger" requirement extends to in-house ML-based AML models in fintech programs reviewed as part of BaaS third-party risk management. The `aml model-inventory` CLI (v0.1.47) produces the SR 26-2 model-population inventory on demand — the artifact sponsor-bank MRM reviewers are now requesting.
 
-4. **AMLA RTS final submission deadline is July 10 — 18 days.** AMLA must submit final draft regulatory technical standards to the European Commission by July 10. After submission the Commission has three months to endorse before the RTS become binding law. For EU fintechs, the alignment window is closing — the standard locks in 18 days, and gaps against the final RTS become implementation backlogs. FINTECH-6 urgency is increasing.
+4. **AMLA RTS final submission deadline (July 10) passed 3 days ago.** AMLA's statutory deadline to submit final draft regulatory technical standards to the European Commission was July 10; no submission confirmation has been publicly published. After submission the Commission has three months to endorse before the RTS become binding law. For EU fintechs, the standard's substance is now locked in ahead of the Commission's endorsement window, and gaps against the final RTS become implementation backlogs. FINTECH-6 urgency continues.
 
-The 8 realities from May plus the 2 added in June (FINTECH-9 and FINTECH-10) remain valid. As of June 22, FINTECH-9 is "comment window closed," FINTECH-10 is "9 days to enforcement," and FINTECH-6 is 18 days to AMLA RTS lock-in.
+The 8 realities from May plus the 2 added in June (FINTECH-9 and FINTECH-10) remain valid. As of July 13, FINTECH-9 is "comment window closed," FINTECH-10 is "12 days in effect," and FINTECH-6 is "AMLA RTS submission deadline passed 3 days ago."
 
 ---
 
@@ -25,7 +25,7 @@ The MLRO at a fintech is exposed in ways a Tier-1 MLRO is not: personal regulato
 Three things to remember about this audience:
 
 1. **The MLRO at a fintech is exposed in ways a Tier-1 MLRO is not.** Personal named risk, sponsor-bank cure notices, and investor diligence questionnaires arrive at the same desk. Lead with the *named* risk to the role, not the program.
-2. **The sponsor bank is a regulator-by-proxy.** After Synapse's April 2024 collapse and the cascade of Federal Reserve / OCC / FDIC consent orders, the sponsor bank's risk officer can move faster than any government regulator. With SR 26-2 75 days active, sponsor-bank third-party risk reviews now apply an MRM lens to fintech AML programs.
+2. **The sponsor bank is a regulator-by-proxy.** After Synapse's April 2024 collapse and the cascade of Federal Reserve / OCC / FDIC consent orders, the sponsor bank's risk officer can move faster than any government regulator. With SR 26-2 87 days active, sponsor-bank third-party risk reviews now apply an MRM lens to fintech AML programs.
 3. **Speed of evidence > sophistication of detection.** What buys a fintech MLRO survival is the ability to produce — within the cure-notice window — a primary-source-cited record of every alert, decision, and exit.
 
 ---
@@ -87,7 +87,7 @@ Three things to remember about this audience:
 
 | | |
 |---|---|
-| **Plain-English description** | EU Anti-Money Laundering Regulation 2024/1624 applies directly across all 27 Member States from 10 July 2027. AMLA's RTS consultations closed May 8, 2026 — AMLA must submit final draft RTS to the European Commission by **July 10, 2026 — 18 days away**. After submission, the Commission has three months to endorse before the RTS become binding law. The window for EU fintechs to align before the standard locks is closing in 18 days. Gaps against the final RTS become implementation backlogs that compress the already-tight runway to July 2027. |
+| **Plain-English description** | EU Anti-Money Laundering Regulation 2024/1624 applies directly across all 27 Member States from 10 July 2027. AMLA's RTS consultations closed May 8, 2026 — AMLA's deadline to submit final draft RTS to the European Commission was **July 10, 2026 — 3 days ago** (no submission confirmation publicly published). After submission, the Commission has three months to endorse before the RTS become binding law. The standard's substance is now locked in ahead of the Commission's endorsement window; gaps against the final RTS become implementation backlogs that compress the already-tight runway to July 2027. |
 | **Primary source** | AMLR 2024/1624 and AMLA 2024/1620, Official Journal 19 June 2024. AMLA consultations on CDD RTS, business-relationships RTS, and pecuniary-sanctions RTS closed May 8, 2026; AMLA must submit final drafts to the Commission by **2026-07-10**. — [AMLA CDD RTS consultation](https://www.amla.europa.eu/policy/public-consultations/consultation-draft-rts-customer-due-diligence_en). AMLA direct supervision of ~40 obliged entities begins 2028; data-collection exercise for selection methodology is now underway. — [AMLA selection exercise](https://www.amla.europa.eu/amla-advances-preparations-2027-selection-exercise_en). |
 | **Roles affected** | MLRO, Compliance Director, CEO, Board |
 | **Cost type** | Compliance + license risk |
@@ -124,12 +124,12 @@ Three things to remember about this audience:
 | **Cost type** | License risk + audit-defensibility |
 | **Framework capability** | The Compliance Manifest is the board-approved risk assessment and program file the NPRM requires. Multi-jurisdiction templating lets a PPSI Manifest reference both BSA (FinCEN) and OFAC obligations in the same file. Apache 2.0 deployment means no per-seat licence appears in the PPSI's vendor-risk register — a material simplification of the sponsor-bank due-diligence process under SR 26-2. |
 
-### FINTECH-10 · "AUSTRAC just made us an obliged entity — enforcement is 9 days away."
+### FINTECH-10 · "AUSTRAC just made us an obliged entity — enforcement has been live for 12 days."
 
 | | |
 |---|---|
-| **Plain-English description** | Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones become enforceable under the AML/CTF Act on **July 1, 2026 — 9 days away**. AUSTRAC's stated first-cycle posture is enforceable undertakings rather than fines — but only for firms with documented, board-approved programs in place before July 1. Programs stood up now are inside the favourable posture at enforcement day. |
-| **Vignette** | The managing partner of a Melbourne property conveyancing firm returns from a compliance conference and asks the operations manager: *"What's our AML/CTF program?"* The operations manager has a PEP check and a file note. AUSTRAC wants an enrolment, a board-approved program, a risk assessment, and compliance reports — and the obligation is live as of today. |
+| **Plain-English description** | Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones became enforceable under the AML/CTF Act on **July 1, 2026 — 12 days ago**. AUSTRAC's stated first-cycle posture is enforceable undertakings rather than fines — but only for firms with documented, good-faith board-approved programs. Firms without one are now out of compliance, not approaching a deadline; no enforcement actions have been publicly reported yet. |
+| **Vignette** | The managing partner of a Melbourne property conveyancing firm returns from a compliance conference and asks the operations manager: *"What's our AML/CTF program?"* The operations manager has a PEP check and a file note. AUSTRAC wants an enrolment, a board-approved program, a risk assessment, and compliance reports — and the obligation has been live for nearly two weeks. |
 | **Primary source** | AUSTRAC Regulatory Expectations and Priorities 2025–26: Tranche 2 reform brings lawyers, accountants, real-estate agents, and DPMS under the AML/CTF Act with mandatory enrolment and board-approved programs enforceable from **2026-07-01**. AUSTRAC's stated posture favours enforceable undertakings over fines in the first cycle — but only for firms with documented, good-faith compliance efforts. — [AUSTRAC: Regulatory expectations 2025–26](https://www.austrac.gov.au/amlctf-reform/austrac-regulatory-expectations-and-priorities-2025-26); [AUSTRAC AML/CTF Reform hub](https://www.austrac.gov.au/amlctf-reform). |
 | **Roles affected** | Partner / Principal (personally liable under Australian law), newly-designated AML/CTF Compliance Officer, Board |
 | **Cost type** | License risk + audit-defensibility |
@@ -139,7 +139,7 @@ Three things to remember about this audience:
 
 ## Themes (≈100 words)
 
-For a fintech MLRO as of June 22, **the operative regulator is still whoever moves fastest** — but the two comment windows that defined June's urgency have closed, and two structural obligations are now imminent. The GENIUS Act NPRM comment window closed June 9: stablecoin issuers and their sponsor banks who engaged hold proactive-posture evidence; those who deferred still have to build what the pending final rule will require. AUSTRAC Tranche 2 enforcement is **9 days away** (July 1): Australian DNFBPs without a board-approved program have 9 days to close that gap before facing enforceable consequences. The AMLA RTS standard locks in July 10 (**18 days**): EU fintechs that haven't completed an alignment gap assessment are building on a moving target. In all three cases, the operative question is unchanged: **can you prove what you have?**
+For a fintech MLRO as of July 13, **the operative regulator is still whoever moves fastest** — but the comment windows that defined June's urgency have closed, and the two structural obligations that were imminent in June have now arrived. The GENIUS Act NPRM comment window closed June 9: stablecoin issuers and their sponsor banks who engaged hold proactive-posture evidence; those who deferred still have to build what the pending final rule will require. AUSTRAC Tranche 2 enforcement has been **live for 12 days** (since July 1): Australian DNFBPs without a board-approved program are now out of compliance, not approaching a deadline. The AMLA RTS submission deadline **passed 3 days ago** (July 10, no outcome confirmed): EU fintechs that haven't completed an alignment gap assessment are building against a standard whose substance is now locked in. In all three cases, the operative question is unchanged: **can you prove what you have?**
 
 ---
 
