@@ -96,6 +96,8 @@ jq . .artifacts/run-<TS>/amla_effectiveness_report.json
 | `rts_coverage[].status` | `covered` (≥1 rule cites the article) or `gap` (none). |
 | `rules[].precision` | Per-rule precision — `null` unless you supply case labels (precision needs ground-truth labels the run doesn't carry). `recall` is always `null`; it needs the ground-truth positive population, which the alert set alone can't tell you. |
 
+> **Note (2026-07-10): AMLA's statutory deadline to submit the three final RTS to the European Commission passed on 2026-07-10.** This edition treats the submission as pending confirmation, not asserted — see the "Deadline passed" entry in [`docs/research/2026-07-regulator-pulse.md`](../research/2026-07-regulator-pulse.md) for the Commission's 3-month endorsement clock (2026-07-10 → 2026-10-10). Once endorsed, a `rts_coverage[].status: gap` stops meaning "consultation input still open" and starts meaning an implementation backlog against a locked-in binding standard — worth re-running `aml amla-effectiveness-report` against a fresh spec once the endorsement lands.
+
 ### 5 · Read it on the dashboard instead
 
 - **Framework Alignment (page 8)** — for an EU program, an **"AMLA RTS coverage"** tab maps the spec's rule citations onto the three RTS articles with a ✓ (mapped) / ∼ (partial — cited but no evidence trail) / ✗ (gap) indicator and the covering rule ids. The mapping logic (`dashboard/frameworks.py::build_amla_rts_alignment`) is streamlit-free and unit-testable.

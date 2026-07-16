@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-07-08. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-16. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 39 — July 16 docs refresh + AMLA RTS deadline-passed transition** (`docs`, 2026-07-16):
+>
+> - **Deadline countdown corrected to a July 16 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **15 days in** (was 7); SR 26-2 is **90 days** examination-active (was 82).
+> - **AMLA RTS submission deadline (2026-07-10) has now passed** — closes #587 / addresses #605 / #629's docs half. Reframed from a "N days" countdown to "deadline passed" everywhere it appeared, per #605's acceptance criteria: no submission outcome is asserted (no press release independently verified in this edition), and a "What happens next" section was added describing the Commission's 3-month endorsement clock (2026-07-10 → 2026-10-10, 86 days remaining). `docs/how-to/produce-amla-effectiveness-pack.md` gets a matching note on how `rts_coverage` gaps change meaning once the standard is locked in (consultation input → implementation backlog).
+> - **Not done in this pass**: `regulatory_calendar.yaml`'s `urgency_band`/status fields (#629) and the dashboard's live countdown banner still render the pre-passed framing — that's a code change (Today-page banner logic), out of scope for this docs-only round; left for #629.
+> - **Consolidation, not a new PR pile-on**: built directly on PR #639's already CI-green, `mergeable_state: clean` July-8 baseline (cherry-picked, not re-derived) rather than adding a 29th independent attempt at the same refresh — see #644's finding that 25+ duplicate sessions did exactly that against the same stale `main`. #639 is superseded by this round's PR.
+> - No new roadmap issue filed: the automation idea this round's staleness would otherwise motivate ("stop hand-editing day-counts every week") is already tracked by **12 open issues** (#553, #569, #573, #587, #592, #608, #609, #614, #617, #620, #629, #637) plus the meta-tracking issue **#644** ("scheduled docs-refresh sessions pile up as unmerged draft PRs") — filing a 13th would add to the exact pile-up #644 documents, not fix it.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 38 — July 8 docs refresh + PR-backlog consolidation** (`docs`, 2026-07-08):
 >
