@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-17. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 38 — July 17 docs refresh, primary-source re-verification** (`docs`, 2026-07-17):
+>
+> - **Deadline countdowns re-anchored from June 22 to July 17** across all five `2026-07-*` research editions + `docs/index.md`'s Researcher/regulator deadline card: SR 26-2 recomputed **66 → 91 days** examination-active (April 17 anchor); AUSTRAC Tranche 2 moved from "9 days away" to **now in force** (effective 2026-07-01, 16 days in); AMLA RTS submission moved from "18 days remain" to **deadline passed** (2026-07-10, 7 days ago, no public confirmation of submission found).
+> - **Re-verified against live primary sources**, not just date arithmetic: AUSTRAC's own transitional-rules page confirms enrolment and AML/CTF-compliance-officer notification for the ~80,000–90,000 newly regulated Tranche 2 entities stay open through **2026-07-29** — a real deadline distinct from the July 1 program-obligation date that the prior wording conflated. Added as a new fact across `2026-07-regulator-pulse.md`, `2026-07-fintech-aml-reality.md`, `2026-07-competitive-positioning.md`, and `docs/index.md`, with the AUSTRAC transitional-rules URL added to each doc's Sources section. Confirmed (via Federal Register + industry trackers) that the Effectiveness NPRM, GENIUS Act PPSI NPRM, and Whistleblower NPRM all remain proposed rules with no final rule published as of July 17 — no wording changes needed there.
+> - **Fixed a stale-inconsistency bug from Round 37**: `2026-07-fintech-aml-reality.md` had SR 26-2 examination-active at both "66 days" and "75 days" in different sections (the 75-day figure was never corrected in Round 37). Both now read 91 days. `2026-07-competitive-positioning.md`'s stray "AUSTRAC Tranche 2 is effective today" line (leftover from an earlier July-1-anchored draft) corrected to "now in force."
+> - **MkDocs nav checked for gaps**: none found this round — every file in `docs/how-to/` and `docs/research/` has a corresponding `mkdocs.yml` nav entry.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >

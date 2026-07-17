@@ -49,7 +49,7 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Deadline status (as of 2026-06-22): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **2026-07-01 — 9 days**; AMLA RTS **2026-07-10 — 18 days**; SR 26-2 **66 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
+    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Deadline status (as of 2026-07-17): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **now in force since 2026-07-01** (enrolment closes 2026-07-29); AMLA RTS submission deadline **passed 2026-07-10** (unconfirmed); SR 26-2 **91 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
 
     [:octicons-arrow-right-24: Research](research/2026-07-regulator-pulse.md)
 
@@ -123,6 +123,7 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
+| `docs` | 38 | 2026-07-17 | July 17 docs refresh — re-verified against primary sources (AUSTRAC, AMLA, Federal Register, Federal Reserve): AUSTRAC Tranche 2 confirmed **in force since 2026-07-01** (namescan.io + AUSTRAC's own transitional-rules page — enrolment/compliance-officer notification open through **2026-07-29**, not July 1 as previously implied); AMLA RTS **July 10 submission deadline passed** (7 days ago, unconfirmed publicly — language corrected from "days remain" to "passed"); SR 26-2 recomputed to **91 days** examination-active (April 17 anchor). Fixed a 66-vs-75-days SR 26-2 inconsistency left over from Round 37 in `2026-07-fintech-aml-reality.md`. All five July research editions + `docs/index.md` updated; no MkDocs nav gaps found this round. |
 | `docs` | 37 | 2026-06-22 | June 22 docs refresh — deadline countdown corrected to June 22 baseline (AMLA RTS 18 days, AUSTRAC 9 days, SR 26-2 66 days); `produce-amla-effectiveness-pack.md` + `run-whistleblower-audit.md` added to MkDocs nav; `2026-04-aml-data-problem.md` archive stub added (closes #561). |
 | `docs` | — | 2026-07-01 | July 2026 research refresh — all five editions carried forward to a 2026-07-01 as-of date: Effectiveness NPRM + GENIUS Act comment window **closed June 9** (rulemaking pending, no outcome asserted); AUSTRAC Tranche 2 **9 days** (July 1); AMLA RTS **18 days** (July 10); SR 26-2 **66 days** examination-active. |
 | `docs` | — | 2026-06-05 | Regulatory Calendar — a live forward-deadline view (Regulatory Calendar page + a countdown banner on Today) mapping each NPRM/enforcement deadline to the framework features that evidence readiness. |
