@@ -1,6 +1,19 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-07-16. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-19. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 40 — July 19 docs refresh + AUSTRAC enrolment-deadline finding** (`docs`, 2026-07-19):
+>
+> - **Deadline countdown corrected to a July 19 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **18 days in** (was 15); AMLA RTS submission deadline **passed 9 days ago** (was 6); SR 26-2 is **93 days** examination-active (was 90).
+> - **New finding, not previously captured by any of the ~30 prior docs-refresh sessions**: AUSTRAC opened Tranche 2 enrolment 2026-03-31 with a **2026-07-29** deadline for newly regulated entities that provide a designated service on or after July 1 without having enrolled — a distinct, harder near-term deadline from the July 1 obligation-start date every prior round documented. Verified via primary/secondary sources during this round's research pass (AUSTRAC enrolment FAQs; no prior round's docs mention a July 29 date). Added to `docs/research/2026-07-regulator-pulse.md`, `2026-07-competitive-positioning.md`, `2026-07-fintech-aml-reality.md`, `docs/index.md`, and the `regulator-pulse.html` / `fintech.html` / `competitive-positioning.html` mirror pages.
+> - **AMLA submission status left hedged, not asserted**: web research this round found only prospective ("AMLA will submit...") secondary sources, no primary press release confirming the July 10 submission actually occurred — consistent with #605's acceptance criteria and Round 39's own careful framing. Docs continue to say the *statutory deadline* passed, not that submission is confirmed.
+> - **Consolidates and supersedes PR #646** (this repo's most current prior candidate, July-16 baseline, CI-green, opened ready-for-review) — cherry-picked its full content (including the pitch-HTML mirror sync and the `produce-amla-effectiveness-pack.md` / `README.md` / `dashboard-tour.md` updates it carried from #639) rather than re-deriving from a stale `main`, per the same reasoning #646 itself used relative to #639.
+> - **No new roadmap issue filed** for the "automate this" idea — already tracked by 12+ open issues (#553, #569, #573, #587, #592, #608, #609, #614, #617, #620, #629, #637) plus the meta-tracking issue **#644**. Filing another would add to the exact pile-up #644 documents.
+> - **Process blocker, unchanged from #644/#646**: this session also has no Codex-review tool available (confirmed via skill/plugin search), so it cannot satisfy `CLAUDE.md`'s merge gate either. This PR is opened **ready-for-review, not draft**, and left for a human (or a session with Codex-review access) to merge. `main` has now been stuck at the Round 37 commit (`3127846`, 2026-06-22) for **27 days**.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 39 — July 16 docs refresh + AMLA RTS deadline-passed transition** (`docs`, 2026-07-16):
 >
