@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-07-19. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-24. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 41 — July 24 docs refresh** (`docs`, 2026-07-24):
+>
+> - **Deadline countdown corrected to a July 24 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **23 days in** (was 18); the AUSTRAC enrolment grace period ends 2026-07-29, now **5 days** away (was 10); AMLA RTS submission deadline **passed 14 days ago** (was 9); SR 26-2 is **98 days** examination-active (was 93); the Commission's post-RTS-submission endorsement clock (2026-07-10 → 2026-10-10) now has **78 days remaining** (was 83).
+> - **Builds directly on #648** (Round 40, `mergeable_state: clean`, July-19 baseline) — fast-forwarded its commits onto this branch and applied the July-24 delta on top, rather than re-deriving from scratch or adding another independent attempt.
+> - **No new roadmap issue filed.** No genuinely new regulatory finding surfaced this round (unlike Round 40's AUSTRAC-enrolment discovery) — this is a pure day-count refresh. The "automate this" idea remains tracked by the existing 12+ open issues plus the meta-tracking issue **#644**; filing another would add to the exact pile-up #644 documents.
+> - **Process blocker, unchanged from #644/#648/#646**: this session also has no Codex-review tool available (confirmed via skill search), so it cannot satisfy `CLAUDE.md`'s merge gate. This PR is opened **ready-for-review, not draft**, and left for a human (or a session with Codex-review access) to merge. **`main` has now been stuck at the Round 37 commit (`3127846`, 2026-06-22) for 32 days**, while PR #648 — itself `mergeable_state: clean` and CI-green — has sat unmerged for 5 days. The blocker is not missing content; it is that nothing in this environment can complete the repo's own merge-gate requirement.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 40 — July 19 docs refresh + AUSTRAC enrolment-deadline finding** (`docs`, 2026-07-19):
 >

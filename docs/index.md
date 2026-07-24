@@ -49,7 +49,7 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Deadline status (as of 2026-07-19): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **in effect since 2026-07-01** (18 days in; enrolment grace period ends 2026-07-29, 10 days); AMLA RTS submission **deadline passed 2026-07-10** (Commission's 3-month endorsement clock now running to 2026-10-10); SR 26-2 **93 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
+    Five July 2026 research editions now live: regulator-pulse, competitive-positioning, process-pain, fintech-aml-reality, data-problem. Deadline status (as of 2026-07-24): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **in effect since 2026-07-01** (23 days in; enrolment grace period ends 2026-07-29, 5 days); AMLA RTS submission **deadline passed 2026-07-10** (14 days ago; Commission's 3-month endorsement clock now running to 2026-10-10); SR 26-2 **98 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
 
     [:octicons-arrow-right-24: Research](research/2026-07-regulator-pulse.md)
 
@@ -123,6 +123,7 @@ into every audit bundle. <strong>No reconstruction. No after-the-fact narrative.
 
 | Version | Round | Date | Shipped |
 |---------|-------|------|---------|
+| `docs` | 41 | 2026-07-24 | July 24 docs refresh — deadline countdown corrected to July 24 baseline (AUSTRAC Tranche 2 **23 days in**, was 18; enrolment grace period ends 2026-07-29, **5 days** away, was 10; AMLA RTS submission deadline **passed 14 days ago**, was 9; SR 26-2 **98 days** examination-active, was 93); builds on #648 (Round 40) rather than re-deriving. |
 | `docs` | 40 | 2026-07-19 | July 19 docs refresh — deadline countdown corrected to July 19 baseline (AUSTRAC Tranche 2 **18 days in**, was 15; new fact: enrolment grace period for newly regulated entities ends **2026-07-29**, 10 days; AMLA RTS submission deadline **passed 9 days ago**; SR 26-2 **93 days** examination-active, was 90); consolidates and supersedes #646. |
 | `docs` | 39 | 2026-07-16 | July 16 docs refresh — deadline countdown corrected to July 16 baseline (AUSTRAC Tranche 2 **15 days in**, was 7; AMLA RTS submission deadline **passed 2026-07-10** — reframed from a countdown to "deadline passed, Commission's 3-month endorsement clock running to 2026-10-10" per #605; SR 26-2 **90 days** examination-active, was 82); `docs/how-to/produce-amla-effectiveness-pack.md` gets a post-submission note on how `rts_coverage` gaps now read once the RTS is locked in. |
 | `docs` | 38 | 2026-07-08 | July 8 docs refresh — deadline countdown corrected to July 8 baseline (AUSTRAC Tranche 2 now **in effect** since July 1, no longer "9 days away"; AMLA RTS **2 days** not 18; SR 26-2 **82 days** examination-active, was 66/75); regulator-pulse's AMLA RTS citations corrected to match the code (`AMLR Art. 26` for ongoing-monitoring, `AMLR Art. 20(1)(d)` for targeted-financial-sanctions RTS, replacing the stale `Art. 19(9)`/`AMLD6 53(10)` — closes the Round 36 follow-up). |
