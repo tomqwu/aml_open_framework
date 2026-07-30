@@ -24,11 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      # ruff 0.16.0 (2026-07-23) changed the default rule selection and
-      # instantly reds every branch (1,302 findings on untouched code).
-      # Stay on the 0.15 series until the 0.16 adoption pass lands; keep
-      # this bound in lockstep with the [dev] extra in pyproject.toml.
-      - run: pip install "ruff>=0.15,<0.16"
+      - run: pip install "ruff>=0.4,<0.16"
       - run: ruff check src/ tests/
       - run: ruff format --check src/ tests/
 

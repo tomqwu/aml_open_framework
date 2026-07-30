@@ -1,6 +1,59 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-06-22. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-24. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 41 — July 24 docs refresh** (`docs`, 2026-07-24):
+>
+> - **Deadline countdown corrected to a July 24 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **23 days in** (was 18); the AUSTRAC enrolment grace period ends 2026-07-29, now **5 days** away (was 10); AMLA RTS submission deadline **passed 14 days ago** (was 9); SR 26-2 is **98 days** examination-active (was 93); the Commission's post-RTS-submission endorsement clock (2026-07-10 → 2026-10-10) now has **78 days remaining** (was 83).
+> - **Builds directly on #648** (Round 40, `mergeable_state: clean`, July-19 baseline) — fast-forwarded its commits onto this branch and applied the July-24 delta on top, rather than re-deriving from scratch or adding another independent attempt.
+> - **No new roadmap issue filed.** No genuinely new regulatory finding surfaced this round (unlike Round 40's AUSTRAC-enrolment discovery) — this is a pure day-count refresh. The "automate this" idea remains tracked by the existing 12+ open issues plus the meta-tracking issue **#644**; filing another would add to the exact pile-up #644 documents.
+> - **Process blocker, unchanged from #644/#648/#646**: this session also has no Codex-review tool available (confirmed via skill search), so it cannot satisfy `CLAUDE.md`'s merge gate. This PR is opened **ready-for-review, not draft**, and left for a human (or a session with Codex-review access) to merge. **`main` has now been stuck at the Round 37 commit (`3127846`, 2026-06-22) for 32 days**, while PR #648 — itself `mergeable_state: clean` and CI-green — has sat unmerged for 5 days. The blocker is not missing content; it is that nothing in this environment can complete the repo's own merge-gate requirement.
+>
+> No code changes; no CI targets affected.
+
+---
+
+> **Round 40 — July 19 docs refresh + AUSTRAC enrolment-deadline finding** (`docs`, 2026-07-19):
+>
+> - **Deadline countdown corrected to a July 19 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **18 days in** (was 15); AMLA RTS submission deadline **passed 9 days ago** (was 6); SR 26-2 is **93 days** examination-active (was 90).
+> - **New finding, not previously captured by any of the ~30 prior docs-refresh sessions**: AUSTRAC opened Tranche 2 enrolment 2026-03-31 with a **2026-07-29** deadline for newly regulated entities that provide a designated service on or after July 1 without having enrolled — a distinct, harder near-term deadline from the July 1 obligation-start date every prior round documented. Verified via primary/secondary sources during this round's research pass (AUSTRAC enrolment FAQs; no prior round's docs mention a July 29 date). Added to `docs/research/2026-07-regulator-pulse.md`, `2026-07-competitive-positioning.md`, `2026-07-fintech-aml-reality.md`, `docs/index.md`, and the `regulator-pulse.html` / `fintech.html` / `competitive-positioning.html` mirror pages.
+> - **AMLA submission status left hedged, not asserted**: web research this round found only prospective ("AMLA will submit...") secondary sources, no primary press release confirming the July 10 submission actually occurred — consistent with #605's acceptance criteria and Round 39's own careful framing. Docs continue to say the *statutory deadline* passed, not that submission is confirmed.
+> - **Consolidates and supersedes PR #646** (this repo's most current prior candidate, July-16 baseline, CI-green, opened ready-for-review) — cherry-picked its full content (including the pitch-HTML mirror sync and the `produce-amla-effectiveness-pack.md` / `README.md` / `dashboard-tour.md` updates it carried from #639) rather than re-deriving from a stale `main`, per the same reasoning #646 itself used relative to #639.
+> - **No new roadmap issue filed** for the "automate this" idea — already tracked by 12+ open issues (#553, #569, #573, #587, #592, #608, #609, #614, #617, #620, #629, #637) plus the meta-tracking issue **#644**. Filing another would add to the exact pile-up #644 documents.
+> - **Process blocker, unchanged from #644/#646**: this session also has no Codex-review tool available (confirmed via skill/plugin search), so it cannot satisfy `CLAUDE.md`'s merge gate either. This PR is opened **ready-for-review, not draft**, and left for a human (or a session with Codex-review access) to merge. `main` has now been stuck at the Round 37 commit (`3127846`, 2026-06-22) for **27 days**.
+>
+> No code changes; no CI targets affected.
+
+---
+
+> **Round 39 — July 16 docs refresh + AMLA RTS deadline-passed transition** (`docs`, 2026-07-16):
+>
+> - **Deadline countdown corrected to a July 16 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **15 days in** (was 7); SR 26-2 is **90 days** examination-active (was 82).
+> - **AMLA RTS submission deadline (2026-07-10) has now passed** — closes #587 / addresses #605 / #629's docs half. Reframed from a "N days" countdown to "deadline passed" everywhere it appeared, per #605's acceptance criteria: no submission outcome is asserted (no press release independently verified in this edition), and a "What happens next" section was added describing the Commission's 3-month endorsement clock (2026-07-10 → 2026-10-10, 86 days remaining). `docs/how-to/produce-amla-effectiveness-pack.md` gets a matching note on how `rts_coverage` gaps change meaning once the standard is locked in (consultation input → implementation backlog).
+> - **Not done in this pass**: `regulatory_calendar.yaml`'s `urgency_band`/status fields (#629) and the dashboard's live countdown banner still render the pre-passed framing — that's a code change (Today-page banner logic), out of scope for this docs-only round; left for #629.
+> - **Consolidation, not a new PR pile-on**: built directly on PR #639's already CI-green, `mergeable_state: clean` July-8 baseline (cherry-picked, not re-derived) rather than adding a 29th independent attempt at the same refresh — see #644's finding that 25+ duplicate sessions did exactly that against the same stale `main`. #639 is superseded by this round's PR.
+> - No new roadmap issue filed: the automation idea this round's staleness would otherwise motivate ("stop hand-editing day-counts every week") is already tracked by **12 open issues** (#553, #569, #573, #587, #592, #608, #609, #614, #617, #620, #629, #637) plus the meta-tracking issue **#644** ("scheduled docs-refresh sessions pile up as unmerged draft PRs") — filing a 13th would add to the exact pile-up #644 documents, not fix it.
+>
+> No code changes; no CI targets affected.
+
+---
+
+> **Round 38 — July 8 docs refresh + PR-backlog consolidation** (`docs`, 2026-07-08):
+>
+> - **Deadline countdown corrected to a July 8 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the six evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is now **in effect** (since 2026-07-01, no longer "9 days away"); AMLA RTS submission is **2 days** out (was 18); SR 26-2 is **82 days** examination-active (was 66, and inconsistently 75 in a few spots).
+> - **AMLA RTS citation fix (closes #635)**: `docs/research/2026-07-regulator-pulse.md` and the landing-page mirror's forward-calendar entry cited "AMLR Article 19(9)" and "AMLD6 Article 53(10)" for the business-relationships and pecuniary-sanctions RTS — flagged as a possible mismatch back in Round 36 and never resolved. Corrected to **AMLR Art. 26** (ongoing monitoring of the business relationship) and **AMLR Art. 20(1)(d)** (targeted-financial-sanctions screening), matching the verified `CITATION_URL_MAP` in `metrics/amla_effectiveness.py` (#528). **Not touched**: two historical narrative entries in the landing page's chronological log (the 2026-02-09 consultation-open and 2026-05-08 consultation-close events) that name the same articles via their actual AMLA consultation-page titles — left alone pending explicit EUR-Lex verification rather than guessed at; see follow-up below.
+> - **README.md (closes #602)** — added `aml amla-effectiveness-report` and `aml whistleblower-audit` to the Key CLI Commands table. **`docs/dashboard-tour.md` (closes #601)** — documented the EU-only "AMLA RTS coverage" fourth tab on Framework Alignment (page 8), its three-state ✓/∼/✗ indicator, and the `examples/eu_bank` reference implementation.
+> - **`mkdocs.yml` nav gap closed**: `docs/case-studies/td-2024.md` existed on disk and is linked from `README.md` and `regulator-mapping.md`, but was absent from the sidebar nav — added under Operate. Verified via `mkdocs build --strict`: no other on-disk `.md` outside `superpowers/`, `migration/`, `perf/`, and `pitch/deck-v2/` assets (none of which are meant for the public nav) is missing.
+>
+> **Process finding — the actual blocker was never missing content, it was an unmerged-PR backlog.** `main` had been stuck at the Round 37 commit for 16 days despite 25 open draft PRs on this repo attempting the same monthly-refresh work independently (and 9 more, now closed, on the demo repo — see #637). Every PR showed `mergeable_state: clean` against the same stale base, which hid the real problem: they were mutually redundant, not actually landable together. This PR consolidates rather than adds a 26th duplicate:
+> - Cherry-picked the two non-overlapping, CI-green files from **PR #636** (`README.md`, `docs/dashboard-tour.md`) verbatim.
+> - Applied **PR #638**'s evergreen-HTML-mirror patch (6 files under `docs/pitch/landing/`, zero overlap with anything else touched this round) and then corrected its baked-in June-22-era day-counts/day-out figures to July 8 on top — closes the content-currency half of #634.
+> - Superseded and closed PR #636 and PR #638 (content incorporated above) plus ~21 older same-purpose draft PRs (#550–#633) whose day-count edits are now moot given this round's numbers.
+> - Left PR #541 (stale base, `ready` not `draft`) and PR #554 (unrelated security-hardening) for separate human triage — out of scope for a docs-consolidation pass.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 37 — June 22 docs refresh** (`docs`, 2026-06-22):
 >

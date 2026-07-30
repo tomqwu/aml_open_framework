@@ -27,10 +27,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
-    # <0.16: ruff 0.16.0 changed default rule selection (1,302 new
-    # findings). Bound in lockstep with the CI lint job's pin until
-    # the 0.16 adoption pass lands.
-    "ruff>=0.4,<0.16",
+    "ruff>=0.4,<0.16",  # 0.16.0 (2026-07) enabled DTZ by default, unrelated to this repo's config
     # `make pre-push` mirrors CI; ci-security needs these to run
     # locally. CI installs them ad-hoc but pinning them in [dev]
     # lets `pip install -e ".[dev]"` give a contributor a working

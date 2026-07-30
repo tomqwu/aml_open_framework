@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Data is the AML problem — 2026 · AML Open Framework</title>
-<meta name="description" content="The binding constraint on AML program effectiveness is data, not detection. Eleven faces of the data problem, each anchored in a primary regulator source — BCBS 239, FinCEN, OSFI, FCA, FINTRAC, EBA, Wolfsberg.">
+<title>Data is the AML problem — July 2026 · AML Open Framework</title>
+<meta name="description" content="The binding constraint on AML program effectiveness is data, not detection. Eleven faces of the data problem, each anchored in a primary regulator source — BCBS 239, FinCEN, OSFI, FCA, FINTRAC, EBA, Wolfsberg — refreshed for the July 2026 edition.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
     <span style="margin-left:auto"><a href="../#/">← back to resource hub</a></span>
   </div>
 
-  <div class="r-eyebrow">Whitepaper · 2026 edition</div>
+  <div class="r-eyebrow">Whitepaper · July 2026 edition</div>
   <h1 class="r-title">Data is the AML <em>problem</em>.</h1>
   <p class="r-lede">
     The pain doc argues that audit-defensibility is the dominant 2026 pain. This doc argues the layer underneath: the binding constraint <em>under</em> audit-defensibility is data. Detection presumes data the bank often does not have. Vendor AI presumes a quality of input that public enforcement orders show does not exist. Eleven faces, each anchored in a primary regulator source.
@@ -27,7 +27,12 @@
   <div class="r-meta">
     <span><strong>Audience</strong> · CCO · MLRO · CRO · 2LoD · MRM Director</span>
     <span><strong>Sources</strong> · BCBS · FinCEN · OSFI · FCA · FINTRAC · EBA · ECB · Wolfsberg · DOJ · OCC</span>
-    <span><strong>Last refresh</strong> · May 2026</span>
+    <span><strong>Last refresh</strong> · 2026-07-24</span>
+  </div>
+
+  <div class="r-callout">
+    <span class="label">What changed since May</span>
+    <strong>SR 26-2 is now 98 days examination-active</strong> — DATA-6's "AI presumes data" gap is the first point of examiner challenge, and <code>aml model-inventory</code> (v0.1.47 M2) now documents it in one command. The <strong>Effectiveness NPRM and GENIUS Act PPSI NPRM comment windows both closed 2026-06-09</strong> — both rulemakings are pending; DATA-1 through DATA-8 move from process expectations toward proposed program-structure requirements. The <strong>AMLA RTS submission deadline passed 2026-07-10</strong> (14 days ago; Commission endorsement clock now running to 2026-10-10), the operative trigger for DATA-11. And <strong>v0.1.47 shipped M4 — point-in-time effective-dated joins</strong> (2026-06-04), giving DATA-2 a first-class engine solution: rules now resolve reference-data state contemporaneous with each transaction instead of the latest row.
   </div>
 
   <h2 class="r-h2"><em>How</em> to read this doc.</h2>
@@ -94,7 +99,7 @@
       <div class="row-val">Cost + audit-defensibility</div>
 
       <div class="row-key">Framework capability</div>
-      <div class="row-val">Perpetual KYC trigger engine (<code>pkyc/</code>) fires on transaction-pattern deltas that should re-trigger refresh. <em>Customer 360</em> page surfaces the staleness clock per attribute. The data-contract block can pin a <code>last_refreshed_at</code> column as required, so any detector consuming a customer field also consumes the freshness of that field.</div>
+      <div class="row-val">Perpetual KYC trigger engine (<code>pkyc/</code>) fires on transaction-pattern deltas that should re-trigger refresh. <em>Customer 360</em> page surfaces the staleness clock per attribute. The data-contract block can pin a <code>last_refreshed_at</code> column as required, so any detector consuming a customer field also consumes the freshness of that field. As of v0.1.47 (M4, shipped 2026-06-04), <code>DataContract.effective_dated: {valid_from, valid_to}</code> + <code>aggregation_window.enrich</code> make the SQL generator emit as-of JOINs — rules now evaluate against reference state contemporaneous with each transaction, not the latest row.</div>
     </div>
   </div>
 
@@ -182,7 +187,7 @@
       <div class="row-val">Audit-defensibility + cost</div>
 
       <div class="row-key">Framework capability</div>
-      <div class="row-val">The framework deliberately does <strong>not</strong> ship an in-tree alert-scoring ML model. Detection rules are human-authored, regulation-cited, and reviewable as policy — not model artefacts. Where the institution wants to bring its own ML scorer, the <code>python_ref</code> rule type is the seam — but the model is recorded with <code>model_id</code> + <code>model_version</code> per SR 26-2 / E-23, and the input data is still captured by the same data-contract validator that catches DATA-1 / DATA-2.</div>
+      <div class="row-val">The framework deliberately does <strong>not</strong> ship an in-tree alert-scoring ML model. Detection rules are human-authored, regulation-cited, and reviewable as policy — not model artefacts. Where the institution wants to bring its own ML scorer, the <code>python_ref</code> rule type is the seam — but the model is recorded with <code>model_id</code> + <code>model_version</code> per SR 26-2 / E-23, and the input data is still captured by the same data-contract validator that catches DATA-1 / DATA-2. As of v0.1.47 (M2, shipped 2026-06-04), <code>aml model-inventory --markdown</code> produces the SR 26-2 model-population inventory on demand — covering every scoring rule, every <code>python_ref</code> external model, and the N1 prioritization scorer.</div>
     </div>
   </div>
 
@@ -298,7 +303,7 @@
 
   <h2 class="r-h2"><em>Themes</em></h2>
   <p class="r-p">
-    The dominant message in 2026 primary sources is that <strong>data, not detection, is the binding constraint on AML program effectiveness</strong>. BCBS 239 codified this in 2013; the Basel Committee's 2023 progress report shows G-SIBs still don't meet the principles a decade later. FinCEN's April 2026 NPRM, OSFI's revised E-23 (effective 2027), FRB SR 26-2 (effective April 2026), and the FCA's 2024 Annex 1 letter converge: programs must produce evidence — data lineage, decision rationale, control coverage — on demand. The largest 2024 enforcement orders (TD, RBC) are not detection-failure cases; they are data-and-process cases dressed up as detection cases. The vendor "AI" wave presumes a data quality the consent orders show does not exist.
+    The dominant message in 2026 primary sources is that <strong>data, not detection, is the binding constraint on AML program effectiveness</strong>. BCBS 239 codified this in 2013; the Basel Committee's 2023 progress report shows G-SIBs still don't meet the principles a decade later. FinCEN's April 2026 NPRM (comment window closed 2026-06-09, rulemaking pending), OSFI's revised E-23 (effective 2027), FRB SR 26-2 (effective 2026-04-17, 98 days examination-active as of this edition), and the FCA's 2024 Annex 1 letter converge: programs must produce evidence — data lineage, decision rationale, control coverage — on demand. The largest 2024 enforcement orders (TD, RBC) are not detection-failure cases; they are data-and-process cases dressed up as detection cases. The vendor "AI" wave presumes a data quality the consent orders show does not exist.
   </p>
 
   <h2 class="r-h2">Style guide — phrases to <em>use</em>, phrases to <em>avoid</em>.</h2>
@@ -339,7 +344,7 @@
     </div>
     <div class="r-row">
       <div class="row-key">DATA-2 · Per-attribute freshness pinning</div>
-      <div class="row-val"><strong>Page</strong>: Customer 360 (staleness expander) · Data Integration. <strong>CLI</strong>: <code>aml run --strict</code> refuses stale attributes. <strong>Module</strong>: <code>spec/models.py::Column.max_staleness_days</code> + <code>engine/freshness.py</code>.</div>
+      <div class="row-val"><strong>Page</strong>: Customer 360 (staleness expander) · Data Integration. <strong>CLI</strong>: <code>aml run --strict</code> refuses stale attributes. <strong>Module</strong>: <code>spec/models.py::Column.max_staleness_days</code> + <code>engine/freshness.py</code> + <code>spec/models.py::DataContract.effective_dated</code> + <code>generators/sql.py::_enrich_join_sql</code> (v0.1.47 M4, point-in-time joins).</div>
     </div>
     <div class="r-row">
       <div class="row-key">DATA-3 · Cross-system reconciliation</div>
@@ -355,7 +360,7 @@
     </div>
     <div class="r-row">
       <div class="row-key">DATA-6 · AI presumes data (fail-closed gate)</div>
-      <div class="row-val">Closes transitively via DATA-1. <strong>CLI</strong>: <code>aml run --strict</code> halts on contract violation before any LLM call. <strong>Module</strong>: <code>assistant/factory.py</code> checks contract pass before backend invocation.</div>
+      <div class="row-val">Closes transitively via DATA-1. <strong>CLI</strong>: <code>aml run --strict</code> halts on contract violation before any LLM call · <code>aml model-inventory --markdown</code> (v0.1.47 M2, SR 26-2 inventory on demand). <strong>Module</strong>: <code>assistant/factory.py</code> checks contract pass before backend invocation.</div>
     </div>
     <div class="r-row">
       <div class="row-key">DATA-7 · Engineering vs Compliance ownership boundary</div>
@@ -381,7 +386,7 @@
 
   <div class="r-foot">
     <a href="../#/">← back to resource hub</a>
-    <span class="gh">view source on <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-05-aml-data-problem.md">github</a></span>
+    <span class="gh">view source on <a href="https://github.com/tomqwu/aml_open_framework/blob/main/docs/research/2026-07-aml-data-problem.md">github</a></span>
   </div>
 
 </div>
