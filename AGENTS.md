@@ -41,44 +41,28 @@ pytest tests/test_e2e_dashboard.py -q                            # Playwright (~
 
 Never push without all tests passing locally. CI runs 5 jobs: lint, unit-tests, api-tests, e2e-dashboard, docker-build.
 
-## PR Workflow With Codex Review
+## PR Merge Workflow
 
-This repository uses local Codex review through `openai/codex-plugin-cc`.
-
-Before shipping or merging a PR, run Codex review from Claude Code:
-
-/codex:review --base main
-
-For larger changes, prefer background review:
-
-/codex:review --base main --background
-/codex:status
-/codex:result
+Local Codex review is **no longer required** (gate removed 2026-07-30; it was
+unavailable in the remote session environments that open most PRs here, which
+left green, mergeable PRs permanently blocked — see issue #644). The
+`claude-review` CI check provides the automated review pass.
 
 Do not self-approve by posting `LGTM` markers.
 Do not require or wait for the old GitHub `codex-pr-review-gate` check.
 
 A PR may merge only when:
-1. CI is green.
+1. CI is green (including the `claude-review` check).
 2. GitHub says the PR is mergeable.
-3. Codex local review reports no blocking issues.
-4. There are no unresolved review comments or merge conflicts.
-
-If Codex review reports blockers:
-1. Keep the PR open.
-2. Fix the issues.
-3. Run relevant local checks.
-4. Push a follow-up commit.
-5. Run Codex review again.
+3. There are no unresolved review comments or merge conflicts.
 
 If the PR has merge conflicts:
 1. Update the branch against the latest base branch.
 2. Resolve conflicts carefully.
 3. Run relevant local checks.
 4. Push the resolution.
-5. Run Codex review again.
 
-If CI passes and Codex review passes:
+If CI passes:
 - Merge the PR using the repository's normal merge method.
 - Do not manually close the PR as the success path.
 
@@ -91,12 +75,12 @@ and leave a PR comment explaining why.
 
 ## Responding to PR Comments
 
-**When a comment lands on a PR, address it.** Don't leave reviewer feedback hanging. This includes Codex review notes, user inline comments, and review threads on individual lines.
+**When a comment lands on a PR, address it.** Don't leave reviewer feedback hanging. This includes automated review notes, user inline comments, and review threads on individual lines.
 
 - After opening a PR, periodically check `gh pr view <num>` and `gh api repos/<owner>/<repo>/pulls/<num>/comments` for new comments.
 - For each comment: either fix the issue and push a follow-up commit, or reply explaining why it doesn't apply (with reasoning). Don't silently ignore.
 - Reply on the PR itself (`gh pr comment` or inline review reply) — not just in the local conversation. Keep the audit trail visible to whoever reviews next.
-- For multi-issue reviews (e.g. Codex with several findings), fix all issues in one follow-up commit when feasible, then post a single response comment summarising what changed and which finding each change addresses.
+- For multi-issue reviews (e.g. an automated review with several findings), fix all issues in one follow-up commit when feasible, then post a single response comment summarising what changed and which finding each change addresses.
 - If a comment requests a behaviour the user explicitly approved earlier in the conversation, push back with the rationale before changing direction — don't flip on every reviewer suggestion.
 
 ## Project-Specific Rules
