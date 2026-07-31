@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-07-24. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-07-31. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 42 — July 31 docs refresh** (`docs`, 2026-07-31):
+>
+> - **Deadline countdown corrected to a July 31 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **30 days in** (was 23); AMLA RTS submission deadline **passed 21 days ago** (was 14); the Commission's post-RTS-submission endorsement clock (2026-07-10 → 2026-10-10) now has **71 days remaining** (was 78); SR 26-2 is **105 days** examination-active (was 98).
+> - **New transition, mirroring Round 39's AMLA RTS handling**: the AUSTRAC enrolment grace period (deadline 2026-07-29) has now **passed** — reframed everywhere from a "N days away" countdown to "ended 2026-07-29 (2 days ago)," consistent with this brief's practice of not asserting an enforcement outcome it hasn't confirmed (no AUSTRAC first-cycle enforceable-undertaking has been independently verified for this edition; only the grace-period date itself has passed). `docs/how-to/austrac-tranche2-readiness.md`'s post-enforcement monitoring scope is already tracked by #604 — not duplicated here.
+> - **Web research pass found no new primary-source developments** since Round 41: AUSTRAC's public guidance still describes a risk-based/educative early posture with no confirmed published enforceable undertaking; no independent confirmation of AMLA's actual RTS submission (the statutory deadline having passed is still reported as the fact, not a filing outcome); the FinCEN Whistleblower NPRM remains in proposed-rule status. No regulatory citation or framing changes beyond the day-count updates above.
+> - **Builds directly on `main`'s tip** (`6cdb9be`, which includes #650 removing the Codex local-review merge gate) — the first round able to complete the merge itself rather than stacking another unmerged draft PR, since `main` is no longer stuck (Round 41 merged cleanly on 2026-07-30/31).
+> - **No new roadmap issue filed.** No genuinely new regulatory finding surfaced this round beyond the AUSTRAC grace-period transition, which is already in scope of the open #604 (AUSTRAC post-enforcement observation) and #605-style transition handling — filing a new issue would duplicate existing tracking.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 41 — July 24 docs refresh** (`docs`, 2026-07-24):
 >

@@ -27,12 +27,12 @@
   <div class="r-meta">
     <span><strong>Author</strong> · deep-research-agent</span>
     <span><strong>Scope</strong> · post-H0–H6 security sprint (2026-05-31) + M1–M4 ML roadmap (v0.1.46/v0.1.47, 2026-06-04)</span>
-    <span><strong>Refresh</strong> · 2026-07-24</span>
+    <span><strong>Refresh</strong> · 2026-07-31</span>
   </div>
 
   <div class="r-callout">
     <span class="label">What changed since April</span>
-    The <strong>Effectiveness NPRM + GENIUS Act PPSI NPRM dual comment window closed 2026-06-09</strong> — both rulemakings are pending; comment-window work now counts as documented proactive-posture evidence. <strong>AUSTRAC Tranche 2 enforcement is now in effect (since 2026-07-01, enrolment grace period ends 2026-07-29)</strong> and the <strong>AMLA RTS submission deadline passed 2026-07-10</strong> (Commission's 3-month endorsement clock now running to 2026-10-10) — no OSS competitor has shipped an AMLA RTS pack. <strong>SR 26-2 is 98 days examination-active</strong>, with Q2 cycles run and Q3 forming. The May 31 <strong>H0–H6 security-hardening sprint</strong> closed the framework's own remaining SR 26-2 gaps (enforced coverage floor, zip-slip and SQL-injection fixes, byte-deterministic audit packs), and the <strong>M1–M4 ML roadmap</strong> (Triage Queue, <code>aml model-inventory</code>, champion-challenger outcome report, point-in-time joins) shipped in v0.1.46/v0.1.47 on 2026-06-04.
+    The <strong>Effectiveness NPRM + GENIUS Act PPSI NPRM dual comment window closed 2026-06-09</strong> — both rulemakings are pending; comment-window work now counts as documented proactive-posture evidence. <strong>AUSTRAC Tranche 2 enforcement is now in effect (since 2026-07-01, enrolment grace period ended 2026-07-29)</strong> and the <strong>AMLA RTS submission deadline passed 2026-07-10</strong> (Commission's 3-month endorsement clock now running to 2026-10-10) — no OSS competitor has shipped an AMLA RTS pack. <strong>SR 26-2 is 105 days examination-active</strong>, with Q2 cycles run and Q3 forming. The May 31 <strong>H0–H6 security-hardening sprint</strong> closed the framework's own remaining SR 26-2 gaps (enforced coverage floor, zip-slip and SQL-injection fixes, byte-deterministic audit packs), and the <strong>M1–M4 ML roadmap</strong> (Triage Queue, <code>aml model-inventory</code>, champion-challenger outcome report, point-in-time joins) shipped in v0.1.46/v0.1.47 on 2026-06-04.
   </div>
 
   <h2 class="r-h2">Where the <em>2026 field</em> sits.</h2>
@@ -86,12 +86,12 @@
 
   <div class="r-spa">
     <div class="lead">Strategic Planning Assumption · #1</div>
-    Since <strong>2026-04-17</strong>, SR&nbsp;26-2 (joint Fed/OCC/FDIC) folds AML transaction monitoring, sanctions screening and CDD into the model-risk inventory — now <strong>98 days examination-active</strong>, with Q2 cycles run and Q3 forming — so every <strong>ML-first vendor carries a model-validation tax</strong> on every typology. Manifest entries with cited <code>regulation_ref</code> are not models under SR&nbsp;26-2; they are policy artefacts.
+    Since <strong>2026-04-17</strong>, SR&nbsp;26-2 (joint Fed/OCC/FDIC) folds AML transaction monitoring, sanctions screening and CDD into the model-risk inventory — now <strong>105 days examination-active</strong>, with Q2 cycles run and Q3 forming — so every <strong>ML-first vendor carries a model-validation tax</strong> on every typology. Manifest entries with cited <code>regulation_ref</code> are not models under SR&nbsp;26-2; they are policy artefacts.
   </div>
 
   <div class="r-spa">
     <div class="lead">Strategic Planning Assumption · #2</div>
-    AMLA's statutory deadline to submit its final RTS on STR-effectiveness telemetry to the European Commission was <strong>2026-07-10</strong> (passed, 14 days ago); the Commission now has three months to endorse before the RTS binds (→ 2026-10-10). The framework's alert→case→STR funnel + per-rule precision/recall + AMLA-citation coverage <strong>has already shipped</strong> (<code>aml amla-effectiveness-report</code>, #528) — the <strong>only OSS implementation</strong> with the required schema in tree today.
+    AMLA's statutory deadline to submit its final RTS on STR-effectiveness telemetry to the European Commission was <strong>2026-07-10</strong> (passed, 21 days ago); the Commission now has three months to endorse before the RTS binds (→ 2026-10-10). The framework's alert→case→STR funnel + per-rule precision/recall + AMLA-citation coverage <strong>has already shipped</strong> (<code>aml amla-effectiveness-report</code>, #528) — the <strong>only OSS implementation</strong> with the required schema in tree today.
   </div>
 
   <h2 class="r-h2"><span class="num">1.</span> Vendor archetypes — <em>strengths &amp; cautions</em></h2>
@@ -186,7 +186,7 @@
       <div class="col cautions">
         <h4>! Cautions</h4>
         <ul>
-          <li><strong>Marble.</strong> No Compliance Manifest as source-of-truth; no MRM bundle; no jurisdiction-specific reports; no deterministic-rerun guarantee; no SR&nbsp;26-2 model inventory or champion-challenger outcome report. SR&nbsp;26-2 examination-active for 98 days as of this edition — the gap is now being felt and the <code>aml model-inventory</code> CLI widens it further.</li>
+          <li><strong>Marble.</strong> No Compliance Manifest as source-of-truth; no MRM bundle; no jurisdiction-specific reports; no deterministic-rerun guarantee; no SR&nbsp;26-2 model inventory or champion-challenger outcome report. SR&nbsp;26-2 examination-active for 105 days as of this edition — the gap is now being felt and the <code>aml model-inventory</code> CLI widens it further.</li>
           <li><strong>Jube.</strong> ML-first design is exactly what FinCEN NPRM + SR 26-2 push back against.</li>
           <li><strong>FINOS OpenAML.</strong> Narrow scope (crypto wallets), labs-stage, not a TM platform.</li>
         </ul>
@@ -333,7 +333,7 @@
 
   <h2 class="r-h2"><span class="num">3.</span> Four highest-leverage features — <em>July 2026 re-ranking</em></h2>
   <p class="r-section-dek">
-    Re-ranked with current evidence. AUSTRAC Tranche 2 enforcement now in effect (since 2026-07-01, enrolment grace period ends 2026-07-29), the AMLA RTS submission deadline passed (2026-07-10, 14 days ago — <a href="https://www.amla.europa.eu/amla-takes-major-step-toward-harmonised-eu-supervision_en">AMLA portal</a>), and the now-closed FinCEN Effectiveness + GENIUS Act NPRM comment window (closed 2026-06-09 — <a href="https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs">Federal Register 2026-07033</a>) reshuffle the impact ÷ effort math. All four items below have shipped.
+    Re-ranked with current evidence. AUSTRAC Tranche 2 enforcement now in effect (since 2026-07-01, enrolment grace period ended 2026-07-29), the AMLA RTS submission deadline passed (2026-07-10, 21 days ago — <a href="https://www.amla.europa.eu/amla-takes-major-step-toward-harmonised-eu-supervision_en">AMLA portal</a>), and the now-closed FinCEN Effectiveness + GENIUS Act NPRM comment window (closed 2026-06-09 — <a href="https://www.federalregister.gov/documents/2026/04/10/2026-07033/anti-money-laundering-and-countering-the-financing-of-terrorism-programs">Federal Register 2026-07033</a>) reshuffle the impact ÷ effort math. All four items below have shipped.
   </p>
 
   <div class="r-feat">
@@ -342,7 +342,7 @@
       <span class="ttl">AUSTRAC Tranche 2 example spec · <em>examples/austrac_tranche_2_dnfbp/</em></span>
       <div class="badges"><span class="badge">Shipped</span><span class="badge imp">IMPACT/EFFORT: HIGHEST</span></div>
     </div>
-    <p>Enforcement <strong>began July 1</strong> (23 days ago); the enrolment grace period for newly regulated entities ends 2026-07-29 (5 days). No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with <em>documented</em> good-faith compliance efforts. Programs stood up before July 1 are already inside the favourable posture.</p>
+    <p>Enforcement <strong>began July 1</strong> (30 days ago); the enrolment grace period for newly regulated entities ended 2026-07-29 (2 days ago). No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with <em>documented</em> good-faith compliance efforts. Programs stood up before July 1 are already inside the favourable posture.</p>
     <div class="risk"><strong>Sustain:</strong> widen the lead with audit-pack jurisdiction tags (<code>aml audit-pack --jurisdiction AU-AUSTRAC</code>).</div>
   </div>
 
@@ -352,7 +352,7 @@
       <span class="ttl">AMLA STR / RTS effectiveness telemetry pack · <em>metrics/amla_effectiveness.py</em> (#528)</span>
       <div class="badges"><span class="badge">Shipped</span><span class="badge imp">IMPACT/EFFORT: HIGH</span></div>
     </div>
-    <p>Alert → case → STR funnel with per-rule precision / recall + AMLA citation coverage, packaged against the AMLA RTS submission deadline that passed 2026-07-10 (14 days ago — <a href="https://blog.protiviti.com/2026/03/16/amla-readiness-starts-now-ten-practical-moves-for-2026/">Protiviti AMLA readiness</a>). FinCEN's Effectiveness NPRM (comment window closed 2026-06-09) enumerates the same metrics. <strong>One feature, two regulators, both with hard 2026 deadlines.</strong></p>
+    <p>Alert → case → STR funnel with per-rule precision / recall + AMLA citation coverage, packaged against the AMLA RTS submission deadline that passed 2026-07-10 (21 days ago — <a href="https://blog.protiviti.com/2026/03/16/amla-readiness-starts-now-ten-practical-moves-for-2026/">Protiviti AMLA readiness</a>). FinCEN's Effectiveness NPRM (comment window closed 2026-06-09) enumerates the same metrics. <strong>One feature, two regulators, both with hard 2026 deadlines.</strong></p>
     <div class="risk"><strong>Note:</strong> STR acceptance is a regulator-feedback event the run doesn't record — reported <code>not_tracked</code>, never fabricated.</div>
   </div>
 
