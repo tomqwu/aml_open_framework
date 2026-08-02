@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-07-24. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-01. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 42 — August 1 docs refresh** (`docs`, 2026-08-01):
+>
+> - **Deadline countdown corrected to an August 1 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the evergreen `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **31 days in** (was 23); SR 26-2 is **106 days** examination-active (was 98); AMLA RTS submission deadline **passed 22 days ago** (was 14); the Commission's post-RTS-submission endorsement clock (2026-07-10 → 2026-10-10) now has **70 days remaining** (was 78).
+> - **AUSTRAC enrolment grace period transitions from countdown to passed**: the 2026-07-29 enrolment deadline for newly regulated entities (previously "5 days away" as of Round 41) has now elapsed — reframed everywhere it appears from a "N days away" countdown to "passed 2026-07-29 (3 days ago)", the same countdown→passed transition Round 39 applied to the AMLA RTS submission deadline. No outcome (enforcement action, compliance rate) is asserted — only that the statutory deadline itself has passed, consistent with this doc set's practice of not asserting a regulatory outcome that hasn't been independently confirmed.
+> - **Primary-source check before the refresh**: this round's web research found no new primary-source developments since Round 41 on any of the four tracked items — no AUSTRAC enforcement/compliance-rate announcement post-July 29, no confirmed AMLA RTS submission press release, no FinCEN Whistleblower final rule. Docs continue to state deadlines as *passed*, not outcomes as *confirmed*.
+> - **Process blocker from Rounds 38–41 is resolved**: `CLAUDE.md`'s Codex local-review merge gate — which left Round 40/41 unable to self-merge and `main` stuck for 32+ days — was removed 2026-07-30 (#650, closes #644). This round's PR can go through the now-current `PR Merge Workflow` (CI green including `claude-review`, mergeable, no unresolved comments) without the prior workaround.
+> - **No new roadmap issue filed** for the recurring "automate the day-count refresh" idea — already tracked by 12+ open issues plus the meta-tracking issue **#644**; filing another would add to the pile-up #644 documents. A full August 2026 monthly research-edition refresh (new `docs/research/2026-08-*.md` files carried forward from the July editions, per the precedent set at 2026-07-01) is a larger content-authoring task than this round's mechanical day-count patch — out of scope here; left as a follow-up for a dedicated session.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 41 — July 24 docs refresh** (`docs`, 2026-07-24):
 >
