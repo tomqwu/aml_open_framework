@@ -159,6 +159,7 @@ nav:
       - architecture.md
       - personas.md
       - "Research whitepapers":
+          - research/2026-08-aml-data-problem.md
           - research/2026-07-regulator-pulse.md
           - research/2026-07-competitive-positioning.md
           - research/2026-07-aml-process-pain.md
