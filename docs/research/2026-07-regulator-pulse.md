@@ -36,7 +36,7 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 **What MLROs need to do:**
 - Australian DNFBPs must now be enrolled with AUSTRAC and hold a documented, board-approved AML/CTF program — the enrolment-and-program obligation went live July 1 and firms without one are already out of compliance.
 - Entities not yet enrolled should treat July 29 as the operative near-term deadline, not July 1 — enrolment is the floor, not the finish line; CDD, sanctions/PEP screening, and SMR capability must already be operating for any designated service provided since July 1.
-- AUSTRAC's stated first-cycle posture favours enforceable undertakings (EUs) over civil penalties (up to A$31.3M per contravention for a corporation) — but only for firms with documented good-faith compliance efforts. Firms still building one should treat the gap as live exposure, not a future deadline.
+- AUSTRAC's stated first-cycle posture favours enforceable undertakings (EUs) over civil penalties (up to A$36.4M per contravention for a corporation, 100,000 penalty units at the $364 Commonwealth penalty-unit value effective 1 July 2026 — corrected from a A$31.3M figure carried in earlier editions, which used the pre-indexation $313 unit value; see [`2026-08-aml-data-problem.md`](2026-08-aml-data-problem.md#the-data-problem-this-month) for the correction) — but only for firms with documented good-faith compliance efforts. Firms still building one should treat the gap as live exposure, not a future deadline.
 - The AML Open Framework's multi-jurisdiction example pattern (`examples/austrac_tranche_2_dnfbp/`) can serve as the Compliance Manifest template for a Tranche 2-scoped program with a single PR.
 
 **Sources:**
