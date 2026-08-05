@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-01. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-05. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 44 — August 5 docs refresh + cross-doc baseline reconciliation** (`docs`, 2026-08-05):
+>
+> - **Deadline countdown corrected to an August 5 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **35 days in** (was 33); the enrolment grace period **passed 7 days ago** (was 5); AMLA RTS submission deadline **passed 26 days ago** (was 24); the Commission's post-RTS-submission endorsement clock now has **66 days remaining** (was 68); SR 26-2 is **110 days** examination-active (was 108).
+> - **Closed a cross-doc baseline inconsistency introduced by Round 43.** Round 43 refreshed `docs/index.md` and the new `2026-08-aml-data-problem.md` edition to an August 3 baseline, but did not touch the other four `2026-07-*.md` editions or their html mirrors, which were left at Round 42's August 1 baseline (e.g. `docs/index.md` read "33 days in" while `2026-07-regulator-pulse.md` still read "31 days in" for the same fact). This round brings every date-sensitive figure across all eleven affected files to the same August 5 baseline in one pass, including the "as of August 1" / "Last updated 2026-08-01" bylines that had drifted independently of the numbers they anchor.
+> - **Primary-source check, 2026-08-05**: no new developments on any of the four tracked items since Round 43 — AUSTRAC has not announced an enforcement or compliance-rate outcome; no independently verifiable press release confirms AMLA's RTS submission occurred; the FinCEN AML Program Effectiveness NPRM and FinCEN Whistleblower Incentives and Protections NPRM both remain pending rulemakings with no final rule.
+> - **No new roadmap issue filed.** Issue #617 already tracks the full 5-file August 2026 research refresh (the four `2026-07-*.md` editions carried forward this round are still July-dated content with an updated countdown, not new August editions — that authoring work remains open under #617); issue #655 already tracks the underlying Actions-permissions gap. The open-issue list for this repo has grown to 69 open items, a large share of which are variations on "refresh the day-counts" or "add the next month's research edition" — filing another would add to the exact pile-up the meta-tracking issue **#644** documents.
+> - **PR pushed to this session's assigned branch** (`claude/keen-hypatia-mqv71i`) per the standing branch-isolation constraint.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 43 — August 2026 research-stub completion + AUSTRAC penalty-figure correction** (`docs`, 2026-08-03):
 >
