@@ -2,7 +2,7 @@
 
 This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed in the May–June 2026 window that generate compliance deadlines between 2026-07-01 and 2026-09-30. It is a living forward-calendar companion to the June 2026 edition ([`2026-06-regulator-pulse.md`](2026-06-regulator-pulse.md)) and the full chronological log in [`2026-05-regulator-pulse.md`](2026-05-regulator-pulse.md), which covers the 120-day event window 2026-02-01 → 2026-05-31.
 
-> **Last updated 2026-08-05.** *Previous edition: [2026-06-regulator-pulse.md](2026-06-regulator-pulse.md). Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events.*
+> **Last updated 2026-08-07.** *Previous edition: [2026-06-regulator-pulse.md](2026-06-regulator-pulse.md). Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 120 days, 33 events.*
 
 ---
 
@@ -29,9 +29,9 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ---
 
-### ✓ IN EFFECT · 2026-07-01 · AUSTRAC — Tranche 2 enforcement now live for Australian DNFBPs (35 days in); enrolment grace period passed 2026-07-29 (7 days ago)
+### ✓ IN EFFECT · 2026-07-01 · AUSTRAC — Tranche 2 enforcement now live for Australian DNFBPs (37 days in); enrolment grace period passed 2026-07-29 (9 days ago)
 
-**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brought Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, **enforceable since 2026-07-01 — 35 days in.** AUSTRAC opened enrolment 2026-03-31; newly regulated entities providing a designated service since July 1 without having enrolled were required to do so by **2026-07-29 — now 7 days past.**
+**What it is:** AUSTRAC's Tranche 2 AML/CTF reform brought Australian lawyers, accountants, real-estate agents, and dealers in precious metals and stones (DPMS) under the AML/CTF Act with mandatory enrolment and board-approved AML/CTF programs, **enforceable since 2026-07-01 — 37 days in.** AUSTRAC opened enrolment 2026-03-31; newly regulated entities providing a designated service since July 1 without having enrolled were required to do so by **2026-07-29 — now 9 days past.**
 
 **What MLROs need to do:**
 - Australian DNFBPs must now be enrolled with AUSTRAC and hold a documented, board-approved AML/CTF program — the enrolment-and-program obligation went live July 1 and firms without one are already out of compliance.
@@ -48,9 +48,9 @@ This is a CCO/MLRO-facing brief covering active regulatory obligations confirmed
 
 ### ✓ DEADLINE PASSED · 2026-07-10 · AMLA — Statutory deadline to submit all final RTS to European Commission
 
-**What it is:** AMLA's statutory deadline to submit final draft regulatory technical standards — including the CDD RTS (AMLR Art. 28(1)), the ongoing-monitoring-of-the-business-relationship RTS (AMLR Art. 26), and the targeted-financial-sanctions-screening RTS (AMLR Art. 20(1)(d)) — to the European Commission **passed on 2026-07-10 (26 days ago).** No AMLA submission press release has been independently verified for this edition; the statutory deadline itself is treated here as passed, not as a confirmed filing outcome — consistent with this brief's practice of not asserting a regulatory outcome it hasn't confirmed.
+**What it is:** AMLA's statutory deadline to submit final draft regulatory technical standards — including the CDD RTS (AMLR Art. 28(1)), the ongoing-monitoring-of-the-business-relationship RTS (AMLR Art. 26), and the targeted-financial-sanctions-screening RTS (AMLR Art. 20(1)(d)) — to the European Commission **passed on 2026-07-10 (28 days ago).** No AMLA submission press release has been independently verified for this edition; the statutory deadline itself is treated here as passed, not as a confirmed filing outcome — consistent with this brief's practice of not asserting a regulatory outcome it hasn't confirmed.
 
-**What happens next — the Commission's 3-month endorsement clock:** Once submitted, the Commission has three months to endorse the RTS before they become binding law: a window running **2026-07-10 → 2026-10-10 (66 days remaining as of this edition).** After endorsement, the RTS become binding law and obligations apply from the application date specified in each standard. AMLA's 2027 direct-supervision selection exercise (first ~40 entities selected July 2027) uses the same data period as this submission.
+**What happens next — the Commission's 3-month endorsement clock:** Once submitted, the Commission has three months to endorse the RTS before they become binding law: a window running **2026-07-10 → 2026-10-10 (64 days remaining as of this edition).** After endorsement, the RTS become binding law and obligations apply from the application date specified in each standard. AMLA's 2027 direct-supervision selection exercise (first ~40 entities selected July 2027) uses the same data period as this submission.
 
 **What MLROs need to do:**
 - Treat July 10 as the "locked-in" date for the RTS framework. Post-July amendments require a full new legislative cycle — the window to influence the standard closed with the May consultations (all closed by 2026-05-08).
@@ -76,7 +76,7 @@ Four ML/AI roadmap features delivered 2026-06-04 across `v0.1.46` + `v0.1.47`:
 | **M3 — champion-challenger `priority_outcome.json`** | v0.1.47 | Precision@k / recall comparison between champion and challenger weights; temporal-leakage guard enforced at runtime — satisfies SR 26-2's independent-challenger validation requirement |
 | **M4 — point-in-time effective-dated joins** | v0.1.47 | `DataContract.effective_dated` + `aggregation_window.enrich` emit as-of SQL JOINs so rules resolve reference state contemporaneous with each transaction; closes Pillar 3 (PARTIAL → COVERED) |
 
-These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (**110 days from April 17 as of August 5**): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, and a model inventory that can be produced on demand.
+These directly address the SR 26-2 and Effectiveness NPRM controls that are now examination-active (**112 days from April 17 as of August 7**): demonstrable test coverage of ML scoring logic, deterministic replay of flagged alerts, and a model inventory that can be produced on demand.
 
 ---
 
@@ -102,10 +102,12 @@ These are not operational niceties — they are the controls regulators will ins
 
 **AMLA direct-supervision selection (2027-07-01 → 2027-12-31).** AMLA will select its first 40 directly-supervised obliged entities from July 2027. The data-collection exercise now underway feeds the selection methodology. Groups operating in 6+ EU member states with significant AML risk profiles are the highest-exposure segment.
 
-**AUSTRAC Tranche 2 first enforcement cycle (2026-07-01 onward).** Tranche 2 is now live, 35 days in, and the enrolment grace period has passed (2026-07-29, 7 days ago). AUSTRAC's first-cycle posture will be clarified in H2 2026 through its inspection and EU program. First-mover documented programs will be the benchmark.
+**AUSTRAC Tranche 2 first enforcement cycle (2026-07-01 onward).** Tranche 2 is now live, 37 days in, and the enrolment grace period has passed (2026-07-29, 9 days ago). AUSTRAC's first-cycle posture will be clarified in H2 2026 through its inspection and EU program. First-mover documented programs will be the benchmark.
+
+**New this edition — two enforcement actions landed inside the Tranche 2 window, but against pre-existing registrants, not new DNFBPs.** AUSTRAC finalised its enforceable undertaking with wagering operator Sportsbet on 2026-07-03 (independent audit confirmed remediation across five required compliance areas) and entered a fresh enforceable undertaking with bet365 days later (audit found gaps in risk-assessment methodology and suspicious-matter reporting; bet365 must file a progress report by December 2026 and complete a final compliance audit by mid-2027). Both operators were already AUSTRAC-regulated wagering-sector entities under the pre-Tranche-2 scope — **these are not enforcement outcomes against the newly regulated Tranche 2 DNFBP population** (lawyers, accountants, real-estate agents, DPMS) this section tracks, and no such outcome has been independently confirmed as of this edition. Read together with AUSTRAC's stated good-faith posture toward newly regulated entities, the signal is a regulator actively exercising its enforcement powers during the same window Tranche 2 commenced, not evidence about how it will treat the new DNFBP population specifically. — [AUSTRAC: Sportsbet enforceable undertaking finalised](https://www.austrac.gov.au/news-and-media/news/austrac-finalises-enforceable-undertaking-sportsbet) · [AUSTRAC: bet365 enforceable undertaking](https://www.austrac.gov.au/news-and-media/news/bet365-overhaul-aml-systems-under-austrac-enforceable-undertaking)
 
 **FinCEN Whistleblower final rule.** Expected late 2026 / early 2027. The March 30 NPRM's comment period closed 2026-06-01. Once finalised, the 10–30% award structure becomes operational. Firms with unresolved SAR-backlog or screening-gap issues face heightened exposure from insider tips.
 
 ---
 
-*Last updated: 2026-08-05 · Previous edition: [2026-06-regulator-pulse.md](2026-06-regulator-pulse.md). Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*
+*Last updated: 2026-08-07 · Previous edition: [2026-06-regulator-pulse.md](2026-06-regulator-pulse.md). Full chronological log: [2026-05-regulator-pulse.md](2026-05-regulator-pulse.md) — 2026-02-01 → 2026-05-31, 120 days, 33 events.*

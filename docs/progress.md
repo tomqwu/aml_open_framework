@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-05. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-07. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 45 — August 7 docs refresh + first AUSTRAC-window enforcement finding** (`docs`, 2026-08-07):
+>
+> - **Deadline countdown corrected to an August 7 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **37 days in** (was 35); the enrolment grace period **passed 9 days ago** (was 7); AMLA RTS submission deadline **passed 28 days ago** (was 26); the Commission's post-RTS-submission endorsement clock now has **64 days remaining** (was 66); SR 26-2 is **112 days** examination-active (was 110).
+> - **New finding — AUSTRAC's first enforcement actions of the Tranche 2 window, correctly scoped.** Primary-source check found AUSTRAC finalised its enforceable undertaking with wagering operator Sportsbet on 2026-07-03 and entered a fresh enforceable undertaking with bet365 days later — the first two enforcement actions since Tranche 2 commenced July 1. Both operators were already AUSTRAC-regulated under the pre-Tranche-2 scope, so **these are not enforcement outcomes against the newly regulated Tranche 2 DNFBP population** (lawyers, accountants, real-estate agents, DPMS) this doc set tracks; no such outcome has been independently confirmed. Added as a precisely-scoped note (not an overstated "first Tranche 2 enforcement" claim) to `2026-07-regulator-pulse.md`, its html mirror, and `docs/index.md`'s deadline card, cited to AUSTRAC's own media releases. This is the first primary-source development found since Round 42 — Rounds 43/44 both reported "no new developments."
+> - **No new roadmap issue filed.** Issue #617 already tracks the remaining 5-file August research-refresh authoring work; issue #655 already tracks the Actions-permissions gap; issue #632 already tracks the docs-refresh-PR-pileup process concern. Filing another would add to the exact pile-up **#644** documents.
+> - **PR pushed to this session's assigned branch** (`claude/keen-hypatia-d1f1v7`) per the standing branch-isolation constraint.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 44 — August 5 docs refresh + cross-doc baseline reconciliation** (`docs`, 2026-08-05):
 >
