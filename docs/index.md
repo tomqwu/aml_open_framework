@@ -49,7 +49,7 @@ output hashes. <strong>In-bank, not SaaS.</strong> Apache 2.0.
 
     ---
 
-    Five July 2026 research editions plus a new August 2026 data-problem edition now live. Deadline status (as of 2026-08-05): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **in effect since 2026-07-01** (35 days in; enrolment grace period **passed 2026-07-29**, 7 days ago; corporate penalty maximum corrected to **A$36.4M** at the current $364 penalty-unit value); AMLA RTS submission **deadline passed 2026-07-10** (26 days ago; Commission's 3-month endorsement clock now running to 2026-10-10, 66 days remaining); SR 26-2 **110 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
+    Five July 2026 research editions plus a new August 2026 data-problem edition now live. Deadline status (as of 2026-08-07): Effectiveness NPRM + GENIUS Act NPRM comment window **closed 2026-06-09** (rulemaking pending); AUSTRAC Tranche 2 **in effect since 2026-07-01** (37 days in; enrolment grace period **passed 2026-07-29**, 9 days ago; corporate penalty maximum corrected to **A$36.4M** at the current $364 penalty-unit value; AUSTRAC's first two enforcement actions of the window — Sportsbet finalised, bet365 fresh undertaking — landed against pre-existing wagering registrants, not new DNFBPs); AMLA RTS submission **deadline passed 2026-07-10** (28 days ago; Commission's 3-month endorsement clock now running to 2026-10-10, 64 days remaining); SR 26-2 **112 days** examination-active. M1–M4 ML roadmap shipped v0.1.46–v0.1.47.
 
     [:octicons-arrow-right-24: Research](research/2026-07-regulator-pulse.md)
 
