@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-07. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 46 — August 9 docs refresh + Regulatory Calendar confirmed-vs-planning gap filed** (`docs`, 2026-08-09):
+>
+> - **Deadline countdown corrected to an August 9 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **39 days in** (was 37); the enrolment grace period **passed 11 days ago** (was 9); AMLA RTS submission deadline **passed 30 days ago** (was 28); the Commission's post-RTS-submission endorsement clock now has **62 days remaining** (was 64); SR 26-2 is **114 days** examination-active (was 112).
+> - **Primary-source check, 2026-08-09**: no new confirmed developments changing any of the four tracked deadlines/outcomes since Round 45 — AUSTRAC has announced no further enforcement action against the newly regulated Tranche 2 DNFBP population; no independently verifiable press release confirms AMLA's RTS submission occurred; the FinCEN AML Program Effectiveness NPRM and FinCEN Whistleblower Incentives and Protections NPRM both remain pending rulemakings with no final rule. Noted but **not integrated**: AMLA's separate *group-wide-requirements and third-country-measures* RTS consultation track carries its own distinct 2026-09-30 Commission-submission target — a different RTS package from the Art. 28(1) CDD-RTS / Art. 26 / Art. 20(1)(d) trio this doc set already tracks under the 2026-07-10 deadline. Adding it as a new calendar entry is a scoping decision for a dedicated session, not this round's mechanical day-count patch.
+> - **Backfilled a missing changelog row**: `docs/index.md`'s "What's new" table was missing its Round 45 entry (shipped 2026-08-07, never added to that table) — added retroactively alongside this round's Round 46 row.
+> - **New roadmap issue filed: [#659](https://github.com/tomqwu/aml_open_framework/issues/659)** — the Regulatory Calendar page (page 54, #511) doesn't visually distinguish confirmed statutory deadlines (Federal Register/AMLA/AUSTRAC `source_url`) from framework-internal planning milestones (bare agency-homepage `source_url`, e.g. the 2026-08-15 "FinCEN AML Program Effectiveness rule — implementation planning" entry). This gap was flagged in Round 43/44/45 notes but never had its own tracked issue — confirmed via a 15+ query issue search before filing, per the #644/#632 anti-pile-up discipline (the recurring "refresh the day-counts" idea itself is *not* re-filed here — #617/#632/#655 already cover that ground).
+> - **PR pushed to this session's assigned branch** (`claude/keen-hypatia-hfdxs5`) per the standing branch-isolation constraint.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 45 — August 7 docs refresh + first AUSTRAC-window enforcement finding** (`docs`, 2026-08-07):
 >
