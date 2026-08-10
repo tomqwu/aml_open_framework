@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-10. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 47 — August 10 docs refresh** (`docs`, 2026-08-10):
+>
+> - **Deadline countdown corrected to an August 10 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **40 days in** (was 39); the enrolment grace period **passed 12 days ago** (was 11); AMLA RTS submission deadline **passed 31 days ago** (was 30); the Commission's post-RTS-submission endorsement clock now has **61 days remaining** (was 62); SR 26-2 is **115 days** examination-active (was 114).
+> - **Primary-source check, 2026-08-10**: no new confirmed developments changing any of the four tracked deadlines/outcomes since Round 46. AUSTRAC CEO Brendan Thomas was quoted reiterating that conveyancers who still haven't enrolled face "looming" regulatory action — this is supervisory-posture commentary, not a new enforcement action or compliance-rate outcome, so (consistent with this doc set's practice of not asserting an outcome that hasn't happened) it is noted here but not added as a tracked finding or worked into any doc's body. The FinCEN AML Program Effectiveness NPRM and FinCEN Whistleblower Incentives and Protections NPRM both remain pending rulemakings with no final rule; no independently verifiable press release confirms AMLA's 2026-07-10 RTS submission occurred.
+> - **No new roadmap issue filed.** No genuinely new regulatory finding surfaced this round — this is a pure day-count refresh, and #617 (research-doc authoring), #632 (docs-refresh-PR pile-up), #655 (Actions PR-creation permission gap), and #659 (Regulatory Calendar confirmed-vs-planning distinction) already cover the open work this round touches.
+> - **PR pushed to this session's assigned branch** (`claude/keen-hypatia-mphe2i`) per the standing branch-isolation constraint.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 46 — August 9 docs refresh + Regulatory Calendar confirmed-vs-planning gap filed** (`docs`, 2026-08-09):
 >
