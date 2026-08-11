@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-11. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 47 — August 11 docs refresh** (`docs`, 2026-08-11):
+>
+> - **Deadline countdown corrected to an August 11 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **41 days in** (was 39); the enrolment grace period **passed 13 days ago** (was 11); AMLA RTS submission deadline **passed 32 days ago** (was 30); the Commission's post-RTS-submission endorsement clock now has **60 days remaining** (was 62); SR 26-2 is **116 days** examination-active (was 114).
+> - **Primary-source check, 2026-08-11**: web search against AUSTRAC, AMLA, and FinCEN sources found no new confirmed developments changing any of the four tracked deadlines/outcomes since Round 46 — AUSTRAC has announced no further enforcement action against the newly regulated Tranche 2 DNFBP population; no independently verifiable press release confirms AMLA's RTS submission occurred; the FinCEN AML Program Effectiveness NPRM and FinCEN Whistleblower Incentives and Protections NPRM both remain pending rulemakings with no final rule.
+> - **Re-verified the AUSTRAC A$364 penalty-unit figure** (Round 43's correction): cross-checked against the Crimes Act 1914 s.4AA July-2026 indexation via independent search — still correct at A$36.4M corporate maximum, no change needed. (A search result surfaced a stale $330/unit figure from a page not yet updated for the 1 July 2026 indexation; the $364 figure this doc set already carries is the current one.)
+> - **No new roadmap issue filed.** Issue #659 already tracks the Regulatory Calendar confirmed-vs-planning distinction; #617 tracks the remaining 5-file August research-refresh authoring work; #655 tracks the Actions-permissions gap; #632 tracks the docs-refresh-PR-pileup process concern. The open-issue count stands at 70 — filing another day-count-refresh issue would add to the exact pile-up **#644** documents.
+> - **PR pushed to this session's assigned branch** (`claude/keen-hypatia-osqr5h`) per the standing branch-isolation constraint.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 46 — August 9 docs refresh + Regulatory Calendar confirmed-vs-planning gap filed** (`docs`, 2026-08-09):
 >
