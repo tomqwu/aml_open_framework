@@ -1,6 +1,17 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-09. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-12. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 47 — August 12 docs refresh** (`docs`, 2026-08-12):
+>
+> - **Deadline countdown corrected to an August 12 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **42 days in** (was 39); the enrolment grace period **passed 14 days ago** (was 11); AMLA RTS submission deadline **passed 33 days ago** (was 30); the Commission's post-RTS-submission endorsement clock now has **59 days remaining** (was 62); SR 26-2 is **117 days** examination-active (was 114). Numbers verified against `regulatory_calendar.load_calendar()`/`days_remaining()`, the single source of truth the countdown mirrors by hand.
+> - **Primary-source check, 2026-08-12**: no new confirmed developments on any of the four tracked items since Round 46 — AUSTRAC has announced no further enforcement action against the newly regulated Tranche 2 DNFBP population beyond the Sportsbet/bet365 undertakings already reported (Round 45); no independently verifiable press release confirms AMLA's RTS submission occurred; the FinCEN AML Program Effectiveness NPRM and FinCEN Whistleblower Incentives and Protections NPRM both remain pending rulemakings with no final rule. The calendar's `fincen-aml-program-effective` entry (2026-08-15, generic `fincen.gov` `source_url`, now 3 days out) is the framework-internal planning milestone #659 already flagged as needing visual distinction from confirmed statutory deadlines — not a new finding, and not treated as one in this round's countdown language.
+> - **No new roadmap issue filed.** #659 already tracks the confirmed-vs-planning distinction; #617/#632/#655 already cover the recurring day-count-refresh and PR-pileup process ground. A 6-query issue search before this note turned up no gap this round surfaced that isn't already tracked.
+> - **PR pushed to this session's assigned branch** (`claude/keen-hypatia-morsug`) per the standing branch-isolation constraint.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 46 — August 9 docs refresh + Regulatory Calendar confirmed-vs-planning gap filed** (`docs`, 2026-08-09):
 >
