@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-12. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-13. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 48 — August 13 docs refresh** (`docs`, 2026-08-13):
+>
+> - **Deadline countdown corrected to an August 13 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 is **43 days in** (was 42); the enrolment grace period **passed 15 days ago** (was 14); AMLA RTS submission deadline **passed 34 days ago** (was 33); the Commission's post-RTS-submission endorsement clock now has **58 days remaining** (was 59); SR 26-2 is **118 days** examination-active (was 117). Numbers verified against `regulatory_calendar.load_calendar()`/`days_remaining()`.
+> - **Closed two stale-number occurrences the exact-phrase substitutions in prior rounds had missed**: a `"14 days past"` phrase in `2026-07-fintech-aml-reality.md` and `2026-07-regulator-pulse.md` (the AUSTRAC enrolment fact stated with different wording than the `"14 days ago"` phrase the refresh scripts targeted, so it drifted a round behind), and a `"AUSTRAC Tranche 2 has been in effect for 42 days"` sentence in `2026-07-competitive-positioning.md` (missing the `"in"` suffix the targeted phrase expected). Both corrected to the August 13 baseline in this pass; worth a note for whoever next automates this refresh (#608/#620) — phrase-exact substitution is fragile to prose variation.
+> - **Primary-source check, 2026-08-13**: web search across all four tracked items found no new confirmed developments since Round 47 — AUSTRAC's Tranche 2 compliance assessments of the newly regulated DNFBP population remain expected "second half of 2026" with no dated enforcement action found; no independently verifiable press release confirms AMLA's RTS submission occurred; the FinCEN AML Program Effectiveness NPRM and FinCEN Whistleblower Incentives and Protections NPRM both remain pending rulemakings with no final rule.
+> - **No new roadmap issue filed.** #659 already tracks the confirmed-vs-planning distinction; #617/#632/#655 already cover the recurring day-count-refresh and PR-pileup process ground. Scanned the 70-item open-issue backlog before this note — no gap this round surfaced (including the phrase-substitution fragility above) is untracked by an existing issue.
+> - **No demo-repo edit needed.** `tomqwu/aml_open_framework_demo` is a CI-managed build mirror (`.github/workflows/docs-deploy.yml` pushes `mkdocs build` output there on every push to `main` that touches `docs/**`) — it updates automatically once this round's PR merges, not via a direct edit in this session.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 47 — August 12 docs refresh** (`docs`, 2026-08-12):
 >
