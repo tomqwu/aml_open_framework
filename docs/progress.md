@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-13. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-14. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 49 — August 14 docs refresh** (`docs`, 2026-08-14):
+>
+> - **Merged Round 48 (#664) at the top of this run.** It had sat as a draft since 2026-08-13 with all CI green and `mergeable_state: clean` — per #632's precedent (and the Aug 6 status update on that issue), a clean, single, no-longer-ambiguous docs-only PR gets merged directly rather than left to become another pileup entry. Marked ready-for-review and merged before drafting this round, so this refresh is built on the current Aug 13 baseline rather than compounding a second unmerged draft on top of it.
+> - **Deadline countdown corrected to an August 14 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 **44 days in** (was 43); enrolment grace period **passed 16 days ago** (was 15); AMLA RTS submission deadline **passed 35 days ago** (was 34); Commission's post-RTS-submission endorsement clock now has **57 days remaining** (was 58); SR 26-2 is **119 days** examination-active (was 118). Numbers verified against `regulatory_calendar.load_calendar()`/`days_remaining()`.
+> - **Primary-source check, 2026-08-14**: web search across all four tracked items found no new confirmed developments in the August 13–14 window. AUSTRAC's only fresh August action (suspending crypto-ATM operator Cryptolink, Aug 10) targets an already-regulated sector, not a new Tranche 2 DNFBP. AMLA's most recent verifiable RTS publication (breach-classification/enforcement standards, dated mid-July) predates this window and covers a different RTS than the CDD/monitoring/sanctions-screening trio this brief tracks (AMLR Art. 28(1)/26/20(1)(d)) — not treated as confirming the tracked submission. Both FinCEN NPRMs (Effectiveness, Whistleblower) remain pending rulemakings with no final rule.
+> - **No new roadmap issue filed.** #659 already tracks the confirmed-vs-planning distinction gap; #617/#632/#655 already cover the recurring day-count-refresh and PR-pileup process ground. No gap this round surfaced that isn't already tracked.
+> - **`tomqwu/aml_open_framework_demo` needs no direct edit.** It's a CI-managed build mirror that rebuilds from `docs/**` on every push to `main` — confirmed this run: it had already picked up Round 48's merge within minutes, including the `docs/pitch/landing/**` static pages, so this round's changes will propagate the same way.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 48 — August 13 docs refresh** (`docs`, 2026-08-13):
 >
