@@ -1,8 +1,8 @@
 # AML Open Framework — Competitive Positioning Report: July 2026
 
-*Date: 2026-08-14 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery, carried into the July deadline window · Companion: [`2026-07-regulator-pulse.md`](./2026-07-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-06-competitive-positioning.md`](./2026-06-competitive-positioning.md).*
+*Date: 2026-08-15 · Scope: post-May 31 security hardening (H0–H6) + M1–M4 ML roadmap delivery, carried into the July deadline window · Companion: [`2026-07-regulator-pulse.md`](./2026-07-regulator-pulse.md) for the regulatory deadline context. Previous edition: [`2026-06-competitive-positioning.md`](./2026-06-competitive-positioning.md).*
 
-> Refresh anchored to 2026-08-14. Four facts shape the competitive map this month: (1) the Effectiveness NPRM + GENIUS Act NPRM dual comment window **closed 2026-06-09** — the rulemakings are now pending (final rule expected late 2026 / early 2027), and comment-window work becomes documented proactive-posture evidence; (2) AUSTRAC Tranche 2 enforcement is **now in effect** (since 2026-07-01, 44 days in), and the enrolment grace period for newly regulated entities **passed** (2026-07-29, 16 days ago); (3) the AMLA RTS submission deadline **passed** (2026-07-10, 35 days ago) — the Commission's 3-month endorsement clock is now running toward 2026-10-10; (4) SR 26-2 is **119 days examination-active** (April 17 anchor) and the M1–M4 ML roadmap continues to strengthen the framework's challenger-model position.
+> Refresh anchored to 2026-08-15. Four facts shape the competitive map this month: (1) the Effectiveness NPRM + GENIUS Act NPRM dual comment window **closed 2026-06-09** — the rulemakings are now pending (final rule expected late 2026 / early 2027), and comment-window work becomes documented proactive-posture evidence; (2) AUSTRAC Tranche 2 enforcement is **now in effect** (since 2026-07-01, 45 days in), and the enrolment grace period for newly regulated entities **passed** (2026-07-29, 17 days ago); (3) the AMLA RTS submission deadline **passed** (2026-07-10, 36 days ago) — the Commission's 3-month endorsement clock is now running toward 2026-10-10; (4) SR 26-2 is **120 days examination-active** (April 17 anchor) and the M1–M4 ML roadmap continues to strengthen the framework's challenger-model position.
 
 ---
 
@@ -10,11 +10,11 @@
 
 **The June 9 comment window has closed.** The Effectiveness NPRM + GENIUS Act NPRM dual deadline passed on 2026-06-09. There is no published final-rule outcome — both rulemakings are pending. The competitive implication has shifted from "file before the window closes" to "hold the comment-window work as proactive-posture evidence." Firms that completed a gap analysis or filed a comment letter can cite that work in SR 26-2 model governance; firms that deferred are now playing catch-up against a 12-month implementation clock that starts at the final rule.
 
-**AUSTRAC Tranche 2 is now in effect (since 2026-07-01, 44 days in); the enrolment grace period for newly regulated entities has passed (2026-07-29, 16 days ago).** Enforcement began July 1; newly regulated entities providing a designated service without having enrolled were required to do so by July 29. No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with *documented* good-faith compliance efforts. Programs stood up before July 1 are already inside the favourable posture; firms still without one are accruing exposure.
+**AUSTRAC Tranche 2 is now in effect (since 2026-07-01, 45 days in); the enrolment grace period for newly regulated entities has passed (2026-07-29, 17 days ago).** Enforcement began July 1; newly regulated entities providing a designated service without having enrolled were required to do so by July 29. No OSS competitor has shipped an AUSTRAC Tranche 2 example spec. The first-mover window has not closed — AUSTRAC's first-cycle enforceable-undertaking posture still applies to firms with *documented* good-faith compliance efforts. Programs stood up before July 1 are already inside the favourable posture; firms still without one are accruing exposure.
 
-**AMLA RTS submission deadline has passed (2026-07-10, 35 days ago).** No submission confirmation independently verified for this edition. The Commission's 3-month endorsement clock is now running (→ 2026-10-10). For EU-supervised obliged entities, the standard is now locked in; gaps against it become implementation backlogs against the July 2027 application date.
+**AMLA RTS submission deadline has passed (2026-07-10, 36 days ago).** No submission confirmation independently verified for this edition. The Commission's 3-month endorsement clock is now running (→ 2026-10-10). For EU-supervised obliged entities, the standard is now locked in; gaps against it become implementation backlogs against the July 2027 application date.
 
-**SR 26-2 is 119 days examination-active** (April 17 anchor). Q2 examination cycles have run and Q3 cycles are forming. The M2 model-inventory CLI ships the exact artifact second-line MRM teams have been building manually in Excel: `aml model-inventory --markdown` outputs a pipe-formatted table of every rule, every `python_ref` scorer, and the N1 prioritization model — ready for the Q3 model-risk committee report with one command.
+**SR 26-2 is 120 days examination-active** (April 17 anchor). Q2 examination cycles have run and Q3 cycles are forming. The M2 model-inventory CLI ships the exact artifact second-line MRM teams have been building manually in Excel: `aml model-inventory --markdown` outputs a pipe-formatted table of every rule, every `python_ref` scorer, and the N1 prioritization model — ready for the Q3 model-risk committee report with one command.
 
 ---
 
@@ -32,7 +32,7 @@
 
 ### Commercial enterprise platforms
 
-**Veteran rules-plus-ML platforms (NICE Actimize SAM, Oracle FCCM, SymphonyAI, FIS/SAS AML).** SR 26-2 has been examination-active since April 17 — 119 days. Q2 2026 examination cycles have run and Q3 cycles are forming. Second-line MRM teams have presented gap analyses to boards. The window for platforms to produce SR-26-2-aligned MRM documentation bundles is open, but the framework's challenger-model position is already established for the first examination cycles — and the M2 model-inventory CLI is the one-command gap-filler for teams still building inventory in Excel.
+**Veteran rules-plus-ML platforms (NICE Actimize SAM, Oracle FCCM, SymphonyAI, FIS/SAS AML).** SR 26-2 has been examination-active since April 17 — 120 days. Q2 2026 examination cycles have run and Q3 cycles are forming. Second-line MRM teams have presented gap analyses to boards. The window for platforms to produce SR-26-2-aligned MRM documentation bundles is open, but the framework's challenger-model position is already established for the first examination cycles — and the M2 model-inventory CLI is the one-command gap-filler for teams still building inventory in Excel.
 
 **AI-native challengers (ComplyAdvantage, Hawk:AI, Featurespace/Visa, Feedzai, Lucinity).** The ML-first model-validation burden under SR 26-2 is real and increasing with each examination cycle. A challenger that cannot produce a deterministic replay of a flagged alert — with identical output hashes across runs — fails the SR 26-2 independent-validation test. The M3 champion-challenger outcome report + temporal-leakage guard is the artifact none of these platforms can produce on demand.
 
@@ -40,7 +40,7 @@
 
 ### Open source — July 2026
 
-- **Marble (checkmarble/marble):** Strongest direct alternative. Still has no Compliance Manifest, MRM bundle, or deterministic-rerun guarantee — and no SR 26-2 model inventory or champion-challenger outcome report. SR 26-2 examination-active for 119 days — the gap is now being felt and the M2 CLI widens it further.
+- **Marble (checkmarble/marble):** Strongest direct alternative. Still has no Compliance Manifest, MRM bundle, or deterministic-rerun guarantee — and no SR 26-2 model inventory or champion-challenger outcome report. SR 26-2 examination-active for 120 days — the gap is now being felt and the M2 CLI widens it further.
 - **Jube (jube-home):** ML-first. SR 26-2 headwind unchanged.
 - **FINOS OpenAML:** Labs-stage. No change.
 
@@ -58,7 +58,7 @@ No OSS competitor has shipped: (a) an AUSTRAC Tranche 2 example spec, (b) a PPSI
 
 **GENIUS Act PPSI template positioning held through the closed comment window.** The NPRM proposes BSA-program + OFAC sanctions compliance for permitted payment stablecoin issuers. The comment window **closed June 9**; the rulemaking is pending. The framework already ships two PPSI example specs — publishing a PPSI-compliance reference template during the comment window positioned the framework as the PPSI baseline before any competitor, and that positioning carries into the pending-rule phase.
 
-**AUSTRAC Tranche 2 has been in effect for 44 days.** No OSS competitor exists. One PR, one new buyer segment, enforceable since July 1 — and the July 29 enrolment grace-period deadline has now passed, closing the second near-term moment to lead with the example spec.
+**AUSTRAC Tranche 2 has been in effect for 45 days.** No OSS competitor exists. One PR, one new buyer segment, enforceable since July 1 — and the July 29 enrolment grace-period deadline has now passed, closing the second near-term moment to lead with the example spec.
 
 ---
 
@@ -66,7 +66,7 @@ No OSS competitor has shipped: (a) an AUSTRAC Tranche 2 example spec, (b) a PPSI
 
 | Priority | Feature | Status | Why now |
 |---|---|---|---|
-| #1 | **AUSTRAC Tranche 2 example spec** (`examples/austrac_tranche_2_dnfbp/`) | Shipped — sustain | Enforcement **in effect since July 1** (44 days in); enrolment grace period passed July 29 (16 days ago). No OSS competitor. First-mover in an uncontested buyer segment; sustain the lead with audit-pack jurisdiction tags. |
+| #1 | **AUSTRAC Tranche 2 example spec** (`examples/austrac_tranche_2_dnfbp/`) | Shipped — sustain | Enforcement **in effect since July 1** (45 days in); enrolment grace period passed July 29 (17 days ago). No OSS competitor. First-mover in an uncontested buyer segment; sustain the lead with audit-pack jurisdiction tags. |
 | #2 | **AMLA STR/RTS effectiveness telemetry pack** | Shipped (#528) | **AMLA RTS submission deadline passed July 10; Commission endorsement clock running to Oct 10.** Alert→case→STR funnel + per-rule precision/recall + AMLA citation coverage, packaged against AMLR Art. 28(1)/26/20(1)(d). |
 | #3 | **GENIUS Act / PPSI compliance template** (`examples/genius_ppsi_*`) | Shipped — sustain | Comment window closed June 9; rulemaking pending. Two PPSI specs already ship — maintain as the PPSI baseline ahead of a final rule. |
 | #4 | **FinCEN Whistleblower internal-channel audit tool** | Shipped (#531) | Comment period closed June 1. Final rule coming late 2026. `aml whistleblower-audit` emits `whistleblower_audit_report.json` — the pre-implementation evidence artifact. |
