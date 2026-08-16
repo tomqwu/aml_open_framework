@@ -1,6 +1,20 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-15. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-16. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 51 — August 16 docs refresh** (`docs`, 2026-08-16):
+>
+> - **Merged Round 50 (#666) at the top of this run.** It had sat as a draft since 2026-08-15 with all CI green and `mergeable_state: clean` — per #632's precedent, a clean, single, no-longer-ambiguous docs-only PR gets merged directly rather than left to become another pileup entry. Marked ready-for-review and merged before drafting this round.
+> - **Deadline countdown corrected to an August 16 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 **46 days in** (was 45); enrolment grace period **passed 18 days ago** (was 17); AMLA RTS submission deadline **passed 37 days ago** (was 36); Commission's post-RTS-submission endorsement clock now has **55 days remaining** (was 56); SR 26-2 is **121 days** examination-active (was 120). Numbers verified against `regulatory_calendar.load_calendar()`/`days_remaining()`.
+> - **Caught two stale "16 days past" occurrences** (`2026-07-regulator-pulse.md` FINTECH-10-adjacent AUSTRAC section; `2026-07-fintech-aml-reality.md` FINTECH-10) that Round 50's exact-phrase substitutions missed — both were stuck at the Aug 14 value while sibling phrases in the same files already read "17 days ago". Corrected to **18 days past**, matching this round's baseline. Same class of gap Round 48 found; the exact-phrase-substitution approach remains fragile to wording variants, per #637/#620's broader tracking of this failure mode.
+> - **The `fincen-aml-program-effective` calendar entry has aged out of `active_deadlines()`'s upcoming list as of today.** It reached its own self-imposed 2026-08-15 checkpoint yesterday (Round 50) and — per #659 (still open) — was never a confirmed FinCEN deadline (no final rule has issued), so it is not reworded as "a deadline passed" the way the three confirmed items above are. It simply no longer appears in the forward calendar.
+> - **Primary-source check, 2026-08-16**: web search across all four tracked items (AUSTRAC Tranche 2 DNFBP enforcement, AMLA RTS submission confirmation, FinCEN Effectiveness NPRM, FinCEN Whistleblower NPRM) found no new confirmed developments. AUSTRAC's compliance assessments of the newly regulated Tranche 2 DNFBP population remain expected "second half of 2026" with no dated action found. No independently verifiable press release confirms AMLA's 2026-07-10 RTS submission occurred. Both FinCEN NPRMs (Effectiveness, Whistleblower) remain pending rulemakings with no final rule — as of today, still proposed, not final.
+> - **No new roadmap issue filed.** #659/#617/#632/#655 already cover the ground this round surfaced. No gap this round surfaced that isn't already tracked by an existing open issue.
+> - **`tomqwu/aml_open_framework_demo` needs no direct edit.** It's a CI-managed build mirror (`.github/workflows/docs-deploy.yml` pushes `mkdocs build` output there on every push to `main` touching `docs/**`) — it updates automatically once this round's PR merges.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 50 — August 15 docs refresh** (`docs`, 2026-08-15):
 >
