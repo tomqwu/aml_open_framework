@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-17. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-18. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 53 — August 18 docs refresh** (`docs`, 2026-08-18):
+>
+> - **Merged Round 52 (#669) at the top of this run.** It had sat as a clean, all-21-checks-green draft since 2026-08-17. Per #632's precedent, merged it directly instead of leaving it to become another pileup entry, then built this refresh on the current baseline.
+> - **Deadline countdown corrected to an August 18 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 **48 days in** (was 47); enrolment grace period **passed 20 days ago** (was 19); AMLA RTS submission deadline **passed 39 days ago** (was 38); Commission's post-RTS-submission endorsement clock now has **53 days remaining** (was 54); SR 26-2 is **123 days** examination-active (was 122). Numbers verified by direct date-arithmetic against the confirmed statutory dates. The three `#668`-tracked frozen "121 days, 33 events" instances (the fixed 2026-02-01→2026-05-31 chronological-log window) were left untouched, as that issue directs.
+> - **Primary-source check, 2026-08-18** (web search across AUSTRAC Tranche 2 DNFBP enforcement, AMLA RTS submission confirmation, FinCEN Effectiveness NPRM, FinCEN Whistleblower NPRM): no new confirmed developments. AUSTRAC's compliance assessments of the newly regulated Tranche 2 DNFBP population remain expected "second half of 2026" with no dated action found. A search this round surfaced an AI-generated summary asserting AMLA "submitted its draft RTS on customer due diligence" on 2026-07-10, but every underlying source it cited was a pre-deadline preview/guide describing the RTS package as *due* July 10, not a dated post-submission confirmation; a direct check of `amla.europa.eu`'s own press releases found none announcing the CDD/monitoring/sanctions-screening RTS trio's submission — the one AMLA release in that window concerns a separate enforcement-standards RTS (AMLD Art. 53(10)), consistent with the distinction Round 49 already drew. Treated as still-unconfirmed, consistent with every prior round's practice of not asserting a regulatory outcome that isn't independently verified. Both FinCEN NPRMs (Effectiveness, Whistleblower) remain pending rulemakings with no final rule.
+> - **No new roadmap issue filed.** Checked #659 (confirmed-vs-planning display gap), #668 (frozen-window bug), #617/#632/#655 (recurring refresh/pileup/Actions-permissions ground) — all still open and still cover the ground this round surfaced.
+> - **`tomqwu/aml_open_framework_demo` needs no direct edit.** It's a CI-managed build mirror (`.github/workflows/docs-deploy.yml` pushes `mkdocs build` output there on every push to `main` touching `docs/**`) — it updates automatically once this round's PR merges.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 52 — August 17 docs refresh + frozen-window drift bug filed** (`docs`, 2026-08-17):
 >
