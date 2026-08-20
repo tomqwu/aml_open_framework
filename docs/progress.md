@@ -1,6 +1,18 @@
 # Project Progress
 
-Snapshot of where the AML Open Framework is as of 2026-08-19. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+Snapshot of where the AML Open Framework is as of 2026-08-20. This document is a fact-based audit of what's shipped, not a roadmap or marketing piece. For "what's next?" see [`getting-started.md`](getting-started.md) and the [Changelog](../CHANGELOG.md).
+
+> **Round 55 — August 20 docs refresh** (`docs`, 2026-08-20):
+>
+> - **Merged Round 54 (#671) at the top of this run.** It had sat as a clean, all-21-checks-green draft since 2026-08-19. Per #632's precedent, merged it directly instead of leaving it to become another pileup entry, then built this refresh on the current baseline.
+> - **Deadline countdown corrected to an August 20 baseline** across all five `docs/research/2026-07-*.md` editions, `docs/index.md`'s deadline card, and the `docs/pitch/landing/` + `docs/pitch/landing/research/*.html` mirror pages: AUSTRAC Tranche 2 **50 days in** (was 49); enrolment grace period **passed 22 days ago** (was 21); AMLA RTS submission deadline **passed 41 days ago** (was 40); Commission's post-RTS-submission endorsement clock now has **51 days remaining** (was 52); SR 26-2 is **125 days** examination-active (was 124). Numbers verified by direct date-arithmetic against the confirmed statutory dates (2026-07-01 AUSTRAC, 2026-07-29 enrolment, 2026-07-10 AMLA RTS, 2026-04-17 SR 26-2 effective, 2026-10-10 Commission endorsement target). The `#668`-tracked frozen "121 days, 33 events" instances (the fixed 2026-02-01→2026-05-31 chronological-log window) were left untouched, as that issue directs.
+> - **Primary-source check, 2026-08-20** (web search across AUSTRAC Tranche 2 DNFBP enforcement, AMLA RTS submission confirmation, FinCEN Effectiveness NPRM, FinCEN Whistleblower NPRM): no new confirmed developments. AUSTRAC's compliance assessments of the Tranche 2 DNFBP population remain expected "second half of 2026" with no dated action found this round. No independently verifiable AMLA press release confirms the tracked CDD/monitoring/sanctions-screening RTS trio's submission. Both FinCEN NPRMs (Effectiveness, Whistleblower) remain pending rulemakings with no final rule. Also checked the AUSTRAC corporate penalty-unit figure this round (a stale search snippet cited $330/unit): confirmed via AustLII's Crimes Act 1914 s4AA that $364 is the correct value for offences from 2026-07-01 ($330 was the superseded 2025 rate) — the framework's existing **A$36.4M** figure is unchanged and correct, no fix needed.
+> - **No new roadmap issue filed.** Checked #659 (confirmed-vs-planning display gap), #668 (frozen-window bug), #617/#632/#655 (recurring refresh/pileup/Actions-permissions ground) — all still open and still cover the ground this round surfaced.
+> - **`tomqwu/aml_open_framework_demo` needs no direct edit.** It's a CI-managed build mirror (`.github/workflows/docs-deploy.yml` pushes `mkdocs build` output there on every push to `main` touching `docs/**`) — it updates automatically once this round's PR merges.
+>
+> No code changes; no CI targets affected.
+
+---
 
 > **Round 54 — August 19 docs refresh** (`docs`, 2026-08-19):
 >
