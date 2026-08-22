@@ -176,6 +176,15 @@ logic:
     sum_amount:  { gte: 25000 }
 ```
 
+#### Identifier positions are restricted
+
+`group_by` entries and `filter` field names are inlined into generated SQL
+as **identifiers** (column names), not values, so both must match
+`^[a-z][a-z0-9_]*$` — the same shape as declared contract columns. Anything
+else (spaces, punctuation, SQL metacharacters) is rejected at spec load and
+again at SQL compile time. Filter/having *values* are independent: they are
+escaped as SQL literals and may contain any text.
+
 #### Point-in-time enrichment — `enrich` (M4 / #484)
 
 To evaluate a rule against reference state **as of each transaction's date**
@@ -222,6 +231,17 @@ logic:
 ```
 
 ### Logic type: `custom_sql` (escape hatch)
+
+> ⚠️ **`custom_sql` is unrestricted SQL execution.** The engine substitutes
+> the time-window template variables and runs the statement as written — no
+> AST validation, no keyword filtering. A spec author with a `custom_sql`
+> rule can enumerate schema, exhaust memory (recursive CTEs, Cartesian
+> products), or — against a production warehouse adapter — run arbitrary
+> SQL. The reference engine contains this with a hardened in-memory DuckDB
+> (external access and extension loading disabled), but the **spec review
+> itself is the control**: treat any PR adding or changing a `custom_sql`
+> rule as privileged-code review, and prefer `aggregation_window` +
+> `having` + `enrich` whenever they can express the logic.
 
 ```yaml
 logic:

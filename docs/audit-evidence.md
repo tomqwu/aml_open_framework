@@ -89,6 +89,38 @@ shell access could rewrite history. Production deployments should:
 The framework provides the artifacts; the institution provides the
 tamper-evident substrate.
 
+### Pinning the decisions hash out-of-band (do this in production)
+
+`aml verify-decisions` without arguments compares `decisions.jsonl` against
+the `decisions_hash` recorded in the same run directory's `manifest.json`.
+That catches accidental corruption and *partial* tampering — but an attacker
+with write access to the run directory can rewrite the ledger **and** the
+manifest together, and the check will pass. The chain is only tamper-evident
+when the expected hash lives somewhere the attacker can't reach.
+
+Operationalise it in two steps:
+
+1. **At run finalisation**, copy `manifest.json`'s `decisions_hash` to a
+   store outside the run directory's trust domain — a database row written
+   by a separate service identity, an append-only/WORM bucket, or a signed
+   ops log:
+
+   ```sql
+   INSERT INTO audit_pins (run_id, decisions_hash, pinned_at)
+   VALUES ('run-20260610T153222Z', '<decisions_hash from manifest.json>', now());
+   ```
+
+2. **At verification time**, pass that externally-stored value back in:
+
+   ```bash
+   aml verify-decisions --run-dir .artifacts/run-20260610T153222Z \
+       --expected-hash "$(psql -tA -c "SELECT decisions_hash FROM audit_pins WHERE run_id='run-20260610T153222Z'")"
+   ```
+
+A mismatch exits non-zero and is a reportable control-integrity failure.
+When an examiner asks *"how do you know this ledger wasn't edited after the
+run?"*, the answer is this pin — not the file system.
+
 ## What an auditor can answer with a bundle
 
 - "Which exact rule wording produced alert A-1234?" — `spec_snapshot.yaml` +
